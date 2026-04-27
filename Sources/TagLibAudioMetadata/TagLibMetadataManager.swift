@@ -294,7 +294,10 @@ public struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
 
 public enum TagLibManagerError: Error, Sendable {
     case unsupportedFormat
+    @available(*, deprecated, message: "Use failedToReadWithUnderlying(_:) for throwing read failures.")
     case failedToRead
+    case failedToReadWithUnderlying(String)
+    case verificationFailed([String])
 }
 
 /// Thin wrapper around the Objective-C++ `TagLibMetadataExtractor`.
@@ -367,6 +370,21 @@ public struct TagLibMetadataManager {
         }
     }
 
+    public enum RawPropertyMapWriteMode: Sendable {
+        /// Replace the file's TagLib PropertyMap with exactly the provided key/value pairs.
+        case replace
+
+        /// Merge the provided key/value pairs into the current TagLib PropertyMap.
+        ///
+        /// Empty values remove matching keys, mirroring the bridge's existing trimming behavior.
+        case merge
+    }
+
+    public enum VerificationFailurePolicy: Sendable {
+        case warn
+        case `throw`
+    }
+
     nonisolated private static func isHiddenInternalRawFieldKey(_ key: String) -> Bool {
         hiddenInternalRawFieldKeys.contains(
             key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -414,14 +432,36 @@ public struct TagLibMetadataManager {
         let expected = key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !expected.isEmpty else { return true }
 
+        let acceptedKeys = normalizedRawKeyAliases(for: expected)
         for property in dump.properties {
             let candidate = property.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            if candidate == expected || candidate.hasSuffix(":\(expected)") || candidate.contains(expected) {
+            if acceptedKeys.contains(candidate) {
                 return true
             }
         }
 
         return false
+    }
+
+    nonisolated private static func normalizedRawKeyAliases(for key: String) -> Set<String> {
+        var aliases: Set<String> = [key]
+
+        let mp4FreeformPrefix = "----:COM.APPLE.ITUNES:"
+        if key.hasPrefix(mp4FreeformPrefix) {
+            aliases.insert(String(key.dropFirst(mp4FreeformPrefix.count)))
+        } else {
+            aliases.insert("\(mp4FreeformPrefix)\(key)")
+        }
+
+        return aliases
+    }
+
+    nonisolated private static func applyVerificationFailurePolicy(
+        _ policy: VerificationFailurePolicy,
+        warnings: [String]
+    ) throws {
+        guard policy == .throw, !warnings.isEmpty else { return }
+        throw TagLibManagerError.verificationFailed(warnings)
     }
 
     nonisolated private static func explicitValueSource(from dump: RawMetadataDump, fallback: Bool) -> MetadataValueSource {
@@ -608,7 +648,19 @@ public struct TagLibMetadataManager {
             let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty else { continue }
 
-            guard let persistedValues = lookup[key], !persistedValues.isEmpty else {
+            if value.isEmpty {
+                if lookup.keys.contains(where: { normalizedRawKeyAliases(for: key).contains($0) }) {
+                    warnings.append("Raw key \"\(rawKey)\" was expected to be removed after save.")
+                }
+                continue
+            }
+
+            let aliasKeys = normalizedRawKeyAliases(for: key)
+            let persistedValues = aliasKeys
+                .compactMap { lookup[$0] }
+                .flatMap { $0 }
+
+            guard !persistedValues.isEmpty else {
                 warnings.append("Raw key \"\(rawKey)\" was not found after save.")
                 continue
             }
@@ -636,6 +688,42 @@ public struct TagLibMetadataManager {
         }
 
         return warnings
+    }
+
+    nonisolated private static func resolvedRawPropertyMapForWrite(
+        _ properties: [String: String],
+        to url: URL,
+        mode: RawPropertyMapWriteMode
+    ) throws -> [String: String] {
+        switch mode {
+        case .replace:
+            return properties
+
+        case .merge:
+            var merged = try rawMetadataResult(from: url).properties.reduce(into: [String: String]()) { result, entry in
+                let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines)
+                let value = entry.value.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !key.isEmpty, !value.isEmpty else { return }
+                result[key] = value
+            }
+
+            for (rawKey, rawValue) in properties {
+                let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !key.isEmpty else { continue }
+
+                let normalizedAliases = normalizedRawKeyAliases(for: key.uppercased())
+                for existingKey in Array(merged.keys) where normalizedAliases.contains(existingKey.uppercased()) {
+                    merged.removeValue(forKey: existingKey)
+                }
+
+                let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !value.isEmpty {
+                    merged[key] = value
+                }
+            }
+
+            return merged
+        }
     }
 
     nonisolated private static func parsedPropertyEntries(fromDumpText text: String) -> [RawPropertyEntry] {
@@ -733,14 +821,13 @@ public struct TagLibMetadataManager {
         return nil
     }
 
-    public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
+    public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
         // 1. Quickly filter by file extension.
         let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty else { return nil }
+        guard !ext.isEmpty else { throw TagLibManagerError.unsupportedFormat }
 
         if !TagLibMetadataExtractor.isSupportedFormat(ext) {
-            // Unsupported formats fall back to the AVFoundation path.
-            return nil
+            throw TagLibManagerError.unsupportedFormat
         }
 
         do {
@@ -875,6 +962,17 @@ public struct TagLibMetadataManager {
                 )
             )
         } catch {
+            if let managerError = error as? TagLibManagerError {
+                throw managerError
+            }
+            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
+        }
+    }
+
+    public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
+        do {
+            return try readMetadataResult(from: url)
+        } catch {
             print("TagLib read error for \(url.lastPathComponent): \(error)")
             return nil
         }
@@ -886,7 +984,8 @@ public struct TagLibMetadataManager {
     public nonisolated static func writeTagMetadata(
         _ metadata: TagLibAudioMetadata,
         to url: URL,
-        verification: MetadataWriteVerificationContext = .none
+        verification: MetadataWriteVerificationContext = .none,
+        failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
@@ -894,8 +993,10 @@ public struct TagLibMetadataManager {
         }
 
         try TagLibMetadataExtractor.writeMetadata(metadata, to: url)
+        let warnings = metadataWriteWarnings(for: url, verification: verification)
+        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
         return MetadataWriteResult(
-            warnings: metadataWriteWarnings(for: url, verification: verification)
+            warnings: warnings
         )
     }
 
@@ -904,7 +1005,8 @@ public struct TagLibMetadataManager {
         _ trackNumberText: String,
         discNumberText: String?,
         to url: URL,
-        verifyAfterWrite: Bool = true
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
@@ -924,41 +1026,45 @@ public struct TagLibMetadataManager {
         let expectedTrackPair = parseNumberPair(trackNumberText)
         let expectedDiscPair = parseNumberPair(normalizedTrimmed(discNumberText))
 
-        return MetadataWriteResult(
-            warnings: metadataWriteWarnings(
-                for: url,
-                verification: MetadataWriteVerificationContext(
-                    expectedTrackNumber: expectedTrackPair.number > 0 ? expectedTrackPair.number : nil,
-                    expectedTrackTotal: expectedTrackPair.total > 0 ? expectedTrackPair.total : nil,
-                    expectedTrackNumberText: trackNumberText,
-                    expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
-                    expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
-                    expectedDiscNumberText: discNumberText,
-                    expectedExplicitContent: nil,
-                    artworkExpectation: .unchanged,
-                    customFieldKeys: []
-                )
+        let warnings = metadataWriteWarnings(
+            for: url,
+            verification: MetadataWriteVerificationContext(
+                expectedTrackNumber: expectedTrackPair.number > 0 ? expectedTrackPair.number : nil,
+                expectedTrackTotal: expectedTrackPair.total > 0 ? expectedTrackPair.total : nil,
+                expectedTrackNumberText: trackNumberText,
+                expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
+                expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
+                expectedDiscNumberText: discNumberText,
+                expectedExplicitContent: nil,
+                artworkExpectation: .unchanged,
+                customFieldKeys: []
             )
         )
+        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+        return MetadataWriteResult(warnings: warnings)
     }
 
     @discardableResult
     public nonisolated static func writeRawMetadataPropertyMapWithVerification(
         _ properties: [String: String],
         to url: URL,
-        verifyAfterWrite: Bool = true
+        mode: RawPropertyMapWriteMode = .replace,
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        try TagLibMetadataExtractor.writeRawPropertyMap(properties, to: url)
-        return MetadataWriteResult(
-            warnings: verifyAfterWrite
-                ? rawPropertyMapWriteWarnings(requestedProperties: properties, for: url)
-                : []
-        )
+        let resolvedProperties = try resolvedRawPropertyMapForWrite(properties, to: url, mode: mode)
+        try TagLibMetadataExtractor.writeRawPropertyMap(resolvedProperties, to: url)
+
+        let warnings = verifyAfterWrite
+            ? rawPropertyMapWriteWarnings(requestedProperties: properties, for: url)
+            : []
+        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+        return MetadataWriteResult(warnings: warnings)
     }
 
     nonisolated private static func residualWarningsAfterErase(for url: URL) -> [String] {
@@ -1004,7 +1110,10 @@ public struct TagLibMetadataManager {
     }
 
     @discardableResult
-    public nonisolated static func eraseAllMetadataWithVerification(from url: URL) throws -> MetadataWriteResult {
+    public nonisolated static func eraseAllMetadataWithVerification(
+        from url: URL,
+        failurePolicy: VerificationFailurePolicy = .warn
+    ) throws -> MetadataWriteResult {
         let meta = TagLibAudioMetadata()
         meta.title = ""
         meta.artist = ""
@@ -1058,7 +1167,8 @@ public struct TagLibMetadataManager {
                     expectedExplicitContent: false,
                     artworkExpectation: .absent,
                     customFieldKeys: []
-                )
+                ),
+                failurePolicy: .warn
             ).warnings
         )
 
@@ -1066,22 +1176,22 @@ public struct TagLibMetadataManager {
             contentsOf: try writeRawMetadataPropertyMapWithVerification(
                 [:],
                 to: url,
+                mode: .replace,
                 verifyAfterWrite: false
             ).warnings
         )
 
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))
+        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
         return MetadataWriteResult(warnings: warnings)
     }
 
-    /// Write `BasicMetadata` back to the file using TagLib.
-    ///
-    /// Notes:
-    /// - This is intended for formats supported by our TagLib bridge's write paths.
-    /// - Fields that are empty strings are written as `nil` (i.e. removed/cleared).
-    /// - `publisher` is mapped to TagLib's `label` field.
     @discardableResult
-    public nonisolated static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool {
+    public nonisolated static func writeMetadataWithVerification(
+        _ meta: BasicMetadata,
+        to url: URL,
+        failurePolicy: VerificationFailurePolicy = .warn
+    ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -1182,8 +1292,21 @@ public struct TagLibMetadataManager {
                 expectedExplicitContent: meta.isExplicit,
                 artworkExpectation: .unchanged,
                 customFieldKeys: Array(meta.customFields.keys)
-            )
+            ),
+            failurePolicy: failurePolicy
         )
+        return result
+    }
+
+    /// Write `BasicMetadata` back to the file using TagLib.
+    ///
+    /// Notes:
+    /// - This is intended for formats supported by our TagLib bridge's write paths.
+    /// - Fields that are empty strings are written as `nil` (i.e. removed/cleared).
+    /// - `publisher` is mapped to TagLib's `label` field.
+    @discardableResult
+    public nonisolated static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool {
+        let result = try writeMetadataWithVerification(meta, to: url)
         if !result.warnings.isEmpty {
             print("[AudioMator] Metadata write warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
         }
@@ -1191,13 +1314,17 @@ public struct TagLibMetadataManager {
     }
 
     @discardableResult
-    public nonisolated static func writeRawMetadataPropertyMap(_ properties: [String: String], to url: URL) throws -> Bool {
+    public nonisolated static func writeRawMetadataPropertyMap(
+        _ properties: [String: String],
+        to url: URL,
+        mode: RawPropertyMapWriteMode = .replace
+    ) throws -> Bool {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        let result = try writeRawMetadataPropertyMapWithVerification(properties, to: url)
+        let result = try writeRawMetadataPropertyMapWithVerification(properties, to: url, mode: mode)
         if !result.warnings.isEmpty {
             print("[AudioMator] Raw metadata write warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
         }
