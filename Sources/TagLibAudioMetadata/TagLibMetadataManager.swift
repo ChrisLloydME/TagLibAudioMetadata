@@ -6,6 +6,13 @@
 import Foundation
 @_exported import CTagLibBridge
 
+private extension String {
+    var nilIfEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
 public enum MetadataValueSource: String, Hashable, Sendable {
     case nativeTag
     case propertyMap
@@ -325,6 +332,185 @@ public struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
         self.value = value
         self.description = description
         self.language = language
+    }
+}
+
+// MARK: - Structured Metadata Models
+
+public enum RIFFMetadataWritePolicy: String, Hashable, Sendable {
+    case id3v2Only
+    case preserveInfo
+    case syncBasicFieldsToInfo
+}
+
+public struct StructuredPropertyEntry: Identifiable, Hashable, Sendable {
+    public let id = UUID()
+    public var key: String
+    public var values: [String]
+
+    public init(key: String, values: [String]) {
+        self.key = key
+        self.values = values
+    }
+}
+
+public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
+    public let id = UUID()
+    public var frameID: String
+    public var type: String
+    public var value: String
+    public var values: [String]
+    public var description: String?
+    public var language: String?
+    public var url: String?
+    public var owner: String?
+    public var data: Data?
+    public var fields: [String: String]
+
+    public init(
+        frameID: String,
+        type: String,
+        value: String = "",
+        values: [String] = [],
+        description: String? = nil,
+        language: String? = nil,
+        url: String? = nil,
+        owner: String? = nil,
+        data: Data? = nil,
+        fields: [String: String] = [:]
+    ) {
+        self.frameID = frameID
+        self.type = type
+        self.value = value
+        self.values = values
+        self.description = description
+        self.language = language
+        self.url = url
+        self.owner = owner
+        self.data = data
+        self.fields = fields
+    }
+}
+
+public struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
+    public let id = UUID()
+    public var key: String
+    public var type: String
+    public var value: String
+    public var values: [String]
+    public var first: Int?
+    public var second: Int?
+    public var freeformDescription: String?
+
+    public init(key: String, type: String, value: String = "", values: [String] = [], first: Int? = nil, second: Int? = nil, freeformDescription: String? = nil) {
+        self.key = key
+        self.type = type
+        self.value = value
+        self.values = values
+        self.first = first
+        self.second = second
+        self.freeformDescription = freeformDescription
+    }
+}
+
+public struct StructuredASFAttribute: Identifiable, Hashable, Sendable {
+    public let id = UUID()
+    public var key: String
+    public var type: String
+    public var value: String
+    public var data: Data?
+    public var pictureType: String?
+    public var mimeType: String?
+    public var description: String?
+    public var language: Int
+    public var stream: Int
+
+    public init(key: String, type: String, value: String = "", data: Data? = nil, pictureType: String? = nil, mimeType: String? = nil, description: String? = nil, language: Int = 0, stream: Int = 0) {
+        self.key = key
+        self.type = type
+        self.value = value
+        self.data = data
+        self.pictureType = pictureType
+        self.mimeType = mimeType
+        self.description = description
+        self.language = language
+        self.stream = stream
+    }
+}
+
+public struct StructuredArtwork: Identifiable, Hashable, Sendable {
+    public let id = UUID()
+    public var container: String
+    public var pictureType: String?
+    public var pictureTypeCode: Int?
+    public var mimeType: String
+    public var description: String?
+    public var data: Data
+
+    public init(container: String = "", pictureType: String? = nil, pictureTypeCode: Int? = nil, mimeType: String, description: String? = nil, data: Data) {
+        self.container = container
+        self.pictureType = pictureType
+        self.pictureTypeCode = pictureTypeCode
+        self.mimeType = mimeType
+        self.description = description
+        self.data = data
+    }
+}
+
+public struct StructuredLyrics: Identifiable, Hashable, Sendable {
+    public let id = UUID()
+    public var language: String
+    public var description: String
+    public var text: String
+
+    public init(language: String = "eng", description: String = "", text: String) {
+        self.language = language
+        self.description = description
+        self.text = text
+    }
+}
+
+public struct StructuredComment: Identifiable, Hashable, Sendable {
+    public let id = UUID()
+    public var language: String
+    public var description: String
+    public var text: String
+
+    public init(language: String = "eng", description: String = "", text: String) {
+        self.language = language
+        self.description = description
+        self.text = text
+    }
+}
+
+public struct StructuredMetadata: Hashable, Sendable {
+    public var properties: [StructuredPropertyEntry]
+    public var id3v2Frames: [StructuredID3v2Frame]
+    public var mp4Atoms: [StructuredMP4Atom]
+    public var asfAttributes: [StructuredASFAttribute]
+    public var artwork: [StructuredArtwork]
+    public var lyrics: [StructuredLyrics]
+    public var comments: [StructuredComment]
+    public var warnings: [String]
+
+    public init(
+        properties: [StructuredPropertyEntry] = [],
+        id3v2Frames: [StructuredID3v2Frame] = [],
+        mp4Atoms: [StructuredMP4Atom] = [],
+        asfAttributes: [StructuredASFAttribute] = [],
+        artwork: [StructuredArtwork] = [],
+        lyrics: [StructuredLyrics] = [],
+        comments: [StructuredComment] = [],
+        warnings: [String] = []
+    ) {
+        self.properties = properties
+        self.id3v2Frames = id3v2Frames
+        self.mp4Atoms = mp4Atoms
+        self.asfAttributes = asfAttributes
+        self.artwork = artwork
+        self.lyrics = lyrics
+        self.comments = comments
+        self.warnings = warnings
     }
 }
 
@@ -829,6 +1015,148 @@ public struct TagLibMetadataManager {
         return properties.sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
     }
 
+    nonisolated private static func stringValue(_ dict: [String: Any], _ key: String) -> String {
+        if let value = dict[key] as? String { return value }
+        if let value = dict[key] as? NSNumber { return value.stringValue }
+        return ""
+    }
+
+    nonisolated private static func intValue(_ dict: [String: Any], _ key: String) -> Int? {
+        if let value = dict[key] as? Int { return value }
+        if let value = dict[key] as? NSNumber { return value.intValue }
+        if let value = dict[key] as? String { return Int(value) }
+        return nil
+    }
+
+    nonisolated private static func stringArrayValue(_ dict: [String: Any], _ key: String) -> [String] {
+        (dict[key] as? [String]) ?? []
+    }
+
+    nonisolated private static func dictionaryArray(_ dict: [String: NSObject], _ key: String) -> [[String: Any]] {
+        (dict[key] as? [[String: Any]]) ?? []
+    }
+
+    nonisolated private static func bridgePayload(from metadata: StructuredMetadata, includeProperties: Bool) -> [String: NSObject] {
+        var payload: [String: NSObject] = [:]
+
+        if includeProperties {
+            payload["properties"] = metadata.properties.map { entry in
+                ["key": entry.key, "values": entry.values] as NSDictionary
+            } as NSArray
+        }
+
+        if !metadata.id3v2Frames.isEmpty {
+            payload["id3v2Frames"] = metadata.id3v2Frames.map { frame in
+                var dict: [String: Any] = [
+                    "id": frame.frameID,
+                    "type": frame.type,
+                    "value": frame.value,
+                    "values": frame.values
+                ]
+                dict["description"] = frame.description
+                dict["language"] = frame.language
+                dict["url"] = frame.url
+                dict["owner"] = frame.owner
+                dict["data"] = frame.data
+                for (key, value) in frame.fields { dict[key] = value }
+                return dict as NSDictionary
+            } as NSArray
+        }
+
+        if !metadata.mp4Atoms.isEmpty {
+            payload["mp4Atoms"] = metadata.mp4Atoms.map { atom in
+                var dict: [String: Any] = [
+                    "key": atom.key,
+                    "type": atom.type,
+                    "value": atom.value,
+                    "values": atom.values
+                ]
+                dict["first"] = atom.first
+                dict["second"] = atom.second
+                dict["freeformDescription"] = atom.freeformDescription
+                return dict as NSDictionary
+            } as NSArray
+        }
+
+        if !metadata.asfAttributes.isEmpty {
+            payload["asfAttributes"] = metadata.asfAttributes.map { attribute in
+                var dict: [String: Any] = [
+                    "key": attribute.key,
+                    "type": attribute.type,
+                    "value": attribute.value,
+                    "language": attribute.language,
+                    "stream": attribute.stream
+                ]
+                dict["data"] = attribute.data
+                dict["pictureType"] = attribute.pictureType
+                dict["mimeType"] = attribute.mimeType
+                dict["description"] = attribute.description
+                return dict as NSDictionary
+            } as NSArray
+        }
+
+        if !metadata.artwork.isEmpty {
+            payload["artwork"] = metadata.artwork.map { artwork in
+                var dict: [String: Any] = [
+                    "container": artwork.container,
+                    "mimeType": artwork.mimeType,
+                    "data": artwork.data
+                ]
+                dict["pictureType"] = artwork.pictureType
+                dict["pictureTypeCode"] = artwork.pictureTypeCode
+                dict["description"] = artwork.description
+                return dict as NSDictionary
+            } as NSArray
+        }
+
+        if !metadata.lyrics.isEmpty {
+            payload["lyrics"] = metadata.lyrics.map {
+                ["language": $0.language, "description": $0.description, "text": $0.text] as NSDictionary
+            } as NSArray
+        }
+
+        if !metadata.comments.isEmpty {
+            payload["comments"] = metadata.comments.map {
+                ["language": $0.language, "description": $0.description, "text": $0.text] as NSDictionary
+            } as NSArray
+        }
+
+        return payload
+    }
+
+    nonisolated private static func structuredWriteWarnings(expected: StructuredMetadata, for url: URL) -> [String] {
+        guard let after = try? readStructuredMetadataResult(from: url) else {
+            return ["Could not verify structured metadata after save."]
+        }
+
+        var warnings: [String] = []
+        for frame in expected.id3v2Frames {
+            if !after.id3v2Frames.contains(where: { $0.frameID == frame.frameID && $0.type == frame.type }) {
+                warnings.append("ID3v2 frame \(frame.frameID) could not be confirmed after save.")
+            }
+        }
+        if !expected.comments.isEmpty, after.comments.count < expected.comments.count {
+            warnings.append("Not all structured comments could be confirmed after save.")
+        }
+        if !expected.lyrics.isEmpty, after.lyrics.count < expected.lyrics.count {
+            warnings.append("Not all structured lyrics could be confirmed after save.")
+        }
+        if !expected.artwork.isEmpty, after.artwork.count < expected.artwork.count {
+            warnings.append("Not all artwork entries could be confirmed after save.")
+        }
+        for atom in expected.mp4Atoms {
+            if !after.mp4Atoms.contains(where: { $0.key == atom.key }) {
+                warnings.append("MP4 atom \(atom.key) could not be confirmed after save.")
+            }
+        }
+        for attribute in expected.asfAttributes {
+            if !after.asfAttributes.contains(where: { $0.key == attribute.key }) {
+                warnings.append("ASF attribute \(attribute.key) could not be confirmed after save.")
+            }
+        }
+        return warnings + after.warnings
+    }
+
     // MARK: - Bridge Dump API
 
     /// Return a single plain-text dump of metadata as TagLib sees it.
@@ -1129,6 +1457,171 @@ public struct TagLibMetadataManager {
         let warnings = verifyAfterWrite
             ? rawPropertyMapWriteWarnings(requestedProperties: properties, for: url)
             : []
+        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+        return MetadataWriteResult(warnings: warnings)
+    }
+
+    @discardableResult
+    public nonisolated static func writeRawMetadataPropertyMapValuesWithVerification(
+        _ properties: [String: [String]],
+        to url: URL,
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy = .warn
+    ) throws -> MetadataWriteResult {
+        let ext = url.pathExtension.lowercased()
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
+            throw TagLibManagerError.unsupportedFormat
+        }
+
+        try TagLibMetadataExtractor.writeRawPropertyMapValues(properties, to: url)
+
+        let warnings: [String]
+        if verifyAfterWrite {
+            let after = try rawMetadataResult(from: url)
+            let lookup = after.properties.reduce(into: [String: [String]]()) { result, entry in
+                result[entry.key.uppercased()] = entry.values
+            }
+            warnings = properties.flatMap { key, values -> [String] in
+                let persisted = lookup[key.uppercased()] ?? []
+                return Set(persisted) == Set(values) ? [] : ["Raw multi-value key \"\(key)\" differs after save."]
+            }
+        } else {
+            warnings = []
+        }
+
+        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+        return MetadataWriteResult(warnings: warnings)
+    }
+
+    public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
+        try? readStructuredMetadataResult(from: url)
+    }
+
+    public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {
+        let ext = url.pathExtension.lowercased()
+        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
+            throw TagLibManagerError.unsupportedFormat
+        }
+
+        let dict = try TagLibMetadataExtractor.structuredMetadata(for: url)
+
+        let properties = dictionaryArray(dict, "properties").map {
+            StructuredPropertyEntry(key: stringValue($0, "key"), values: stringArrayValue($0, "values"))
+        }
+
+        let frames = dictionaryArray(dict, "id3v2Frames").map {
+            StructuredID3v2Frame(
+                frameID: stringValue($0, "id"),
+                type: stringValue($0, "type"),
+                value: stringValue($0, "value"),
+                values: stringArrayValue($0, "values"),
+                description: stringValue($0, "description").nilIfEmpty,
+                language: stringValue($0, "language").nilIfEmpty,
+                url: stringValue($0, "url").nilIfEmpty,
+                owner: stringValue($0, "owner").nilIfEmpty,
+                data: $0["data"] as? Data,
+                fields: $0.compactMapValues { $0 as? String }
+            )
+        }
+
+        let atoms = dictionaryArray(dict, "mp4Atoms").map {
+            StructuredMP4Atom(
+                key: stringValue($0, "key"),
+                type: stringValue($0, "type"),
+                value: stringValue($0, "value"),
+                values: stringArrayValue($0, "values"),
+                first: intValue($0, "first"),
+                second: intValue($0, "second"),
+                freeformDescription: stringValue($0, "freeformDescription").nilIfEmpty
+            )
+        }
+
+        let attributes = dictionaryArray(dict, "asfAttributes").map {
+            StructuredASFAttribute(
+                key: stringValue($0, "key"),
+                type: stringValue($0, "type"),
+                value: stringValue($0, "value"),
+                data: $0["data"] as? Data,
+                pictureType: stringValue($0, "pictureType").nilIfEmpty,
+                mimeType: stringValue($0, "mimeType").nilIfEmpty,
+                description: stringValue($0, "description").nilIfEmpty,
+                language: intValue($0, "language") ?? 0,
+                stream: intValue($0, "stream") ?? 0
+            )
+        }
+
+        let artwork = dictionaryArray(dict, "artwork").compactMap { entry -> StructuredArtwork? in
+            guard let data = entry["data"] as? Data else { return nil }
+            return StructuredArtwork(
+                container: stringValue(entry, "container"),
+                pictureType: stringValue(entry, "pictureType").nilIfEmpty,
+                pictureTypeCode: intValue(entry, "pictureTypeCode"),
+                mimeType: stringValue(entry, "mimeType").nilIfEmpty ?? "application/octet-stream",
+                description: stringValue(entry, "description").nilIfEmpty,
+                data: data
+            )
+        }
+
+        let lyrics = dictionaryArray(dict, "lyrics").map {
+            StructuredLyrics(
+                language: stringValue($0, "language").nilIfEmpty ?? "eng",
+                description: stringValue($0, "description"),
+                text: stringValue($0, "text")
+            )
+        }
+
+        let comments = dictionaryArray(dict, "comments").map {
+            StructuredComment(
+                language: stringValue($0, "language").nilIfEmpty ?? "eng",
+                description: stringValue($0, "description"),
+                text: stringValue($0, "text")
+            )
+        }
+
+        let warnings = (dict["warnings"] as? [String]) ?? []
+
+        return StructuredMetadata(
+            properties: properties,
+            id3v2Frames: frames,
+            mp4Atoms: atoms,
+            asfAttributes: attributes,
+            artwork: artwork,
+            lyrics: lyrics,
+            comments: comments,
+            warnings: warnings
+        )
+    }
+
+    @discardableResult
+    public nonisolated static func writeStructuredMetadataWithVerification(
+        _ metadata: StructuredMetadata,
+        to url: URL,
+        riffPolicy: RIFFMetadataWritePolicy = .preserveInfo,
+        includeProperties: Bool = false,
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy = .warn
+    ) throws -> MetadataWriteResult {
+        let ext = url.pathExtension.lowercased()
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
+            throw TagLibManagerError.unsupportedFormat
+        }
+
+        var warnings: [String] = []
+        if ["wav", "aiff", "aif", "aifc", "afc"].contains(ext) {
+            switch riffPolicy {
+            case .id3v2Only, .preserveInfo:
+                break
+            case .syncBasicFieldsToInfo:
+                warnings.append("syncBasicFieldsToInfo is documented but not yet applied by the structured bridge; existing INFO fields are preserved.")
+            }
+        }
+
+        let payload = bridgePayload(from: metadata, includeProperties: includeProperties)
+        try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: url)
+
+        if verifyAfterWrite {
+            warnings.append(contentsOf: structuredWriteWarnings(expected: metadata, for: url))
+        }
         try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
         return MetadataWriteResult(warnings: warnings)
     }

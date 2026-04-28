@@ -385,6 +385,90 @@ print(result.warnings)
 
 Raw writes trim empty keys and values before passing them to TagLib. In `.replace` mode, passing an empty dictionary clears the property map where supported.
 
+### `writeRawMetadataPropertyMapValuesWithVerification(_:to:verifyAfterWrite:failurePolicy:)`
+
+```swift
+@discardableResult
+public static func writeRawMetadataPropertyMapValuesWithVerification(
+    _ properties: [String: [String]],
+    to url: URL,
+    verifyAfterWrite: Bool = true,
+    failurePolicy: TagLibMetadataManager.VerificationFailurePolicy = .warn
+) throws -> TagLibMetadataManager.MetadataWriteResult
+```
+
+Writes TagLib `PropertyMap` values without flattening multi-value fields. This is the preferred raw API for Xiph/Vorbis comments and any editor that needs to preserve repeated values.
+
+```swift
+let result = try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+    [
+        "ARTIST": ["Alice", "Bob"],
+        "MUSICBRAINZ_ARTISTID": ["artist-id-1", "artist-id-2"]
+    ],
+    to: url
+)
+```
+
+`rawMetadataResult(from:)` returns both `RawPropertyEntry.value` for display and `RawPropertyEntry.values` for lossless editing.
+
+### Structured Container Metadata
+
+Use `StructuredMetadata` when a field cannot be represented safely as one string:
+
+```swift
+let structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+
+for comment in structured.comments {
+    print("\(comment.language) \(comment.description): \(comment.text)")
+}
+
+for artwork in structured.artwork {
+    print("\(artwork.pictureType ?? "artwork") \(artwork.mimeType) \(artwork.data.count)")
+}
+```
+
+Write structured edits with verification:
+
+```swift
+var structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+structured.comments = [
+    StructuredComment(language: "eng", description: "review", text: "Original notes"),
+    StructuredComment(language: "jpn", description: "review", text: "Localized notes")
+]
+
+let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+    structured,
+    to: url,
+    riffPolicy: .preserveInfo
+)
+```
+
+Only collections included in the write payload are edited by the Objective-C++ bridge. Unknown ID3v2 frames, MP4 atoms/freeform atoms, ASF attributes, and unrelated property-map entries are preserved unless the caller explicitly replaces the relevant collection.
+
+Structured coverage in the current vendored TagLib 2.1.1 bridge:
+
+- ID3v2: text frames with value arrays, `TXXX`, `UFID`, `WOAR`/other URL frames, `WXXX`, multi-`COMM`, multi-`USLT`, multi-`APIC`, `CHAP`, `CTOC`, and podcast (`PCST`) frames are exposed. Structured writing covers text/user-text, `UFID`, URL frames, `COMM`, `USLT`, and `APIC`. `CHAP`, `CTOC`, and `PCST` are read/inspected; editing embedded chapter/TOC payloads is not yet exposed as a high-level writer.
+- MP4/iTunes: typed atoms are exposed from the MP4 item map, including `©nam`, `©ART`, `©alb`, `©gen`, `©cmt`, `desc`, `ldes`, `catg`, `purd`, `stik`, `pcst`, `pgap`, `cnID`, `plID`, `geID`, plus existing iTunes/freeform mappings. Structured writing can update typed string, bool, integer, integer-pair, byte, uint, and long-long atoms. Unknown freeform atoms are preserved by default.
+- Xiph/Vorbis Comment: `PropertyMap` values are exposed as arrays. MusicBrainz/Picard aliases such as `MUSICBRAINZ_ARTISTID` / `MUSICBRAINZ ARTIST ID`, `MUSICBRAINZ_ALBUMID` / `MUSICBRAINZ ALBUM ID`, `MUSICBRAINZ_RELEASEGROUPID` / `MUSICBRAINZ RELEASE GROUP ID`, `MUSICBRAINZ_ALBUMTYPE` / `RELEASETYPE`, and `MUSICBRAINZ_ALBUMRELEASECOUNTRY` / `RELEASECOUNTRY` are recognized by the schema/basic extraction while raw structured entries retain original keys and values.
+- ASF/WMA: ASF attributes are exposed with type information for string, bool, integer, binary/guid, and `WM/Picture`. Structured artwork keeps `mimeType`, `pictureType`, `description`, and `data`. Unknown attributes are preserved unless the caller writes the `asfAttributes` collection.
+- Artwork, lyrics, and comments: structured lists preserve multiple entries instead of collapsing to the `BasicMetadata` preferred value.
+
+WAV/AIFF dual-stack behavior:
+
+- `.preserveInfo` is the default policy. Structured writes target ID3v2 where available and avoid clearing existing RIFF INFO fields.
+- `.id3v2Only` writes only ID3v2-facing structured collections.
+- `.syncBasicFieldsToInfo` is reserved for callers that want explicit INFO synchronization; the current bridge returns a verification warning because structured INFO sync is not implemented yet.
+
+Minimal verification path:
+
+```swift
+let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+let write = try TagLibMetadataManager.writeStructuredMetadataWithVerification(before, to: url)
+let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+print(write.warnings)
+print(after.properties.flatMap(\.values))
+```
+
 ### `writeRawMetadataPropertyMap(_:to:mode:)`
 
 ```swift

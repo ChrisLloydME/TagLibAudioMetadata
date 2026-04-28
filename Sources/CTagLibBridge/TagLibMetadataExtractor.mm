@@ -24,6 +24,12 @@
 #include "taglib/taglib/mpeg/id3v2/frames/commentsframe.h"
 #include "taglib/taglib/mpeg/id3v2/frames/unsynchronizedlyricsframe.h"
 #include "taglib/taglib/mpeg/id3v2/frames/popularimeterframe.h"
+#include "taglib/taglib/mpeg/id3v2/frames/attachedpictureframe.h"
+#include "taglib/taglib/mpeg/id3v2/frames/urllinkframe.h"
+#include "taglib/taglib/mpeg/id3v2/frames/uniquefileidentifierframe.h"
+#include "taglib/taglib/mpeg/id3v2/frames/chapterframe.h"
+#include "taglib/taglib/mpeg/id3v2/frames/tableofcontentsframe.h"
+#include "taglib/taglib/mpeg/id3v2/frames/podcastframe.h"
 
 #include "taglib/taglib/mp4/mp4file.h"
 #include "taglib/taglib/mp4/mp4tag.h"
@@ -33,6 +39,9 @@
 #include "taglib/taglib/flac/flacfile.h"
 #include "taglib/taglib/flac/flacpicture.h"
 #include "taglib/taglib/ogg/xiphcomment.h"
+#include "taglib/taglib/asf/asftag.h"
+#include "taglib/taglib/asf/asfattribute.h"
+#include "taglib/taglib/asf/asfpicture.h"
 
 #include "taglib/taglib/ogg/vorbis/vorbisfile.h"
 #include "taglib/taglib/ogg/opus/opusfile.h"
@@ -1668,6 +1677,36 @@ static TagLib::PropertyMap BuildRawPropertyMap(NSDictionary<NSString *, NSString
     return propertyMap;
 }
 
+static TagLib::PropertyMap BuildRawPropertyMapValues(NSDictionary<NSString *, NSArray<NSString *> *> *properties)
+{
+    TagLib::PropertyMap propertyMap;
+
+    if (!properties || properties.count == 0) {
+        return propertyMap;
+    }
+
+    for (NSString *key in properties) {
+        NSString *trimmedKey = TrimmedStringOrNil(key);
+        if (!trimmedKey || IsHiddenInternalMetadataFieldKey(trimmedKey)) {
+            continue;
+        }
+
+        TagLib::StringList values;
+        for (NSString *value in properties[key] ?: @[]) {
+            NSString *trimmedValue = TrimmedStringOrNil(value);
+            if (trimmedValue) {
+                values.append(NSStringToTagString(trimmedValue));
+            }
+        }
+
+        if (!values.isEmpty()) {
+            propertyMap.replace(NSStringToTagString(trimmedKey), values);
+        }
+    }
+
+    return propertyMap;
+}
+
 static void AppendRawPropertyEntries(NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut,
                                      const TagLib::PropertyMap &propertyMap)
 {
@@ -1723,6 +1762,41 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
                                      userInfo:@{ NSLocalizedDescriptionKey : saveErrorMessage }];
         }
         TLog(@"TagLib save() failed after raw property-map write for %@", logContext);
+        return NO;
+    }
+
+    return YES;
+}
+
+template <typename FileType>
+static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
+                                            NSDictionary<NSString *, NSArray<NSString *> *> *properties,
+                                            NSError **error,
+                                            NSInteger openErrorCode,
+                                            NSString *openErrorMessage,
+                                            NSInteger saveErrorCode,
+                                            NSString *saveErrorMessage,
+                                            NSString *logContext)
+{
+    if (!file.isValid()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:openErrorCode
+                                     userInfo:@{ NSLocalizedDescriptionKey : openErrorMessage }];
+        }
+        TLog(@"Failed to open %@ for raw multi-value property-map writing", logContext);
+        return NO;
+    }
+
+    file.setProperties(BuildRawPropertyMapValues(properties));
+
+    if (!file.save()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:saveErrorCode
+                                     userInfo:@{ NSLocalizedDescriptionKey : saveErrorMessage }];
+        }
+        TLog(@"TagLib save() failed after raw multi-value property-map write for %@", logContext);
         return NO;
     }
 
@@ -4273,6 +4347,106 @@ static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSStr
     return NO;
 }
 
++ (BOOL)writeRawPropertyMapValues:(NSDictionary<NSString *, NSArray<NSString *> *> *)properties
+                            toURL:(NSURL *)fileURL
+                            error:(NSError **)error
+{
+    if (!fileURL || !fileURL.isFileURL) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:222
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file URL" }];
+        }
+        return NO;
+    }
+
+    NSString *ext = fileURL.pathExtension.lowercaseString;
+    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    if (!IsWritableTagFileFormat(format)) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:223
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Unsupported audio format" }];
+        }
+        return NO;
+    }
+
+    const char *filePath = fileURL.path.UTF8String;
+    if (!filePath) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:224
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file path" }];
+        }
+        return NO;
+    }
+
+#define WRITE_VALUES_FOR_FILE(TYPE, LABEL) \
+    do { \
+        TYPE file(filePath); \
+        return WriteRawPropertyMapValuesToFile(file, properties ?: @{}, error, 225, \
+            [NSString stringWithFormat:@"Unable to open %@ file for metadata editing", LABEL], 226, \
+            [NSString stringWithFormat:@"TagLib failed to save %@ metadata property changes", LABEL], \
+            [NSString stringWithFormat:@"%@ '%@'", LABEL, fileURL.lastPathComponent]); \
+    } while (false)
+
+    switch (format) {
+        case AudioMatorTagFileFormatMPEGID3:
+        case AudioMatorTagFileFormatMPEGAAC:
+            WRITE_VALUES_FOR_FILE(TagLib::MPEG::File, @"MPEG");
+        case AudioMatorTagFileFormatMP4:
+            WRITE_VALUES_FOR_FILE(TagLib::MP4::File, @"MP4");
+        case AudioMatorTagFileFormatFLAC:
+            WRITE_VALUES_FOR_FILE(TagLib::FLAC::File, @"FLAC");
+        case AudioMatorTagFileFormatOggVorbis:
+            WRITE_VALUES_FOR_FILE(TagLib::Ogg::Vorbis::File, @"Ogg Vorbis");
+        case AudioMatorTagFileFormatOggOpus:
+            WRITE_VALUES_FOR_FILE(TagLib::Ogg::Opus::File, @"Opus");
+        case AudioMatorTagFileFormatOggFlac:
+            WRITE_VALUES_FOR_FILE(TagLib::Ogg::FLAC::File, @"Ogg FLAC");
+        case AudioMatorTagFileFormatOggSpeex:
+            WRITE_VALUES_FOR_FILE(TagLib::Ogg::Speex::File, @"Speex");
+        case AudioMatorTagFileFormatAPE:
+            WRITE_VALUES_FOR_FILE(TagLib::APE::File, @"APE");
+        case AudioMatorTagFileFormatWavPack:
+            WRITE_VALUES_FOR_FILE(TagLib::WavPack::File, @"WavPack");
+        case AudioMatorTagFileFormatMPC:
+            WRITE_VALUES_FOR_FILE(TagLib::MPC::File, @"Musepack");
+        case AudioMatorTagFileFormatWAV:
+            WRITE_VALUES_FOR_FILE(TagLib::RIFF::WAV::File, @"WAV");
+        case AudioMatorTagFileFormatAIFF:
+            WRITE_VALUES_FOR_FILE(TagLib::RIFF::AIFF::File, @"AIFF");
+        case AudioMatorTagFileFormatTTA:
+            WRITE_VALUES_FOR_FILE(TagLib::TrueAudio::File, @"TrueAudio");
+        case AudioMatorTagFileFormatASF:
+            WRITE_VALUES_FOR_FILE(TagLib::ASF::File, @"ASF/WMA");
+        case AudioMatorTagFileFormatDSF:
+            WRITE_VALUES_FOR_FILE(TagLib::DSF::File, @"DSF");
+        case AudioMatorTagFileFormatDSDIFF:
+            WRITE_VALUES_FOR_FILE(TagLib::DSDIFF::File, @"DSDIFF");
+        case AudioMatorTagFileFormatMOD:
+            WRITE_VALUES_FOR_FILE(TagLib::Mod::File, @"MOD");
+        case AudioMatorTagFileFormatS3M:
+            WRITE_VALUES_FOR_FILE(TagLib::S3M::File, @"S3M");
+        case AudioMatorTagFileFormatIT:
+            WRITE_VALUES_FOR_FILE(TagLib::IT::File, @"IT");
+        case AudioMatorTagFileFormatXM:
+            WRITE_VALUES_FOR_FILE(TagLib::XM::File, @"XM");
+        case AudioMatorTagFileFormatUnknown:
+        case AudioMatorTagFileFormatShorten:
+            break;
+    }
+
+#undef WRITE_VALUES_FOR_FILE
+
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                     code:223
+                                 userInfo:@{ NSLocalizedDescriptionKey : @"Unsupported audio format" }];
+    }
+    return NO;
+}
+
 // Parse an NSString like "03/12" or "03" into numeric components and an inferred pad width.
 // padWidth is inferred only from the *track/disc part* (before '/'): if it contains leading zeros,
 // we treat its string length as the desired pad width.
@@ -5344,7 +5518,7 @@ static void ParseNumberPairFromNSString(NSString *text,
             return NO;
         }
 
-        if (!wavFile.save()) {
+        if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:21
@@ -6035,6 +6209,886 @@ static void AppendRIFFInfoSection(NSMutableString *out,
         NSString *value = TagStringToNSString(it->second) ?: @"";
         AppendLine(out, [NSString stringWithFormat:@"%@ = %@", key, value]);
     }
+}
+
+static NSData *DataFromByteVector(const TagLib::ByteVector &data)
+{
+    if (data.isEmpty()) {
+        return [NSData data];
+    }
+    return [NSData dataWithBytes:data.data() length:data.size()];
+}
+
+static NSString *StringFromByteVector(const TagLib::ByteVector &data)
+{
+    if (data.isEmpty()) {
+        return @"";
+    }
+    std::string value(data.data(), data.size());
+    return [NSString stringWithUTF8String:value.c_str()] ?: @"";
+}
+
+static NSString *MP4ItemTypeName(TagLib::MP4::Item::Type type)
+{
+    switch (type) {
+        case TagLib::MP4::Item::Type::Void: return @"void";
+        case TagLib::MP4::Item::Type::Bool: return @"bool";
+        case TagLib::MP4::Item::Type::Int: return @"int";
+        case TagLib::MP4::Item::Type::IntPair: return @"intPair";
+        case TagLib::MP4::Item::Type::Byte: return @"byte";
+        case TagLib::MP4::Item::Type::UInt: return @"uint";
+        case TagLib::MP4::Item::Type::LongLong: return @"longLong";
+        case TagLib::MP4::Item::Type::StringList: return @"stringList";
+        case TagLib::MP4::Item::Type::ByteVectorList: return @"byteVectorList";
+        case TagLib::MP4::Item::Type::CoverArtList: return @"coverArtList";
+    }
+}
+
+static NSString *ASFPictureTypeName(TagLib::ASF::Picture::Type type)
+{
+    return TagStringToNSString(TagLib::ASF::Picture::typeToString(type)) ?: @"Other";
+}
+
+static NSString *ASFAttributeTypeName(TagLib::ASF::Attribute::AttributeTypes type)
+{
+    switch (type) {
+        case TagLib::ASF::Attribute::UnicodeType: return @"string";
+        case TagLib::ASF::Attribute::BytesType: return @"binary";
+        case TagLib::ASF::Attribute::BoolType: return @"bool";
+        case TagLib::ASF::Attribute::DWordType: return @"int";
+        case TagLib::ASF::Attribute::QWordType: return @"int64";
+        case TagLib::ASF::Attribute::WordType: return @"int";
+        case TagLib::ASF::Attribute::GuidType: return @"guid";
+    }
+}
+
+static NSDictionary<NSString *, NSObject *> *StructuredASFAttribute(NSString *key,
+                                                                    const TagLib::ASF::Attribute &attribute)
+{
+    NSMutableDictionary<NSString *, NSObject *> *item = [@{
+        @"key": key ?: @"",
+        @"type": ASFAttributeTypeName(attribute.type()),
+        @"language": @(attribute.language()),
+        @"stream": @(attribute.stream())
+    } mutableCopy];
+
+    if (attribute.type() == TagLib::ASF::Attribute::UnicodeType) {
+        item[@"value"] = TagStringToNSString(attribute.toString()) ?: @"";
+    } else if (attribute.type() == TagLib::ASF::Attribute::BoolType) {
+        item[@"value"] = @(attribute.toBool() != 0);
+    } else if (attribute.type() == TagLib::ASF::Attribute::DWordType) {
+        item[@"value"] = @(attribute.toUInt());
+    } else if (attribute.type() == TagLib::ASF::Attribute::QWordType) {
+        item[@"value"] = @(attribute.toULongLong());
+    } else if (attribute.type() == TagLib::ASF::Attribute::WordType) {
+        item[@"value"] = @(attribute.toUShort());
+    } else if (attribute.type() == TagLib::ASF::Attribute::BytesType) {
+        item[@"data"] = DataFromByteVector(attribute.toByteVector());
+        item[@"byteCount"] = @(attribute.toByteVector().size());
+    } else {
+        item[@"data"] = DataFromByteVector(attribute.toByteVector());
+        item[@"byteCount"] = @(attribute.toByteVector().size());
+    }
+
+    if ([key isEqualToString:@"WM/Picture"]) {
+        TagLib::ASF::Picture picture = attribute.toPicture();
+        if (picture.isValid()) {
+            item[@"pictureType"] = ASFPictureTypeName(picture.type());
+            item[@"mimeType"] = TagStringToNSString(picture.mimeType()) ?: @"";
+            item[@"description"] = TagStringToNSString(picture.description()) ?: @"";
+            item[@"data"] = DataFromByteVector(picture.picture());
+            item[@"byteCount"] = @(picture.picture().size());
+        }
+    }
+
+    return item;
+}
+
+static void AppendStructuredID3v2(TagLib::ID3v2::Tag *tag,
+                                  NSMutableArray<NSDictionary<NSString *, NSObject *> *> *framesOut,
+                                  NSMutableArray<NSDictionary<NSString *, NSObject *> *> *artworkOut,
+                                  NSMutableArray<NSDictionary<NSString *, NSObject *> *> *lyricsOut,
+                                  NSMutableArray<NSDictionary<NSString *, NSObject *> *> *commentsOut)
+{
+    if (!tag) return;
+
+    TagLib::ID3v2::FrameList frames = tag->frameList();
+    for (auto fit = frames.begin(); fit != frames.end(); ++fit) {
+        TagLib::ID3v2::Frame *frame = *fit;
+        if (!frame) continue;
+
+        TagLib::ByteVector frameIdBytes = frame->frameID();
+        std::string idStr(frameIdBytes.data(), frameIdBytes.size());
+        NSString *frameID = idStr.empty() ? @"" : [NSString stringWithUTF8String:idStr.c_str()];
+        NSMutableDictionary<NSString *, NSObject *> *item = [@{
+            @"id": frameID ?: @"",
+            @"value": TagStringToNSString(frame->toString()) ?: @""
+        } mutableCopy];
+
+        if (auto *ufid = dynamic_cast<TagLib::ID3v2::UniqueFileIdentifierFrame *>(frame)) {
+            item[@"type"] = @"ufid";
+            item[@"owner"] = TagStringToNSString(ufid->owner()) ?: @"";
+            item[@"data"] = DataFromByteVector(ufid->identifier());
+            item[@"byteCount"] = @(ufid->identifier().size());
+        } else if (auto *userUrl = dynamic_cast<TagLib::ID3v2::UserUrlLinkFrame *>(frame)) {
+            item[@"type"] = @"url";
+            item[@"description"] = TagStringToNSString(userUrl->description()) ?: @"";
+            item[@"url"] = TagStringToNSString(userUrl->url()) ?: @"";
+        } else if (auto *url = dynamic_cast<TagLib::ID3v2::UrlLinkFrame *>(frame)) {
+            item[@"type"] = @"url";
+            item[@"url"] = TagStringToNSString(url->url()) ?: @"";
+        } else if (auto *comm = dynamic_cast<TagLib::ID3v2::CommentsFrame *>(frame)) {
+            item[@"type"] = @"comment";
+            item[@"description"] = TagStringToNSString(comm->description()) ?: @"";
+            item[@"language"] = TagStringToNSString(comm->language()) ?: @"";
+            item[@"text"] = TagStringToNSString(comm->text()) ?: @"";
+            [commentsOut addObject:item];
+        } else if (auto *uslt = dynamic_cast<TagLib::ID3v2::UnsynchronizedLyricsFrame *>(frame)) {
+            item[@"type"] = @"lyrics";
+            item[@"description"] = TagStringToNSString(uslt->description()) ?: @"";
+            item[@"language"] = TagStringToNSString(uslt->language()) ?: @"";
+            item[@"text"] = TagStringToNSString(uslt->text()) ?: @"";
+            [lyricsOut addObject:item];
+        } else if (auto *pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(frame)) {
+            item[@"type"] = @"artwork";
+            item[@"pictureType"] = TagStringToNSString(TagLib::ID3v2::AttachedPictureFrame::typeToString(pic->type())) ?: @"";
+            item[@"pictureTypeCode"] = @((int)pic->type());
+            item[@"mimeType"] = TagStringToNSString(pic->mimeType()) ?: @"";
+            item[@"description"] = TagStringToNSString(pic->description()) ?: @"";
+            item[@"data"] = DataFromByteVector(pic->picture());
+            item[@"byteCount"] = @(pic->picture().size());
+            [artworkOut addObject:item];
+        } else if (auto *chapter = dynamic_cast<TagLib::ID3v2::ChapterFrame *>(frame)) {
+            item[@"type"] = @"chapter";
+            item[@"elementID"] = StringFromByteVector(chapter->elementID());
+            item[@"startTimeMilliseconds"] = @(chapter->startTime());
+            item[@"endTimeMilliseconds"] = @(chapter->endTime());
+            item[@"startOffset"] = @(chapter->startOffset());
+            item[@"endOffset"] = @(chapter->endOffset());
+            item[@"embeddedFrameCount"] = @(chapter->embeddedFrameList().size());
+        } else if (auto *toc = dynamic_cast<TagLib::ID3v2::TableOfContentsFrame *>(frame)) {
+            item[@"type"] = @"tableOfContents";
+            item[@"elementID"] = StringFromByteVector(toc->elementID());
+            item[@"isTopLevel"] = @(toc->isTopLevel());
+            item[@"isOrdered"] = @(toc->isOrdered());
+            NSMutableArray<NSString *> *children = [NSMutableArray array];
+            TagLib::ByteVectorList childElements = toc->childElements();
+            for (auto it = childElements.begin(); it != childElements.end(); ++it) {
+                [children addObject:StringFromByteVector(*it)];
+            }
+            item[@"children"] = children;
+            item[@"embeddedFrameCount"] = @(toc->embeddedFrameList().size());
+        } else if (dynamic_cast<TagLib::ID3v2::PodcastFrame *>(frame)) {
+            item[@"type"] = @"podcast";
+        } else if (auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame)) {
+            item[@"type"] = @"userText";
+            item[@"description"] = TagStringToNSString(userText->description()) ?: @"";
+            NSMutableArray<NSString *> *values = [NSMutableArray array];
+            TagLib::StringList fields = userText->fieldList();
+            for (auto it = fields.begin(); it != fields.end(); ++it) {
+                [values addObject:TagStringToNSString(*it) ?: @""];
+            }
+            item[@"values"] = values;
+        } else if (auto *text = dynamic_cast<TagLib::ID3v2::TextIdentificationFrame *>(frame)) {
+            item[@"type"] = @"text";
+            NSMutableArray<NSString *> *values = [NSMutableArray array];
+            TagLib::StringList fields = text->fieldList();
+            for (auto it = fields.begin(); it != fields.end(); ++it) {
+                [values addObject:TagStringToNSString(*it) ?: @""];
+            }
+            item[@"values"] = values;
+        } else {
+            item[@"type"] = @"unknown";
+        }
+
+        [framesOut addObject:item];
+    }
+}
+
+static void AppendStructuredMP4(TagLib::MP4::Tag *tag,
+                                NSMutableArray<NSDictionary<NSString *, NSObject *> *> *atomsOut,
+                                NSMutableArray<NSDictionary<NSString *, NSObject *> *> *artworkOut)
+{
+    if (!tag) return;
+    const TagLib::MP4::ItemMap &items = tag->itemMap();
+    for (auto it = items.begin(); it != items.end(); ++it) {
+        NSString *key = TagStringToNSString(it->first) ?: @"";
+        const TagLib::MP4::Item &item = it->second;
+        NSMutableDictionary<NSString *, NSObject *> *out = [@{
+            @"key": key,
+            @"type": MP4ItemTypeName(item.type())
+        } mutableCopy];
+
+        switch (item.type()) {
+            case TagLib::MP4::Item::Type::Bool:
+                out[@"value"] = @(item.toBool());
+                break;
+            case TagLib::MP4::Item::Type::Int:
+                out[@"value"] = @(item.toInt());
+                break;
+            case TagLib::MP4::Item::Type::Byte:
+                out[@"value"] = @(item.toByte());
+                break;
+            case TagLib::MP4::Item::Type::UInt:
+                out[@"value"] = @(item.toUInt());
+                break;
+            case TagLib::MP4::Item::Type::LongLong:
+                out[@"value"] = @(item.toLongLong());
+                break;
+            case TagLib::MP4::Item::Type::IntPair: {
+                TagLib::MP4::Item::IntPair pair = item.toIntPair();
+                out[@"first"] = @(pair.first);
+                out[@"second"] = @(pair.second);
+                out[@"value"] = [NSString stringWithFormat:@"%d/%d", pair.first, pair.second];
+                break;
+            }
+            case TagLib::MP4::Item::Type::StringList: {
+                NSMutableArray<NSString *> *values = [NSMutableArray array];
+                TagLib::StringList strings = item.toStringList();
+                for (auto vit = strings.begin(); vit != strings.end(); ++vit) {
+                    [values addObject:TagStringToNSString(*vit) ?: @""];
+                }
+                out[@"values"] = values;
+                out[@"value"] = values.count ? [values componentsJoinedByString:@"; "] : @"";
+                break;
+            }
+            case TagLib::MP4::Item::Type::CoverArtList: {
+                NSMutableArray<NSDictionary<NSString *, NSObject *> *> *covers = [NSMutableArray array];
+                TagLib::MP4::CoverArtList coverArts = item.toCoverArtList();
+                for (auto cit = coverArts.begin(); cit != coverArts.end(); ++cit) {
+                    NSString *mime = @"image/jpeg";
+                    switch (cit->format()) {
+                        case TagLib::MP4::CoverArt::PNG: mime = @"image/png"; break;
+                        case TagLib::MP4::CoverArt::BMP: mime = @"image/bmp"; break;
+                        case TagLib::MP4::CoverArt::GIF: mime = @"image/gif"; break;
+                        case TagLib::MP4::CoverArt::JPEG:
+                        default: mime = @"image/jpeg"; break;
+                    }
+                    NSDictionary<NSString *, NSObject *> *cover = @{
+                        @"container": @"mp4",
+                        @"mimeType": mime,
+                        @"data": DataFromByteVector(cit->data()),
+                        @"byteCount": @(cit->data().size())
+                    };
+                    [covers addObject:cover];
+                    [artworkOut addObject:cover];
+                }
+                out[@"covers"] = covers;
+                out[@"value"] = [NSString stringWithFormat:@"%lu artwork item(s)", (unsigned long)covers.count];
+                break;
+            }
+            default:
+                out[@"value"] = MP4ItemToDisplayString(item);
+                break;
+        }
+
+        NSString *freeformDescription = MP4FreeformDescriptionForItemKey(it->first);
+        if (freeformDescription.length > 0) {
+            out[@"freeformDescription"] = freeformDescription;
+        }
+        [atomsOut addObject:out];
+    }
+}
+
+static void AppendStructuredASF(TagLib::ASF::Tag *tag,
+                                NSMutableArray<NSDictionary<NSString *, NSObject *> *> *attributesOut,
+                                NSMutableArray<NSDictionary<NSString *, NSObject *> *> *artworkOut)
+{
+    if (!tag) return;
+    const TagLib::ASF::AttributeListMap &attributes = tag->attributeListMap();
+    for (auto it = attributes.begin(); it != attributes.end(); ++it) {
+        NSString *key = TagStringToNSString(it->first) ?: @"";
+        for (auto ait = it->second.begin(); ait != it->second.end(); ++ait) {
+            NSDictionary<NSString *, NSObject *> *item = StructuredASFAttribute(key, *ait);
+            [attributesOut addObject:item];
+            if ([key isEqualToString:@"WM/Picture"]) {
+                [artworkOut addObject:item];
+            }
+        }
+    }
+}
+
+template <typename ComplexPropertyTarget>
+static void AppendStructuredComplexPictures(ComplexPropertyTarget *target,
+                                            NSString *container,
+                                            NSMutableArray<NSDictionary<NSString *, NSObject *> *> *artworkOut)
+{
+    if (!target || !artworkOut) return;
+
+    TagLib::List<TagLib::VariantMap> pictures = target->complexProperties("PICTURE");
+    for (const auto &picture : pictures) {
+        TagLib::ByteVector imageData = picture.value("data").value<TagLib::ByteVector>();
+        if (imageData.isEmpty()) continue;
+
+        NSString *mimeType = TagStringToNSString(picture.value("mimeType").value<TagLib::String>()) ?: @"";
+        NSString *pictureType = TagStringToNSString(picture.value("pictureType").value<TagLib::String>()) ?: @"";
+        NSString *description = TagStringToNSString(picture.value("description").value<TagLib::String>()) ?: @"";
+
+        NSMutableDictionary<NSString *, NSObject *> *item = [@{
+            @"container": container ?: @"",
+            @"mimeType": mimeType,
+            @"pictureType": pictureType,
+            @"data": DataFromByteVector(imageData),
+            @"byteCount": @(imageData.size())
+        } mutableCopy];
+        if (description.length > 0) {
+            item[@"description"] = description;
+        }
+        [artworkOut addObject:item];
+    }
+}
+
++ (nullable NSDictionary<NSString *, NSObject *> *)structuredMetadataForURL:(NSURL *)fileURL
+                                                                      error:(NSError **)error
+{
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut = [NSMutableArray array];
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *id3v2FramesOut = [NSMutableArray array];
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *mp4AtomsOut = [NSMutableArray array];
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *asfAttributesOut = [NSMutableArray array];
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *artworkOut = [NSMutableArray array];
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *lyricsOut = [NSMutableArray array];
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *commentsOut = [NSMutableArray array];
+    NSMutableArray<NSString *> *warningsOut = [NSMutableArray array];
+
+    if (!fileURL || !fileURL.isFileURL) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:227
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file URL" }];
+        }
+        return nil;
+    }
+
+    const char *filePath = fileURL.path.UTF8String;
+    if (!filePath) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:228
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file path" }];
+        }
+        return nil;
+    }
+
+    NSString *ext = fileURL.pathExtension.lowercaseString;
+    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+
+    auto result = ^NSDictionary<NSString *, NSObject *> *{
+        return @{
+            @"properties": propertiesOut,
+            @"id3v2Frames": id3v2FramesOut,
+            @"mp4Atoms": mp4AtomsOut,
+            @"asfAttributes": asfAttributesOut,
+            @"artwork": artworkOut,
+            @"lyrics": lyricsOut,
+            @"comments": commentsOut,
+            @"warnings": warningsOut
+        };
+    };
+
+    if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
+        TagLib::MPEG::File file(filePath);
+        if (!file.isValid()) {
+            [warningsOut addObject:@"Unable to open MPEG file for structured metadata."];
+            return result();
+        }
+        AppendRawPropertyEntries(propertiesOut, file.properties());
+        if (format == AudioMatorTagFileFormatMPEGID3) {
+            AppendStructuredID3v2(file.ID3v2Tag(), id3v2FramesOut, artworkOut, lyricsOut, commentsOut);
+        }
+        return result();
+    }
+
+    if (format == AudioMatorTagFileFormatMP4) {
+        TagLib::MP4::File file(filePath);
+        if (!file.isValid()) {
+            [warningsOut addObject:@"Unable to open MP4 file for structured metadata."];
+            return result();
+        }
+        AppendRawPropertyEntries(propertiesOut, file.properties());
+        AppendStructuredMP4(file.tag(), mp4AtomsOut, artworkOut);
+        return result();
+    }
+
+    if (format == AudioMatorTagFileFormatASF) {
+        TagLib::ASF::File file(filePath);
+        if (!file.isValid()) {
+            [warningsOut addObject:@"Unable to open ASF/WMA file for structured metadata."];
+            return result();
+        }
+        AppendRawPropertyEntries(propertiesOut, file.properties());
+        AppendStructuredASF(file.tag(), asfAttributesOut, artworkOut);
+        return result();
+    }
+
+#define STRUCTURED_PROPERTIES_ONLY(TYPE) \
+    do { TYPE file(filePath); if (file.isValid()) { AppendRawPropertyEntries(propertiesOut, file.properties()); } } while (false)
+
+    switch (format) {
+        case AudioMatorTagFileFormatFLAC: {
+            TagLib::FLAC::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredComplexPictures(&file, @"flac", artworkOut);
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatOggVorbis: {
+            TagLib::Ogg::Vorbis::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredComplexPictures(file.tag(), @"xiph", artworkOut);
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatOggOpus: {
+            TagLib::Ogg::Opus::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredComplexPictures(file.tag(), @"xiph", artworkOut);
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatOggFlac: {
+            TagLib::Ogg::FLAC::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredComplexPictures(file.tag(), @"xiph", artworkOut);
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatOggSpeex: {
+            TagLib::Ogg::Speex::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredComplexPictures(file.tag(), @"xiph", artworkOut);
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatWAV: {
+            TagLib::RIFF::WAV::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredID3v2(file.ID3v2Tag(), id3v2FramesOut, artworkOut, lyricsOut, commentsOut);
+                [warningsOut addObject:@"WAV structured writes default to ID3v2 while preserving existing RIFF INFO fields."];
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatAIFF: {
+            TagLib::RIFF::AIFF::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredID3v2(file.tag(), id3v2FramesOut, artworkOut, lyricsOut, commentsOut);
+                [warningsOut addObject:@"AIFF structured writes use ID3v2."];
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatAPE:
+            STRUCTURED_PROPERTIES_ONLY(TagLib::APE::File);
+            break;
+        case AudioMatorTagFileFormatWavPack:
+            STRUCTURED_PROPERTIES_ONLY(TagLib::WavPack::File);
+            break;
+        case AudioMatorTagFileFormatMPC:
+            STRUCTURED_PROPERTIES_ONLY(TagLib::MPC::File);
+            break;
+        case AudioMatorTagFileFormatTTA: {
+            TagLib::TrueAudio::File file(filePath);
+            if (file.isValid()) {
+                AppendRawPropertyEntries(propertiesOut, file.properties());
+                AppendStructuredID3v2(file.ID3v2Tag(), id3v2FramesOut, artworkOut, lyricsOut, commentsOut);
+            }
+            break;
+        }
+        case AudioMatorTagFileFormatDSF:
+            STRUCTURED_PROPERTIES_ONLY(TagLib::DSF::File);
+            break;
+        case AudioMatorTagFileFormatDSDIFF:
+            STRUCTURED_PROPERTIES_ONLY(TagLib::DSDIFF::File);
+            break;
+        default:
+            [warningsOut addObject:@"Structured container metadata is not available for this format; PropertyMap entries are returned when possible."];
+            break;
+    }
+
+#undef STRUCTURED_PROPERTIES_ONLY
+
+    return result();
+}
+
+static NSArray<NSDictionary<NSString *, NSObject *> *> *StructuredArray(NSDictionary<NSString *, NSObject *> *metadata,
+                                                                        NSString *key)
+{
+    NSObject *value = metadata[key];
+    if (![value isKindOfClass:[NSArray class]]) {
+        return nil;
+    }
+    return (NSArray<NSDictionary<NSString *, NSObject *> *> *)value;
+}
+
+static NSInteger IntegerValueFromObject(NSObject *value)
+{
+    if ([value isKindOfClass:[NSNumber class]]) {
+        return [(NSNumber *)value integerValue];
+    }
+    if ([value isKindOfClass:[NSString class]]) {
+        return [(NSString *)value integerValue];
+    }
+    return 0;
+}
+
+static NSData *DataValueFromObject(NSObject *value)
+{
+    if ([value isKindOfClass:[NSData class]]) {
+        return (NSData *)value;
+    }
+    return nil;
+}
+
+static void ReplaceID3v2Comments(TagLib::ID3v2::Tag *tag, NSArray<NSDictionary<NSString *, NSObject *> *> *comments)
+{
+    if (!tag || !comments) return;
+    TagLib::ID3v2::FrameList existing = tag->frameList("COMM");
+    for (auto it = existing.begin(); it != existing.end(); ++it) tag->removeFrame(*it);
+
+    for (NSDictionary<NSString *, NSObject *> *entry in comments) {
+        NSString *text = TrimmedStringOrNil((NSString *)entry[@"text"]);
+        if (!text) continue;
+        auto *frame = new TagLib::ID3v2::CommentsFrame(TagLib::String::UTF8);
+        frame->setDescription(NSStringToTagString((NSString *)entry[@"description"]));
+        NSString *language = TrimmedStringOrNil((NSString *)entry[@"language"]) ?: @"eng";
+        std::string lang = language.UTF8String ? language.UTF8String : "eng";
+        if (lang.size() < 3) lang = "eng";
+        frame->setLanguage(TagLib::ByteVector(lang.c_str(), 3));
+        frame->setText(NSStringToTagString(text));
+        tag->addFrame(frame);
+    }
+}
+
+static void ReplaceID3v2Lyrics(TagLib::ID3v2::Tag *tag, NSArray<NSDictionary<NSString *, NSObject *> *> *lyrics)
+{
+    if (!tag || !lyrics) return;
+    TagLib::ID3v2::FrameList existing = tag->frameList("USLT");
+    for (auto it = existing.begin(); it != existing.end(); ++it) tag->removeFrame(*it);
+
+    for (NSDictionary<NSString *, NSObject *> *entry in lyrics) {
+        NSString *text = TrimmedStringOrNil((NSString *)entry[@"text"]);
+        if (!text) continue;
+        auto *frame = new TagLib::ID3v2::UnsynchronizedLyricsFrame(TagLib::String::UTF8);
+        frame->setDescription(NSStringToTagString((NSString *)entry[@"description"]));
+        NSString *language = TrimmedStringOrNil((NSString *)entry[@"language"]) ?: @"eng";
+        std::string lang = language.UTF8String ? language.UTF8String : "eng";
+        if (lang.size() < 3) lang = "eng";
+        frame->setLanguage(TagLib::ByteVector(lang.c_str(), 3));
+        frame->setText(NSStringToTagString(text));
+        tag->addFrame(frame);
+    }
+}
+
+static void ReplaceID3v2Artwork(TagLib::ID3v2::Tag *tag, NSArray<NSDictionary<NSString *, NSObject *> *> *artwork)
+{
+    if (!tag || !artwork) return;
+    TagLib::ID3v2::FrameList existing = tag->frameList("APIC");
+    for (auto it = existing.begin(); it != existing.end(); ++it) tag->removeFrame(*it);
+
+    for (NSDictionary<NSString *, NSObject *> *entry in artwork) {
+        NSData *data = DataValueFromObject(entry[@"data"]);
+        if (data.length == 0) continue;
+        auto *frame = new TagLib::ID3v2::AttachedPictureFrame();
+        frame->setMimeType(NSStringToTagString((NSString *)entry[@"mimeType"] ?: @"image/jpeg"));
+        frame->setDescription(NSStringToTagString((NSString *)entry[@"description"]));
+        NSInteger typeCode = IntegerValueFromObject(entry[@"pictureTypeCode"]);
+        if (typeCode <= 0 && [entry[@"pictureType"] isKindOfClass:[NSString class]]) {
+            typeCode = TagLib::ID3v2::AttachedPictureFrame::typeFromString(
+                NSStringToTagString((NSString *)entry[@"pictureType"])
+            );
+        }
+        if (typeCode <= 0) typeCode = TagLib::ID3v2::AttachedPictureFrame::FrontCover;
+        frame->setType((TagLib::ID3v2::AttachedPictureFrame::Type)typeCode);
+        frame->setPicture(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
+        tag->addFrame(frame);
+    }
+}
+
+static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
+                                        NSArray<NSDictionary<NSString *, NSObject *> *> *frames)
+{
+    if (!tag || !frames) return;
+
+    for (NSDictionary<NSString *, NSObject *> *entry in frames) {
+        NSString *frameID = TrimmedStringOrNil((NSString *)entry[@"id"]);
+        NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
+        if (!frameID || !type) continue;
+
+        if ([type isEqualToString:@"ufid"]) {
+            NSString *owner = TrimmedStringOrNil((NSString *)entry[@"owner"]);
+            NSData *data = DataValueFromObject(entry[@"data"]);
+            if (!owner || data.length == 0) continue;
+            TagLib::ID3v2::UniqueFileIdentifierFrame *existing =
+                TagLib::ID3v2::UniqueFileIdentifierFrame::findByOwner(tag, NSStringToTagString(owner));
+            if (existing) tag->removeFrame(existing);
+            tag->addFrame(new TagLib::ID3v2::UniqueFileIdentifierFrame(
+                NSStringToTagString(owner),
+                TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length)
+            ));
+        } else if ([type isEqualToString:@"url"]) {
+            NSString *url = TrimmedStringOrNil((NSString *)entry[@"url"]);
+            if (!url) continue;
+            if ([frameID isEqualToString:@"WXXX"]) {
+                NSString *description = TrimmedStringOrNil((NSString *)entry[@"description"]) ?: @"";
+                TagLib::ID3v2::UserUrlLinkFrame *existing =
+                    TagLib::ID3v2::UserUrlLinkFrame::find(tag, NSStringToTagString(description));
+                if (existing) tag->removeFrame(existing);
+                auto *frame = new TagLib::ID3v2::UserUrlLinkFrame(TagLib::String::UTF8);
+                frame->setDescription(NSStringToTagString(description));
+                frame->setUrl(NSStringToTagString(url));
+                tag->addFrame(frame);
+            } else {
+                TagLib::ID3v2::FrameList existing = tag->frameList(frameID.UTF8String);
+                for (auto it = existing.begin(); it != existing.end(); ++it) tag->removeFrame(*it);
+                auto *frame = new TagLib::ID3v2::UrlLinkFrame(TagLib::ByteVector(frameID.UTF8String, 4));
+                frame->setUrl(NSStringToTagString(url));
+                tag->addFrame(frame);
+            }
+        } else if ([type isEqualToString:@"text"]) {
+            NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
+            NSString *joined = values.count ? [values componentsJoinedByString:@"; "] : (NSString *)entry[@"value"];
+            SetID3v2TextFrame(tag, frameID.UTF8String, joined);
+        } else if ([type isEqualToString:@"userText"]) {
+            NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
+            NSString *joined = values.count ? [values componentsJoinedByString:@"; "] : (NSString *)entry[@"value"];
+            SetID3v2UserTextFrame(tag, ((NSString *)entry[@"description"]).UTF8String, joined);
+        }
+    }
+}
+
+static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
+                                    NSArray<NSDictionary<NSString *, NSObject *> *> *atoms)
+{
+    if (!tag || !atoms) return;
+    for (NSDictionary<NSString *, NSObject *> *entry in atoms) {
+        NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
+        NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
+        if (!key || !type) continue;
+
+        if ([type isEqualToString:@"stringList"]) {
+            TagLib::StringList list;
+            NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
+            for (NSString *value in values ?: @[]) {
+                NSString *trimmed = TrimmedStringOrNil(value);
+                if (trimmed) list.append(NSStringToTagString(trimmed));
+            }
+            if (list.isEmpty()) tag->removeItem(NSStringToTagString(key));
+            else tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(list));
+        } else if ([type isEqualToString:@"bool"]) {
+            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item([entry[@"value"] isKindOfClass:[NSNumber class]] ? [(NSNumber *)entry[@"value"] boolValue] : false));
+        } else if ([type isEqualToString:@"int"]) {
+            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((int)IntegerValueFromObject(entry[@"value"])));
+        } else if ([type isEqualToString:@"uint"]) {
+            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((unsigned int)IntegerValueFromObject(entry[@"value"])));
+        } else if ([type isEqualToString:@"byte"]) {
+            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((unsigned char)IntegerValueFromObject(entry[@"value"])));
+        } else if ([type isEqualToString:@"longLong"]) {
+            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((long long)IntegerValueFromObject(entry[@"value"])));
+        } else if ([type isEqualToString:@"intPair"]) {
+            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(
+                (int)IntegerValueFromObject(entry[@"first"]),
+                (int)IntegerValueFromObject(entry[@"second"])
+            ));
+        }
+    }
+}
+
+static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
+                                         NSArray<NSDictionary<NSString *, NSObject *> *> *attributes)
+{
+    if (!tag || !attributes) return;
+    NSMutableSet<NSString *> *cleared = [NSMutableSet set];
+    for (NSDictionary<NSString *, NSObject *> *entry in attributes) {
+        NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
+        NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
+        if (!key || !type) continue;
+        if (![cleared containsObject:key]) {
+            tag->removeItem(NSStringToTagString(key));
+            [cleared addObject:key];
+        }
+
+        TagLib::ASF::Attribute attribute;
+        if ([key isEqualToString:@"WM/Picture"]) {
+            NSData *data = DataValueFromObject(entry[@"data"]);
+            if (data.length == 0) continue;
+            TagLib::ASF::Picture picture;
+            picture.setMimeType(NSStringToTagString((NSString *)entry[@"mimeType"] ?: @"image/jpeg"));
+            picture.setDescription(NSStringToTagString((NSString *)entry[@"description"]));
+            NSInteger typeCode = IntegerValueFromObject(entry[@"pictureTypeCode"]);
+            if (typeCode <= 0 && [entry[@"pictureType"] isKindOfClass:[NSString class]]) {
+                typeCode = TagLib::ASF::Picture::typeFromString(NSStringToTagString((NSString *)entry[@"pictureType"]));
+            }
+            if (typeCode <= 0) typeCode = TagLib::ASF::Picture::FrontCover;
+            picture.setType((TagLib::ASF::Picture::Type)typeCode);
+            picture.setPicture(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
+            attribute = TagLib::ASF::Attribute(picture);
+        } else if ([type isEqualToString:@"string"]) {
+            attribute = TagLib::ASF::Attribute(NSStringToTagString((NSString *)entry[@"value"]));
+        } else if ([type isEqualToString:@"bool"]) {
+            attribute = TagLib::ASF::Attribute([entry[@"value"] isKindOfClass:[NSNumber class]] ? [(NSNumber *)entry[@"value"] boolValue] : false);
+        } else if ([type isEqualToString:@"int64"]) {
+            attribute = TagLib::ASF::Attribute((unsigned long long)IntegerValueFromObject(entry[@"value"]));
+        } else if ([type isEqualToString:@"binary"] || [type isEqualToString:@"guid"]) {
+            NSData *data = DataValueFromObject(entry[@"data"]);
+            attribute = TagLib::ASF::Attribute(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
+        } else {
+            attribute = TagLib::ASF::Attribute((unsigned int)IntegerValueFromObject(entry[@"value"]));
+        }
+        attribute.setLanguage((int)IntegerValueFromObject(entry[@"language"]));
+        attribute.setStream((int)IntegerValueFromObject(entry[@"stream"]));
+        tag->addAttribute(NSStringToTagString(key), attribute);
+    }
+}
+
++ (BOOL)writeStructuredMetadata:(NSDictionary<NSString *, NSObject *> *)metadata
+                          toURL:(NSURL *)fileURL
+                          error:(NSError **)error
+{
+    if (!fileURL || !fileURL.isFileURL) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:229
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file URL" }];
+        }
+        return NO;
+    }
+
+    NSString *ext = fileURL.pathExtension.lowercaseString;
+    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    if (!IsWritableTagFileFormat(format)) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:230
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Unsupported audio format" }];
+        }
+        return NO;
+    }
+
+    const char *filePath = fileURL.path.UTF8String;
+    if (!filePath) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:231
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file path" }];
+        }
+        return NO;
+    }
+
+    NSArray<NSDictionary<NSString *, NSObject *> *> *properties = StructuredArray(metadata, @"properties");
+    if (properties) {
+        NSMutableDictionary<NSString *, NSArray<NSString *> *> *propertyValues = [NSMutableDictionary dictionary];
+        for (NSDictionary<NSString *, NSObject *> *entry in properties) {
+            NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
+            if (!key) continue;
+            if ([entry[@"values"] isKindOfClass:[NSArray class]]) {
+                propertyValues[key] = (NSArray<NSString *> *)entry[@"values"];
+            } else if ([entry[@"value"] isKindOfClass:[NSString class]]) {
+                propertyValues[key] = @[ (NSString *)entry[@"value"] ];
+            }
+        }
+        return [self writeRawPropertyMapValues:propertyValues toURL:fileURL error:error];
+    }
+
+    NSArray<NSDictionary<NSString *, NSObject *> *> *frames = StructuredArray(metadata, @"id3v2Frames");
+    NSArray<NSDictionary<NSString *, NSObject *> *> *artwork = StructuredArray(metadata, @"artwork");
+    NSArray<NSDictionary<NSString *, NSObject *> *> *lyrics = StructuredArray(metadata, @"lyrics");
+    NSArray<NSDictionary<NSString *, NSObject *> *> *comments = StructuredArray(metadata, @"comments");
+    NSArray<NSDictionary<NSString *, NSObject *> *> *mp4Atoms = StructuredArray(metadata, @"mp4Atoms");
+    NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
+
+    if (format == AudioMatorTagFileFormatMPEGID3) {
+        TagLib::MPEG::File file(filePath);
+        if (!file.isValid()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:232 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MPEG file for structured metadata editing" }];
+            return NO;
+        }
+        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
+        UpsertID3v2StructuredFrames(tag, frames);
+        ReplaceID3v2Comments(tag, comments);
+        ReplaceID3v2Lyrics(tag, lyrics);
+        ReplaceID3v2Artwork(tag, artwork);
+        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:233 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MPEG metadata" }];
+            return NO;
+        }
+        return YES;
+    }
+
+    if (format == AudioMatorTagFileFormatWAV) {
+        TagLib::RIFF::WAV::File file(filePath);
+        if (!file.isValid()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:234 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open WAV file for structured metadata editing" }];
+            return NO;
+        }
+        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
+        UpsertID3v2StructuredFrames(tag, frames);
+        ReplaceID3v2Comments(tag, comments);
+        ReplaceID3v2Lyrics(tag, lyrics);
+        ReplaceID3v2Artwork(tag, artwork);
+        if (!file.save()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured WAV metadata" }];
+            return NO;
+        }
+        return YES;
+    }
+
+    if (format == AudioMatorTagFileFormatAIFF) {
+        TagLib::RIFF::AIFF::File file(filePath);
+        if (!file.isValid()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:236 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open AIFF file for structured metadata editing" }];
+            return NO;
+        }
+        TagLib::ID3v2::Tag *tag = file.tag();
+        UpsertID3v2StructuredFrames(tag, frames);
+        ReplaceID3v2Comments(tag, comments);
+        ReplaceID3v2Lyrics(tag, lyrics);
+        ReplaceID3v2Artwork(tag, artwork);
+        if (!file.save()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:237 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured AIFF metadata" }];
+            return NO;
+        }
+        return YES;
+    }
+
+    if (format == AudioMatorTagFileFormatMP4) {
+        TagLib::MP4::File file(filePath);
+        if (!file.isValid() || !file.tag()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:238 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MP4 file for structured metadata editing" }];
+            return NO;
+        }
+        ApplyStructuredMP4Atoms(file.tag(), mp4Atoms);
+        if (!file.save()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:239 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MP4 metadata" }];
+            return NO;
+        }
+        return YES;
+    }
+
+    if (format == AudioMatorTagFileFormatASF) {
+        TagLib::ASF::File file(filePath);
+        if (!file.isValid() || !file.tag()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:240 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open ASF/WMA file for structured metadata editing" }];
+            return NO;
+        }
+        ApplyStructuredASFAttributes(file.tag(), asfAttributes);
+        if (!file.save()) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:241 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured ASF/WMA metadata" }];
+            return NO;
+        }
+        return YES;
+    }
+
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                     code:242
+                                 userInfo:@{ NSLocalizedDescriptionKey : @"Structured metadata writing for this format is limited to raw PropertyMap values" }];
+    }
+    return NO;
 }
 
 // Return a best-effort, "raw" view of metadata as TagLib sees it.

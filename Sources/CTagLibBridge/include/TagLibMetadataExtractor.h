@@ -183,6 +183,40 @@ NS_SWIFT_NAME(writeTrackNumber(_:totalTracks:padWidth:to:));
                      error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(writeRawPropertyMap(_:to:));
 
+/// Replace the file's textual TagLib property map with the provided key/value arrays.
+///
+/// This preserves multi-value containers such as Xiph/Vorbis comments instead of
+/// flattening values into a single display string.
++ (BOOL)writeRawPropertyMapValues:(NSDictionary<NSString *, NSArray<NSString *> *> *)properties
+                            toURL:(NSURL *)fileURL
+                            error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeRawPropertyMapValues(_:to:));
+
+/// Return structured metadata as TagLib exposes it for container-aware editors.
+///
+/// Stable top-level keys include:
+/// - properties: PropertyMap entries with values arrays
+/// - id3v2Frames: typed ID3v2 frame dictionaries where available
+/// - mp4Atoms: typed MP4 item dictionaries
+/// - asfAttributes: typed ASF attribute dictionaries
+/// - artwork: structured artwork dictionaries
+/// - lyrics: structured lyric dictionaries
+/// - comments: structured comment dictionaries
+/// - warnings: capability/verification warnings
++ (nullable NSDictionary<NSString *, NSObject *> *)structuredMetadataForURL:(NSURL *)fileURL
+                                                                      error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(structuredMetadata(for:));
+
+/// Write a structured metadata payload previously shaped by `structuredMetadata(for:)`.
+///
+/// Only top-level collections present in `metadata` are edited. Omitted
+/// collections are preserved, which keeps unknown frames, atoms, and ASF
+/// attributes intact by default.
++ (BOOL)writeStructuredMetadata:(NSDictionary<NSString *, NSObject *> *)metadata
+                          toURL:(NSURL *)fileURL
+                          error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeStructuredMetadata(_:to:));
+
 /// Return raw metadata as TagLib sees it for display purposes.
 ///
 /// The returned dictionary typically contains keys such as:
