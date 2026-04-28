@@ -48,13 +48,21 @@ import TagLibAudioMetadata
 Check support before showing write controls or attempting to parse a file:
 
 ```swift
-let supported = TagLibMetadataExtractor.isSupportedFormat(url.pathExtension)
-let extensions = TagLibMetadataExtractor.supportedExtensions()
+let readable = TagLibMetadataManager.isReadableFormat(url.pathExtension)
+let writable = TagLibMetadataManager.isWritableFormat(url.pathExtension)
+let readableExtensions = TagLibMetadataManager.readableExtensions
+let writableExtensions = TagLibMetadataManager.writableExtensions
 ```
 
-Supported extensions:
+Readable extensions:
 
-`mp3`, `mp2`, `m4a`, `m4b`, `m4p`, `mp4`, `aac`, `ogg`, `opus`, `oga`, `spx`, `mpc`, `wma`, `asf`, `flac`, `ape`, `wv`, `tta`, `wav`, `aiff`, `aif`, `dsf`, `dff`.
+`mp3`, `mp2`, `aac`, `m4a`, `m4r`, `m4b`, `m4p`, `mp4`, `m4v`, `3g2`, `ogg`, `oga`, `opus`, `spx`, `flac`, `ape`, `wv`, `mpc`, `wma`, `asf`, `tta`, `wav`, `aiff`, `aif`, `aifc`, `afc`, `dsf`, `dff`, `dsdiff`, `shn`, `mod`, `module`, `nst`, `wow`, `s3m`, `it`, `xm`.
+
+Writable extensions:
+
+All readable extensions except `shn`. TagLib 2.1.1 exposes Shorten metadata for reading, but its Shorten writer reports saving as unsupported.
+
+This package follows the capabilities of the bundled TagLib source. The current vendored TagLib is 2.1.1; Matroska/WebM support appears in newer upstream TagLib releases and requires updating the vendored TagLib sources before this bridge can expose it.
 
 Tag support varies by container. Some formats may normalize values, drop unsupported fields, or store fields under format-specific keys. Use the verification APIs when the result matters.
 

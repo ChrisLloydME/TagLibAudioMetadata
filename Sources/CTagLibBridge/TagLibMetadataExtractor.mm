@@ -52,6 +52,11 @@
 
 #include "taglib/taglib/dsf/dsffile.h"
 #include "taglib/taglib/dsdiff/dsdifffile.h"
+#include "taglib/taglib/shorten/shortenfile.h"
+#include "taglib/taglib/mod/modfile.h"
+#include "taglib/taglib/s3m/s3mfile.h"
+#include "taglib/taglib/it/itfile.h"
+#include "taglib/taglib/xm/xmfile.h"
 
 #include "taglib/taglib/toolkit/tstring.h"
 #include "taglib/taglib/toolkit/tstringlist.h"
@@ -364,6 +369,11 @@ typedef NS_ENUM(NSInteger, AudioMatorTagFileFormat) {
     AudioMatorTagFileFormatASF,
     AudioMatorTagFileFormatDSF,
     AudioMatorTagFileFormatDSDIFF,
+    AudioMatorTagFileFormatShorten,
+    AudioMatorTagFileFormatMOD,
+    AudioMatorTagFileFormatS3M,
+    AudioMatorTagFileFormatIT,
+    AudioMatorTagFileFormatXM,
 };
 
 typedef NS_OPTIONS(NSUInteger, AudioMatorMetadataContainerMask) {
@@ -390,7 +400,9 @@ static AudioMatorTagFileFormat DetectTagFileFormat(NSString * _Nullable ext)
     if ([lower isEqualToString:@"aac"]) {
         return AudioMatorTagFileFormatMPEGAAC;
     }
-    if ([lower isEqualToString:@"m4a"] || [lower isEqualToString:@"m4b"] || [lower isEqualToString:@"m4p"] || [lower isEqualToString:@"mp4"]) {
+    if ([lower isEqualToString:@"m4a"] || [lower isEqualToString:@"m4r"] || [lower isEqualToString:@"m4b"] ||
+        [lower isEqualToString:@"m4p"] || [lower isEqualToString:@"mp4"] || [lower isEqualToString:@"m4v"] ||
+        [lower isEqualToString:@"3g2"]) {
         return AudioMatorTagFileFormatMP4;
     }
     if ([lower isEqualToString:@"flac"]) {
@@ -420,7 +432,8 @@ static AudioMatorTagFileFormat DetectTagFileFormat(NSString * _Nullable ext)
     if ([lower isEqualToString:@"wav"]) {
         return AudioMatorTagFileFormatWAV;
     }
-    if ([lower isEqualToString:@"aiff"] || [lower isEqualToString:@"aif"]) {
+    if ([lower isEqualToString:@"aiff"] || [lower isEqualToString:@"aif"] ||
+        [lower isEqualToString:@"aifc"] || [lower isEqualToString:@"afc"]) {
         return AudioMatorTagFileFormatAIFF;
     }
     if ([lower isEqualToString:@"tta"]) {
@@ -432,8 +445,24 @@ static AudioMatorTagFileFormat DetectTagFileFormat(NSString * _Nullable ext)
     if ([lower isEqualToString:@"dsf"]) {
         return AudioMatorTagFileFormatDSF;
     }
-    if ([lower isEqualToString:@"dff"]) {
+    if ([lower isEqualToString:@"dff"] || [lower isEqualToString:@"dsdiff"]) {
         return AudioMatorTagFileFormatDSDIFF;
+    }
+    if ([lower isEqualToString:@"shn"]) {
+        return AudioMatorTagFileFormatShorten;
+    }
+    if ([lower isEqualToString:@"mod"] || [lower isEqualToString:@"module"] ||
+        [lower isEqualToString:@"nst"] || [lower isEqualToString:@"wow"]) {
+        return AudioMatorTagFileFormatMOD;
+    }
+    if ([lower isEqualToString:@"s3m"]) {
+        return AudioMatorTagFileFormatS3M;
+    }
+    if ([lower isEqualToString:@"it"]) {
+        return AudioMatorTagFileFormatIT;
+    }
+    if ([lower isEqualToString:@"xm"]) {
+        return AudioMatorTagFileFormatXM;
     }
 
     return AudioMatorTagFileFormatUnknown;
@@ -493,8 +522,28 @@ static AudioMatorMetadataContainerMask ContainerMaskForFormat(AudioMatorTagFileF
             return AudioMatorMetadataContainerTag
                  | AudioMatorMetadataContainerPropertyMap
                  | AudioMatorMetadataContainerID3v2;
+        case AudioMatorTagFileFormatShorten:
+            return AudioMatorMetadataContainerTag
+                 | AudioMatorMetadataContainerPropertyMap;
+        case AudioMatorTagFileFormatMOD:
+        case AudioMatorTagFileFormatS3M:
+        case AudioMatorTagFileFormatIT:
+        case AudioMatorTagFileFormatXM:
+            return AudioMatorMetadataContainerTag
+                 | AudioMatorMetadataContainerPropertyMap;
         case AudioMatorTagFileFormatUnknown:
             return AudioMatorMetadataContainerNone;
+    }
+}
+
+static bool IsWritableTagFileFormat(AudioMatorTagFileFormat format)
+{
+    switch (format) {
+        case AudioMatorTagFileFormatUnknown:
+        case AudioMatorTagFileFormatShorten:
+            return false;
+        default:
+            return true;
     }
 }
 
@@ -2970,6 +3019,63 @@ static void ExtractAPEMetadata(TagLib::APE::Tag* tag, TagLibAudioMetadata* metad
             }
         }
     }
+    // Shorten
+    else if (format == AudioMatorTagFileFormatShorten) {
+        TagLib::Shorten::File shortenFile(filePath);
+        if (shortenFile.isValid()) {
+            openedSpecificFile = true;
+            metadata.codec = @"Shorten";
+
+            ApplyBasicTagMetadata(shortenFile.tag(), metadata);
+            ApplyGenericPropertyMapMetadata(shortenFile.properties(), metadata);
+            ApplyAudioPropertiesMetadata(shortenFile.audioProperties(), metadata);
+        }
+    }
+    // Tracker/module formats
+    else if (format == AudioMatorTagFileFormatMOD) {
+        TagLib::Mod::File modFile(filePath);
+        if (modFile.isValid()) {
+            openedSpecificFile = true;
+            metadata.codec = @"MOD";
+
+            ApplyBasicTagMetadata(modFile.tag(), metadata);
+            ApplyGenericPropertyMapMetadata(modFile.properties(), metadata);
+            ApplyAudioPropertiesMetadata(modFile.audioProperties(), metadata);
+        }
+    }
+    else if (format == AudioMatorTagFileFormatS3M) {
+        TagLib::S3M::File s3mFile(filePath);
+        if (s3mFile.isValid()) {
+            openedSpecificFile = true;
+            metadata.codec = @"S3M";
+
+            ApplyBasicTagMetadata(s3mFile.tag(), metadata);
+            ApplyGenericPropertyMapMetadata(s3mFile.properties(), metadata);
+            ApplyAudioPropertiesMetadata(s3mFile.audioProperties(), metadata);
+        }
+    }
+    else if (format == AudioMatorTagFileFormatIT) {
+        TagLib::IT::File itFile(filePath);
+        if (itFile.isValid()) {
+            openedSpecificFile = true;
+            metadata.codec = @"IT";
+
+            ApplyBasicTagMetadata(itFile.tag(), metadata);
+            ApplyGenericPropertyMapMetadata(itFile.properties(), metadata);
+            ApplyAudioPropertiesMetadata(itFile.audioProperties(), metadata);
+        }
+    }
+    else if (format == AudioMatorTagFileFormatXM) {
+        TagLib::XM::File xmFile(filePath);
+        if (xmFile.isValid()) {
+            openedSpecificFile = true;
+            metadata.codec = @"XM";
+
+            ApplyBasicTagMetadata(xmFile.tag(), metadata);
+            ApplyGenericPropertyMapMetadata(xmFile.properties(), metadata);
+            ApplyAudioPropertiesMetadata(xmFile.audioProperties(), metadata);
+        }
+    }
 
     // Fallback path: only pay the generic FileRef cost if the format-specific
     // opener could not read the file at all.
@@ -3100,7 +3206,7 @@ static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSStr
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
     AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
-    if (format == AudioMatorTagFileFormatUnknown) {
+    if (!IsWritableTagFileFormat(format)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:41
@@ -3388,6 +3494,58 @@ static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSStr
                                               [NSString stringWithFormat:@"DSDIFF '%@'", fileURL.lastPathComponent])) {
             return NO;
         }
+    } else if (format == AudioMatorTagFileFormatMOD) {
+        TagLib::Mod::File modFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(modFile,
+                                              BuildTRCKString(trackNumber, totalTracks, padWidth),
+                                              nil,
+                                              error,
+                                              198,
+                                              @"Unable to open MOD file for writing track numbers",
+                                              199,
+                                              @"TagLib failed to save MOD track numbers",
+                                              [NSString stringWithFormat:@"MOD '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatS3M) {
+        TagLib::S3M::File s3mFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(s3mFile,
+                                              BuildTRCKString(trackNumber, totalTracks, padWidth),
+                                              nil,
+                                              error,
+                                              200,
+                                              @"Unable to open S3M file for writing track numbers",
+                                              201,
+                                              @"TagLib failed to save S3M track numbers",
+                                              [NSString stringWithFormat:@"S3M '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatIT) {
+        TagLib::IT::File itFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(itFile,
+                                              BuildTRCKString(trackNumber, totalTracks, padWidth),
+                                              nil,
+                                              error,
+                                              202,
+                                              @"Unable to open IT file for writing track numbers",
+                                              203,
+                                              @"TagLib failed to save IT track numbers",
+                                              [NSString stringWithFormat:@"IT '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatXM) {
+        TagLib::XM::File xmFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(xmFile,
+                                              BuildTRCKString(trackNumber, totalTracks, padWidth),
+                                              nil,
+                                              error,
+                                              204,
+                                              @"Unable to open XM file for writing track numbers",
+                                              205,
+                                              @"TagLib failed to save XM track numbers",
+                                              [NSString stringWithFormat:@"XM '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
     } else {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -3421,7 +3579,7 @@ static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSStr
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
     AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
-    if (format == AudioMatorTagFileFormatUnknown) {
+    if (!IsWritableTagFileFormat(format)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:101
@@ -3634,6 +3792,54 @@ static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSStr
                                          [NSString stringWithFormat:@"DSDIFF '%@'", fileURL.lastPathComponent]);
     }
 
+    if (format == AudioMatorTagFileFormatMOD) {
+        TagLib::Mod::File file(filePath);
+        return WriteRawPropertyMapToFile(file,
+                                         normalizedProperties,
+                                         error,
+                                         214,
+                                         @"Unable to open MOD file for metadata editing",
+                                         215,
+                                         @"TagLib failed to save MOD metadata property changes",
+                                         [NSString stringWithFormat:@"MOD '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatS3M) {
+        TagLib::S3M::File file(filePath);
+        return WriteRawPropertyMapToFile(file,
+                                         normalizedProperties,
+                                         error,
+                                         216,
+                                         @"Unable to open S3M file for metadata editing",
+                                         217,
+                                         @"TagLib failed to save S3M metadata property changes",
+                                         [NSString stringWithFormat:@"S3M '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatIT) {
+        TagLib::IT::File file(filePath);
+        return WriteRawPropertyMapToFile(file,
+                                         normalizedProperties,
+                                         error,
+                                         218,
+                                         @"Unable to open IT file for metadata editing",
+                                         219,
+                                         @"TagLib failed to save IT metadata property changes",
+                                         [NSString stringWithFormat:@"IT '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatXM) {
+        TagLib::XM::File file(filePath);
+        return WriteRawPropertyMapToFile(file,
+                                         normalizedProperties,
+                                         error,
+                                         220,
+                                         @"Unable to open XM file for metadata editing",
+                                         221,
+                                         @"TagLib failed to save XM metadata property changes",
+                                         [NSString stringWithFormat:@"XM '%@'", fileURL.lastPathComponent]);
+    }
+
     if (error) {
         *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                      code:101
@@ -3699,7 +3905,7 @@ static void ParseNumberPairFromNSString(NSString *text,
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
     AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
-    if (format == AudioMatorTagFileFormatUnknown) {
+    if (!IsWritableTagFileFormat(format)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:51
@@ -4069,6 +4275,58 @@ static void ParseNumberPairFromNSString(NSString *text,
                                               [NSString stringWithFormat:@"DSDIFF '%@'", fileURL.lastPathComponent])) {
             return NO;
         }
+    } else if (format == AudioMatorTagFileFormatMOD) {
+        TagLib::Mod::File modFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(modFile,
+                                              TrimmedStringOrNil(trackNumberText),
+                                              discNumberText,
+                                              error,
+                                              206,
+                                              @"Unable to open MOD file for writing track/disc numbers",
+                                              207,
+                                              @"TagLib failed to save MOD track/disc numbers",
+                                              [NSString stringWithFormat:@"MOD '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatS3M) {
+        TagLib::S3M::File s3mFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(s3mFile,
+                                              TrimmedStringOrNil(trackNumberText),
+                                              discNumberText,
+                                              error,
+                                              208,
+                                              @"Unable to open S3M file for writing track/disc numbers",
+                                              209,
+                                              @"TagLib failed to save S3M track/disc numbers",
+                                              [NSString stringWithFormat:@"S3M '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatIT) {
+        TagLib::IT::File itFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(itFile,
+                                              TrimmedStringOrNil(trackNumberText),
+                                              discNumberText,
+                                              error,
+                                              210,
+                                              @"Unable to open IT file for writing track/disc numbers",
+                                              211,
+                                              @"TagLib failed to save IT track/disc numbers",
+                                              [NSString stringWithFormat:@"IT '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatXM) {
+        TagLib::XM::File xmFile(filePath);
+        if (!WritePropertyMapNumberTextToFile(xmFile,
+                                              TrimmedStringOrNil(trackNumberText),
+                                              discNumberText,
+                                              error,
+                                              212,
+                                              @"Unable to open XM file for writing track/disc numbers",
+                                              213,
+                                              @"TagLib failed to save XM track/disc numbers",
+                                              [NSString stringWithFormat:@"XM '%@'", fileURL.lastPathComponent])) {
+            return NO;
+        }
     } else {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -4106,7 +4364,7 @@ static void ParseNumberPairFromNSString(NSString *text,
     bool isAAC = format == AudioMatorTagFileFormatMPEGAAC;
     bool isMP4Like = format == AudioMatorTagFileFormatMP4;
 
-    if (format == AudioMatorTagFileFormatUnknown || containers == AudioMatorMetadataContainerNone) {
+    if (!IsWritableTagFileFormat(format) || containers == AudioMatorMetadataContainerNone) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:11
@@ -4938,6 +5196,102 @@ static void ParseNumberPairFromNSString(NSString *text,
             TLog(@"TagLib save() failed for DSDIFF '%@'", fileURL.lastPathComponent);
             return NO;
         }
+    } else if (format == AudioMatorTagFileFormatMOD) {
+        TagLib::Mod::File modFile(filePath);
+
+        if (!modFile.isValid()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:222
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MOD file for writing metadata" }];
+            }
+            TLog(@"Failed to open MOD '%@' for writing", fileURL.lastPathComponent);
+            return NO;
+        }
+
+        ApplyGenericPropertyMapToFile(modFile, metadata);
+
+        if (!modFile.save()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:223
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to MOD file" }];
+            }
+            TLog(@"TagLib save() failed for MOD '%@'", fileURL.lastPathComponent);
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatS3M) {
+        TagLib::S3M::File s3mFile(filePath);
+
+        if (!s3mFile.isValid()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:224
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open S3M file for writing metadata" }];
+            }
+            TLog(@"Failed to open S3M '%@' for writing", fileURL.lastPathComponent);
+            return NO;
+        }
+
+        ApplyGenericPropertyMapToFile(s3mFile, metadata);
+
+        if (!s3mFile.save()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:225
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to S3M file" }];
+            }
+            TLog(@"TagLib save() failed for S3M '%@'", fileURL.lastPathComponent);
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatIT) {
+        TagLib::IT::File itFile(filePath);
+
+        if (!itFile.isValid()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:226
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open IT file for writing metadata" }];
+            }
+            TLog(@"Failed to open IT '%@' for writing", fileURL.lastPathComponent);
+            return NO;
+        }
+
+        ApplyGenericPropertyMapToFile(itFile, metadata);
+
+        if (!itFile.save()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:227
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to IT file" }];
+            }
+            TLog(@"TagLib save() failed for IT '%@'", fileURL.lastPathComponent);
+            return NO;
+        }
+    } else if (format == AudioMatorTagFileFormatXM) {
+        TagLib::XM::File xmFile(filePath);
+
+        if (!xmFile.isValid()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:228
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open XM file for writing metadata" }];
+            }
+            TLog(@"Failed to open XM '%@' for writing", fileURL.lastPathComponent);
+            return NO;
+        }
+
+        ApplyGenericPropertyMapToFile(xmFile, metadata);
+
+        if (!xmFile.save()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:229
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to XM file" }];
+            }
+            TLog(@"TagLib save() failed for XM '%@'", fileURL.lastPathComponent);
+            return NO;
+        }
     } else {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -5515,6 +5869,36 @@ static void AppendRIFFInfoSection(NSMutableString *out,
             AppendRawPropertyEntries(propertiesOut, f.properties());
             return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
         }
+    } else if (format == AudioMatorTagFileFormatShorten) {
+        TagLib::Shorten::File f(filePath);
+        if (f.isValid()) {
+            AppendRawPropertyEntries(propertiesOut, f.properties());
+            return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
+        }
+    } else if (format == AudioMatorTagFileFormatMOD) {
+        TagLib::Mod::File f(filePath);
+        if (f.isValid()) {
+            AppendRawPropertyEntries(propertiesOut, f.properties());
+            return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
+        }
+    } else if (format == AudioMatorTagFileFormatS3M) {
+        TagLib::S3M::File f(filePath);
+        if (f.isValid()) {
+            AppendRawPropertyEntries(propertiesOut, f.properties());
+            return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
+        }
+    } else if (format == AudioMatorTagFileFormatIT) {
+        TagLib::IT::File f(filePath);
+        if (f.isValid()) {
+            AppendRawPropertyEntries(propertiesOut, f.properties());
+            return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
+        }
+    } else if (format == AudioMatorTagFileFormatXM) {
+        TagLib::XM::File f(filePath);
+        if (f.isValid()) {
+            AppendRawPropertyEntries(propertiesOut, f.properties());
+            return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
+        }
     }
 
     // Fallback: use FileRef properties only if the format-specific opener failed unexpectedly.
@@ -5578,6 +5962,51 @@ static void AppendRIFFInfoSection(NSMutableString *out,
             AppendPropertyMap(out, pm);
         } else {
             AppendLine(out, @"(unable to open as MP4)");
+        }
+    } else if (format == AudioMatorTagFileFormatShorten) {
+        TagLib::Shorten::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as Shorten)");
+        }
+    } else if (format == AudioMatorTagFileFormatMOD) {
+        TagLib::Mod::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as MOD)");
+        }
+    } else if (format == AudioMatorTagFileFormatS3M) {
+        TagLib::S3M::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as S3M)");
+        }
+    } else if (format == AudioMatorTagFileFormatIT) {
+        TagLib::IT::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as IT)");
+        }
+    } else if (format == AudioMatorTagFileFormatXM) {
+        TagLib::XM::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as XM)");
         }
     } else {
         if (!fileRef.isNull() && fileRef.file()) {
@@ -5734,11 +6163,15 @@ static void AppendRIFFInfoSection(NSMutableString *out,
     return DetectTagFileFormat(fileExtension) != AudioMatorTagFileFormatUnknown;
 }
 
++ (BOOL)isWritableFormat:(NSString *)fileExtension {
+    return IsWritableTagFileFormat(DetectTagFileFormat(fileExtension));
+}
+
 + (NSArray<NSString *> *)supportedExtensions {
     return @[
         // Lossy formats
         @"mp3", @"mp2",              // MPEG Audio
-        @"m4a", @"m4b", @"m4p", @"mp4", @"aac", // AAC/MP4
+        @"m4a", @"m4r", @"m4b", @"m4p", @"mp4", @"m4v", @"3g2", @"aac", // AAC/MP4
         @"ogg",                      // Ogg Vorbis
         @"opus",                     // Opus
         @"mpc",                      // Musepack
@@ -5751,11 +6184,22 @@ static void AppendRIFFInfoSection(NSMutableString *out,
         @"wv",                       // WavPack
         @"tta",                      // TrueAudio
         @"wav",                      // WAV
-        @"aiff", @"aif",             // AIFF
+        @"aiff", @"aif", @"aifc", @"afc", // AIFF
         @"dsf",                      // DSF (DSD)
-        @"dff",                      // DSDIFF (DSD)
+        @"dff", @"dsdiff",           // DSDIFF (DSD)
         @"oga",                      // OGG FLAC
+        @"shn",                      // Shorten (read-only in TagLib)
+
+        // Tracker/module formats
+        @"mod", @"module", @"nst", @"wow",
+        @"s3m", @"it", @"xm",
     ];
+}
+
++ (NSArray<NSString *> *)writableExtensions {
+    NSMutableArray<NSString *> *extensions = [[self supportedExtensions] mutableCopy];
+    [extensions removeObject:@"shn"];
+    return [extensions copy];
 }
 
 
