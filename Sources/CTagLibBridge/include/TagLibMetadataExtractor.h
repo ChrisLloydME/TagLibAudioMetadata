@@ -189,8 +189,14 @@ NS_SWIFT_NAME(dumpMetadataText(from:));
 /// Check if a file format is supported by TagLib.
 + (BOOL)isSupportedFormat:(NSString *)fileExtension;
 
+/// Check if this bridge can write metadata for a file format.
++ (BOOL)isWritableFormat:(NSString *)fileExtension;
+
 /// Get list of all supported file extensions.
 + (NSArray<NSString *> *)supportedExtensions;
+
+/// Get list of file extensions with writable metadata support.
++ (NSArray<NSString *> *)writableExtensions;
 
 @end
 

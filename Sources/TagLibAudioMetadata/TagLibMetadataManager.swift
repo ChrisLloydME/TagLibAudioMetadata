@@ -385,6 +385,22 @@ public struct TagLibMetadataManager {
         case `throw`
     }
 
+    public nonisolated static func isReadableFormat(_ fileExtension: String) -> Bool {
+        TagLibMetadataExtractor.isSupportedFormat(fileExtension)
+    }
+
+    public nonisolated static func isWritableFormat(_ fileExtension: String) -> Bool {
+        TagLibMetadataExtractor.isWritableFormat(fileExtension)
+    }
+
+    public nonisolated static var readableExtensions: [String] {
+        TagLibMetadataExtractor.supportedExtensions()
+    }
+
+    public nonisolated static var writableExtensions: [String] {
+        TagLibMetadataExtractor.writableExtensions()
+    }
+
     nonisolated private static func isHiddenInternalRawFieldKey(_ key: String) -> Bool {
         hiddenInternalRawFieldKeys.contains(
             key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -988,7 +1004,7 @@ public struct TagLibMetadataManager {
         failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
@@ -1009,7 +1025,7 @@ public struct TagLibMetadataManager {
         failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
@@ -1053,7 +1069,7 @@ public struct TagLibMetadataManager {
         failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
@@ -1193,7 +1209,7 @@ public struct TagLibMetadataManager {
         failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
@@ -1320,7 +1336,7 @@ public struct TagLibMetadataManager {
         mode: RawPropertyMapWriteMode = .replace
     ) throws -> Bool {
         let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
