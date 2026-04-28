@@ -78,6 +78,8 @@
         _compilation = NO;
         _explicitContent = NO;
         _removeArtwork = NO;
+        _movementNumber = 0;
+        _movementCount = 0;
     }
     return self;
 }
@@ -283,19 +285,25 @@ static NSSet<NSString *> *KnownMetadataFieldKeys()
         @"AUDIOMATOR_TRACKNUMBER_TEXT", @"AUDIOMATOR_DISCNUMBER_TEXT",
         @"COPYRIGHT", @"LYRICS", @"LABEL", @"ISRC", @"ENCODEDBY", @"ENCODING", @"ENCODERSETTINGS",
         @"TITLESORT", @"ARTISTSORT", @"ALBUMSORT", @"ALBUMARTISTSORT", @"COMPOSERSORT",
-        @"GROUPING", @"SUBTITLE", @"LYRICIST", @"CONDUCTOR", @"REMIXER", @"PRODUCER", @"ENGINEER",
-        @"MOVEMENT", @"MOOD", @"LANGUAGE", @"INITIALKEY", @"KEY", @"MEDIATYPE", @"MEDIA", @"MEDIA TYPE",
+        @"GROUPING", @"SUBTITLE", @"DISCSUBTITLE", @"LYRICIST", @"CONDUCTOR", @"REMIXER", @"PRODUCER", @"ENGINEER",
+        @"MOVEMENT", @"MOVEMENTNAME", @"MOVEMENTNUMBER", @"MOVEMENTCOUNT", @"WORK", @"MOOD", @"LANGUAGE", @"INITIALKEY", @"KEY", @"MEDIATYPE", @"MEDIA", @"MEDIA TYPE",
         @"ITUNESALBUMID", @"ITUNESARTISTID", @"ITUNESCATALOGID", @"ITUNESGENREID",
         @"ITUNESMEDIATYPE", @"ITUNESPURCHASEDATE", @"ITUNNORM", @"ITUNSMPB",
-        @"RELEASETYPE", @"BARCODE", @"UPC", @"EAN", @"CATALOGNUMBER", @"CATALOG", @"RELEASECOUNTRY",
+        @"RELEASETYPE", @"RELEASESTATUS", @"BARCODE", @"UPC", @"EAN", @"CATALOGNUMBER", @"CATALOG", @"RELEASECOUNTRY",
+        @"ASIN", @"ORIGINALALBUM", @"ORIGINALARTIST",
         @"ARTISTTYPE", @"MUSICBRAINZ ARTIST TYPE", @"MUSICBRAINZ_ARTISTTYPE",
         @"BPM", @"COMPILATION", @"ITUNESADVISORY", @"ADVISORY", @"EXPLICITCONTENT", @"EXPLICIT",
         @"MUSICBRAINZ_ARTISTID", @"MUSICBRAINZ ARTISTID", @"MUSICBRAINZ ARTIST ID",
         @"MUSICBRAINZ_ALBUMID", @"MUSICBRAINZ ALBUMID", @"MUSICBRAINZ ALBUM ID",
+        @"MUSICBRAINZ_ALBUMARTISTID", @"MUSICBRAINZ ALBUMARTISTID", @"MUSICBRAINZ ALBUM ARTIST ID",
         @"MUSICBRAINZ_TRACKID", @"MUSICBRAINZ TRACKID", @"MUSICBRAINZ TRACK ID",
         @"MUSICBRAINZ_RELEASEGROUPID", @"MUSICBRAINZ RELEASEGROUPID", @"MUSICBRAINZ RELEASE GROUP ID",
+        @"MUSICBRAINZ_RELEASETRACKID", @"MUSICBRAINZ RELEASETRACKID", @"MUSICBRAINZ RELEASE TRACK ID",
+        @"MUSICBRAINZ_WORKID", @"MUSICBRAINZ WORKID", @"MUSICBRAINZ WORK ID",
         @"MUSICBRAINZ_ALBUMTYPE", @"MUSICBRAINZ ALBUM TYPE",
+        @"MUSICBRAINZ_ALBUMSTATUS", @"MUSICBRAINZ ALBUM STATUS",
         @"MUSICBRAINZ_ALBUMRELEASECOUNTRY", @"MUSICBRAINZ ALBUM RELEASE COUNTRY",
+        @"ACOUSTID_ID", @"ACOUSTID ID", @"ACOUSTID_FINGERPRINT", @"ACOUSTID FINGERPRINT", @"MUSICIP_PUID",
         @"REPLAYGAIN_TRACK_GAIN", @"REPLAYGAIN_ALBUM_GAIN"
     ]];
     return keys;
@@ -919,6 +927,13 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
+    if ([normalizedKey isEqualToString:@"RELEASESTATUS"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ ALBUM STATUS"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ_ALBUMSTATUS"]) {
+        metadata.releaseStatus = trimmedValue;
+        return true;
+    }
+
     if ([normalizedKey isEqualToString:@"BARCODE"] ||
         [normalizedKey isEqualToString:@"UPC"] ||
         [normalizedKey isEqualToString:@"EAN"]) {
@@ -961,6 +976,13 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
+    if ([normalizedKey isEqualToString:@"MUSICBRAINZ ALBUM ARTIST ID"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ ALBUMARTISTID"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ_ALBUMARTISTID"]) {
+        metadata.musicBrainzAlbumArtistId = trimmedValue;
+        return true;
+    }
+
     if ([normalizedKey isEqualToString:@"MUSICBRAINZ TRACK ID"] ||
         [normalizedKey isEqualToString:@"MUSICBRAINZ TRACKID"] ||
         [normalizedKey isEqualToString:@"MUSICBRAINZ_TRACKID"]) {
@@ -972,6 +994,52 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         [normalizedKey isEqualToString:@"MUSICBRAINZ RELEASEGROUPID"] ||
         [normalizedKey isEqualToString:@"MUSICBRAINZ_RELEASEGROUPID"]) {
         metadata.musicBrainzReleaseGroupId = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"MUSICBRAINZ RELEASE TRACK ID"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ RELEASETRACKID"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ_RELEASETRACKID"]) {
+        metadata.musicBrainzReleaseTrackId = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"MUSICBRAINZ WORK ID"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ WORKID"] ||
+        [normalizedKey isEqualToString:@"MUSICBRAINZ_WORKID"]) {
+        metadata.musicBrainzWorkId = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"ACOUSTID ID"] ||
+        [normalizedKey isEqualToString:@"ACOUSTID_ID"]) {
+        metadata.acoustId = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"ACOUSTID FINGERPRINT"] ||
+        [normalizedKey isEqualToString:@"ACOUSTID_FINGERPRINT"]) {
+        metadata.acoustIdFingerprint = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"MUSICIP_PUID"]) {
+        metadata.musicIpPuid = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"ASIN"]) {
+        metadata.asin = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"ORIGINALALBUM"]) {
+        metadata.originalAlbum = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"ORIGINALARTIST"]) {
+        metadata.originalArtist = trimmedValue;
         return true;
     }
 
@@ -1045,6 +1113,11 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
+    if ([normalizedKey isEqualToString:@"DISCSUBTITLE"]) {
+        metadata.discSubtitle = trimmedValue;
+        return true;
+    }
+
     if ([normalizedKey isEqualToString:@"GROUPING"]) {
         metadata.grouping = trimmedValue;
         return true;
@@ -1075,8 +1148,24 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
-    if ([normalizedKey isEqualToString:@"MOVEMENT"]) {
+    if ([normalizedKey isEqualToString:@"MOVEMENT"] ||
+        [normalizedKey isEqualToString:@"MOVEMENTNAME"]) {
         metadata.movement = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"MOVEMENTNUMBER"]) {
+        metadata.movementNumber = trimmedValue.length > 0 ? trimmedValue.integerValue : 0;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"MOVEMENTCOUNT"]) {
+        metadata.movementCount = trimmedValue.length > 0 ? trimmedValue.integerValue : 0;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"WORK"]) {
+        metadata.work = trimmedValue;
         return true;
     }
 
@@ -1243,20 +1332,43 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "ENGINEER", metadata.engineer);
     SetPropertyMapString(properties, "LYRICIST", metadata.lyricist);
     SetPropertyMapString(properties, "SUBTITLE", metadata.subtitle);
+    SetPropertyMapString(properties, "DISCSUBTITLE", metadata.discSubtitle);
     SetPropertyMapString(properties, "GROUPING", metadata.grouping);
     SetPropertyMapString(properties, "MOVEMENT", metadata.movement);
+    SetPropertyMapString(properties, "MOVEMENTNAME", metadata.movement);
+    SetPropertyMapString(
+        properties,
+        "MOVEMENTNUMBER",
+        metadata.movementNumber > 0 ? [NSString stringWithFormat:@"%ld", (long)metadata.movementNumber] : nil
+    );
+    SetPropertyMapString(
+        properties,
+        "MOVEMENTCOUNT",
+        metadata.movementCount > 0 ? [NSString stringWithFormat:@"%ld", (long)metadata.movementCount] : nil
+    );
+    SetPropertyMapString(properties, "WORK", metadata.work);
     SetPropertyMapString(properties, "MOOD", metadata.mood);
     SetPropertyMapString(properties, "LANGUAGE", metadata.language);
     SetPropertyMapString(properties, "INITIALKEY", metadata.musicalKey);
     SetPropertyMapString(properties, "RELEASETYPE", metadata.releaseType);
+    SetPropertyMapString(properties, "RELEASESTATUS", metadata.releaseStatus);
     SetPropertyMapString(properties, "BARCODE", metadata.barcode);
     SetPropertyMapString(properties, "CATALOGNUMBER", metadata.catalogNumber);
     SetPropertyMapString(properties, "RELEASECOUNTRY", metadata.releaseCountry);
+    SetPropertyMapString(properties, "ASIN", metadata.asin);
+    SetPropertyMapString(properties, "ORIGINALALBUM", metadata.originalAlbum);
+    SetPropertyMapString(properties, "ORIGINALARTIST", metadata.originalArtist);
     SetPropertyMapString(properties, "MUSICBRAINZ_ARTISTTYPE", metadata.artistType);
     SetPropertyMapString(properties, "MUSICBRAINZ_ARTISTID", metadata.musicBrainzArtistId);
     SetPropertyMapString(properties, "MUSICBRAINZ_ALBUMID", metadata.musicBrainzAlbumId);
+    SetPropertyMapString(properties, "MUSICBRAINZ_ALBUMARTISTID", metadata.musicBrainzAlbumArtistId);
     SetPropertyMapString(properties, "MUSICBRAINZ_TRACKID", metadata.musicBrainzTrackId);
     SetPropertyMapString(properties, "MUSICBRAINZ_RELEASEGROUPID", metadata.musicBrainzReleaseGroupId);
+    SetPropertyMapString(properties, "MUSICBRAINZ_RELEASETRACKID", metadata.musicBrainzReleaseTrackId);
+    SetPropertyMapString(properties, "MUSICBRAINZ_WORKID", metadata.musicBrainzWorkId);
+    SetPropertyMapString(properties, "ACOUSTID_ID", metadata.acoustId);
+    SetPropertyMapString(properties, "ACOUSTID_FINGERPRINT", metadata.acoustIdFingerprint);
+    SetPropertyMapString(properties, "MUSICIP_PUID", metadata.musicIpPuid);
     SetPropertyMapString(properties, "REPLAYGAIN_TRACK_GAIN", metadata.replayGainTrack);
     SetPropertyMapString(properties, "REPLAYGAIN_ALBUM_GAIN", metadata.replayGainAlbum);
     SetPropertyMapString(properties, "MEDIATYPE", metadata.mediaType);
@@ -1898,6 +2010,8 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
 
     NSString *subtitleValue = FirstStringFromProperty(properties, {"SUBTITLE"});
     if (subtitleValue.length > 0) metadata.subtitle = subtitleValue;
+    NSString *discSubtitleValue = FirstStringFromProperty(properties, {"DISCSUBTITLE"});
+    if (discSubtitleValue.length > 0) metadata.discSubtitle = discSubtitleValue;
 
     NSString *lyricistValue = FirstStringFromProperty(properties, {"LYRICIST"}, true);
     if (lyricistValue.length > 0) metadata.lyricist = lyricistValue;
@@ -1913,8 +2027,14 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
 
     NSString *engineerValue = FirstStringFromProperty(properties, {"ENGINEER"}, true);
     if (engineerValue.length > 0) metadata.engineer = engineerValue;
-    NSString *movementValue = FirstStringFromProperty(properties, {"MOVEMENT"});
+    NSString *movementValue = FirstStringFromProperty(properties, {"MOVEMENT", "MOVEMENTNAME"});
     if (movementValue.length > 0) metadata.movement = movementValue;
+    NSString *movementNumberValue = FirstStringFromProperty(properties, {"MOVEMENTNUMBER"});
+    if (movementNumberValue.length > 0) metadata.movementNumber = movementNumberValue.integerValue;
+    NSString *movementCountValue = FirstStringFromProperty(properties, {"MOVEMENTCOUNT"});
+    if (movementCountValue.length > 0) metadata.movementCount = movementCountValue.integerValue;
+    NSString *workValue = FirstStringFromProperty(properties, {"WORK"});
+    if (workValue.length > 0) metadata.work = workValue;
 
     NSString *moodValue = FirstStringFromProperty(properties, {"MOOD"}, true);
     if (moodValue.length > 0) metadata.mood = moodValue;
@@ -1926,6 +2046,8 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
 
     NSString *releaseTypeValue = FirstStringFromProperty(properties, {"RELEASETYPE"});
     if (releaseTypeValue.length > 0) metadata.releaseType = releaseTypeValue;
+    NSString *releaseStatusValue = FirstStringFromProperty(properties, {"RELEASESTATUS"});
+    if (releaseStatusValue.length > 0) metadata.releaseStatus = releaseStatusValue;
 
     NSString *barcodeValue = FirstStringFromProperty(properties, {"BARCODE", "UPC", "EAN"});
     if (barcodeValue.length > 0) metadata.barcode = barcodeValue;
@@ -1935,6 +2057,12 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
 
     NSString *releaseCountryValue = FirstStringFromProperty(properties, {"RELEASECOUNTRY"});
     if (releaseCountryValue.length > 0) metadata.releaseCountry = releaseCountryValue;
+    NSString *asinValue = FirstStringFromProperty(properties, {"ASIN"});
+    if (asinValue.length > 0) metadata.asin = asinValue;
+    NSString *originalAlbumValue = FirstStringFromProperty(properties, {"ORIGINALALBUM"});
+    if (originalAlbumValue.length > 0) metadata.originalAlbum = originalAlbumValue;
+    NSString *originalArtistValue = FirstStringFromProperty(properties, {"ORIGINALARTIST"});
+    if (originalArtistValue.length > 0) metadata.originalArtist = originalArtistValue;
     NSString *artistTypeValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE"});
     if (artistTypeValue.length > 0) metadata.artistType = artistTypeValue;
 
@@ -1942,10 +2070,22 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     if (mbArtistValue.length > 0) metadata.musicBrainzArtistId = mbArtistValue;
     NSString *mbAlbumValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ALBUMID"});
     if (mbAlbumValue.length > 0) metadata.musicBrainzAlbumId = mbAlbumValue;
+    NSString *mbAlbumArtistValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ALBUMARTISTID"});
+    if (mbAlbumArtistValue.length > 0) metadata.musicBrainzAlbumArtistId = mbAlbumArtistValue;
     NSString *mbTrackValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_TRACKID"});
     if (mbTrackValue.length > 0) metadata.musicBrainzTrackId = mbTrackValue;
     NSString *mbReleaseGroupValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_RELEASEGROUPID"});
     if (mbReleaseGroupValue.length > 0) metadata.musicBrainzReleaseGroupId = mbReleaseGroupValue;
+    NSString *mbReleaseTrackValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_RELEASETRACKID"});
+    if (mbReleaseTrackValue.length > 0) metadata.musicBrainzReleaseTrackId = mbReleaseTrackValue;
+    NSString *mbWorkValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_WORKID"});
+    if (mbWorkValue.length > 0) metadata.musicBrainzWorkId = mbWorkValue;
+    NSString *acoustIdValue = FirstStringFromProperty(properties, {"ACOUSTID_ID"});
+    if (acoustIdValue.length > 0) metadata.acoustId = acoustIdValue;
+    NSString *acoustFingerprintValue = FirstStringFromProperty(properties, {"ACOUSTID_FINGERPRINT"});
+    if (acoustFingerprintValue.length > 0) metadata.acoustIdFingerprint = acoustFingerprintValue;
+    NSString *musicIpPuidValue = FirstStringFromProperty(properties, {"MUSICIP_PUID"});
+    if (musicIpPuidValue.length > 0) metadata.musicIpPuid = musicIpPuidValue;
 
     NSString *replayGainTrackValue = FirstStringFromProperty(properties, {"REPLAYGAIN_TRACK_GAIN"});
     if (replayGainTrackValue.length > 0) metadata.replayGainTrack = replayGainTrackValue;
@@ -2158,6 +2298,21 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
             }
             else if (frameIDStr == "MVNM") {
                 metadata.movement = TagStringToNSString(value);
+            }
+            else if (frameIDStr == "MVIN") {
+                metadata.movementNumber = value.toInt();
+            }
+            else if (frameIDStr == "MVC") {
+                metadata.movementCount = value.toInt();
+            }
+            else if (frameIDStr == "TSST") {
+                metadata.discSubtitle = TagStringToNSString(value);
+            }
+            else if (frameIDStr == "TOAL") {
+                metadata.originalAlbum = TagStringToNSString(value);
+            }
+            else if (frameIDStr == "TOPE") {
+                metadata.originalArtist = TagStringToNSString(value);
             }
             // Compilation flag
             else if (frameIDStr == "TCMP") {

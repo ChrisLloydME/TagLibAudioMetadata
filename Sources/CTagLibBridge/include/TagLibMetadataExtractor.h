@@ -88,8 +88,14 @@ NS_ASSUME_NONNULL_BEGIN
 // MusicBrainz IDs
 @property (nonatomic, copy, nullable) NSString *musicBrainzArtistId;
 @property (nonatomic, copy, nullable) NSString *musicBrainzAlbumId;
+@property (nonatomic, copy, nullable) NSString *musicBrainzAlbumArtistId;
 @property (nonatomic, copy, nullable) NSString *musicBrainzTrackId;
 @property (nonatomic, copy, nullable) NSString *musicBrainzReleaseGroupId;
+@property (nonatomic, copy, nullable) NSString *musicBrainzReleaseTrackId;
+@property (nonatomic, copy, nullable) NSString *musicBrainzWorkId;
+@property (nonatomic, copy, nullable) NSString *acoustId;
+@property (nonatomic, copy, nullable) NSString *acoustIdFingerprint;
+@property (nonatomic, copy, nullable) NSString *musicIpPuid;
 
 // ReplayGain
 @property (nonatomic, copy, nullable) NSString *replayGainTrack;
@@ -110,10 +116,18 @@ NS_ASSUME_NONNULL_BEGIN
 
 // Release information (professional fields)
 @property (nonatomic, copy, nullable) NSString *releaseType;      // Album, EP, Single, etc.
+@property (nonatomic, copy, nullable) NSString *releaseStatus;    // Official, Promotion, Bootleg, etc.
 @property (nonatomic, copy, nullable) NSString *catalogNumber;    // Catalog/Matrix number
 @property (nonatomic, copy, nullable) NSString *barcode;          // UPC/EAN
 @property (nonatomic, copy, nullable) NSString *releaseCountry;   // ISO country code
 @property (nonatomic, copy, nullable) NSString *artistType;       // Person, Group, etc.
+@property (nonatomic, copy, nullable) NSString *asin;
+@property (nonatomic, copy, nullable) NSString *originalAlbum;
+@property (nonatomic, copy, nullable) NSString *originalArtist;
+@property (nonatomic, copy, nullable) NSString *discSubtitle;
+@property (nonatomic, copy, nullable) NSString *work;
+@property (nonatomic, assign) NSInteger movementNumber;
+@property (nonatomic, assign) NSInteger movementCount;
 
 // Custom/Extended fields
 @property (nonatomic, strong, nullable) NSDictionary<NSString *, NSString *> *customFields;

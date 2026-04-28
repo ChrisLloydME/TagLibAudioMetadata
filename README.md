@@ -4,7 +4,7 @@
 
 The package is intended for app code that needs:
 
-- Common audio metadata such as title, artist, album, track/disc numbers, dates, artwork, MusicBrainz IDs, ReplayGain, iTunes fields, and custom fields.
+- Common audio metadata such as title, artist, album, track/disc numbers, dates, artwork, MusicBrainz/AcoustID IDs, classical fields, ReplayGain, iTunes fields, and custom fields.
 - Raw TagLib `PropertyMap` access for advanced metadata editors.
 - Post-write verification warnings so apps can detect container-specific normalization or unsupported fields.
 - A compatibility API that returns `nil`, plus throwing APIs for callers that need precise error handling.
@@ -439,16 +439,19 @@ Important fields:
 | `track`, `trackTotal`, `disc`, `discTotal` | `Int` | Parsed numeric track/disc values. `0` means absent/unset. |
 | `trackNumberText`, `discNumberText` | `String` | Original or preferred text form, for example `01/12`. Use this when padding matters. |
 | `year`, `releaseDate`, `originalReleaseDate` | `String` | Date fields. `releaseDate` is preferred over `year` when writing normalized properties. |
-| `isrc`, `barcode`, `catalogNumber`, `releaseCountry`, `releaseType` | `String` | Release identifiers and release metadata. |
-| `musicBrainzArtistID`, `musicBrainzAlbumID`, `musicBrainzTrackID`, `musicBrainzReleaseGroupID` | `String` | MusicBrainz identifiers. |
+| `isrc`, `barcode`, `catalogNumber`, `releaseCountry`, `releaseType`, `releaseStatus`, `asin` | `String` | Release identifiers and release metadata. |
+| `musicBrainzArtistID`, `musicBrainzAlbumID`, `musicBrainzAlbumArtistID`, `musicBrainzTrackID`, `musicBrainzReleaseGroupID`, `musicBrainzReleaseTrackID`, `musicBrainzWorkID` | `String` | MusicBrainz identifiers. |
+| `acoustID`, `acoustIDFingerprint`, `musicIPPUID` | `String` | Audio fingerprinting identifiers exposed by TagLib property keys. |
 | `publisher`, `copyright`, `encodedBy`, `encoderSettings` | `String` | Label/legal/encoding fields. `publisher` maps to the bridge `label` field. |
 | `sortTitle`, `sortArtist`, `sortAlbum`, `sortAlbumArtist`, `sortComposer` | `String` | Sort keys. |
 | `conductor`, `remixer`, `producer`, `engineer`, `lyricist` | `String` | Personnel fields. |
-| `subtitle`, `grouping`, `movement`, `mood`, `language`, `musicalKey` | `String` | Descriptive and classical/music library fields. |
+| `subtitle`, `discSubtitle`, `grouping`, `work`, `movement`, `mood`, `language`, `musicalKey` | `String` | Descriptive and classical/music library fields. |
+| `movementNumber`, `movementCount` | `Int` | Classical movement index/count. `0` means absent/unset. |
 | `replayGainTrack`, `replayGainAlbum` | `String` | ReplayGain values. |
 | `mediaType` | `String` | Media type descriptor. |
 | `itunesAlbumID`, `itunesArtistID`, `itunesCatalogID`, `itunesGenreID`, `itunesMediaType`, `itunesPurchaseDate`, `itunesNorm`, `itunesSMPB` | `String` | iTunes-specific metadata. |
 | `artistType` | `String` | Artist type, typically from MusicBrainz-style metadata. |
+| `originalAlbum`, `originalArtist` | `String` | Original release credits when available. |
 | `bpm` | `Int` | Beats per minute. |
 | `isCompilation`, `isExplicit` | `Bool` | Compilation and explicit-content flags. |
 | `duration`, `bitrate`, `sampleRate`, `channels`, `bitDepth`, `format` | `Double`/`Int`/`String` | Audio properties read from the file. These are informational; normal writes focus on tag metadata. |
@@ -573,12 +576,31 @@ Raw `PropertyMap` keys are TagLib-normalized textual keys. Common keys include:
 - `BARCODE`
 - `MUSICBRAINZ_ARTISTID`
 - `MUSICBRAINZ_ALBUMID`
+- `MUSICBRAINZ_ALBUMARTISTID`
 - `MUSICBRAINZ_TRACKID`
+- `MUSICBRAINZ_RELEASEGROUPID`
+- `MUSICBRAINZ_RELEASETRACKID`
+- `MUSICBRAINZ_WORKID`
+- `ACOUSTID_ID`
+- `ACOUSTID_FINGERPRINT`
+- `MUSICIP_PUID`
 - `REPLAYGAIN_TRACK_GAIN`
 - `REPLAYGAIN_ALBUM_GAIN`
 - `ITUNESADVISORY`
+- `RELEASETYPE`
+- `RELEASESTATUS`
+- `ASIN`
+- `ORIGINALALBUM`
+- `ORIGINALARTIST`
+- `DISCSUBTITLE`
+- `WORK`
+- `MOVEMENTNAME`
+- `MOVEMENTNUMBER`
+- `MOVEMENTCOUNT`
 
 For normal app code, prefer `BasicMetadata`. Use raw property-map APIs only when you are building an advanced editor or need to preserve/edit keys outside the structured model.
+
+Structured `BasicMetadata` reads and writes these fields through TagLib's `PropertyMap` wherever possible. TagLib then maps the same key to the best container-specific representation, for example ID3v2 frames for MP3/AIFF/WAV/DSF, iTunes-style atoms or freeform atoms for MP4, Vorbis/Xiph comments for FLAC/Ogg/Opus/Speex, APE items for APE/WavPack/MPC, ASF attributes for WMA/ASF, and RIFF INFO fields where TagLib defines one. Container support is not identical; use the verified write APIs when exact preservation matters.
 
 ## Error Handling
 
