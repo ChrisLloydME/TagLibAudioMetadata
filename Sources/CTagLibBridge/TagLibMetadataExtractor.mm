@@ -278,7 +278,19 @@ static NSString * _Nullable UppercaseTrimmedString(NSString * _Nullable value) {
 
 static NSSet<NSString *> *KnownMetadataFieldKeys()
 {
-    static NSSet<NSString *> *keys = [NSSet setWithArray:@[
+    static NSSet<NSString *> *keys = [] {
+        NSMutableSet<NSString *> *mappedKeys = [NSMutableSet set];
+        for (const auto &mapping : kAudioMatorMetadataFieldMappings) {
+            if (mapping.canonicalPropertyKey) {
+                [mappedKeys addObject:@(mapping.canonicalPropertyKey)];
+            }
+            for (const char *alias : mapping.propertyAliases) {
+                if (alias) {
+                    [mappedKeys addObject:@(alias)];
+                }
+            }
+        }
+        [mappedKeys addObjectsFromArray:@[
         @"TITLE", @"ARTIST", @"ARTISTS", @"ALBUM", @"COMMENT", @"GENRE", @"COMPOSER", @"ALBUMARTIST",
         @"DATE", @"YEAR", @"RELEASEDATE", @"ORIGINALDATE", @"ORIGINAL YEAR",
         @"TRACKNUMBER", @"TRACK", @"TRACKTOTAL", @"TOTALTRACKS", @"DISCNUMBER", @"DISC", @"DISCTOTAL", @"TOTALDISCS",
@@ -305,7 +317,9 @@ static NSSet<NSString *> *KnownMetadataFieldKeys()
         @"MUSICBRAINZ_ALBUMRELEASECOUNTRY", @"MUSICBRAINZ ALBUM RELEASE COUNTRY",
         @"ACOUSTID_ID", @"ACOUSTID ID", @"ACOUSTID_FINGERPRINT", @"ACOUSTID FINGERPRINT", @"MUSICIP_PUID",
         @"REPLAYGAIN_TRACK_GAIN", @"REPLAYGAIN_ALBUM_GAIN"
-    ]];
+        ]];
+        return [mappedKeys copy];
+    }();
     return keys;
 }
 
@@ -357,6 +371,97 @@ static constexpr const char *kAudioMatorMP4TrackNumberTextKey = "----:com.apple.
 static constexpr const char *kAudioMatorMP4DiscNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT";
 
 static bool IsMP4LikeExtension(NSString * _Nullable ext);
+
+typedef struct {
+    const char *canonicalPropertyKey;
+    const char *propertyAliases[6];
+    const char *id3v2TextFrame;
+    const char *id3v2UserTextDescription;
+    const char *mp4Atom;
+    const char *mp4FreeformDescription;
+    bool multiValue;
+    bool peopleField;
+    bool roleQualified;
+} AudioMatorMetadataFieldMapping;
+
+static const AudioMatorMetadataFieldMapping kAudioMatorMetadataFieldMappings[] = {
+    { "TITLE", { nullptr }, "TIT2", nullptr, "\xA9" "nam", nullptr, false, false, false },
+    { "ARTIST", { "ARTISTS", nullptr }, "TPE1", nullptr, "\xA9" "ART", nullptr, true, true, false },
+    { "ALBUM", { nullptr }, "TALB", nullptr, "\xA9" "alb", nullptr, false, false, false },
+    { "ALBUMARTIST", { "ALBUM ARTIST", nullptr }, "TPE2", nullptr, "aART", nullptr, true, true, false },
+    { "DATE", { "YEAR", "RELEASEDATE", nullptr }, "TDRC", nullptr, "\xA9" "day", nullptr, false, false, false },
+    { "ORIGINALDATE", { "ORIGINAL YEAR", nullptr }, "TDOR", nullptr, nullptr, "ORIGINAL YEAR", false, false, false },
+    { "TRACKNUMBER", { "TRACK", nullptr }, "TRCK", nullptr, "trkn", nullptr, false, false, false },
+    { "TRACKTOTAL", { "TOTALTRACKS", nullptr }, "TRCK", nullptr, "trkn", nullptr, false, false, false },
+    { "DISCNUMBER", { "DISC", nullptr }, "TPOS", nullptr, "disk", nullptr, false, false, false },
+    { "DISCTOTAL", { "TOTALDISCS", nullptr }, "TPOS", nullptr, "disk", nullptr, false, false, false },
+    { "PICTURE", { nullptr }, "APIC", nullptr, "covr", nullptr, false, false, false },
+    { "LYRICS", { nullptr }, "USLT", nullptr, "\xA9" "lyr", nullptr, false, false, false },
+    { "COMMENT", { nullptr }, "COMM", nullptr, "\xA9" "cmt", nullptr, false, false, false },
+    { "GENRE", { nullptr }, "TCON", nullptr, "\xA9" "gen", nullptr, true, false, false },
+    { "COMPOSER", { nullptr }, "TCOM", nullptr, "\xA9" "wrt", nullptr, true, true, false },
+    { "TITLESORT", { nullptr }, "TSOT", nullptr, "sonm", nullptr, false, false, false },
+    { "ARTISTSORT", { nullptr }, "TSOP", nullptr, "soar", nullptr, false, false, false },
+    { "ALBUMSORT", { nullptr }, "TSOA", nullptr, "soal", nullptr, false, false, false },
+    { "ALBUMARTISTSORT", { nullptr }, "TSO2", nullptr, "soaa", nullptr, false, false, false },
+    { "COMPOSERSORT", { nullptr }, "TSOC", nullptr, "soco", nullptr, false, false, false },
+    { "CONDUCTOR", { nullptr }, "TPE3", nullptr, nullptr, "CONDUCTOR", true, true, false },
+    { "REMIXER", { nullptr }, "TPE4", nullptr, nullptr, "REMIXER", true, true, false },
+    { "PRODUCER", { nullptr }, nullptr, "PRODUCER", nullptr, "PRODUCER", true, true, false },
+    { "ENGINEER", { nullptr }, nullptr, "ENGINEER", nullptr, "ENGINEER", true, true, false },
+    { "LYRICIST", { nullptr }, "TEXT", nullptr, nullptr, "LYRICIST", true, true, false },
+    { "PERFORMER", { nullptr }, "TMCL", nullptr, nullptr, "PERFORMER", true, true, true },
+    { "INVOLVEDPEOPLE", { nullptr }, "TIPL", nullptr, nullptr, "INVOLVEDPEOPLE", true, true, true },
+    { "MUSICIANCREDITS", { nullptr }, "TMCL", nullptr, nullptr, "MUSICIANCREDITS", true, true, true },
+    { "COPYRIGHT", { nullptr }, "TCOP", nullptr, "cprt", nullptr, false, false, false },
+    { "LABEL", { "PUBLISHER", nullptr }, "TPUB", nullptr, nullptr, "LABEL", false, false, false },
+    { "ENCODEDBY", { "ENCODING", nullptr }, "TENC", nullptr, "\xA9" "too", nullptr, false, false, false },
+    { "ENCODERSETTINGS", { nullptr }, "TSSE", nullptr, nullptr, "ENCODERSETTINGS", false, false, false },
+    { "ISRC", { nullptr }, "TSRC", nullptr, nullptr, "ISRC", false, false, false },
+    { "BARCODE", { "UPC", "EAN", nullptr }, nullptr, "BARCODE", nullptr, "BARCODE", false, false, false },
+    { "CATALOGNUMBER", { "CATALOG NUMBER", "CATALOG", nullptr }, nullptr, "CATALOGNUMBER", nullptr, "CATALOGNUMBER", false, false, false },
+    { "RELEASETYPE", { "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ ALBUM TYPE", nullptr }, nullptr, "RELEASETYPE", nullptr, "RELEASETYPE", false, false, false },
+    { "RELEASESTATUS", { "MUSICBRAINZ_ALBUMSTATUS", "MUSICBRAINZ ALBUM STATUS", nullptr }, nullptr, "RELEASESTATUS", nullptr, "RELEASESTATUS", false, false, false },
+    { "RELEASECOUNTRY", { "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "MUSICBRAINZ ALBUM RELEASE COUNTRY", nullptr }, nullptr, "RELEASECOUNTRY", nullptr, "MusicBrainz Album Release Country", false, false, false },
+    { "ASIN", { nullptr }, nullptr, "ASIN", nullptr, "ASIN", false, false, false },
+    { "MEDIATYPE", { "MEDIA", "MEDIA TYPE", nullptr }, "TMED", nullptr, nullptr, "MEDIATYPE", false, false, false },
+    { "SUBTITLE", { nullptr }, "TIT3", nullptr, nullptr, "SUBTITLE", false, false, false },
+    { "GROUPING", { nullptr }, "TIT1", nullptr, "\xA9" "grp", nullptr, true, false, false },
+    { "DISCSUBTITLE", { nullptr }, "TSST", nullptr, nullptr, "DISCSUBTITLE", false, false, false },
+    { "MOVEMENT", { "MOVEMENTNAME", nullptr }, "MVNM", nullptr, nullptr, "MOVEMENT", false, false, false },
+    { "MOVEMENTNUMBER", { nullptr }, "MVIN", nullptr, nullptr, "MOVEMENTNUMBER", false, false, false },
+    { "MOVEMENTCOUNT", { nullptr }, "MVC", nullptr, nullptr, "MOVEMENTCOUNT", false, false, false },
+    { "WORK", { nullptr }, nullptr, "WORK", nullptr, "WORK", false, false, false },
+    { "MOOD", { nullptr }, "TMOO", nullptr, nullptr, "MOOD", true, false, false },
+    { "LANGUAGE", { nullptr }, "TLAN", nullptr, nullptr, "LANGUAGE", true, false, false },
+    { "INITIALKEY", { "KEY", nullptr }, "TKEY", nullptr, nullptr, "INITIALKEY", false, false, false },
+    { "MUSICBRAINZ_ARTISTID", { "MUSICBRAINZ ARTISTID", "MUSICBRAINZ ARTIST ID", nullptr }, nullptr, "MusicBrainz Artist Id", nullptr, "MusicBrainz Artist Id", false, false, false },
+    { "MUSICBRAINZ_ALBUMID", { "MUSICBRAINZ ALBUMID", "MUSICBRAINZ ALBUM ID", nullptr }, nullptr, "MusicBrainz Album Id", nullptr, "MusicBrainz Album Id", false, false, false },
+    { "MUSICBRAINZ_ALBUMARTISTID", { "MUSICBRAINZ ALBUMARTISTID", "MUSICBRAINZ ALBUM ARTIST ID", nullptr }, nullptr, "MusicBrainz Album Artist Id", nullptr, "MusicBrainz Album Artist Id", false, false, false },
+    { "MUSICBRAINZ_TRACKID", { "MUSICBRAINZ TRACKID", "MUSICBRAINZ TRACK ID", nullptr }, nullptr, "MusicBrainz Track Id", nullptr, "MusicBrainz Track Id", false, false, false },
+    { "MUSICBRAINZ_RELEASEGROUPID", { "MUSICBRAINZ RELEASEGROUPID", "MUSICBRAINZ RELEASE GROUP ID", nullptr }, nullptr, "MusicBrainz Release Group Id", nullptr, "MusicBrainz Release Group Id", false, false, false },
+    { "MUSICBRAINZ_RELEASETRACKID", { "MUSICBRAINZ RELEASETRACKID", "MUSICBRAINZ RELEASE TRACK ID", nullptr }, nullptr, "MusicBrainz Release Track Id", nullptr, "MusicBrainz Release Track Id", false, false, false },
+    { "MUSICBRAINZ_WORKID", { "MUSICBRAINZ WORKID", "MUSICBRAINZ WORK ID", nullptr }, nullptr, "MusicBrainz Work Id", nullptr, "MusicBrainz Work Id", false, false, false },
+    { "MUSICBRAINZ_ARTISTTYPE", { "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE", nullptr }, nullptr, "ARTISTTYPE", nullptr, "ARTISTTYPE", false, false, false },
+    { "ACOUSTID_ID", { "ACOUSTID ID", nullptr }, nullptr, "Acoustid Id", nullptr, "Acoustid Id", false, false, false },
+    { "ACOUSTID_FINGERPRINT", { "ACOUSTID FINGERPRINT", nullptr }, nullptr, "Acoustid Fingerprint", nullptr, "Acoustid Fingerprint", false, false, false },
+    { "MUSICIP_PUID", { nullptr }, nullptr, "MusicIP PUID", nullptr, "MusicIP PUID", false, false, false },
+    { "REPLAYGAIN_TRACK_GAIN", { nullptr }, nullptr, "REPLAYGAIN_TRACK_GAIN", nullptr, "REPLAYGAIN_TRACK_GAIN", false, false, false },
+    { "REPLAYGAIN_ALBUM_GAIN", { nullptr }, nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", false, false, false },
+    { "ITUNESALBUMID", { nullptr }, nullptr, "ITUNESALBUMID", nullptr, "ITUNESALBUMID", false, false, false },
+    { "ITUNESARTISTID", { nullptr }, nullptr, "ITUNESARTISTID", nullptr, "ITUNESARTISTID", false, false, false },
+    { "ITUNESCATALOGID", { nullptr }, nullptr, "ITUNESCATALOGID", nullptr, "ITUNESCATALOGID", false, false, false },
+    { "ITUNESGENREID", { nullptr }, nullptr, "ITUNESGENREID", nullptr, "ITUNESGENREID", false, false, false },
+    { "ITUNESMEDIATYPE", { nullptr }, nullptr, "ITUNESMEDIATYPE", nullptr, "ITUNESMEDIATYPE", false, false, false },
+    { "ITUNESPURCHASEDATE", { nullptr }, nullptr, "ITUNESPURCHASEDATE", nullptr, "ITUNESPURCHASEDATE", false, false, false },
+    { "ITUNNORM", { nullptr }, nullptr, "ITUNNORM", nullptr, "ITUNNORM", false, false, false },
+    { "ITUNSMPB", { nullptr }, nullptr, "ITUNSMPB", nullptr, "ITUNSMPB", false, false, false },
+    { "ITUNESADVISORY", { "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", nullptr }, nullptr, "ITUNESADVISORY", "rtng", "ITUNESADVISORY", false, false, false },
+    { "BPM", { nullptr }, "TBPM", nullptr, "tmpo", nullptr, false, false, false },
+    { "COMPILATION", { nullptr }, "TCMP", nullptr, "cpil", nullptr, false, false, false },
+    { "ORIGINALALBUM", { nullptr }, "TOAL", nullptr, nullptr, "ORIGINALALBUM", false, false, false },
+    { "ORIGINALARTIST", { nullptr }, "TOPE", nullptr, nullptr, "ORIGINALARTIST", true, true, false },
+};
 
 typedef NS_ENUM(NSInteger, AudioMatorTagFileFormat) {
     AudioMatorTagFileFormatUnknown = 0,
@@ -1838,6 +1943,171 @@ static void SetID3v2LyricsFrame(TagLib::ID3v2::Tag *tag,
     lyricsFrame->setLanguage(TagLib::ByteVector("eng", 3));
     lyricsFrame->setText(NSStringToTagString(trimmed));
     tag->addFrame(lyricsFrame);
+}
+
+typedef NSString * _Nullable (*AudioMatorMetadataStringGetter)(TagLibAudioMetadata *metadata);
+
+static NSString * _Nullable StringFromIntegerField(NSInteger value) {
+    return value > 0 ? [NSString stringWithFormat:@"%ld", (long)value] : nil;
+}
+
+static NSString * _Nullable GetAlbumArtist(TagLibAudioMetadata *m) { return m.albumArtist; }
+static NSString * _Nullable GetComposer(TagLibAudioMetadata *m) { return m.composer; }
+static NSString * _Nullable GetCopyright(TagLibAudioMetadata *m) { return m.copyright; }
+static NSString * _Nullable GetSortTitle(TagLibAudioMetadata *m) { return m.sortTitle; }
+static NSString * _Nullable GetSortArtist(TagLibAudioMetadata *m) { return m.sortArtist; }
+static NSString * _Nullable GetSortAlbum(TagLibAudioMetadata *m) { return m.sortAlbum; }
+static NSString * _Nullable GetSortAlbumArtist(TagLibAudioMetadata *m) { return m.sortAlbumArtist; }
+static NSString * _Nullable GetSortComposer(TagLibAudioMetadata *m) { return m.sortComposer; }
+static NSString * _Nullable GetConductor(TagLibAudioMetadata *m) { return m.conductor; }
+static NSString * _Nullable GetRemixer(TagLibAudioMetadata *m) { return m.remixer; }
+static NSString * _Nullable GetLyricist(TagLibAudioMetadata *m) { return m.lyricist; }
+static NSString * _Nullable GetEncodedBy(TagLibAudioMetadata *m) { return m.encodedBy; }
+static NSString * _Nullable GetEncoderSettings(TagLibAudioMetadata *m) { return m.encoderSettings; }
+static NSString * _Nullable GetISRC(TagLibAudioMetadata *m) { return m.isrc; }
+static NSString * _Nullable GetSubtitle(TagLibAudioMetadata *m) { return m.subtitle; }
+static NSString * _Nullable GetGrouping(TagLibAudioMetadata *m) { return m.grouping; }
+static NSString * _Nullable GetLanguage(TagLibAudioMetadata *m) { return m.language; }
+static NSString * _Nullable GetMusicalKey(TagLibAudioMetadata *m) { return m.musicalKey; }
+static NSString * _Nullable GetMood(TagLibAudioMetadata *m) { return m.mood; }
+static NSString * _Nullable GetMediaType(TagLibAudioMetadata *m) { return m.mediaType; }
+static NSString * _Nullable GetMovement(TagLibAudioMetadata *m) { return m.movement; }
+static NSString * _Nullable GetCompilation(TagLibAudioMetadata *m) { return m.compilation ? @"1" : nil; }
+static NSString * _Nullable GetReleaseDate(TagLibAudioMetadata *m) { return m.releaseDate.length > 0 ? m.releaseDate : m.year; }
+static NSString * _Nullable GetOriginalReleaseDate(TagLibAudioMetadata *m) { return m.originalReleaseDate; }
+static NSString * _Nullable GetLabel(TagLibAudioMetadata *m) { return m.label; }
+static NSString * _Nullable GetReleaseType(TagLibAudioMetadata *m) { return m.releaseType; }
+static NSString * _Nullable GetBarcode(TagLibAudioMetadata *m) { return m.barcode; }
+static NSString * _Nullable GetCatalogNumber(TagLibAudioMetadata *m) { return m.catalogNumber; }
+static NSString * _Nullable GetItunesAlbumId(TagLibAudioMetadata *m) { return m.itunesAlbumId; }
+static NSString * _Nullable GetItunesArtistId(TagLibAudioMetadata *m) { return m.itunesArtistId; }
+static NSString * _Nullable GetItunesCatalogId(TagLibAudioMetadata *m) { return m.itunesCatalogId; }
+static NSString * _Nullable GetItunesGenreId(TagLibAudioMetadata *m) { return m.itunesGenreId; }
+static NSString * _Nullable GetItunesMediaType(TagLibAudioMetadata *m) { return m.itunesMediaType; }
+static NSString * _Nullable GetItunesPurchaseDate(TagLibAudioMetadata *m) { return m.itunesPurchaseDate; }
+static NSString * _Nullable GetItunesNorm(TagLibAudioMetadata *m) { return m.itunesNorm; }
+static NSString * _Nullable GetItunesSmpb(TagLibAudioMetadata *m) { return m.itunesSmpb; }
+static NSString * _Nullable GetReleaseCountry(TagLibAudioMetadata *m) { return m.releaseCountry; }
+static NSString * _Nullable GetArtistType(TagLibAudioMetadata *m) { return m.artistType; }
+static NSString * _Nullable GetMusicBrainzArtistId(TagLibAudioMetadata *m) { return m.musicBrainzArtistId; }
+static NSString * _Nullable GetMusicBrainzAlbumId(TagLibAudioMetadata *m) { return m.musicBrainzAlbumId; }
+static NSString * _Nullable GetMusicBrainzAlbumArtistId(TagLibAudioMetadata *m) { return m.musicBrainzAlbumArtistId; }
+static NSString * _Nullable GetMusicBrainzTrackId(TagLibAudioMetadata *m) { return m.musicBrainzTrackId; }
+static NSString * _Nullable GetMusicBrainzReleaseGroupId(TagLibAudioMetadata *m) { return m.musicBrainzReleaseGroupId; }
+static NSString * _Nullable GetMusicBrainzReleaseTrackId(TagLibAudioMetadata *m) { return m.musicBrainzReleaseTrackId; }
+static NSString * _Nullable GetMusicBrainzWorkId(TagLibAudioMetadata *m) { return m.musicBrainzWorkId; }
+static NSString * _Nullable GetAcoustId(TagLibAudioMetadata *m) { return m.acoustId; }
+static NSString * _Nullable GetAcoustIdFingerprint(TagLibAudioMetadata *m) { return m.acoustIdFingerprint; }
+static NSString * _Nullable GetMusicIpPuid(TagLibAudioMetadata *m) { return m.musicIpPuid; }
+static NSString * _Nullable GetReplayGainTrack(TagLibAudioMetadata *m) { return m.replayGainTrack; }
+static NSString * _Nullable GetReplayGainAlbum(TagLibAudioMetadata *m) { return m.replayGainAlbum; }
+static NSString * _Nullable GetProducer(TagLibAudioMetadata *m) { return m.producer; }
+static NSString * _Nullable GetEngineer(TagLibAudioMetadata *m) { return m.engineer; }
+static NSString * _Nullable GetBPM(TagLibAudioMetadata *m) { return StringFromIntegerField(m.bpm); }
+static NSString * _Nullable GetMovementNumber(TagLibAudioMetadata *m) { return StringFromIntegerField(m.movementNumber); }
+static NSString * _Nullable GetMovementCount(TagLibAudioMetadata *m) { return StringFromIntegerField(m.movementCount); }
+
+typedef struct {
+    const char *id3v2TextFrame;
+    const char *id3v2UserTextDescription;
+    const char *mp4Atom;
+    const char *mp4FreeformDescription;
+    AudioMatorMetadataStringGetter getter;
+} AudioMatorWritableTextMapping;
+
+static const AudioMatorWritableTextMapping kAudioMatorWritableTextMappings[] = {
+    { "TPE2", nullptr, "aART", nullptr, GetAlbumArtist },
+    { "TCOM", nullptr, "\xA9" "wrt", nullptr, GetComposer },
+    { "TBPM", nullptr, nullptr, nullptr, GetBPM },
+    { "TSOT", nullptr, "sonm", nullptr, GetSortTitle },
+    { "TSOP", nullptr, "soar", nullptr, GetSortArtist },
+    { "TSOA", nullptr, "soal", nullptr, GetSortAlbum },
+    { "TSO2", nullptr, "soaa", nullptr, GetSortAlbumArtist },
+    { "TSOC", nullptr, "soco", nullptr, GetSortComposer },
+    { "TPE3", nullptr, nullptr, "CONDUCTOR", GetConductor },
+    { "TPE4", nullptr, nullptr, "REMIXER", GetRemixer },
+    { "TEXT", nullptr, nullptr, "LYRICIST", GetLyricist },
+    { "TENC", nullptr, "\xA9" "too", nullptr, GetEncodedBy },
+    { "TSSE", nullptr, nullptr, "ENCODERSETTINGS", GetEncoderSettings },
+    { "TSRC", nullptr, nullptr, "ISRC", GetISRC },
+    { "TCOP", nullptr, "cprt", nullptr, GetCopyright },
+    { "TIT3", nullptr, nullptr, "SUBTITLE", GetSubtitle },
+    { "TIT1", nullptr, "\xA9" "grp", nullptr, GetGrouping },
+    { "TLAN", nullptr, nullptr, "LANGUAGE", GetLanguage },
+    { "TKEY", nullptr, nullptr, "INITIALKEY", GetMusicalKey },
+    { "TMOO", nullptr, nullptr, "MOOD", GetMood },
+    { "TMED", nullptr, nullptr, "MEDIATYPE", GetMediaType },
+    { "MVNM", nullptr, nullptr, "MOVEMENT", GetMovement },
+    { "MVIN", nullptr, nullptr, "MOVEMENTNUMBER", GetMovementNumber },
+    { "MVC", nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
+    { "TCMP", nullptr, nullptr, nullptr, GetCompilation },
+    { "TDRL", nullptr, "\xA9" "day", nullptr, GetReleaseDate },
+    { "TDRC", nullptr, nullptr, nullptr, GetReleaseDate },
+    { "TDOR", nullptr, nullptr, "ORIGINAL YEAR", GetOriginalReleaseDate },
+    { "TPUB", nullptr, nullptr, "LABEL", GetLabel },
+    { nullptr, "RELEASETYPE", nullptr, "RELEASETYPE", GetReleaseType },
+    { nullptr, "BARCODE", nullptr, "BARCODE", GetBarcode },
+    { nullptr, "CATALOGNUMBER", nullptr, "CATALOGNUMBER", GetCatalogNumber },
+    { nullptr, "ITUNESALBUMID", nullptr, "ITUNESALBUMID", GetItunesAlbumId },
+    { nullptr, "ITUNESARTISTID", nullptr, "ITUNESARTISTID", GetItunesArtistId },
+    { nullptr, "ITUNESCATALOGID", nullptr, "ITUNESCATALOGID", GetItunesCatalogId },
+    { nullptr, "ITUNESGENREID", nullptr, "ITUNESGENREID", GetItunesGenreId },
+    { nullptr, "ITUNESMEDIATYPE", nullptr, "ITUNESMEDIATYPE", GetItunesMediaType },
+    { nullptr, "ITUNESPURCHASEDATE", nullptr, "ITUNESPURCHASEDATE", GetItunesPurchaseDate },
+    { nullptr, "ITUNNORM", nullptr, "ITUNNORM", GetItunesNorm },
+    { nullptr, "ITUNSMPB", nullptr, "ITUNSMPB", GetItunesSmpb },
+    { nullptr, "RELEASECOUNTRY", nullptr, "MusicBrainz Album Release Country", GetReleaseCountry },
+    { nullptr, "ARTISTTYPE", nullptr, "ARTISTTYPE", GetArtistType },
+    { nullptr, "MusicBrainz Artist Id", nullptr, "MusicBrainz Artist Id", GetMusicBrainzArtistId },
+    { nullptr, "MusicBrainz Album Id", nullptr, "MusicBrainz Album Id", GetMusicBrainzAlbumId },
+    { nullptr, "MusicBrainz Album Artist Id", nullptr, "MusicBrainz Album Artist Id", GetMusicBrainzAlbumArtistId },
+    { nullptr, "MusicBrainz Track Id", nullptr, "MusicBrainz Track Id", GetMusicBrainzTrackId },
+    { nullptr, "MusicBrainz Release Group Id", nullptr, "MusicBrainz Release Group Id", GetMusicBrainzReleaseGroupId },
+    { nullptr, "MusicBrainz Release Track Id", nullptr, "MusicBrainz Release Track Id", GetMusicBrainzReleaseTrackId },
+    { nullptr, "MusicBrainz Work Id", nullptr, "MusicBrainz Work Id", GetMusicBrainzWorkId },
+    { nullptr, "Acoustid Id", nullptr, "Acoustid Id", GetAcoustId },
+    { nullptr, "Acoustid Fingerprint", nullptr, "Acoustid Fingerprint", GetAcoustIdFingerprint },
+    { nullptr, "MusicIP PUID", nullptr, "MusicIP PUID", GetMusicIpPuid },
+    { nullptr, "PRODUCER", nullptr, "PRODUCER", GetProducer },
+    { nullptr, "ENGINEER", nullptr, "ENGINEER", GetEngineer },
+    { nullptr, "REPLAYGAIN_TRACK_GAIN", nullptr, "REPLAYGAIN_TRACK_GAIN", GetReplayGainTrack },
+    { nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", GetReplayGainAlbum },
+};
+
+static void ApplyWritableTextMappingsToID3v2Tag(TagLib::ID3v2::Tag *tag,
+                                                TagLibAudioMetadata *metadata)
+{
+    if (!tag || !metadata) {
+        return;
+    }
+
+    for (const auto &mapping : kAudioMatorWritableTextMappings) {
+        NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
+        if (mapping.id3v2TextFrame) {
+            SetID3v2TextFrame(tag, mapping.id3v2TextFrame, value);
+        }
+        if (mapping.id3v2UserTextDescription) {
+            SetID3v2UserTextFrame(tag, mapping.id3v2UserTextDescription, value);
+        }
+    }
+}
+
+static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,
+                                              TagLibAudioMetadata *metadata)
+{
+    if (!tag || !metadata) {
+        return;
+    }
+
+    for (const auto &mapping : kAudioMatorWritableTextMappings) {
+        NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
+        if (mapping.mp4Atom) {
+            SetMP4TextItem(tag, mapping.mp4Atom, value);
+        }
+        if (mapping.mp4FreeformDescription) {
+            SetMP4FreeformTextItem(tag, @(mapping.mp4FreeformDescription), value);
+        }
+    }
 }
 
 static void ApplyCustomFieldsToID3v2Tag(TagLib::ID3v2::Tag *tag,
@@ -4626,33 +4896,7 @@ static void ParseNumberPairFromNSString(NSString *text,
             // --- ID3v2-specific extended fields ---
             TagLib::ID3v2::Tag *id3v2Tag = mpegFile.ID3v2Tag(true); // create if missing
             if (id3v2Tag) {
-                SetID3v2TextFrame(id3v2Tag, "TPE2", metadata.albumArtist);
-                SetID3v2TextFrame(id3v2Tag, "TCOM", metadata.composer);
-                SetID3v2TextFrame(
-                    id3v2Tag,
-                    "TBPM",
-                    metadata.bpm > 0 ? [NSString stringWithFormat:@"%ld", (long)metadata.bpm] : nil
-                );
-                SetID3v2TextFrame(id3v2Tag, "TSOT", metadata.sortTitle);
-                SetID3v2TextFrame(id3v2Tag, "TSOP", metadata.sortArtist);
-                SetID3v2TextFrame(id3v2Tag, "TSOA", metadata.sortAlbum);
-                SetID3v2TextFrame(id3v2Tag, "TSO2", metadata.sortAlbumArtist);
-                SetID3v2TextFrame(id3v2Tag, "TSOC", metadata.sortComposer);
-                SetID3v2TextFrame(id3v2Tag, "TPE3", metadata.conductor);
-                SetID3v2TextFrame(id3v2Tag, "TPE4", metadata.remixer);
-                SetID3v2TextFrame(id3v2Tag, "TEXT", metadata.lyricist);
-                SetID3v2TextFrame(id3v2Tag, "TENC", metadata.encodedBy);
-                SetID3v2TextFrame(id3v2Tag, "TSSE", metadata.encoderSettings);
-                SetID3v2TextFrame(id3v2Tag, "TSRC", metadata.isrc);
-                SetID3v2TextFrame(id3v2Tag, "TCOP", metadata.copyright);
-                SetID3v2TextFrame(id3v2Tag, "TIT3", metadata.subtitle);
-                SetID3v2TextFrame(id3v2Tag, "TIT1", metadata.grouping);
-                SetID3v2TextFrame(id3v2Tag, "TLAN", metadata.language);
-                SetID3v2TextFrame(id3v2Tag, "TKEY", metadata.musicalKey);
-                SetID3v2TextFrame(id3v2Tag, "TMOO", metadata.mood);
-                SetID3v2TextFrame(id3v2Tag, "TMED", metadata.mediaType);
-                SetID3v2TextFrame(id3v2Tag, "MVNM", metadata.movement);
-                SetID3v2TextFrame(id3v2Tag, "TCMP", metadata.compilation ? @"1" : nil);
+                ApplyWritableTextMappingsToID3v2Tag(id3v2Tag, metadata);
                 SetID3v2LyricsFrame(id3v2Tag, metadata.lyrics);
 
                 NSString *trackString = BuildNumberTextPreservingFormatting(
@@ -4673,36 +4917,7 @@ static void ParseNumberPairFromNSString(NSString *text,
                 NSString *id3v2Year = metadata.year.length > 0
                     ? metadata.year
                     : (releaseDate.length >= 4 ? [releaseDate substringToIndex:4] : nil);
-                SetID3v2TextFrame(
-                    id3v2Tag,
-                    "TDRL",
-                    releaseDate
-                );
-                SetID3v2TextFrame(id3v2Tag, "TDRC", releaseDate);
                 SetID3v2TextFrame(id3v2Tag, "TYER", id3v2Year);
-                SetID3v2TextFrame(id3v2Tag, "TDOR", metadata.originalReleaseDate);
-                SetID3v2TextFrame(id3v2Tag, "TPUB", metadata.label);
-                SetID3v2UserTextFrame(id3v2Tag, "RELEASETYPE", metadata.releaseType);
-                SetID3v2UserTextFrame(id3v2Tag, "BARCODE", metadata.barcode);
-                SetID3v2UserTextFrame(id3v2Tag, "CATALOGNUMBER", metadata.catalogNumber);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNESALBUMID", metadata.itunesAlbumId);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNESARTISTID", metadata.itunesArtistId);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNESCATALOGID", metadata.itunesCatalogId);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNESGENREID", metadata.itunesGenreId);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNESMEDIATYPE", metadata.itunesMediaType);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNESPURCHASEDATE", metadata.itunesPurchaseDate);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNNORM", metadata.itunesNorm);
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNSMPB", metadata.itunesSmpb);
-                SetID3v2UserTextFrame(id3v2Tag, "RELEASECOUNTRY", metadata.releaseCountry);
-                SetID3v2UserTextFrame(id3v2Tag, "ARTISTTYPE", metadata.artistType);
-                SetID3v2UserTextFrame(id3v2Tag, "MusicBrainz Artist Id", metadata.musicBrainzArtistId);
-                SetID3v2UserTextFrame(id3v2Tag, "MusicBrainz Album Id", metadata.musicBrainzAlbumId);
-                SetID3v2UserTextFrame(id3v2Tag, "MusicBrainz Track Id", metadata.musicBrainzTrackId);
-                SetID3v2UserTextFrame(id3v2Tag, "MusicBrainz Release Group Id", metadata.musicBrainzReleaseGroupId);
-                SetID3v2UserTextFrame(id3v2Tag, "PRODUCER", metadata.producer);
-                SetID3v2UserTextFrame(id3v2Tag, "ENGINEER", metadata.engineer);
-                SetID3v2UserTextFrame(id3v2Tag, "REPLAYGAIN_TRACK_GAIN", metadata.replayGainTrack);
-                SetID3v2UserTextFrame(id3v2Tag, "REPLAYGAIN_ALBUM_GAIN", metadata.replayGainAlbum);
 
                 // Explicit advisory (TXXX:ITUNESADVISORY, 0 = none, 1 = explicit, 2 = clean)
                 // Here we treat `explicitContent == YES` as advisory = 1, otherwise 0.
@@ -4781,58 +4996,15 @@ static void ParseNumberPairFromNSString(NSString *text,
             tag->setTrack(0);
         }
 
-        // Extended MP4 items
-        SetMP4TextItem(tag, "aART", metadata.albumArtist);   // Album Artist
-        SetMP4TextItem(tag, "\xA9" "wrt", metadata.composer); // Composer
-        SetMP4TextItem(tag, "\xA9" "day", metadata.releaseDate.length > 0 ? metadata.releaseDate : metadata.year);
-        SetMP4TextItem(tag, "cprt", metadata.copyright);     // Copyright
-        SetMP4TextItem(tag, "sonm", metadata.sortTitle);
-        SetMP4TextItem(tag, "soar", metadata.sortArtist);
-        SetMP4TextItem(tag, "soal", metadata.sortAlbum);
-        SetMP4TextItem(tag, "soaa", metadata.sortAlbumArtist);
-        SetMP4TextItem(tag, "soco", metadata.sortComposer);
-        SetMP4TextItem(tag, "\xA9" "grp", metadata.grouping);
+        // Extended MP4 items. The schema table above owns the atom/freeform
+        // names so new formats and editor UIs can share the same mapping vocabulary.
+        ApplyWritableTextMappingsToMP4Tag(tag, metadata);
         SetMP4TextItem(tag, "\xA9" "lyr", metadata.lyrics);
-        SetMP4TextItem(tag, "\xA9" "too", metadata.encodedBy);
 
         // Publisher/label convention for MP4 freeform atoms.
-        SetMP4TextItem(tag, "----:com.apple.iTunes:LABEL", metadata.label);
         SetMP4TextItem(tag, "----:com.apple.iTunes:ITUNESADVISORY", metadata.explicitContent ? @"1" : @"0");
         SetMP4TextItem(tag, kAudioMatorMP4TrackNumberTextKey, metadata.trackNumberText);
         SetMP4TextItem(tag, kAudioMatorMP4DiscNumberTextKey, metadata.discNumberText);
-        SetMP4FreeformTextItem(tag, @"ENCODERSETTINGS", metadata.encoderSettings);
-        SetMP4FreeformTextItem(tag, @"SUBTITLE", metadata.subtitle);
-        SetMP4FreeformTextItem(tag, @"MOVEMENT", metadata.movement);
-        SetMP4FreeformTextItem(tag, @"MOOD", metadata.mood);
-        SetMP4FreeformTextItem(tag, @"LANGUAGE", metadata.language);
-        SetMP4FreeformTextItem(tag, @"INITIALKEY", metadata.musicalKey);
-        SetMP4FreeformTextItem(tag, @"CONDUCTOR", metadata.conductor);
-        SetMP4FreeformTextItem(tag, @"REMIXER", metadata.remixer);
-        SetMP4FreeformTextItem(tag, @"PRODUCER", metadata.producer);
-        SetMP4FreeformTextItem(tag, @"ENGINEER", metadata.engineer);
-        SetMP4FreeformTextItem(tag, @"LYRICIST", metadata.lyricist);
-        SetMP4FreeformTextItem(tag, @"ISRC", metadata.isrc);
-        SetMP4FreeformTextItem(tag, @"ORIGINAL YEAR", metadata.originalReleaseDate);
-        SetMP4FreeformTextItem(tag, @"RELEASETYPE", metadata.releaseType);
-        SetMP4FreeformTextItem(tag, @"BARCODE", metadata.barcode);
-        SetMP4FreeformTextItem(tag, @"CATALOGNUMBER", metadata.catalogNumber);
-        SetMP4FreeformTextItem(tag, @"MusicBrainz Album Release Country", metadata.releaseCountry);
-        SetMP4FreeformTextItem(tag, @"ARTISTTYPE", metadata.artistType);
-        SetMP4FreeformTextItem(tag, @"MusicBrainz Artist Id", metadata.musicBrainzArtistId);
-        SetMP4FreeformTextItem(tag, @"MusicBrainz Album Id", metadata.musicBrainzAlbumId);
-        SetMP4FreeformTextItem(tag, @"MusicBrainz Track Id", metadata.musicBrainzTrackId);
-        SetMP4FreeformTextItem(tag, @"MusicBrainz Release Group Id", metadata.musicBrainzReleaseGroupId);
-        SetMP4FreeformTextItem(tag, @"REPLAYGAIN_TRACK_GAIN", metadata.replayGainTrack);
-        SetMP4FreeformTextItem(tag, @"REPLAYGAIN_ALBUM_GAIN", metadata.replayGainAlbum);
-        SetMP4FreeformTextItem(tag, @"MEDIATYPE", metadata.mediaType);
-        SetMP4FreeformTextItem(tag, @"ITUNESALBUMID", metadata.itunesAlbumId);
-        SetMP4FreeformTextItem(tag, @"ITUNESARTISTID", metadata.itunesArtistId);
-        SetMP4FreeformTextItem(tag, @"ITUNESCATALOGID", metadata.itunesCatalogId);
-        SetMP4FreeformTextItem(tag, @"ITUNESGENREID", metadata.itunesGenreId);
-        SetMP4FreeformTextItem(tag, @"ITUNESMEDIATYPE", metadata.itunesMediaType);
-        SetMP4FreeformTextItem(tag, @"ITUNESPURCHASEDATE", metadata.itunesPurchaseDate);
-        SetMP4FreeformTextItem(tag, @"ITUNNORM", metadata.itunesNorm);
-        SetMP4FreeformTextItem(tag, @"ITUNSMPB", metadata.itunesSmpb);
 
         SetMP4IntPairItem(tag, "trkn", metadata.trackNumber, metadata.totalTracks);
         SetMP4IntPairItem(tag, "disk", metadata.discNumber, metadata.totalDiscs);
