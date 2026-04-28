@@ -271,6 +271,28 @@ try TagLibMetadataManager.writeTrackNumberText(
 
 Pass `discNumberText: nil` to leave the disc field unchanged. Pass an empty track value to clear track number data where the container supports it.
 
+## Field Schema and Format Mappings
+
+`BasicMetadata` remains the stable app-facing model. For editors, importers, and diagnostics that need a field catalog, the package also exposes `MetadataFieldRegistry`.
+
+```swift
+let albumArtist = MetadataFieldRegistry.schema(for: .albumArtist)
+print(albumArtist?.propertyMapKeys ?? []) // ["ALBUMARTIST", "ALBUM ARTIST"]
+
+let rawField = MetadataFieldRegistry.schema(forPropertyMapKey: "PERFORMER:guitar")
+let showValuesSeparately = MetadataFieldRegistry.shouldDisplayRawPropertyAsMultiValue("ARTIST")
+```
+
+Each `MetadataFieldSchema` describes:
+
+- the canonical field key and category,
+- TagLib `PropertyMap` keys and aliases,
+- whether raw `RawPropertyEntry.values` should be preserved/displayed as multi-value,
+- people/role-qualified fields such as `PERFORMER:<instrument>`, `INVOLVEDPEOPLE`, and `MUSICIANCREDITS`,
+- format mappings for ID3v2, MP4, Xiph/FLAC, APE, ASF, and future Matroska/WebM work.
+
+The mapping catalog uses TagLib `PropertyMap` names first where available. Format-specific examples include `TPE2`/`aART`/`ALBUMARTIST` for album artist, `TDRC` or `TDRL`/`©day`/`DATE` or `RELEASEDATE` for release dates, `APIC`/`covr`/`PICTURE` for artwork, and freeform iTunes atoms for MusicBrainz, AcoustID, ReplayGain, and iTunes purchase metadata. `RawPropertyEntry` now exposes `schema` and `shouldDisplayAsMultiValue` convenience properties for raw editor UI.
+
 ### `rawMetadataResult(from:)`
 
 ```swift

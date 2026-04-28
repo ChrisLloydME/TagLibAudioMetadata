@@ -303,6 +303,14 @@ public struct RawPropertyEntry: Identifiable, Hashable, Sendable {
         self.values = values
         self.count = count
     }
+
+    public var schema: MetadataFieldSchema? {
+        MetadataFieldRegistry.schema(forPropertyMapKey: key)
+    }
+
+    public var shouldDisplayAsMultiValue: Bool {
+        MetadataFieldRegistry.shouldDisplayRawPropertyAsMultiValue(key)
+    }
 }
 
 public struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
