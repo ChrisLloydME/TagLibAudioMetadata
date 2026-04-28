@@ -6880,7 +6880,10 @@ static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
             if (list.isEmpty()) tag->removeItem(NSStringToTagString(key));
             else tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(list));
         } else if ([type isEqualToString:@"bool"]) {
-            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item([entry[@"value"] isKindOfClass:[NSNumber class]] ? [(NSNumber *)entry[@"value"] boolValue] : false));
+            const bool boolValue = [entry[@"value"] isKindOfClass:[NSNumber class]]
+                ? [(NSNumber *)entry[@"value"] boolValue]
+                : false;
+            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(boolValue));
         } else if ([type isEqualToString:@"int"]) {
             tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((int)IntegerValueFromObject(entry[@"value"])));
         } else if ([type isEqualToString:@"uint"]) {
@@ -6930,7 +6933,10 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         } else if ([type isEqualToString:@"string"]) {
             attribute = TagLib::ASF::Attribute(NSStringToTagString((NSString *)entry[@"value"]));
         } else if ([type isEqualToString:@"bool"]) {
-            attribute = TagLib::ASF::Attribute([entry[@"value"] isKindOfClass:[NSNumber class]] ? [(NSNumber *)entry[@"value"] boolValue] : false);
+            const bool boolValue = [entry[@"value"] isKindOfClass:[NSNumber class]]
+                ? [(NSNumber *)entry[@"value"] boolValue]
+                : false;
+            attribute = TagLib::ASF::Attribute(boolValue);
         } else if ([type isEqualToString:@"int64"]) {
             attribute = TagLib::ASF::Attribute((unsigned long long)IntegerValueFromObject(entry[@"value"]));
         } else if ([type isEqualToString:@"binary"] || [type isEqualToString:@"guid"]) {
