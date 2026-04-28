@@ -64,8 +64,14 @@ public struct BasicMetadata: Sendable {
     public var barcode: String
     public var musicBrainzArtistID: String
     public var musicBrainzAlbumID: String
+    public var musicBrainzAlbumArtistID: String
     public var musicBrainzTrackID: String
     public var musicBrainzReleaseGroupID: String
+    public var musicBrainzReleaseTrackID: String
+    public var musicBrainzWorkID: String
+    public var acoustID: String
+    public var acoustIDFingerprint: String
+    public var musicIPPUID: String
     public var publisher: String
     public var copyright: String
     public var encodedBy: String
@@ -98,9 +104,17 @@ public struct BasicMetadata: Sendable {
     public var itunesNorm: String
     public var itunesSMPB: String
     public var releaseType: String
+    public var releaseStatus: String
     public var catalogNumber: String
     public var releaseCountry: String
     public var artistType: String
+    public var asin: String
+    public var originalAlbum: String
+    public var originalArtist: String
+    public var discSubtitle: String
+    public var work: String
+    public var movementNumber: Int
+    public var movementCount: Int
     public var bpm: Int
     public var isCompilation: Bool
     public var isExplicit: Bool
@@ -136,8 +150,14 @@ public struct BasicMetadata: Sendable {
         barcode: "",
         musicBrainzArtistID: "",
         musicBrainzAlbumID: "",
+        musicBrainzAlbumArtistID: "",
         musicBrainzTrackID: "",
         musicBrainzReleaseGroupID: "",
+        musicBrainzReleaseTrackID: "",
+        musicBrainzWorkID: "",
+        acoustID: "",
+        acoustIDFingerprint: "",
+        musicIPPUID: "",
         publisher: "",
         copyright: "",
         encodedBy: "",
@@ -170,9 +190,17 @@ public struct BasicMetadata: Sendable {
         itunesNorm: "",
         itunesSMPB: "",
         releaseType: "",
+        releaseStatus: "",
         catalogNumber: "",
         releaseCountry: "",
         artistType: "",
+        asin: "",
+        originalAlbum: "",
+        originalArtist: "",
+        discSubtitle: "",
+        work: "",
+        movementNumber: 0,
+        movementCount: 0,
         bpm: 0,
         isCompilation: false,
         isExplicit: false,
@@ -922,8 +950,14 @@ public struct TagLibMetadataManager {
                 barcode: meta.barcode ?? "",
                 musicBrainzArtistID: meta.musicBrainzArtistId ?? "",
                 musicBrainzAlbumID: meta.musicBrainzAlbumId ?? "",
+                musicBrainzAlbumArtistID: meta.musicBrainzAlbumArtistId ?? "",
                 musicBrainzTrackID: meta.musicBrainzTrackId ?? "",
                 musicBrainzReleaseGroupID: meta.musicBrainzReleaseGroupId ?? "",
+                musicBrainzReleaseTrackID: meta.musicBrainzReleaseTrackId ?? "",
+                musicBrainzWorkID: meta.musicBrainzWorkId ?? "",
+                acoustID: meta.acoustId ?? "",
+                acoustIDFingerprint: meta.acoustIdFingerprint ?? "",
+                musicIPPUID: meta.musicIpPuid ?? "",
                 publisher: meta.label ?? "",
                 copyright: meta.copyright ?? "",
                 encodedBy: meta.encodedBy ?? "",
@@ -956,9 +990,17 @@ public struct TagLibMetadataManager {
                 itunesNorm: meta.itunesNorm ?? "",
                 itunesSMPB: meta.itunesSmpb ?? "",
                 releaseType: meta.releaseType ?? "",
+                releaseStatus: meta.releaseStatus ?? "",
                 catalogNumber: meta.catalogNumber ?? "",
                 releaseCountry: meta.releaseCountry ?? "",
                 artistType: meta.artistType ?? "",
+                asin: meta.asin ?? "",
+                originalAlbum: meta.originalAlbum ?? "",
+                originalArtist: meta.originalArtist ?? "",
+                discSubtitle: meta.discSubtitle ?? "",
+                work: meta.work ?? "",
+                movementNumber: Int(meta.movementNumber),
+                movementCount: Int(meta.movementCount),
                 bpm: Int(meta.bpm),
                 isCompilation: meta.compilation,
                 isExplicit: meta.explicitContent,
@@ -1093,8 +1135,17 @@ public struct TagLibMetadataManager {
             if !metadata.album.isEmpty { residualFields.append("ALBUM") }
             if !metadata.comment.isEmpty { residualFields.append("COMMENT") }
             if !metadata.genre.isEmpty { residualFields.append("GENRE") }
+            if !metadata.isrc.isEmpty { residualFields.append("ISRC") }
+            if !metadata.barcode.isEmpty { residualFields.append("BARCODE") }
+            if !metadata.asin.isEmpty { residualFields.append("ASIN") }
+            if !metadata.releaseType.isEmpty { residualFields.append("RELEASETYPE") }
+            if !metadata.releaseStatus.isEmpty { residualFields.append("RELEASESTATUS") }
+            if !metadata.musicBrainzTrackID.isEmpty { residualFields.append("MUSICBRAINZ_TRACKID") }
+            if !metadata.musicBrainzAlbumID.isEmpty { residualFields.append("MUSICBRAINZ_ALBUMID") }
+            if !metadata.acoustID.isEmpty { residualFields.append("ACOUSTID_ID") }
             if metadata.track > 0 || metadata.trackTotal > 0 { residualFields.append("TRACK") }
             if metadata.disc > 0 || metadata.discTotal > 0 { residualFields.append("DISC") }
+            if !metadata.work.isEmpty || !metadata.movement.isEmpty { residualFields.append("WORK/MOVEMENT") }
             if metadata.artworkData != nil { residualFields.append("ARTWORK") }
             if !metadata.customFields.isEmpty { residualFields.append("CUSTOM") }
 
@@ -1146,8 +1197,14 @@ public struct TagLibMetadataManager {
         meta.barcode = ""
         meta.musicBrainzArtistId = ""
         meta.musicBrainzAlbumId = ""
+        meta.musicBrainzAlbumArtistId = ""
         meta.musicBrainzTrackId = ""
         meta.musicBrainzReleaseGroupId = ""
+        meta.musicBrainzReleaseTrackId = ""
+        meta.musicBrainzWorkId = ""
+        meta.acoustId = ""
+        meta.acoustIdFingerprint = ""
+        meta.musicIpPuid = ""
         meta.lyricist = ""
         meta.remixer = ""
         meta.producer = ""
@@ -1155,8 +1212,16 @@ public struct TagLibMetadataManager {
         meta.language = ""
         meta.mediaType = ""
         meta.releaseType = ""
+        meta.releaseStatus = ""
         meta.catalogNumber = ""
         meta.releaseCountry = ""
+        meta.asin = ""
+        meta.originalAlbum = ""
+        meta.originalArtist = ""
+        meta.discSubtitle = ""
+        meta.work = ""
+        meta.movementNumber = 0
+        meta.movementCount = 0
         meta.copyright = ""
         meta.trackNumber = 0
         meta.totalTracks = 0
@@ -1277,9 +1342,17 @@ public struct TagLibMetadataManager {
         m.itunesNorm = nilIfEmpty(meta.itunesNorm)
         m.itunesSmpb = nilIfEmpty(meta.itunesSMPB)
         m.releaseType = nilIfEmpty(meta.releaseType)
+        m.releaseStatus = nilIfEmpty(meta.releaseStatus)
         m.catalogNumber = nilIfEmpty(meta.catalogNumber)
         m.releaseCountry = nilIfEmpty(meta.releaseCountry)
         m.artistType = nilIfEmpty(meta.artistType)
+        m.asin = nilIfEmpty(meta.asin)
+        m.originalAlbum = nilIfEmpty(meta.originalAlbum)
+        m.originalArtist = nilIfEmpty(meta.originalArtist)
+        m.discSubtitle = nilIfEmpty(meta.discSubtitle)
+        m.work = nilIfEmpty(meta.work)
+        m.movementNumber = meta.movementNumber
+        m.movementCount = meta.movementCount
 
         // Explicit
         m.bpm = meta.bpm
@@ -1289,8 +1362,14 @@ public struct TagLibMetadataManager {
         m.barcode = nilIfEmpty(meta.barcode)
         m.musicBrainzArtistId = nilIfEmpty(meta.musicBrainzArtistID)
         m.musicBrainzAlbumId = nilIfEmpty(meta.musicBrainzAlbumID)
+        m.musicBrainzAlbumArtistId = nilIfEmpty(meta.musicBrainzAlbumArtistID)
         m.musicBrainzTrackId = nilIfEmpty(meta.musicBrainzTrackID)
         m.musicBrainzReleaseGroupId = nilIfEmpty(meta.musicBrainzReleaseGroupID)
+        m.musicBrainzReleaseTrackId = nilIfEmpty(meta.musicBrainzReleaseTrackID)
+        m.musicBrainzWorkId = nilIfEmpty(meta.musicBrainzWorkID)
+        m.acoustId = nilIfEmpty(meta.acoustID)
+        m.acoustIdFingerprint = nilIfEmpty(meta.acoustIDFingerprint)
+        m.musicIpPuid = nilIfEmpty(meta.musicIPPUID)
         m.customFields = meta.customFields.isEmpty ? nil : meta.customFields
 
         // Persist through the write coordinator so all metadata entry points
