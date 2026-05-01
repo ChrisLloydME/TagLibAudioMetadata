@@ -1763,9 +1763,22 @@ public struct TagLibMetadataManager {
             ).warnings
         )
 
+        if shouldWipeNativeMetadataContainer(for: url) {
+            try TagLibMetadataExtractor.wipeMetadata(from: url)
+        }
+
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))
         try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
         return MetadataWriteResult(warnings: warnings)
+    }
+
+    nonisolated private static func shouldWipeNativeMetadataContainer(for url: URL) -> Bool {
+        switch url.pathExtension.lowercased() {
+        case "mp3", "m4a", "m4r", "m4b", "m4p", "mp4", "m4v", "3g2":
+            return true
+        default:
+            return false
+        }
     }
 
     @discardableResult

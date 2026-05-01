@@ -217,6 +217,13 @@ NS_SWIFT_NAME(structuredMetadata(for:));
                           error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(writeStructuredMetadata(_:to:));
 
+/// Remove the file's native metadata container where TagLib supports stripping it.
+///
+/// This currently supports MPEG/MP3 tags and MP4/M4A iTunes metadata atoms.
++ (BOOL)wipeMetadataFromURL:(NSURL *)fileURL
+                      error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(wipeMetadata(from:));
+
 /// Return raw metadata as TagLib sees it for display purposes.
 ///
 /// The returned dictionary typically contains keys such as:
