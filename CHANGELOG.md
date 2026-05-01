@@ -15,6 +15,14 @@ This release is the initial public extraction of the TagLib bridge from the Audi
 
 ### Added
 
+#### Format capability descriptors
+- Added `FormatCapability` and `StructuredMetadataSupport` Swift APIs.
+- Added `TagLibMetadataManager.formatCapability(for:)` and `formatCapabilities`.
+- Added ObjC++ bridge capability dictionaries so readable/writable extension lists, support checks, and UI capability metadata are derived from one descriptor table.
+- Added `MetadataFieldRegistry.schemas(withMappingsFor:)`, `schemas(storableIn:)`, and `schema(_:hasMappingFor:)`.
+- Added unit tests that keep extension support, writable support, structured support caveats, and field schema filtering aligned with the capability table.
+- Reduced repeated pure-PropertyMap write logic for tracker/module formats through a shared helper.
+
 #### Format capability APIs (`53487c34`)
 - `TagLibMetadataManager.isReadableFormat(_:) -> Bool`
 - `TagLibMetadataManager.isWritableFormat(_:) -> Bool`

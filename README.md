@@ -52,6 +52,7 @@ let readable = TagLibMetadataManager.isReadableFormat(url.pathExtension)
 let writable = TagLibMetadataManager.isWritableFormat(url.pathExtension)
 let readableExtensions = TagLibMetadataManager.readableExtensions
 let writableExtensions = TagLibMetadataManager.writableExtensions
+let capability = TagLibMetadataManager.formatCapability(for: url.pathExtension)
 ```
 
 Readable extensions:
@@ -61,6 +62,8 @@ Readable extensions:
 Writable extensions:
 
 All readable extensions except `shn`. TagLib 2.1.1 exposes Shorten metadata for reading, but its Shorten writer reports saving as unsupported.
+
+Use `formatCapability(for:)` or `formatCapabilities` when the UI needs more than a yes/no answer. The capability API reports the format family, extension aliases, metadata containers, artwork support, multi-value PropertyMap preservation, structured read/write support, read-only reason, and notes. This is the preferred source for enabling editor controls because support varies by container.
 
 This package follows the capabilities of the bundled TagLib source. The current vendored TagLib is 2.1.1; Matroska/WebM support appears in newer upstream TagLib releases and requires updating the vendored TagLib sources before this bridge can expose it.
 
@@ -281,6 +284,9 @@ print(albumArtist?.propertyMapKeys ?? []) // ["ALBUMARTIST", "ALBUM ARTIST"]
 
 let rawField = MetadataFieldRegistry.schema(forPropertyMapKey: "PERFORMER:guitar")
 let showValuesSeparately = MetadataFieldRegistry.shouldDisplayRawPropertyAsMultiValue("ARTIST")
+let mp4Fields = TagLibMetadataManager.formatCapability(for: "m4a").map {
+    MetadataFieldRegistry.schemas(storableIn: $0)
+}
 ```
 
 Each `MetadataFieldSchema` describes:

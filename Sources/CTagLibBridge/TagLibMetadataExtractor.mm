@@ -511,83 +511,106 @@ typedef NS_OPTIONS(NSUInteger, AudioMatorMetadataContainerMask) {
     AudioMatorMetadataContainerRIFFInfo = 1 << 8,
 };
 
+static const char *kMPEGID3Extensions[] = { "mp3", "mp2", nullptr };
+static const char *kMPEGAACExtensions[] = { "aac", nullptr };
+static const char *kMP4Extensions[] = { "m4a", "m4r", "m4b", "m4p", "mp4", "m4v", "3g2", nullptr };
+static const char *kFLACExtensions[] = { "flac", nullptr };
+static const char *kOggVorbisExtensions[] = { "ogg", nullptr };
+static const char *kOggOpusExtensions[] = { "opus", nullptr };
+static const char *kOggFlacExtensions[] = { "oga", nullptr };
+static const char *kOggSpeexExtensions[] = { "spx", nullptr };
+static const char *kAPEExtensions[] = { "ape", nullptr };
+static const char *kWavPackExtensions[] = { "wv", nullptr };
+static const char *kMPCExtensions[] = { "mpc", nullptr };
+static const char *kWAVExtensions[] = { "wav", nullptr };
+static const char *kAIFFExtensions[] = { "aiff", "aif", "aifc", "afc", nullptr };
+static const char *kTTAExtensions[] = { "tta", nullptr };
+static const char *kASFExtensions[] = { "wma", "asf", nullptr };
+static const char *kDSFExtensions[] = { "dsf", nullptr };
+static const char *kDSDIFFExtensions[] = { "dff", "dsdiff", nullptr };
+static const char *kShortenExtensions[] = { "shn", nullptr };
+static const char *kMODExtensions[] = { "mod", "module", "nst", "wow", nullptr };
+static const char *kS3MExtensions[] = { "s3m", nullptr };
+static const char *kITExtensions[] = { "it", nullptr };
+static const char *kXMExtensions[] = { "xm", nullptr };
+
+struct AudioMatorFormatCapabilityDescriptor {
+    AudioMatorTagFileFormat format;
+    const char *identifier;
+    const char *displayName;
+    const char *codecName;
+    const char * const *extensions;
+    const char *structuredReadSupport;
+    const char *structuredWriteSupport;
+    bool canReadArtwork;
+    bool canWriteArtwork;
+    bool preservesMultiValueProperties;
+    const char *readOnlyReason;
+    const char *notes;
+};
+
+static const AudioMatorFormatCapabilityDescriptor kFormatCapabilityDescriptors[] = {
+    { AudioMatorTagFileFormatMPEGID3, "mpeg-id3", "MPEG Audio / ID3", "MP3/MP2", kMPEGID3Extensions, "container", "container", true, true, false, nullptr, "ID3v2 is the preferred rich metadata container; ID3v1 is treated as a low-fidelity fallback." },
+    { AudioMatorTagFileFormatMPEGAAC, "mpeg-aac", "Raw AAC", "AAC", kMPEGAACExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "Raw AAC uses the generic TagLib PropertyMap path for textual metadata." },
+    { AudioMatorTagFileFormatMP4, "mp4", "MP4 / MPEG-4 Audio", "AAC/MP4", kMP4Extensions, "container", "container", true, true, false, nullptr, "MP4 atoms and iTunes freeform atoms are exposed for structured editing." },
+    { AudioMatorTagFileFormatFLAC, "flac", "FLAC", "FLAC", kFLACExtensions, "container", "propertyMap", true, true, true, nullptr, "Structured reads expose FLAC pictures; structured writes fall back to PropertyMap values unless artwork is written through the basic API." },
+    { AudioMatorTagFileFormatOggVorbis, "ogg-vorbis", "Ogg Vorbis", "Vorbis", kOggVorbisExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { AudioMatorTagFileFormatOggOpus, "ogg-opus", "Ogg Opus", "Opus", kOggOpusExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { AudioMatorTagFileFormatOggFlac, "ogg-flac", "Ogg FLAC", "Ogg FLAC", kOggFlacExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { AudioMatorTagFileFormatOggSpeex, "ogg-speex", "Ogg Speex", "Speex", kOggSpeexExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { AudioMatorTagFileFormatAPE, "ape", "Monkey's Audio", "APE", kAPEExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
+    { AudioMatorTagFileFormatWavPack, "wavpack", "WavPack", "WavPack", kWavPackExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
+    { AudioMatorTagFileFormatMPC, "musepack", "Musepack", "Musepack", kMPCExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
+    { AudioMatorTagFileFormatWAV, "wav", "WAV / RIFF", "WAV", kWAVExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2 and preserve existing RIFF INFO fields." },
+    { AudioMatorTagFileFormatAIFF, "aiff", "AIFF", "AIFF", kAIFFExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2." },
+    { AudioMatorTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "container", true, true, false, nullptr, "TrueAudio uses ID3v2 for rich structured metadata." },
+    { AudioMatorTagFileFormatASF, "asf", "ASF / WMA", "WMA", kASFExtensions, "container", "container", true, true, false, nullptr, "ASF attributes are exposed for structured editing." },
+    { AudioMatorTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
+    { AudioMatorTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSDIFF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
+    { AudioMatorTagFileFormatShorten, "shorten", "Shorten", "Shorten", kShortenExtensions, "propertyMap", "none", false, false, true, "TagLib 2.1.1 exposes Shorten metadata for reading but does not support saving it.", "Read-only format." },
+    { AudioMatorTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
+    { AudioMatorTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
+    { AudioMatorTagFileFormatIT, "it", "Impulse Tracker Module", "IT", kITExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
+    { AudioMatorTagFileFormatXM, "xm", "FastTracker Module", "XM", kXMExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
+};
+
+static bool DescriptorContainsExtension(const AudioMatorFormatCapabilityDescriptor &descriptor,
+                                        NSString *lowerExtension)
+{
+    for (const char * const *extension = descriptor.extensions; *extension; ++extension) {
+        if ([lowerExtension isEqualToString:@(*extension)]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const AudioMatorFormatCapabilityDescriptor *DescriptorForFormat(AudioMatorTagFileFormat format)
+{
+    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+        if (descriptor.format == format) {
+            return &descriptor;
+        }
+    }
+    return nullptr;
+}
+
+static const AudioMatorFormatCapabilityDescriptor *DescriptorForExtension(NSString * _Nullable ext)
+{
+    if (!ext) return nullptr;
+    NSString *lower = ext.lowercaseString;
+    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+        if (DescriptorContainsExtension(descriptor, lower)) {
+            return &descriptor;
+        }
+    }
+    return nullptr;
+}
+
 static AudioMatorTagFileFormat DetectTagFileFormat(NSString * _Nullable ext)
 {
-    if (!ext) return AudioMatorTagFileFormatUnknown;
-    NSString *lower = ext.lowercaseString;
-
-    if ([lower isEqualToString:@"mp3"] || [lower isEqualToString:@"mp2"]) {
-        return AudioMatorTagFileFormatMPEGID3;
-    }
-    if ([lower isEqualToString:@"aac"]) {
-        return AudioMatorTagFileFormatMPEGAAC;
-    }
-    if ([lower isEqualToString:@"m4a"] || [lower isEqualToString:@"m4r"] || [lower isEqualToString:@"m4b"] ||
-        [lower isEqualToString:@"m4p"] || [lower isEqualToString:@"mp4"] || [lower isEqualToString:@"m4v"] ||
-        [lower isEqualToString:@"3g2"]) {
-        return AudioMatorTagFileFormatMP4;
-    }
-    if ([lower isEqualToString:@"flac"]) {
-        return AudioMatorTagFileFormatFLAC;
-    }
-    if ([lower isEqualToString:@"ogg"]) {
-        return AudioMatorTagFileFormatOggVorbis;
-    }
-    if ([lower isEqualToString:@"opus"]) {
-        return AudioMatorTagFileFormatOggOpus;
-    }
-    if ([lower isEqualToString:@"oga"]) {
-        return AudioMatorTagFileFormatOggFlac;
-    }
-    if ([lower isEqualToString:@"spx"]) {
-        return AudioMatorTagFileFormatOggSpeex;
-    }
-    if ([lower isEqualToString:@"ape"]) {
-        return AudioMatorTagFileFormatAPE;
-    }
-    if ([lower isEqualToString:@"wv"]) {
-        return AudioMatorTagFileFormatWavPack;
-    }
-    if ([lower isEqualToString:@"mpc"]) {
-        return AudioMatorTagFileFormatMPC;
-    }
-    if ([lower isEqualToString:@"wav"]) {
-        return AudioMatorTagFileFormatWAV;
-    }
-    if ([lower isEqualToString:@"aiff"] || [lower isEqualToString:@"aif"] ||
-        [lower isEqualToString:@"aifc"] || [lower isEqualToString:@"afc"]) {
-        return AudioMatorTagFileFormatAIFF;
-    }
-    if ([lower isEqualToString:@"tta"]) {
-        return AudioMatorTagFileFormatTTA;
-    }
-    if ([lower isEqualToString:@"wma"] || [lower isEqualToString:@"asf"]) {
-        return AudioMatorTagFileFormatASF;
-    }
-    if ([lower isEqualToString:@"dsf"]) {
-        return AudioMatorTagFileFormatDSF;
-    }
-    if ([lower isEqualToString:@"dff"] || [lower isEqualToString:@"dsdiff"]) {
-        return AudioMatorTagFileFormatDSDIFF;
-    }
-    if ([lower isEqualToString:@"shn"]) {
-        return AudioMatorTagFileFormatShorten;
-    }
-    if ([lower isEqualToString:@"mod"] || [lower isEqualToString:@"module"] ||
-        [lower isEqualToString:@"nst"] || [lower isEqualToString:@"wow"]) {
-        return AudioMatorTagFileFormatMOD;
-    }
-    if ([lower isEqualToString:@"s3m"]) {
-        return AudioMatorTagFileFormatS3M;
-    }
-    if ([lower isEqualToString:@"it"]) {
-        return AudioMatorTagFileFormatIT;
-    }
-    if ([lower isEqualToString:@"xm"]) {
-        return AudioMatorTagFileFormatXM;
-    }
-
-    return AudioMatorTagFileFormatUnknown;
+    const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(ext);
+    return descriptor ? descriptor->format : AudioMatorTagFileFormatUnknown;
 }
 
 static AudioMatorMetadataContainerMask ContainerMaskForFormat(AudioMatorTagFileFormat format)
@@ -3687,6 +3710,42 @@ static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSStr
     return BuildTRCKString(number, 0, padWidth);
 }
 
+template <typename FileType>
+static BOOL WriteGenericPropertyMapOnlyFile(const char *filePath,
+                                            TagLibAudioMetadata *metadata,
+                                            NSError **error,
+                                            NSInteger openErrorCode,
+                                            NSString *openErrorMessage,
+                                            NSInteger saveErrorCode,
+                                            NSString *saveErrorMessage,
+                                            NSString *debugLabel)
+{
+    FileType file(filePath);
+    if (!file.isValid()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:openErrorCode
+                                     userInfo:@{ NSLocalizedDescriptionKey : openErrorMessage }];
+        }
+        TLog(@"Failed to open %@ for writing", debugLabel);
+        return NO;
+    }
+
+    ApplyGenericPropertyMapToFile(file, metadata);
+
+    if (!file.save()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:saveErrorCode
+                                     userInfo:@{ NSLocalizedDescriptionKey : saveErrorMessage }];
+        }
+        TLog(@"TagLib save() failed for %@", debugLabel);
+        return NO;
+    }
+
+    return YES;
+}
+
 // Write only track numbering (TRCK + TagLib::Tag::setTrack) to a file.
 + (BOOL)writeTrackNumber:(NSInteger)trackNumber
              totalTracks:(NSInteger)totalTracks
@@ -5698,101 +5757,33 @@ static void ParseNumberPairFromNSString(NSString *text,
             return NO;
         }
     } else if (format == AudioMatorTagFileFormatMOD) {
-        TagLib::Mod::File modFile(filePath);
-
-        if (!modFile.isValid()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:222
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MOD file for writing metadata" }];
-            }
-            TLog(@"Failed to open MOD '%@' for writing", fileURL.lastPathComponent);
-            return NO;
-        }
-
-        ApplyGenericPropertyMapToFile(modFile, metadata);
-
-        if (!modFile.save()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:223
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to MOD file" }];
-            }
-            TLog(@"TagLib save() failed for MOD '%@'", fileURL.lastPathComponent);
-            return NO;
-        }
+        return WriteGenericPropertyMapOnlyFile<TagLib::Mod::File>(
+            filePath, metadata, error,
+            222, @"Unable to open MOD file for writing metadata",
+            223, @"TagLib failed to save metadata to MOD file",
+            [NSString stringWithFormat:@"MOD '%@'", fileURL.lastPathComponent]
+        );
     } else if (format == AudioMatorTagFileFormatS3M) {
-        TagLib::S3M::File s3mFile(filePath);
-
-        if (!s3mFile.isValid()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:224
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open S3M file for writing metadata" }];
-            }
-            TLog(@"Failed to open S3M '%@' for writing", fileURL.lastPathComponent);
-            return NO;
-        }
-
-        ApplyGenericPropertyMapToFile(s3mFile, metadata);
-
-        if (!s3mFile.save()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:225
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to S3M file" }];
-            }
-            TLog(@"TagLib save() failed for S3M '%@'", fileURL.lastPathComponent);
-            return NO;
-        }
+        return WriteGenericPropertyMapOnlyFile<TagLib::S3M::File>(
+            filePath, metadata, error,
+            224, @"Unable to open S3M file for writing metadata",
+            225, @"TagLib failed to save metadata to S3M file",
+            [NSString stringWithFormat:@"S3M '%@'", fileURL.lastPathComponent]
+        );
     } else if (format == AudioMatorTagFileFormatIT) {
-        TagLib::IT::File itFile(filePath);
-
-        if (!itFile.isValid()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:226
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open IT file for writing metadata" }];
-            }
-            TLog(@"Failed to open IT '%@' for writing", fileURL.lastPathComponent);
-            return NO;
-        }
-
-        ApplyGenericPropertyMapToFile(itFile, metadata);
-
-        if (!itFile.save()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:227
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to IT file" }];
-            }
-            TLog(@"TagLib save() failed for IT '%@'", fileURL.lastPathComponent);
-            return NO;
-        }
+        return WriteGenericPropertyMapOnlyFile<TagLib::IT::File>(
+            filePath, metadata, error,
+            226, @"Unable to open IT file for writing metadata",
+            227, @"TagLib failed to save metadata to IT file",
+            [NSString stringWithFormat:@"IT '%@'", fileURL.lastPathComponent]
+        );
     } else if (format == AudioMatorTagFileFormatXM) {
-        TagLib::XM::File xmFile(filePath);
-
-        if (!xmFile.isValid()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:228
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open XM file for writing metadata" }];
-            }
-            TLog(@"Failed to open XM '%@' for writing", fileURL.lastPathComponent);
-            return NO;
-        }
-
-        ApplyGenericPropertyMapToFile(xmFile, metadata);
-
-        if (!xmFile.save()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:229
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to XM file" }];
-            }
-            TLog(@"TagLib save() failed for XM '%@'", fileURL.lastPathComponent);
-            return NO;
-        }
+        return WriteGenericPropertyMapOnlyFile<TagLib::XM::File>(
+            filePath, metadata, error,
+            228, @"Unable to open XM file for writing metadata",
+            229, @"TagLib failed to save metadata to XM file",
+            [NSString stringWithFormat:@"XM '%@'", fileURL.lastPathComponent]
+        );
     } else {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -7546,47 +7537,100 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
 
 #pragma mark - Format Support
 
+static NSArray<NSString *> *ExtensionsForDescriptor(const AudioMatorFormatCapabilityDescriptor &descriptor)
+{
+    NSMutableArray<NSString *> *extensions = [NSMutableArray array];
+    for (const char * const *extension = descriptor.extensions; *extension; ++extension) {
+        [extensions addObject:@(*extension)];
+    }
+    return [extensions copy];
+}
+
+static NSArray<NSString *> *ContainerNamesForMask(AudioMatorMetadataContainerMask containers)
+{
+    NSMutableArray<NSString *> *names = [NSMutableArray array];
+    if (containers & AudioMatorMetadataContainerTag) [names addObject:@"tag"];
+    if (containers & AudioMatorMetadataContainerPropertyMap) [names addObject:@"propertyMap"];
+    if (containers & AudioMatorMetadataContainerID3v1) [names addObject:@"id3v1"];
+    if (containers & AudioMatorMetadataContainerID3v2) [names addObject:@"id3v2"];
+    if (containers & AudioMatorMetadataContainerAPE) [names addObject:@"ape"];
+    if (containers & AudioMatorMetadataContainerMP4ItemMap) [names addObject:@"mp4"];
+    if (containers & AudioMatorMetadataContainerXiph) [names addObject:@"xiph"];
+    if (containers & AudioMatorMetadataContainerASF) [names addObject:@"asf"];
+    if (containers & AudioMatorMetadataContainerRIFFInfo) [names addObject:@"riffInfo"];
+    return [names copy];
+}
+
+static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(const AudioMatorFormatCapabilityDescriptor &descriptor)
+{
+    AudioMatorMetadataContainerMask containers = ContainerMaskForFormat(descriptor.format);
+    BOOL writable = IsWritableTagFileFormat(descriptor.format);
+    NSMutableDictionary<NSString *, NSObject *> *capability = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"identifier": @(descriptor.identifier),
+        @"displayName": @(descriptor.displayName),
+        @"codecName": @(descriptor.codecName),
+        @"primaryExtension": ExtensionsForDescriptor(descriptor).firstObject ?: @"",
+        @"extensions": ExtensionsForDescriptor(descriptor),
+        @"containers": ContainerNamesForMask(containers),
+        @"isReadable": @YES,
+        @"isWritable": @(writable),
+        @"canReadArtwork": @(descriptor.canReadArtwork),
+        @"canWriteArtwork": @(descriptor.canWriteArtwork && writable),
+        @"preservesMultiValueProperties": @(descriptor.preservesMultiValueProperties),
+        @"structuredReadSupport": @(descriptor.structuredReadSupport),
+        @"structuredWriteSupport": @(writable ? descriptor.structuredWriteSupport : "none"),
+    }];
+
+    if (descriptor.readOnlyReason) {
+        capability[@"readOnlyReason"] = @(descriptor.readOnlyReason);
+    }
+    if (descriptor.notes) {
+        capability[@"notes"] = @(descriptor.notes);
+    }
+    return [capability copy];
+}
+
 + (BOOL)isSupportedFormat:(NSString *)fileExtension {
-    return DetectTagFileFormat(fileExtension) != AudioMatorTagFileFormatUnknown;
+    return DescriptorForExtension(fileExtension) != nullptr;
 }
 
 + (BOOL)isWritableFormat:(NSString *)fileExtension {
-    return IsWritableTagFileFormat(DetectTagFileFormat(fileExtension));
+    const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
+    return descriptor ? IsWritableTagFileFormat(descriptor->format) : NO;
 }
 
 + (NSArray<NSString *> *)supportedExtensions {
-    return @[
-        // Lossy formats
-        @"mp3", @"mp2",              // MPEG Audio
-        @"m4a", @"m4r", @"m4b", @"m4p", @"mp4", @"m4v", @"3g2", @"aac", // AAC/MP4
-        @"ogg",                      // Ogg Vorbis
-        @"opus",                     // Opus
-        @"mpc",                      // Musepack
-        @"wma", @"asf",             // Windows Media Audio
-        @"spx",                      // Speex
-        
-        // Lossless formats
-        @"flac",                     // FLAC
-        @"ape",                      // Monkey's Audio
-        @"wv",                       // WavPack
-        @"tta",                      // TrueAudio
-        @"wav",                      // WAV
-        @"aiff", @"aif", @"aifc", @"afc", // AIFF
-        @"dsf",                      // DSF (DSD)
-        @"dff", @"dsdiff",           // DSDIFF (DSD)
-        @"oga",                      // OGG FLAC
-        @"shn",                      // Shorten (read-only in TagLib)
-
-        // Tracker/module formats
-        @"mod", @"module", @"nst", @"wow",
-        @"s3m", @"it", @"xm",
-    ];
+    NSMutableArray<NSString *> *extensions = [NSMutableArray array];
+    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+        [extensions addObjectsFromArray:ExtensionsForDescriptor(descriptor)];
+    }
+    return [extensions copy];
 }
 
 + (NSArray<NSString *> *)writableExtensions {
-    NSMutableArray<NSString *> *extensions = [[self supportedExtensions] mutableCopy];
-    [extensions removeObject:@"shn"];
+    NSMutableArray<NSString *> *extensions = [NSMutableArray array];
+    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+        if (IsWritableTagFileFormat(descriptor.format)) {
+            [extensions addObjectsFromArray:ExtensionsForDescriptor(descriptor)];
+        }
+    }
     return [extensions copy];
+}
+
++ (nullable NSDictionary<NSString *, NSObject *> *)formatCapabilityForExtension:(NSString *)fileExtension {
+    const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
+    if (!descriptor) {
+        return nil;
+    }
+    return CapabilityDictionaryForDescriptor(*descriptor);
+}
+
++ (NSArray<NSDictionary<NSString *, NSObject *> *> *)formatCapabilities {
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *capabilities = [NSMutableArray array];
+    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+        [capabilities addObject:CapabilityDictionaryForDescriptor(descriptor)];
+    }
+    return [capabilities copy];
 }
 
 

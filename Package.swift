@@ -102,6 +102,10 @@ let package = Package(
             name: "TagLibAudioMetadata",
             dependencies: ["CTagLibBridge"]
         ),
+        .testTarget(
+            name: "TagLibAudioMetadataTests",
+            dependencies: ["TagLibAudioMetadata"]
+        ),
     ],
     cxxLanguageStandard: .gnucxx20
 )

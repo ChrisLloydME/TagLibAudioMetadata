@@ -311,6 +311,23 @@ public enum MetadataFieldRegistry {
         }
     }
 
+    public nonisolated static func schemas(withMappingsFor format: MetadataFieldFormat) -> [MetadataFieldSchema] {
+        allSchemas.filter { schema in
+            schema.mappings.contains { $0.format == format }
+        }
+    }
+
+    public nonisolated static func schemas(storableIn capability: FormatCapability) -> [MetadataFieldSchema] {
+        let formats = capability.metadataFieldFormats
+        return allSchemas.filter { schema in
+            schema.mappings.contains { formats.contains($0.format) }
+        }
+    }
+
+    public nonisolated static func schema(_ key: MetadataFieldKey, hasMappingFor format: MetadataFieldFormat) -> Bool {
+        schema(for: key)?.mappings.contains { $0.format == format } ?? false
+    }
+
     public nonisolated static func shouldDisplayRawPropertyAsMultiValue(_ key: String) -> Bool {
         let normalized = normalizePropertyMapKey(key)
         return normalized.hasPrefix("PERFORMER:")
