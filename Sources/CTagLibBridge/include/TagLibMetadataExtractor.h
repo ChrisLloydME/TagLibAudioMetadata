@@ -246,6 +246,18 @@ NS_SWIFT_NAME(dumpMetadataText(from:));
 /// Get list of file extensions with writable metadata support.
 + (NSArray<NSString *> *)writableExtensions;
 
+/// Return stable capability metadata for a supported extension.
+///
+/// The returned dictionary describes the full format family, including all
+/// extension aliases, readable/writable state, metadata containers, artwork
+/// support, structured metadata support, and any caveat notes.
++ (nullable NSDictionary<NSString *, NSObject *> *)formatCapabilityForExtension:(NSString *)fileExtension
+NS_SWIFT_NAME(formatCapability(for:));
+
+/// Return stable capability metadata for every known format family.
++ (NSArray<NSDictionary<NSString *, NSObject *> *> *)formatCapabilities
+NS_SWIFT_NAME(formatCapabilities());
+
 @end
 
 NS_ASSUME_NONNULL_END
