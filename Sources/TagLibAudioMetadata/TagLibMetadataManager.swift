@@ -1774,7 +1774,8 @@ public struct TagLibMetadataManager {
 
     nonisolated private static func shouldWipeNativeMetadataContainer(for url: URL) -> Bool {
         switch url.pathExtension.lowercased() {
-        case "mp3", "m4a", "m4r", "m4b", "m4p", "mp4", "m4v", "3g2":
+        case "mp3", "m4a", "m4r", "m4b", "m4p", "mp4", "m4v", "3g2",
+             "flac", "ape", "wv", "mpc", "wav", "tta", "dff", "dsdiff":
             return true
         default:
             return false

@@ -219,7 +219,8 @@ NS_SWIFT_NAME(writeStructuredMetadata(_:to:));
 
 /// Remove the file's native metadata container where TagLib supports stripping it.
 ///
-/// This currently supports MPEG/MP3 tags and MP4/M4A iTunes metadata atoms.
+/// This currently supports MPEG/MP3, MP4/M4A, FLAC, APE-family, WAV, TrueAudio,
+/// and DSDIFF native metadata containers.
 + (BOOL)wipeMetadataFromURL:(NSURL *)fileURL
                       error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(wipeMetadata(from:));

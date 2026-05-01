@@ -3746,6 +3746,41 @@ static BOOL WriteGenericPropertyMapOnlyFile(const char *filePath,
     return YES;
 }
 
+template <typename FileType>
+static BOOL StripAllTagsAndSave(FileType &file,
+                                NSError **error,
+                                NSInteger openErrorCode,
+                                NSString *openErrorMessage,
+                                NSInteger saveErrorCode,
+                                NSString *saveErrorMessage,
+                                NSString *logContext)
+{
+    if (!file.isValid()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:openErrorCode
+                                     userInfo:@{ NSLocalizedDescriptionKey : openErrorMessage }];
+        }
+        TLog(@"Failed to open %@ for wiping", logContext);
+        return NO;
+    }
+
+    file.strip();
+
+    if (!file.save()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:saveErrorCode
+                                     userInfo:@{ NSLocalizedDescriptionKey : saveErrorMessage }];
+        }
+        TLog(@"TagLib save() failed after wiping for %@", logContext);
+        return NO;
+    }
+
+    TLog(@"Successfully wiped metadata for %@", logContext);
+    return YES;
+}
+
 // Write only track numbering (TRCK + TagLib::Tag::setTrack) to a file.
 + (BOOL)writeTrackNumber:(NSInteger)trackNumber
              totalTracks:(NSInteger)totalTracks
@@ -5882,8 +5917,85 @@ static void ParseNumberPairFromNSString(NSString *text,
         return YES;
     }
 
+    if (format == AudioMatorTagFileFormatFLAC) {
+        TagLib::FLAC::File flacFile(filePath);
+        return StripAllTagsAndSave(flacFile,
+                                   error,
+                                   37,
+                                   @"Unable to open FLAC file for wiping metadata",
+                                   38,
+                                   @"TagLib failed to save FLAC after wiping metadata",
+                                   [NSString stringWithFormat:@"FLAC '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatAPE) {
+        TagLib::APE::File apeFile(filePath);
+        return StripAllTagsAndSave(apeFile,
+                                   error,
+                                   39,
+                                   @"Unable to open APE file for wiping metadata",
+                                   72,
+                                   @"TagLib failed to save APE after wiping metadata",
+                                   [NSString stringWithFormat:@"APE '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatWavPack) {
+        TagLib::WavPack::File wavPackFile(filePath);
+        return StripAllTagsAndSave(wavPackFile,
+                                   error,
+                                   73,
+                                   @"Unable to open WavPack file for wiping metadata",
+                                   118,
+                                   @"TagLib failed to save WavPack after wiping metadata",
+                                   [NSString stringWithFormat:@"WavPack '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatMPC) {
+        TagLib::MPC::File mpcFile(filePath);
+        return StripAllTagsAndSave(mpcFile,
+                                   error,
+                                   119,
+                                   @"Unable to open Musepack file for wiping metadata",
+                                   120,
+                                   @"TagLib failed to save Musepack after wiping metadata",
+                                   [NSString stringWithFormat:@"Musepack '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatWAV) {
+        TagLib::RIFF::WAV::File wavFile(filePath);
+        return StripAllTagsAndSave(wavFile,
+                                   error,
+                                   121,
+                                   @"Unable to open WAV file for wiping metadata",
+                                   122,
+                                   @"TagLib failed to save WAV after wiping metadata",
+                                   [NSString stringWithFormat:@"WAV '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatTTA) {
+        TagLib::TrueAudio::File ttaFile(filePath);
+        return StripAllTagsAndSave(ttaFile,
+                                   error,
+                                   123,
+                                   @"Unable to open TrueAudio file for wiping metadata",
+                                   124,
+                                   @"TagLib failed to save TrueAudio after wiping metadata",
+                                   [NSString stringWithFormat:@"TrueAudio '%@'", fileURL.lastPathComponent]);
+    }
+
+    if (format == AudioMatorTagFileFormatDSDIFF) {
+        TagLib::DSDIFF::File dsdiffFile(filePath);
+        return StripAllTagsAndSave(dsdiffFile,
+                                   error,
+                                   125,
+                                   @"Unable to open DSDIFF file for wiping metadata",
+                                   126,
+                                   @"TagLib failed to save DSDIFF after wiping metadata",
+                                   [NSString stringWithFormat:@"DSDIFF '%@'", fileURL.lastPathComponent]);
+    }
+
     if (error) {
-        NSString *message = @"Wiping metadata is currently supported only for MP3 and MP4/M4A files";
+        NSString *message = @"Wiping metadata is not implemented for this format; clear uses the generic property-map path instead";
         *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                      code:32
                                  userInfo:@{ NSLocalizedDescriptionKey : message }];
