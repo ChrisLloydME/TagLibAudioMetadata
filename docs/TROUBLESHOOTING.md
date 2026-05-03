@@ -127,7 +127,16 @@ The structured write path (`writeStructuredMetadataWithVerification`) preserves 
 
 ### `rtng` (explicit content) integer normalization
 
-The MP4 `rtng` atom is a typed integer. Values: `4` = explicit, `2` = clean/non-explicit, `0` = unset. Other apps may use `1` for explicit. The bridge treats `4` and `1` as `true` (explicit); `2` as `false` (non-explicit). If a file has `rtng = 1` and is re-read, `BasicMetadata.isExplicit` will be `true`. If the bridge then writes the field with `4`, a subsequent read by another tool expecting `1` may display it differently. This is implementation-dependent behavior across apps.
+The MP4 `rtng` atom is a typed integer with the following standard values:
+
+- `0` — unset / unknown
+- `2` — clean / non-explicit
+- `4` — explicit (iTunes standard)
+- `1` — explicit (used by some non-Apple tools)
+
+The bridge normalizes on read: values `4` and `1` both produce `BasicMetadata.isExplicit = true`; value `2` produces `false`; `0` produces `false`.
+
+On write, the bridge writes `rtng = 4` for explicit and `rtng = 2` for non-explicit. A tool that reads the file afterward and expects `rtng = 1` for explicit may display the field differently. This behavior is implementation-dependent and varies across apps.
 
 ---
 
