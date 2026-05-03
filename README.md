@@ -883,3 +883,63 @@ Set the environment variable `AUDIOMATOR_TAGLIB_DEBUG` to `1`, `true`, `yes`, or
 ```sh
 AUDIOMATOR_TAGLIB_DEBUG=1 swift run
 ```
+
+## Threading
+
+All `TagLibMetadataManager` methods are `nonisolated static`. The bridge does not serialize access to the same file URL across concurrent callers. **Concurrent calls to the same file path from multiple threads are not safe.** Callers are responsible for serializing access to any given file.
+
+TagLib performs synchronous file I/O. The entire read or write operation blocks the calling thread. Do not call these APIs on the main thread in a UI application. Dispatch to a background executor:
+
+```swift
+Task.detached(priority: .userInitiated) {
+    let metadata = try await Task.detached {
+        try TagLibMetadataManager.readMetadataResult(from: url)
+    }.value
+    await MainActor.run { self.model = metadata }
+}
+```
+
+The verified write APIs (`writeMetadataWithVerification`, `writeRawMetadataPropertyMapWithVerification`, etc.) perform one additional read pass after every write to detect container normalization. Each verified write costs approximately twice the I/O of an unverified write. For batch operations where latency matters, pass `verifyAfterWrite: false` and verify separately, or collect results and verify at the end.
+
+`MetadataFieldRegistry.allSchemas` is a `nonisolated static let`. The first access allocates the schema table (approximately 80 `MetadataFieldSchema` structs). This is thread-safe by Swift runtime guarantee and negligible in cost.
+
+## Known Limitations
+
+- **Shorten (`.shn`)** is read-only. Attempting to write metadata to a `.shn` file throws `TagLibManagerError.unsupportedFormat`.
+- **WAV RIFF INFO sync** (`riffPolicy: .syncBasicFieldsToInfo`) is defined in the API but not yet applied. It emits a verification warning and leaves the INFO block unchanged. Do not rely on it for INFO synchronization until this is removed.
+- **Tracker formats** (`.mod`, `.s3m`, `.it`, `.xm`, `.module`, `.nst`, `.wow`) accept writes via the `PropertyMap` pipeline, but TagLib's actual writable field set for these formats is narrow and format-dependent. Do not expect full round-trip fidelity beyond basic text fields.
+- **`BasicMetadata` write does not expose a standalone "remove artwork" flag.** Use `writeTagMetadata(_:to:verification:failurePolicy:)` with `TagLibAudioMetadata.removeArtwork = true` to remove artwork without touching other fields.
+- **ID3v2 chapter frames** (`CHAP`, `CTOC`) and the podcast frame (`PCST`) are read into `StructuredMetadata.id3v2Frames` in TagLib 2.1.1 but editing embedded chapter/TOC payloads is not yet exposed as a high-level writer.
+- **Matroska/WebM** support does not appear in the vendored TagLib 2.1.1. It requires updating the vendored TagLib sources.
+- **App Store sandbox**: The package performs file I/O through TagLib C++ file system calls. The calling app must hold a security-scoped URL bookmark or an appropriate entitlement before passing a sandboxed file URL to any API. The package itself does not request or manage security scope access.
+- **Multi-value fields** in ID3v2, MP4, and ASF containers are not natively multi-value at the container level in the same way Xiph/Vorbis is. Use `writeRawMetadataPropertyMapValuesWithVerification(_:to:)` for Xiph-based formats when multi-value fidelity matters.
+
+## Relationship to TagLib
+
+This package vendors TagLib 2.1.1 source directly inside the `CTagLibBridge` target. No dynamic or system TagLib library is required or used. The Objective-C++ bridge (`TagLibMetadataExtractor`) wraps TagLib's C++ classes and exposes them as Objective-C interfaces. The Swift layer (`TagLibMetadataManager`, `BasicMetadata`, etc.) wraps those Objective-C interfaces and adds Swift-idiomatic types, error handling, and verification.
+
+Consumers of this package interact only with the Swift API. The TagLib C++ API and the Objective-C++ bridge are accessible to advanced callers via `@_exported import CTagLibBridge`, but this is not required for normal use.
+
+Because TagLib is vendored, updating to a newer TagLib version requires replacing the source files in `Sources/CTagLibBridge/taglib/` and updating the bridge code accordingly. The current vendored version is **TagLib 2.1.1**.
+
+## License
+
+This package (the Swift bridge code and Objective-C++ wrapper) is released under the **MIT License**. See [LICENSE](LICENSE) for the full text.
+
+The bundled TagLib library is dual-licensed under the **GNU Lesser General Public License v2.1** (LGPL-2.1) and the **Mozilla Public License v1.1** (MPL-1.1). TagLib license texts are included in the repository at:
+
+- `Sources/CTagLibBridge/taglib/COPYING.LGPL`
+- `Sources/CTagLibBridge/taglib/COPYING.MPL`
+
+Applications that distribute this package must comply with both the MIT License (for the bridge code) and the LGPL-2.1 or MPL-1.1 terms for the TagLib source. See [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md) for a summary.
+
+## Further Reading
+
+| Document | Contents |
+| --- | --- |
+| [docs/API_OVERVIEW.md](docs/API_OVERVIEW.md) | Public types, responsibilities, and short examples grouped by purpose |
+| [docs/SUPPORTED_FORMATS.md](docs/SUPPORTED_FORMATS.md) | Table of every supported format, extensions, read/write/artwork support, and caveats |
+| [docs/METADATA_FIELDS.md](docs/METADATA_FIELDS.md) | Table of all supported metadata fields, their PropertyMap keys, and format-specific storage |
+| [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) | Threading, batch processing, verification strategy, partial failure handling |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common problems and how to diagnose them |
+| [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md) | TagLib and upstream license notices |
