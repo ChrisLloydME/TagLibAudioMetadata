@@ -5,7 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — 2026-04-28
+## [Unreleased] - 2026-05-27
 
 ### Summary
 
@@ -15,13 +15,22 @@ This release is the initial public extraction of the TagLib bridge from the Audi
 
 ### Added
 
-#### Format capability descriptors
+#### Documentation
+- Added `docs/SUPPORT.md` as the current source-of-truth API guide, covering basic metadata, raw property maps, structured metadata, format capabilities, verification, erase behavior, field registry usage, bridge APIs, and practical integration recipes.
+- Replaced the long README API reference with a concise project overview, installation instructions, quick-start examples, and links to the current support guide and license notes.
+
+#### Format capability descriptors (`8ce60e96`)
 - Added `FormatCapability` and `StructuredMetadataSupport` Swift APIs.
 - Added `TagLibMetadataManager.formatCapability(for:)` and `formatCapabilities`.
 - Added ObjC++ bridge capability dictionaries so readable/writable extension lists, support checks, and UI capability metadata are derived from one descriptor table.
 - Added `MetadataFieldRegistry.schemas(withMappingsFor:)`, `schemas(storableIn:)`, and `schema(_:hasMappingFor:)`.
 - Added unit tests that keep extension support, writable support, structured support caveats, and field schema filtering aligned with the capability table.
 - Reduced repeated pure-PropertyMap write logic for tracker/module formats through a shared helper.
+
+#### Fixture coverage (`8272d9f7`)
+- Registered test audio and artwork resources in `Package.swift` so fixture-based tests run under SwiftPM.
+- Added fixture round-trip tests across MP3, M4A, FLAC, AAC, OGG, and WAV.
+- Added coverage for basic metadata writes and clears, artwork writes/removal, raw property map replace/merge behavior, multi-value property writes, structured metadata writes, and erase verification.
 
 #### Format capability APIs (`53487c34`)
 - `TagLibMetadataManager.isReadableFormat(_:) -> Bool`
@@ -90,10 +99,30 @@ New fields added to `BasicMetadata` and `TagLibAudioMetadata`:
 
 ### Changed
 
+- Consolidated stale and overlapping documentation into `docs/SUPPORT.md`.
 - `writeMetadata(_:to:) throws -> Bool` — now internally calls `writeMetadataWithVerification`; warnings are printed rather than thrown by default. Return type and signature unchanged.
 - `writeRawMetadataPropertyMap(_:to:mode:) throws -> Bool` — now internally calls `writeRawMetadataPropertyMapWithVerification`; warnings printed only.
 - `eraseAllMetadata(from:) throws -> Bool` — now internally calls `eraseAllMetadataWithVerification`; warnings printed only.
 - `rawContainsCustomKey` — matching changed from fuzzy `contains` to normalized exact match with explicit MP4 freeform prefix aliasing. Custom field verification results may differ for keys previously matched by substring.
+
+### Fixed
+
+#### Metadata write reliability (`8272d9f7`)
+- Fixed MP3 and MP4 clear semantics so nil or empty `BasicMetadata` fields clear existing values instead of preserving stale metadata.
+- Fixed `writeMetadataWithVerification` so `BasicMetadata.artworkData` is written through the bridge and verified after save.
+- Fixed structured writes so including `properties` no longer prevents ID3v2 frames, MP4 atoms, artwork, comments, or lyrics from being applied.
+- Expanded post-write verification to compare text fields and artwork presence, making incomplete writes easier to detect.
+
+#### Metadata wipe reliability (`d7dcbc47`, `87a897ef`)
+- Fixed MP4/M4A erase behavior by adding a native container-level strip path that removes leftover MP4 ItemMap atoms such as `atID`, `geID`, and `©pub`.
+- Exposed `TagLibMetadataExtractor.wipeMetadata(from:)` through the bridge header for Swift erase flows.
+- Extended `eraseAllMetadataWithVerification` to run a native wipe for MP3 and MP4-family formats after the standard clear flow.
+- Strengthened native wipe support for FLAC, APE, WavPack, Musepack, WAV, TrueAudio, and DSDIFF, where clearing only the `PropertyMap` can leave residual container metadata.
+- Kept generic empty-`PropertyMap` erase behavior for formats where TagLib clears the underlying storage through that path.
+
+### Removed
+
+- Removed outdated duplicate documentation files: `docs/API_OVERVIEW.md`, `docs/INTEGRATION_GUIDE.md`, `docs/INTEGRATION_NOTES.md`, `docs/METADATA_FIELDS.md`, `docs/SUPPORTED_FORMATS.md`, and `docs/TROUBLESHOOTING.md`.
 
 ### Deprecated
 

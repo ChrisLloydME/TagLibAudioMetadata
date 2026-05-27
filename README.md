@@ -1,21 +1,27 @@
 # TagLibAudioMetadata
 
-`TagLibAudioMetadata` is a Swift Package wrapper around a bundled TagLib bridge. It reads, writes, erases, and inspects audio metadata through a Swift facade, without requiring callers to work with TagLib C++ APIs directly.
+`TagLibAudioMetadata` is a Swift Package for reading, writing, erasing, and
+inspecting audio metadata through a bundled TagLib bridge. App code works with a
+Swift facade instead of TagLib C++ APIs.
 
-The package is intended for app code that needs:
+Use it when an app needs:
 
-- Common audio metadata such as title, artist, album, track/disc numbers, dates, artwork, MusicBrainz/AcoustID IDs, classical fields, ReplayGain, iTunes fields, and custom fields.
+- Common tags such as title, artist, album, track and disc numbers, dates,
+  artwork, MusicBrainz and AcoustID identifiers, classical fields, ReplayGain,
+  iTunes fields, and custom fields.
 - Raw TagLib `PropertyMap` access for advanced metadata editors.
-- Post-write verification warnings so apps can detect container-specific normalization or unsupported fields.
-- A compatibility API that returns `nil`, plus throwing APIs for callers that need precise error handling.
+- Container-aware structured metadata for ID3v2 frames, MP4 atoms, ASF
+  attributes, lyrics, comments, and artwork.
+- Format capability checks before enabling read, write, artwork, or structured
+  editing controls.
+- Post-write verification warnings when a container normalizes or drops data.
 
 ## Requirements
 
-- Swift tools version: `6.0`
-- Platforms:
-  - macOS 13+
-  - iOS 16+
-- C++ standard: GNU C++20, configured by the package.
+- Swift tools version 6.0
+- macOS 13+
+- iOS 16+
+- GNU C++20, configured by `Package.swift`
 
 ## Installation
 
@@ -41,37 +47,13 @@ Then import the Swift facade:
 import TagLibAudioMetadata
 ```
 
-`TagLibAudioMetadata` re-exports the underlying `CTagLibBridge`, so advanced callers can also use `TagLibMetadataExtractor` and `TagLibAudioMetadata` directly after importing this package.
-
-## Supported Formats
-
-Check support before showing write controls or attempting to parse a file:
-
-```swift
-let readable = TagLibMetadataManager.isReadableFormat(url.pathExtension)
-let writable = TagLibMetadataManager.isWritableFormat(url.pathExtension)
-let readableExtensions = TagLibMetadataManager.readableExtensions
-let writableExtensions = TagLibMetadataManager.writableExtensions
-let capability = TagLibMetadataManager.formatCapability(for: url.pathExtension)
-```
-
-Readable extensions:
-
-`mp3`, `mp2`, `aac`, `m4a`, `m4r`, `m4b`, `m4p`, `mp4`, `m4v`, `3g2`, `ogg`, `oga`, `opus`, `spx`, `flac`, `ape`, `wv`, `mpc`, `wma`, `asf`, `tta`, `wav`, `aiff`, `aif`, `aifc`, `afc`, `dsf`, `dff`, `dsdiff`, `shn`, `mod`, `module`, `nst`, `wow`, `s3m`, `it`, `xm`.
-
-Writable extensions:
-
-All readable extensions except `shn`. TagLib 2.1.1 exposes Shorten metadata for reading, but its Shorten writer reports saving as unsupported.
-
-Use `formatCapability(for:)` or `formatCapabilities` when the UI needs more than a yes/no answer. The capability API reports the format family, extension aliases, metadata containers, artwork support, multi-value PropertyMap preservation, structured read/write support, read-only reason, and notes. This is the preferred source for enabling editor controls because support varies by container.
-
-This package follows the capabilities of the bundled TagLib source. The current vendored TagLib is 2.1.1; Matroska/WebM support appears in newer upstream TagLib releases and requires updating the vendored TagLib sources before this bridge can expose it.
-
-Tag support varies by container. Some formats may normalize values, drop unsupported fields, or store fields under format-specific keys. Use the verification APIs when the result matters.
+The Swift module re-exports the underlying `CTagLibBridge` target. Advanced
+callers can reach `TagLibMetadataExtractor` and `TagLibAudioMetadata` after the
+same import, but normal app code should start with `TagLibMetadataManager`.
 
 ## Quick Start
 
-Read metadata:
+Read metadata with the throwing API:
 
 ```swift
 let url = URL(fileURLWithPath: "/path/to/song.flac")
@@ -88,12 +70,12 @@ do {
 }
 ```
 
-Edit and write metadata:
+Write common metadata and inspect verification warnings:
 
 ```swift
 var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-metadata.title = "New title"
-metadata.artist = "New artist"
+metadata.title = "New Title"
+metadata.artist = "New Artist"
 metadata.track = 1
 metadata.trackTotal = 12
 metadata.trackNumberText = "01/12"
@@ -109,839 +91,53 @@ for warning in result.warnings {
 }
 ```
 
-Use the simpler compatibility write API when warnings only need to be printed:
+Check capabilities before showing editing controls:
 
 ```swift
-try TagLibMetadataManager.writeMetadata(metadata, to: url)
-```
-
-## Main Swift API
-
-Use `TagLibMetadataManager` for normal Swift app code.
-
-### `readMetadataResult(from:)`
-
-```swift
-public static func readMetadataResult(from url: URL) throws -> BasicMetadata
-```
-
-Reads structured metadata and audio properties from a supported file. This is the preferred read API when the caller needs to distinguish unsupported formats from read failures.
-
-```swift
-do {
-    let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-    print(metadata.album)
-} catch TagLibManagerError.unsupportedFormat {
-    // File extension is missing or unsupported.
-} catch TagLibManagerError.failedToReadWithUnderlying(let message) {
-    print(message)
+if let capability = TagLibMetadataManager.formatCapability(for: url.pathExtension) {
+    print(capability.isWritable)
+    print(capability.canWriteArtwork)
+    print(capability.structuredWriteSupport)
 }
 ```
 
-### `readMetadata(from:)`
-
-```swift
-public static func readMetadata(from url: URL) -> BasicMetadata?
-```
-
-Compatibility read API. It returns `nil` for unsupported formats and read failures, and prints the error.
-
-```swift
-if let metadata = TagLibMetadataManager.readMetadata(from: url) {
-    print(metadata.title)
-}
-```
-
-Use `readMetadataResult(from:)` for new code that needs reliable error handling.
-
-### `writeMetadataWithVerification(_:to:failurePolicy:)`
-
-```swift
-@discardableResult
-public static func writeMetadataWithVerification(
-    _ meta: BasicMetadata,
-    to url: URL,
-    failurePolicy: TagLibMetadataManager.VerificationFailurePolicy = .warn
-) throws -> TagLibMetadataManager.MetadataWriteResult
-```
-
-Writes a `BasicMetadata` value and verifies important fields afterward. Empty strings are written as `nil`, which clears/removes the field where the container supports it. Numeric fields use `0` as the unset/clear value.
-
-```swift
-var metadata = BasicMetadata.empty
-metadata.title = "Example"
-metadata.artist = "Artist"
-metadata.album = "Album"
-metadata.track = 1
-metadata.trackTotal = 10
-metadata.disc = 1
-metadata.discTotal = 2
-metadata.isExplicit = true
-metadata.customFields = ["MOOD": "Focused"]
-
-let result = try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url)
-if !result.warnings.isEmpty {
-    print(result.warnings)
-}
-```
-
-Set `failurePolicy: .throw` to convert verification warnings into `TagLibManagerError.verificationFailed`.
-
-```swift
-try TagLibMetadataManager.writeMetadataWithVerification(
-    metadata,
-    to: url,
-    failurePolicy: .throw
-)
-```
-
-### `writeMetadata(_:to:)`
-
-```swift
-@discardableResult
-public static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool
-```
-
-Convenience wrapper around `writeMetadataWithVerification`. It returns `true` on success and prints verification warnings.
-
-```swift
-try TagLibMetadataManager.writeMetadata(metadata, to: url)
-```
-
-### `writeTagMetadata(_:to:verification:failurePolicy:)`
-
-```swift
-@discardableResult
-public static func writeTagMetadata(
-    _ metadata: TagLibAudioMetadata,
-    to url: URL,
-    verification: TagLibMetadataManager.MetadataWriteVerificationContext = .none,
-    failurePolicy: TagLibMetadataManager.VerificationFailurePolicy = .warn
-) throws -> TagLibMetadataManager.MetadataWriteResult
-```
-
-Low-level write API for callers that want to construct the Objective-C bridge model directly. Use this when a field exists on `TagLibAudioMetadata` but your code does not want to pass through `BasicMetadata`.
-
-`writeTagMetadata` uses the same clear semantics as `BasicMetadata`: empty or `nil` string fields clear the corresponding tag value where the container supports it. For partial edits that must preserve every other field, read the current metadata first, update the fields you intend to change, then write the full value back.
-
-```swift
-let metadata = TagLibAudioMetadata()
-metadata.title = "Bridge title"
-metadata.artist = "Bridge artist"
-metadata.trackNumber = 3
-metadata.totalTracks = 12
-metadata.trackNumberText = "03/12"
-
-let verification = TagLibMetadataManager.MetadataWriteVerificationContext(
-    expectedTrackNumber: 3,
-    expectedTrackTotal: 12,
-    expectedTrackNumberText: "03/12",
-    expectedDiscNumber: nil,
-    expectedDiscTotal: nil,
-    expectedDiscNumberText: nil,
-    expectedExplicitContent: nil,
-    artworkExpectation: .unchanged,
-    customFieldKeys: []
-)
-
-try TagLibMetadataManager.writeTagMetadata(
-    metadata,
-    to: url,
-    verification: verification
-)
-```
-
-### `writeTrackNumberText(_:discNumberText:to:verifyAfterWrite:failurePolicy:)`
-
-```swift
-@discardableResult
-public static func writeTrackNumberText(
-    _ trackNumberText: String,
-    discNumberText: String?,
-    to url: URL,
-    verifyAfterWrite: Bool = true,
-    failurePolicy: TagLibMetadataManager.VerificationFailurePolicy = .warn
-) throws -> TagLibMetadataManager.MetadataWriteResult
-```
-
-Writes only track/disc number text. This is useful for renumbering while preserving padding such as `01/10`.
-
-```swift
-try TagLibMetadataManager.writeTrackNumberText(
-    "01/10",
-    discNumberText: "01/02",
-    to: url
-)
-```
-
-Pass `discNumberText: nil` to leave the disc field unchanged. Pass an empty track value to clear track number data where the container supports it.
-
-## Field Schema and Format Mappings
-
-`BasicMetadata` remains the stable app-facing model. For editors, importers, and diagnostics that need a field catalog, the package also exposes `MetadataFieldRegistry`.
-
-```swift
-let albumArtist = MetadataFieldRegistry.schema(for: .albumArtist)
-print(albumArtist?.propertyMapKeys ?? []) // ["ALBUMARTIST", "ALBUM ARTIST"]
-
-let rawField = MetadataFieldRegistry.schema(forPropertyMapKey: "PERFORMER:guitar")
-let showValuesSeparately = MetadataFieldRegistry.shouldDisplayRawPropertyAsMultiValue("ARTIST")
-let mp4Fields = TagLibMetadataManager.formatCapability(for: "m4a").map {
-    MetadataFieldRegistry.schemas(storableIn: $0)
-}
-```
-
-Each `MetadataFieldSchema` describes:
-
-- the canonical field key and category,
-- TagLib `PropertyMap` keys and aliases,
-- whether raw `RawPropertyEntry.values` should be preserved/displayed as multi-value,
-- people/role-qualified fields such as `PERFORMER:<instrument>`, `INVOLVEDPEOPLE`, and `MUSICIANCREDITS`,
-- format mappings for ID3v2, MP4, Xiph/FLAC, APE, ASF, and future Matroska/WebM work.
-
-The mapping catalog uses TagLib `PropertyMap` names first where available. Format-specific examples include `TPE2`/`aART`/`ALBUMARTIST` for album artist, `TDRC` or `TDRL`/`©day`/`DATE` or `RELEASEDATE` for release dates, `APIC`/`covr`/`PICTURE` for artwork, and freeform iTunes atoms for MusicBrainz, AcoustID, ReplayGain, and iTunes purchase metadata. `RawPropertyEntry` now exposes `schema` and `shouldDisplayAsMultiValue` convenience properties for raw editor UI.
-
-### `rawMetadataResult(from:)`
-
-```swift
-public static func rawMetadataResult(from url: URL) throws -> RawMetadataDump
-```
-
-Reads raw metadata as TagLib sees it. This is intended for metadata inspector/editor UI where users need direct `PropertyMap` keys and ID3v2 frames.
-
-```swift
-let dump = try TagLibMetadataManager.rawMetadataResult(from: url)
-
-for property in dump.properties {
-    print("\(property.key) = \(property.value)")
-}
-
-for frame in dump.id3v2Frames {
-    print("\(frame.frameID): \(frame.value)")
-}
-```
-
-### `rawMetadata(from:)`
-
-```swift
-public static func rawMetadata(from url: URL) -> RawMetadataDump?
-```
-
-Compatibility raw metadata API. It returns `nil` if the format is unsupported or extraction fails.
-
-```swift
-let dump = TagLibMetadataManager.rawMetadata(from: url) ?? .empty
-```
-
-### `rawMetadataText(from:)`
-
-```swift
-public static func rawMetadataText(from url: URL) -> String?
-```
-
-Returns a readable plain-text dump of TagLib properties and ID3v2 frames. Use it for diagnostics, copy/paste, or debug UI.
-
-```swift
-if let text = TagLibMetadataManager.rawMetadataText(from: url) {
-    print(text)
-}
-```
-
-### `writeRawMetadataPropertyMapWithVerification(_:to:mode:verifyAfterWrite:failurePolicy:)`
-
-```swift
-@discardableResult
-public static func writeRawMetadataPropertyMapWithVerification(
-    _ properties: [String: String],
-    to url: URL,
-    mode: TagLibMetadataManager.RawPropertyMapWriteMode = .replace,
-    verifyAfterWrite: Bool = true,
-    failurePolicy: TagLibMetadataManager.VerificationFailurePolicy = .warn
-) throws -> TagLibMetadataManager.MetadataWriteResult
-```
-
-Writes raw TagLib `PropertyMap` key/value pairs.
-
-Replace mode writes exactly the provided map:
-
-```swift
-try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
-    [
-        "TITLE": "Replacement title",
-        "ARTIST": "Replacement artist"
-    ],
-    to: url,
-    mode: .replace
-)
-```
-
-Merge mode updates selected keys while preserving other existing property-map entries. Empty values remove matching keys:
-
-```swift
-let result = try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
-    [
-        "TITLE": "Merged title",
-        "COMMENT": ""
-    ],
-    to: url,
-    mode: .merge,
-    failurePolicy: .throw
-)
-
-print(result.warnings)
-```
-
-Raw writes trim empty keys and values before passing them to TagLib. In `.replace` mode, passing an empty dictionary clears the property map where supported.
-
-### `writeRawMetadataPropertyMapValuesWithVerification(_:to:verifyAfterWrite:failurePolicy:)`
-
-```swift
-@discardableResult
-public static func writeRawMetadataPropertyMapValuesWithVerification(
-    _ properties: [String: [String]],
-    to url: URL,
-    verifyAfterWrite: Bool = true,
-    failurePolicy: TagLibMetadataManager.VerificationFailurePolicy = .warn
-) throws -> TagLibMetadataManager.MetadataWriteResult
-```
-
-Writes TagLib `PropertyMap` values without flattening multi-value fields. This is the preferred raw API for Xiph/Vorbis comments and any editor that needs to preserve repeated values.
-
-```swift
-let result = try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
-    [
-        "ARTIST": ["Alice", "Bob"],
-        "MUSICBRAINZ_ARTISTID": ["artist-id-1", "artist-id-2"]
-    ],
-    to: url
-)
-```
-
-`rawMetadataResult(from:)` returns both `RawPropertyEntry.value` for display and `RawPropertyEntry.values` for lossless editing.
-
-### Structured Container Metadata
-
-Use `StructuredMetadata` when a field cannot be represented safely as one string:
-
-```swift
-let structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
-
-for comment in structured.comments {
-    print("\(comment.language) \(comment.description): \(comment.text)")
-}
-
-for artwork in structured.artwork {
-    print("\(artwork.pictureType ?? "artwork") \(artwork.mimeType) \(artwork.data.count)")
-}
-```
-
-Write structured edits with verification:
-
-```swift
-var structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
-structured.comments = [
-    StructuredComment(language: "eng", description: "review", text: "Original notes"),
-    StructuredComment(language: "jpn", description: "review", text: "Localized notes")
-]
-
-let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
-    structured,
-    to: url,
-    riffPolicy: .preserveInfo
-)
-```
-
-Only collections included in the write payload are edited by the Objective-C++ bridge. Unknown ID3v2 frames, MP4 atoms/freeform atoms, ASF attributes, and unrelated property-map entries are preserved unless the caller explicitly replaces the relevant collection.
-
-Structured coverage in the current vendored TagLib 2.1.1 bridge:
-
-- ID3v2: text frames with value arrays, `TXXX`, `UFID`, `WOAR`/other URL frames, `WXXX`, multi-`COMM`, multi-`USLT`, multi-`APIC`, `CHAP`, `CTOC`, and podcast (`PCST`) frames are exposed. Structured writing covers text/user-text, `UFID`, URL frames, `COMM`, `USLT`, and `APIC`. `CHAP`, `CTOC`, and `PCST` are read/inspected; editing embedded chapter/TOC payloads is not yet exposed as a high-level writer.
-- MP4/iTunes: typed atoms are exposed from the MP4 item map, including `©nam`, `©ART`, `©alb`, `©gen`, `©cmt`, `desc`, `ldes`, `catg`, `purd`, `stik`, `pcst`, `pgap`, `cnID`, `plID`, `geID`, plus existing iTunes/freeform mappings. Structured writing can update typed string, bool, integer, integer-pair, byte, uint, and long-long atoms. Unknown freeform atoms are preserved by default.
-- Xiph/Vorbis Comment: `PropertyMap` values are exposed as arrays. MusicBrainz/Picard aliases such as `MUSICBRAINZ_ARTISTID` / `MUSICBRAINZ ARTIST ID`, `MUSICBRAINZ_ALBUMID` / `MUSICBRAINZ ALBUM ID`, `MUSICBRAINZ_RELEASEGROUPID` / `MUSICBRAINZ RELEASE GROUP ID`, `MUSICBRAINZ_ALBUMTYPE` / `RELEASETYPE`, and `MUSICBRAINZ_ALBUMRELEASECOUNTRY` / `RELEASECOUNTRY` are recognized by the schema/basic extraction while raw structured entries retain original keys and values.
-- ASF/WMA: ASF attributes are exposed with type information for string, bool, integer, binary/guid, and `WM/Picture`. Structured artwork keeps `mimeType`, `pictureType`, `description`, and `data`. Unknown attributes are preserved unless the caller writes the `asfAttributes` collection.
-- Artwork, lyrics, and comments: structured lists preserve multiple entries instead of collapsing to the `BasicMetadata` preferred value.
-
-WAV/AIFF dual-stack behavior:
-
-- `.preserveInfo` is the default policy. Structured writes target ID3v2 where available and avoid clearing existing RIFF INFO fields.
-- `.id3v2Only` writes only ID3v2-facing structured collections.
-- `.syncBasicFieldsToInfo` is reserved for callers that want explicit INFO synchronization; the current bridge returns a verification warning because structured INFO sync is not implemented yet.
-
-Minimal verification path:
-
-```swift
-let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
-let write = try TagLibMetadataManager.writeStructuredMetadataWithVerification(before, to: url)
-let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
-print(write.warnings)
-print(after.properties.flatMap(\.values))
-```
-
-### `writeRawMetadataPropertyMap(_:to:mode:)`
-
-```swift
-@discardableResult
-public static func writeRawMetadataPropertyMap(
-    _ properties: [String: String],
-    to url: URL,
-    mode: TagLibMetadataManager.RawPropertyMapWriteMode = .replace
-) throws -> Bool
-```
-
-Convenience wrapper around the verified raw write API. It returns `true` on success and prints verification warnings.
-
-```swift
-try TagLibMetadataManager.writeRawMetadataPropertyMap(
-    ["ALBUM": "Raw album"],
-    to: url,
-    mode: .merge
-)
-```
-
-### `eraseAllMetadataWithVerification(from:failurePolicy:)`
-
-```swift
-@discardableResult
-public static func eraseAllMetadataWithVerification(
-    from url: URL,
-    failurePolicy: TagLibMetadataManager.VerificationFailurePolicy = .warn
-) throws -> TagLibMetadataManager.MetadataWriteResult
-```
-
-Attempts to remove all metadata. The implementation clears common structured fields, removes artwork, replaces the raw property map with an empty map, then re-reads the file to report any remaining metadata.
-
-```swift
-let result = try TagLibMetadataManager.eraseAllMetadataWithVerification(
-    from: url,
-    failurePolicy: .warn
-)
-
-for warning in result.warnings {
-    print(warning)
-}
-```
-
-Use `failurePolicy: .throw` if residual metadata should fail the operation.
-
-### `eraseAllMetadata(from:)`
-
-```swift
-@discardableResult
-public static func eraseAllMetadata(from url: URL) throws -> Bool
-```
-
-Convenience wrapper around `eraseAllMetadataWithVerification`. It returns `true` on success and prints warnings.
-
-```swift
-try TagLibMetadataManager.eraseAllMetadata(from: url)
-```
-
-## Data Models
-
-### `BasicMetadata`
-
-`BasicMetadata` is the main Swift value model. Use `BasicMetadata.empty` to create a blank value for writing.
-
-String fields default to `""`, numeric fields default to `0`, booleans default to `false`, `artworkData` defaults to `nil`, and `customFields` defaults to `[:]`.
-
-Important fields:
-
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `title`, `artist`, `album`, `albumArtist` | `String` | Core release and artist tags. |
-| `composer`, `genre`, `comment`, `lyrics` | `String` | Common descriptive tags. |
-| `track`, `trackTotal`, `disc`, `discTotal` | `Int` | Parsed numeric track/disc values. `0` means absent/unset. |
-| `trackNumberText`, `discNumberText` | `String` | Original or preferred text form, for example `01/12`. Use this when padding matters. |
-| `year`, `releaseDate`, `originalReleaseDate` | `String` | Date fields. `releaseDate` is preferred over `year` when writing normalized properties. |
-| `isrc`, `barcode`, `catalogNumber`, `releaseCountry`, `releaseType`, `releaseStatus`, `asin` | `String` | Release identifiers and release metadata. |
-| `musicBrainzArtistID`, `musicBrainzAlbumID`, `musicBrainzAlbumArtistID`, `musicBrainzTrackID`, `musicBrainzReleaseGroupID`, `musicBrainzReleaseTrackID`, `musicBrainzWorkID` | `String` | MusicBrainz identifiers. |
-| `acoustID`, `acoustIDFingerprint`, `musicIPPUID` | `String` | Audio fingerprinting identifiers exposed by TagLib property keys. |
-| `publisher`, `copyright`, `encodedBy`, `encoderSettings` | `String` | Label/legal/encoding fields. `publisher` maps to the bridge `label` field. |
-| `sortTitle`, `sortArtist`, `sortAlbum`, `sortAlbumArtist`, `sortComposer` | `String` | Sort keys. |
-| `conductor`, `remixer`, `producer`, `engineer`, `lyricist` | `String` | Personnel fields. |
-| `subtitle`, `discSubtitle`, `grouping`, `work`, `movement`, `mood`, `language`, `musicalKey` | `String` | Descriptive and classical/music library fields. |
-| `movementNumber`, `movementCount` | `Int` | Classical movement index/count. `0` means absent/unset. |
-| `replayGainTrack`, `replayGainAlbum` | `String` | ReplayGain values. |
-| `mediaType` | `String` | Media type descriptor. |
-| `itunesAlbumID`, `itunesArtistID`, `itunesCatalogID`, `itunesGenreID`, `itunesMediaType`, `itunesPurchaseDate`, `itunesNorm`, `itunesSMPB` | `String` | iTunes-specific metadata. |
-| `artistType` | `String` | Artist type, typically from MusicBrainz-style metadata. |
-| `originalAlbum`, `originalArtist` | `String` | Original release credits when available. |
-| `bpm` | `Int` | Beats per minute. |
-| `isCompilation`, `isExplicit` | `Bool` | Compilation and explicit-content flags. |
-| `duration`, `bitrate`, `sampleRate`, `channels`, `bitDepth`, `format` | `Double`/`Int`/`String` | Audio properties read from the file. These are informational; normal writes focus on tag metadata. |
-| `artworkData` | `Data?` | Embedded artwork bytes when read. |
-| `customFields` | `[String: String]` | Additional app/user-defined metadata keys. |
-| `provenance` | `MetadataFieldProvenance` | Indicates where selected values came from. |
-
-### `RawMetadataDump`
-
-```swift
-public struct RawMetadataDump {
-    public var properties: [RawPropertyEntry]
-    public var id3v2Frames: [RawID3v2FrameEntry]
-}
-```
-
-`properties` contains normalized TagLib `PropertyMap` entries. `id3v2Frames` contains MP3 ID3v2 frame details when available.
-
-### `RawPropertyEntry`
-
-```swift
-public struct RawPropertyEntry: Identifiable, Hashable, Sendable {
-    public let id: UUID
-    public var key: String
-    public var value: String
-    public var values: [String]
-    public var count: Int
-}
-```
-
-- `key`: TagLib property key such as `TITLE`, `TRACKNUMBER`, or `MUSICBRAINZ_TRACKID`.
-- `value`: Display value. Multi-value fields are joined with `; `.
-- `values`: Individual values when TagLib exposes multiple values.
-- `count`: Number of values.
-
-### `RawID3v2FrameEntry`
-
-```swift
-public struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
-    public let id: UUID
-    public var frameID: String
-    public var value: String
-    public var description: String?
-    public var language: String?
-}
-```
-
-Useful for inspecting MP3-specific frames such as `TXXX`, `COMM`, `TRCK`, `TPOS`, and attached text frames.
-
-### `MetadataFieldProvenance` and `MetadataValueSource`
-
-`BasicMetadata.provenance` tells you where selected values came from:
-
-```swift
-public enum MetadataValueSource: String {
-    case nativeTag
-    case propertyMap
-    case id3v2Frame
-    case rawFallback
-    case derivedNumeric
-    case none
-}
-```
-
-Tracked fields:
-
-- `trackNumberText`
-- `discNumberText`
-- `explicitContent`
-- `artwork`
-
-Use this when UI needs to explain whether a value was read from native tags, raw properties, ID3v2 frames, or derived from numeric fallback data.
-
-## Write Verification
-
-Verified write APIs return:
-
-```swift
-public struct MetadataWriteResult: Sendable {
-    public var warnings: [String]
-}
-```
-
-Warnings mean the write call succeeded, but a follow-up read did not exactly match the requested values. Common causes:
-
-- The container normalized `01/12` to `1/12`.
-- A field is unsupported by that file type.
-- Embedded artwork could not be confirmed.
-- A custom raw key was renamed or dropped by TagLib/container rules.
-- Erase left residual metadata in another tag container.
-
-Control warning behavior with:
-
-```swift
-public enum VerificationFailurePolicy {
-    case warn
-    case `throw`
-}
-```
-
-- `.warn`: return warnings in `MetadataWriteResult`.
-- `.throw`: throw `TagLibManagerError.verificationFailed([String])` when warnings are present.
-
-## Raw PropertyMap Notes
-
-Raw `PropertyMap` keys are TagLib-normalized textual keys. Common keys include:
-
-- `TITLE`
-- `ARTIST`
-- `ALBUM`
-- `ALBUMARTIST`
-- `DATE`
-- `YEAR`
-- `TRACKNUMBER`
-- `TRACKTOTAL`
-- `DISCNUMBER`
-- `DISCTOTAL`
-- `GENRE`
-- `COMMENT`
-- `LYRICS`
-- `ISRC`
-- `BARCODE`
-- `MUSICBRAINZ_ARTISTID`
-- `MUSICBRAINZ_ALBUMID`
-- `MUSICBRAINZ_ALBUMARTISTID`
-- `MUSICBRAINZ_TRACKID`
-- `MUSICBRAINZ_RELEASEGROUPID`
-- `MUSICBRAINZ_RELEASETRACKID`
-- `MUSICBRAINZ_WORKID`
-- `ACOUSTID_ID`
-- `ACOUSTID_FINGERPRINT`
-- `MUSICIP_PUID`
-- `REPLAYGAIN_TRACK_GAIN`
-- `REPLAYGAIN_ALBUM_GAIN`
-- `ITUNESADVISORY`
-- `RELEASETYPE`
-- `RELEASESTATUS`
-- `ASIN`
-- `ORIGINALALBUM`
-- `ORIGINALARTIST`
-- `DISCSUBTITLE`
-- `WORK`
-- `MOVEMENTNAME`
-- `MOVEMENTNUMBER`
-- `MOVEMENTCOUNT`
-
-For normal app code, prefer `BasicMetadata`. Use raw property-map APIs only when you are building an advanced editor or need to preserve/edit keys outside the structured model.
-
-Structured `BasicMetadata` reads and writes these fields through TagLib's `PropertyMap` wherever possible. TagLib then maps the same key to the best container-specific representation, for example ID3v2 frames for MP3/AIFF/WAV/DSF, iTunes-style atoms or freeform atoms for MP4, Vorbis/Xiph comments for FLAC/Ogg/Opus/Speex, APE items for APE/WavPack/MPC, ASF attributes for WMA/ASF, and RIFF INFO fields where TagLib defines one. Container support is not identical; use the verified write APIs when exact preservation matters.
-
-## Error Handling
-
-`TagLibManagerError` cases:
-
-```swift
-public enum TagLibManagerError: Error {
-    case unsupportedFormat
-    case failedToReadWithUnderlying(String)
-    case verificationFailed([String])
-
-    // Deprecated:
-    case failedToRead
-}
-```
-
-Typical handling:
-
-```swift
-do {
-    let result = try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
-        ["TITLE": "Title"],
-        to: url,
-        mode: .merge,
-        failurePolicy: .throw
-    )
-    print(result.warnings)
-} catch TagLibManagerError.unsupportedFormat {
-    print("Unsupported format")
-} catch TagLibManagerError.verificationFailed(let warnings) {
-    print("Write completed but verification failed: \(warnings)")
-} catch {
-    print("TagLib operation failed: \(error)")
-}
-```
-
-## Low-Level Bridge API
-
-Advanced callers can use the Objective-C++ bridge directly.
-
-### `TagLibMetadataExtractor.extractMetadata(from:)`
-
-```swift
-let metadata = try TagLibMetadataExtractor.extractMetadata(from: url)
-print(metadata.title ?? "")
-```
-
-Returns a `TagLibAudioMetadata` object.
-
-### `TagLibMetadataExtractor.writeMetadata(_:to:)`
-
-```swift
-let metadata = TagLibAudioMetadata()
-metadata.title = "Title"
-metadata.removeArtwork = false
-
-try TagLibMetadataExtractor.writeMetadata(metadata, to: url)
-```
-
-Writes the bridge model directly. In most Swift code, prefer `TagLibMetadataManager.writeTagMetadata` so you can use verification.
-
-### `TagLibMetadataExtractor.writeTrackNumberText(_:discNumberText:to:)`
-
-```swift
-try TagLibMetadataExtractor.writeTrackNumberText(
-    "01/10",
-    discNumberText: "01/02",
-    to: url
-)
-```
-
-Low-level track/disc text write.
-
-### `TagLibMetadataExtractor.writeTrackNumber(_:totalTracks:padWidth:to:)`
-
-```swift
-try TagLibMetadataExtractor.writeTrackNumber(
-    1,
-    totalTracks: 10,
-    padWidth: 2,
-    to: url
-)
-```
-
-Writes track number and optional total using the requested padding width.
-
-### `TagLibMetadataExtractor.writeRawPropertyMap(_:to:)`
-
-```swift
-try TagLibMetadataExtractor.writeRawPropertyMap(
-    ["TITLE": "Raw title"],
-    to: url
-)
-```
-
-Replaces the file's property map with the provided key/value pairs. Prefer `TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification` unless you specifically need the raw bridge call.
-
-### `TagLibMetadataExtractor.rawMetadata(for:)`
-
-```swift
-let raw = try TagLibMetadataExtractor.rawMetadata(for: url)
-let properties = raw["properties"]
-let frames = raw["id3v2Frames"]
-```
-
-Returns a Foundation dictionary with `properties` and `id3v2Frames` arrays. Prefer `TagLibMetadataManager.rawMetadataResult(from:)` for typed Swift models.
-
-### `TagLibMetadataExtractor.dumpMetadataText(from:)`
-
-```swift
-let text = try TagLibMetadataExtractor.dumpMetadataText(from: url)
-print(text)
-```
-
-Returns a plain-text dump from the bridge.
-
-### `TagLibMetadataExtractor.isSupportedFormat(_:)` and `supportedExtensions()`
-
-```swift
-if TagLibMetadataExtractor.isSupportedFormat("flac") {
-    print(TagLibMetadataExtractor.supportedExtensions())
-}
-```
-
-Use these APIs for extension-based gating before read/write operations.
-
-## Artwork
-
-Reading fills `BasicMetadata.artworkData` when embedded artwork is found. Setting `BasicMetadata.artworkData` writes embedded artwork during `writeMetadataWithVerification`.
-
-Structured `BasicMetadata` writes do not currently expose a separate "remove artwork" flag. If you need direct artwork removal, use `TagLibAudioMetadata` with `writeTagMetadata`:
-
-```swift
-let metadata = TagLibAudioMetadata()
-metadata.removeArtwork = true
-
-try TagLibMetadataManager.writeTagMetadata(
-    metadata,
-    to: url,
-    verification: .init(
-        expectedTrackNumber: nil,
-        expectedTrackTotal: nil,
-        expectedTrackNumberText: nil,
-        expectedDiscNumber: nil,
-        expectedDiscTotal: nil,
-        expectedDiscNumberText: nil,
-        expectedExplicitContent: nil,
-        artworkExpectation: .absent,
-        customFieldKeys: []
-    )
-)
-```
-
-`eraseAllMetadataWithVerification(from:)` also sets `removeArtwork = true`.
-
-## Practical Guidance
-
-- Use `readMetadataResult(from:)` and `writeMetadataWithVerification(_:to:)` for most app features.
-- Use `trackNumberText` and `discNumberText` when preserving padding matters.
-- Use raw property-map APIs for advanced editors, not for routine title/artist/album updates.
-- Treat `MetadataWriteResult.warnings` as user-visible or log-worthy information when metadata accuracy matters.
-- Keep backup copies or write to duplicates when building batch editing workflows; metadata containers differ in what they can preserve.
-
-## Debug Logging
-
-Set the environment variable `AUDIOMATOR_TAGLIB_DEBUG` to `1`, `true`, `yes`, or `on` to enable bridge debug logging.
-
-```sh
-AUDIOMATOR_TAGLIB_DEBUG=1 swift run
-```
-
-## Threading
-
-All `TagLibMetadataManager` methods are `nonisolated static`. The bridge does not serialize access to the same file URL across concurrent callers. **Concurrent calls to the same file path from multiple threads are not safe.** Callers are responsible for serializing access to any given file.
-
-TagLib performs synchronous file I/O. The entire read or write operation blocks the calling thread. Do not call these APIs on the main thread in a UI application. Dispatch to a background executor:
-
-```swift
-Task.detached(priority: .userInitiated) {
-    let metadata = try await Task.detached {
-        try TagLibMetadataManager.readMetadataResult(from: url)
-    }.value
-    await MainActor.run { self.model = metadata }
-}
-```
-
-The verified write APIs (`writeMetadataWithVerification`, `writeRawMetadataPropertyMapWithVerification`, etc.) perform one additional read pass after every write to detect container normalization. Each verified write costs approximately twice the I/O of an unverified write. For batch operations where latency matters, pass `verifyAfterWrite: false` and verify separately, or collect results and verify at the end.
-
-`MetadataFieldRegistry.allSchemas` is a `nonisolated static let`. The first access allocates the schema table (approximately 80 `MetadataFieldSchema` structs). This is thread-safe by Swift runtime guarantee and negligible in cost.
-
-## Known Limitations
-
-- **Shorten (`.shn`)** is read-only. Attempting to write metadata to a `.shn` file throws `TagLibManagerError.unsupportedFormat`.
-- **WAV RIFF INFO sync** (`riffPolicy: .syncBasicFieldsToInfo`) is defined in the API but not yet applied. It emits a verification warning and leaves the INFO block unchanged. Do not rely on it for INFO synchronization until this is removed.
-- **Tracker formats** (`.mod`, `.s3m`, `.it`, `.xm`, `.module`, `.nst`, `.wow`) accept writes via the `PropertyMap` pipeline, but TagLib's actual writable field set for these formats is narrow and format-dependent. Do not expect full round-trip fidelity beyond basic text fields.
-- **`BasicMetadata` write does not expose a standalone "remove artwork" flag.** Use `writeTagMetadata(_:to:verification:failurePolicy:)` with `TagLibAudioMetadata.removeArtwork = true` to remove artwork without touching other fields.
-- **ID3v2 chapter frames** (`CHAP`, `CTOC`) and the podcast frame (`PCST`) are read into `StructuredMetadata.id3v2Frames` in TagLib 2.1.1 but editing embedded chapter/TOC payloads is not yet exposed as a high-level writer.
-- **Matroska/WebM** support does not appear in the vendored TagLib 2.1.1. It requires updating the vendored TagLib sources.
-- **App Store sandbox**: The package performs file I/O through TagLib C++ file system calls. The calling app must hold a security-scoped URL bookmark or an appropriate entitlement before passing a sandboxed file URL to any API. The package itself does not request or manage security scope access.
-- **Multi-value fields** in ID3v2, MP4, and ASF containers are not natively multi-value at the container level in the same way Xiph/Vorbis is. Use `writeRawMetadataPropertyMapValuesWithVerification(_:to:)` for Xiph-based formats when multi-value fidelity matters.
-
-## Relationship to TagLib
-
-This package vendors TagLib 2.1.1 source directly inside the `CTagLibBridge` target. No dynamic or system TagLib library is required or used. The Objective-C++ bridge (`TagLibMetadataExtractor`) wraps TagLib's C++ classes and exposes them as Objective-C interfaces. The Swift layer (`TagLibMetadataManager`, `BasicMetadata`, etc.) wraps those Objective-C interfaces and adds Swift-idiomatic types, error handling, and verification.
-
-Consumers of this package interact only with the Swift API. The TagLib C++ API and the Objective-C++ bridge are accessible to advanced callers via `@_exported import CTagLibBridge`, but this is not required for normal use.
-
-Because TagLib is vendored, updating to a newer TagLib version requires replacing the source files in `Sources/CTagLibBridge/taglib/` and updating the bridge code accordingly. The current vendored version is **TagLib 2.1.1**.
+## Documentation
+
+The current API guide lives in [docs/SUPPORT.md](docs/SUPPORT.md). It covers:
+
+- Basic metadata reads and writes.
+- Raw property map reads and writes.
+- Structured metadata reads and writes.
+- Format capability descriptors.
+- Verification warnings and failure policies.
+- Metadata erase behavior.
+- Field registry usage.
+- Low-level bridge APIs.
+- Practical integration recipes.
+
+License details for the vendored TagLib source are in
+[docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).
+
+## Package Layout
+
+| Target | Role |
+| --- | --- |
+| `TagLibAudioMetadata` | Swift facade for application code. |
+| `CTagLibBridge` | Objective-C++ wrapper around vendored TagLib sources. |
+
+The package vendors TagLib source directly inside `Sources/CTagLibBridge/taglib`.
+No system TagLib installation or dynamic TagLib library is required.
 
 ## License
 
-This package (the Swift bridge code and Objective-C++ wrapper) is released under the **MIT License**. See [LICENSE](LICENSE) for the full text.
+This package's Swift and Objective-C++ bridge code is released under the MIT
+License. See [LICENSE](LICENSE).
 
-The bundled TagLib library is dual-licensed under the **GNU Lesser General Public License v2.1** (LGPL-2.1) and the **Mozilla Public License v1.1** (MPL-1.1). TagLib license texts are included in the repository at:
+The bundled TagLib library is dual-licensed under LGPL-2.1 and MPL-1.1. The
+license texts are included at:
 
 - `Sources/CTagLibBridge/taglib/COPYING.LGPL`
 - `Sources/CTagLibBridge/taglib/COPYING.MPL`
 
-Applications that distribute this package must comply with both the MIT License (for the bridge code) and the LGPL-2.1 or MPL-1.1 terms for the TagLib source. See [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md) for a summary.
-
-## Further Reading
-
-| Document | Contents |
-| --- | --- |
-| [docs/API_OVERVIEW.md](docs/API_OVERVIEW.md) | Public types, responsibilities, and short examples grouped by purpose |
-| [docs/SUPPORTED_FORMATS.md](docs/SUPPORTED_FORMATS.md) | Table of every supported format, extensions, read/write/artwork support, and caveats |
-| [docs/METADATA_FIELDS.md](docs/METADATA_FIELDS.md) | Table of all supported metadata fields, their PropertyMap keys, and format-specific storage |
-| [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) | Threading, batch processing, verification strategy, partial failure handling |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common problems and how to diagnose them |
-| [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md) | TagLib and upstream license notices |
+Applications that distribute this package must comply with the MIT license for
+the bridge code and either the LGPL-2.1 or MPL-1.1 terms for TagLib.
