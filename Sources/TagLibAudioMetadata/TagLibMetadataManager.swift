@@ -548,6 +548,7 @@ public struct TagLibMetadataManager {
         public var expectedExplicitContent: Bool?
         public var artworkExpectation: ArtworkVerificationExpectation
         public var customFieldKeys: [String]
+        public var expectedTextFields: [String: String]
 
         public init(
             expectedTrackNumber: Int?,
@@ -558,7 +559,8 @@ public struct TagLibMetadataManager {
             expectedDiscNumberText: String?,
             expectedExplicitContent: Bool?,
             artworkExpectation: ArtworkVerificationExpectation,
-            customFieldKeys: [String]
+            customFieldKeys: [String],
+            expectedTextFields: [String: String] = [:]
         ) {
             self.expectedTrackNumber = expectedTrackNumber
             self.expectedTrackTotal = expectedTrackTotal
@@ -569,6 +571,7 @@ public struct TagLibMetadataManager {
             self.expectedExplicitContent = expectedExplicitContent
             self.artworkExpectation = artworkExpectation
             self.customFieldKeys = customFieldKeys
+            self.expectedTextFields = expectedTextFields
         }
 
         public nonisolated static let none = MetadataWriteVerificationContext(
@@ -580,7 +583,8 @@ public struct TagLibMetadataManager {
             expectedDiscNumberText: nil,
             expectedExplicitContent: nil,
             artworkExpectation: .unchanged,
-            customFieldKeys: []
+            customFieldKeys: [],
+            expectedTextFields: [:]
         )
     }
 
@@ -747,6 +751,10 @@ public struct TagLibMetadataManager {
             return true
         }
 
+        if !verification.expectedTextFields.isEmpty {
+            return true
+        }
+
         switch verification.artworkExpectation {
         case .unchanged:
             break
@@ -768,6 +776,16 @@ public struct TagLibMetadataManager {
         let rawDump = rawMetadata(from: url)
 
         if let afterWrite {
+            for (field, expectedValue) in verification.expectedTextFields {
+                let expected = normalizedTrimmed(expectedValue)
+                let actual = normalizedTrimmed(textFieldValue(field, from: afterWrite))
+                if expected != actual {
+                    warnings.append(
+                        "\(field) differs after save (expected \"\(expected)\", got \"\(actual)\")."
+                    )
+                }
+            }
+
             if let expectedTrackNumber = verification.expectedTrackNumber,
                afterWrite.track != expectedTrackNumber {
                 warnings.append(
@@ -862,6 +880,34 @@ public struct TagLibMetadataManager {
         }
 
         return warnings
+    }
+
+    nonisolated private static func textFieldValue(_ field: String, from metadata: BasicMetadata) -> String {
+        switch field {
+        case "title": metadata.title
+        case "artist": metadata.artist
+        case "album": metadata.album
+        case "composer": metadata.composer
+        case "genre": metadata.genre
+        case "comment": metadata.comment
+        case "lyrics": metadata.lyrics
+        case "year": metadata.year
+        case "albumArtist": metadata.albumArtist
+        case "releaseDate": metadata.releaseDate
+        case "originalReleaseDate": metadata.originalReleaseDate
+        case "publisher": metadata.publisher
+        case "copyright": metadata.copyright
+        case "encodedBy": metadata.encodedBy
+        case "encoderSettings": metadata.encoderSettings
+        case "isrc": metadata.isrc
+        case "barcode": metadata.barcode
+        case "sortTitle": metadata.sortTitle
+        case "sortArtist": metadata.sortArtist
+        case "sortAlbum": metadata.sortAlbum
+        case "sortAlbumArtist": metadata.sortAlbumArtist
+        case "sortComposer": metadata.sortComposer
+        default: ""
+        }
     }
 
     nonisolated private static func rawPropertyMapWriteWarnings(
@@ -1886,6 +1932,7 @@ public struct TagLibMetadataManager {
         m.acoustIdFingerprint = nilIfEmpty(meta.acoustIDFingerprint)
         m.musicIpPuid = nilIfEmpty(meta.musicIPPUID)
         m.customFields = meta.customFields.isEmpty ? nil : meta.customFields
+        m.artworkData = meta.artworkData
 
         // Persist through the write coordinator so all metadata entry points
         // share post-write verification policy.
@@ -1900,8 +1947,32 @@ public struct TagLibMetadataManager {
                 expectedDiscTotal: meta.discTotal,
                 expectedDiscNumberText: meta.discNumberText,
                 expectedExplicitContent: meta.isExplicit,
-                artworkExpectation: .unchanged,
-                customFieldKeys: Array(meta.customFields.keys)
+                artworkExpectation: meta.artworkData == nil ? .unchanged : .present,
+                customFieldKeys: Array(meta.customFields.keys),
+                expectedTextFields: [
+                    "title": meta.title,
+                    "artist": meta.artist,
+                    "album": meta.album,
+                    "composer": meta.composer,
+                    "genre": meta.genre,
+                    "comment": meta.comment,
+                    "lyrics": meta.lyrics,
+                    "year": meta.year,
+                    "albumArtist": meta.albumArtist,
+                    "releaseDate": meta.releaseDate,
+                    "originalReleaseDate": meta.originalReleaseDate,
+                    "publisher": meta.publisher,
+                    "copyright": meta.copyright,
+                    "encodedBy": meta.encodedBy,
+                    "encoderSettings": meta.encoderSettings,
+                    "isrc": meta.isrc,
+                    "barcode": meta.barcode,
+                    "sortTitle": meta.sortTitle,
+                    "sortArtist": meta.sortArtist,
+                    "sortAlbum": meta.sortAlbum,
+                    "sortAlbumArtist": meta.sortAlbumArtist,
+                    "sortComposer": meta.sortComposer,
+                ]
             ),
             failurePolicy: failurePolicy
         )

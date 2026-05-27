@@ -104,7 +104,11 @@ let package = Package(
         ),
         .testTarget(
             name: "TagLibAudioMetadataTests",
-            dependencies: ["TagLibAudioMetadata"]
+            dependencies: ["TagLibAudioMetadata"],
+            resources: [
+                .process("Audio"),
+                .process("Artwork"),
+            ]
         ),
     ],
     cxxLanguageStandard: .gnucxx20

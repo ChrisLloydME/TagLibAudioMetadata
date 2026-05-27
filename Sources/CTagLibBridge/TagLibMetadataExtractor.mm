@@ -5132,22 +5132,12 @@ static void ParseNumberPairFromNSString(NSString *text,
             }
 
             // --- Basic fields via TagLib::Tag ---
-            // Only overwrite fields when we have a non-nil NSString from Swift.
-            if (metadata.title) {
-                tag->setTitle(NSStringToTagString(metadata.title));
-            }
-            if (metadata.artist) {
-                tag->setArtist(NSStringToTagString(metadata.artist));
-            }
-            if (metadata.album) {
-                tag->setAlbum(NSStringToTagString(metadata.album));
-            }
-            if (metadata.genre) {
-                tag->setGenre(NSStringToTagString(metadata.genre));
-            }
-            if (metadata.comment) {
-                tag->setComment(NSStringToTagString(metadata.comment));
-            }
+            // nil/empty means clear; callers that need preservation should read-modify-write.
+            tag->setTitle(NSStringToTagString(metadata.title));
+            tag->setArtist(NSStringToTagString(metadata.artist));
+            tag->setAlbum(NSStringToTagString(metadata.album));
+            tag->setGenre(NSStringToTagString(metadata.genre));
+            tag->setComment(NSStringToTagString(metadata.comment));
 
             if (metadata.year.length > 0) {
                 tag->setYear((unsigned int)metadata.year.integerValue);
@@ -5245,12 +5235,12 @@ static void ParseNumberPairFromNSString(NSString *text,
             return NO;
         }
 
-        // Basic fields
-        if (metadata.title)   tag->setTitle(NSStringToTagString(metadata.title));
-        if (metadata.artist)  tag->setArtist(NSStringToTagString(metadata.artist));
-        if (metadata.album)   tag->setAlbum(NSStringToTagString(metadata.album));
-        if (metadata.genre)   tag->setGenre(NSStringToTagString(metadata.genre));
-        if (metadata.comment) tag->setComment(NSStringToTagString(metadata.comment));
+        // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
+        tag->setTitle(NSStringToTagString(metadata.title));
+        tag->setArtist(NSStringToTagString(metadata.artist));
+        tag->setAlbum(NSStringToTagString(metadata.album));
+        tag->setGenre(NSStringToTagString(metadata.genre));
+        tag->setComment(NSStringToTagString(metadata.comment));
 
         if (metadata.year.length > 0) {
             tag->setYear((unsigned int)metadata.year.integerValue);
@@ -7115,8 +7105,9 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     }
 
     NSArray<NSDictionary<NSString *, NSObject *> *> *properties = StructuredArray(metadata, @"properties");
+    NSMutableDictionary<NSString *, NSArray<NSString *> *> *propertyValues = nil;
     if (properties) {
-        NSMutableDictionary<NSString *, NSArray<NSString *> *> *propertyValues = [NSMutableDictionary dictionary];
+        propertyValues = [NSMutableDictionary dictionary];
         for (NSDictionary<NSString *, NSObject *> *entry in properties) {
             NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
             if (!key) continue;
@@ -7126,7 +7117,6 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                 propertyValues[key] = @[ (NSString *)entry[@"value"] ];
             }
         }
-        return [self writeRawPropertyMapValues:propertyValues toURL:fileURL error:error];
     }
 
     NSArray<NSDictionary<NSString *, NSObject *> *> *frames = StructuredArray(metadata, @"id3v2Frames");
@@ -7142,12 +7132,15 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:232 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MPEG file for structured metadata editing" }];
             return NO;
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
+        if (propertyValues) {
+            file.setProperties(BuildRawPropertyMapValues(propertyValues));
+        }
+        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
         ReplaceID3v2Artwork(tag, artwork);
-        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:233 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MPEG metadata" }];
             return NO;
         }
@@ -7159,6 +7152,9 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (!file.isValid()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:234 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open WAV file for structured metadata editing" }];
             return NO;
+        }
+        if (propertyValues) {
+            file.setProperties(BuildRawPropertyMapValues(propertyValues));
         }
         TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
         UpsertID3v2StructuredFrames(tag, frames);
@@ -7178,6 +7174,9 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:236 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open AIFF file for structured metadata editing" }];
             return NO;
         }
+        if (propertyValues) {
+            file.setProperties(BuildRawPropertyMapValues(propertyValues));
+        }
         TagLib::ID3v2::Tag *tag = file.tag();
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Comments(tag, comments);
@@ -7196,6 +7195,9 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:238 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MP4 file for structured metadata editing" }];
             return NO;
         }
+        if (propertyValues) {
+            file.setProperties(BuildRawPropertyMapValues(propertyValues));
+        }
         ApplyStructuredMP4Atoms(file.tag(), mp4Atoms);
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:239 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MP4 metadata" }];
@@ -7210,12 +7212,19 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:240 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open ASF/WMA file for structured metadata editing" }];
             return NO;
         }
+        if (propertyValues) {
+            file.setProperties(BuildRawPropertyMapValues(propertyValues));
+        }
         ApplyStructuredASFAttributes(file.tag(), asfAttributes);
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:241 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured ASF/WMA metadata" }];
             return NO;
         }
         return YES;
+    }
+
+    if (propertyValues) {
+        return [self writeRawPropertyMapValues:propertyValues toURL:fileURL error:error];
     }
 
     if (error) {
