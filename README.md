@@ -222,6 +222,8 @@ public static func writeTagMetadata(
 
 Low-level write API for callers that want to construct the Objective-C bridge model directly. Use this when a field exists on `TagLibAudioMetadata` but your code does not want to pass through `BasicMetadata`.
 
+`writeTagMetadata` uses the same clear semantics as `BasicMetadata`: empty or `nil` string fields clear the corresponding tag value where the container supports it. For partial edits that must preserve every other field, read the current metadata first, update the fields you intend to change, then write the full value back.
+
 ```swift
 let metadata = TagLibAudioMetadata()
 metadata.title = "Bridge title"
@@ -841,7 +843,7 @@ Use these APIs for extension-based gating before read/write operations.
 
 ## Artwork
 
-Reading fills `BasicMetadata.artworkData` when embedded artwork is found.
+Reading fills `BasicMetadata.artworkData` when embedded artwork is found. Setting `BasicMetadata.artworkData` writes embedded artwork during `writeMetadataWithVerification`.
 
 Structured `BasicMetadata` writes do not currently expose a separate "remove artwork" flag. If you need direct artwork removal, use `TagLibAudioMetadata` with `writeTagMetadata`:
 
