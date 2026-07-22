@@ -22,7 +22,15 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.discNumberText = "01/02"
             metadata.isExplicit = true
 
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .warn)
+            let writeResult = try TagLibMetadataManager.writeMetadataWithVerification(
+                metadata,
+                to: url,
+                failurePolicy: .warn
+            )
+            XCTAssertTrue(
+                writeResult.warnings.allSatisfy { $0.contains("formatting was normalized") },
+                "Unexpected verification warning for \(ext): \(writeResult.warnings)"
+            )
 
             var afterWrite = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(afterWrite.title, metadata.title, ext)
@@ -39,7 +47,15 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             var cleared = BasicMetadata.empty
             cleared.trackNumberText = ""
             cleared.discNumberText = ""
-            try TagLibMetadataManager.writeMetadataWithVerification(cleared, to: url, failurePolicy: .warn)
+            let clearResult = try TagLibMetadataManager.writeMetadataWithVerification(
+                cleared,
+                to: url,
+                failurePolicy: .warn
+            )
+            XCTAssertTrue(
+                clearResult.warnings.isEmpty,
+                "Unexpected clear warning for \(ext): \(clearResult.warnings)"
+            )
 
             afterWrite = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(afterWrite.title, "", ext)
@@ -67,8 +83,8 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.title = "Artwork \(ext)"
             metadata.artworkData = artwork
 
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .warn)
-            XCTAssertNotNil(try TagLibMetadataManager.readMetadataResult(from: url).artworkData, ext)
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).artworkData, artwork, ext)
 
             let removal = TagLibAudioMetadata()
             removal.removeArtwork = true
@@ -86,7 +102,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     artworkExpectation: .absent,
                     customFieldKeys: []
                 ),
-                failurePolicy: .warn
+                failurePolicy: .throw
             )
             XCTAssertNil(try TagLibMetadataManager.readMetadataResult(from: url).artworkData, ext)
         }
@@ -100,7 +116,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ["TITLE": "Raw Title", "MOOD": "Focused", "CUSTOM_CASE": "Alpha"],
                 to: url,
                 mode: .replace,
-                failurePolicy: .warn
+                failurePolicy: .throw
             )
 
             var raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -111,7 +127,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ["MOOD": "", "CUSTOM_CASE": "Beta"],
                 to: url,
                 mode: .merge,
-                failurePolicy: .warn
+                failurePolicy: .throw
             )
 
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -121,7 +137,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 ["ARTIST": ["One", "Two"]],
                 to: url,
-                failurePolicy: .warn
+                failurePolicy: .throw
             )
 
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -144,7 +160,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             mp3Payload,
             to: mp3URL,
             includeProperties: true,
-            failurePolicy: .warn
+            failurePolicy: .throw
         )
         var structured = try TagLibMetadataManager.readStructuredMetadataResult(from: mp3URL)
         XCTAssertTrue(structured.properties.contains { $0.key.uppercased() == "TITLE" && $0.values.contains("Structured MP3") })
@@ -162,7 +178,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             m4aPayload,
             to: m4aURL,
             includeProperties: true,
-            failurePolicy: .warn
+            failurePolicy: .throw
         )
         structured = try TagLibMetadataManager.readStructuredMetadataResult(from: m4aURL)
         XCTAssertTrue(structured.properties.contains { $0.key.uppercased() == "TITLE" && $0.values.contains("Structured M4A") })
@@ -181,8 +197,8 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.customFields = ["ERASE_CUSTOM": "present"]
             metadata.artworkData = try Data(contentsOf: artworkFixtureURL())
 
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .warn)
-            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .warn)
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .throw)
 
             let afterErase = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(afterErase.title, "", ext)
@@ -195,6 +211,35 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testVerificationFailurePreservesOriginalFile() throws {
+        let url = try copyAudioFixture("wav")
+        let originalBytes = try Data(contentsOf: url)
+        let payload = StructuredMetadata(
+            properties: [.init(key: "TITLE", values: ["Must not persist"])]
+        )
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                payload,
+                to: url,
+                riffPolicy: .syncBasicFieldsToInfo,
+                includeProperties: true,
+                verifyAfterWrite: false,
+                failurePolicy: .throw
+            )
+        ) { error in
+            guard case TagLibManagerError.verificationFailed = error else {
+                return XCTFail("Expected verificationFailed, got \(error)")
+            }
+        }
+
+        XCTAssertEqual(
+            try Data(contentsOf: url),
+            originalBytes,
+            "A failed write must leave the original file byte-for-byte unchanged."
+        )
+    }
+
     private func copyAudioFixture(_ ext: String) throws -> URL {
         let source = try XCTUnwrap(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
@@ -205,6 +250,9 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let destination = directory.appendingPathComponent("testAudioFile.\(ext)")
         try FileManager.default.copyItem(at: source, to: destination)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directory)
+        }
         return destination
     }
 

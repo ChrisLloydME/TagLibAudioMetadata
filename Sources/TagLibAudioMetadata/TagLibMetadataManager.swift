@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Darwin
 @_exported import CTagLibBridge
 
 private extension String {
@@ -525,6 +526,129 @@ public enum TagLibManagerError: Error, Sendable {
 /// Thin wrapper around the Objective-C++ `TagLibMetadataExtractor`.
 public struct TagLibMetadataManager {
 
+    nonisolated private static let errorDomain = "TagLibMetadataManager"
+
+    nonisolated private static func mutationError(
+        code: Int,
+        description: String,
+        underlying: Error? = nil
+    ) -> NSError {
+        var userInfo: [String: Any] = [NSLocalizedDescriptionKey: description]
+        if let underlying {
+            userInfo[NSUnderlyingErrorKey] = underlying
+        }
+        return NSError(domain: errorDomain, code: code, userInfo: userInfo)
+    }
+
+    /// Runs the complete mutation and verification sequence on a sibling copy.
+    /// The destination is replaced with a same-volume atomic rename only after
+    /// every step succeeds, so thrown bridge or verification errors preserve it.
+    nonisolated private static func withAtomicFileMutation<Result>(
+        at url: URL,
+        _ operation: (URL) throws -> Result
+    ) throws -> Result {
+        guard url.isFileURL else {
+            throw mutationError(code: 1001, description: "Metadata mutations require a file URL.")
+        }
+
+        let values: URLResourceValues
+        do {
+            values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        } catch {
+            throw mutationError(
+                code: 1002,
+                description: "Could not inspect the metadata destination.",
+                underlying: error
+            )
+        }
+
+        guard values.isRegularFile == true, values.isSymbolicLink != true else {
+            throw mutationError(
+                code: 1003,
+                description: "Metadata mutations require an existing regular file and do not follow symbolic links."
+            )
+        }
+
+        do {
+            _ = try readMetadataResult(from: url)
+        } catch {
+            throw mutationError(
+                code: 1006,
+                description: "The metadata destination is not a readable, valid audio file.",
+                underlying: error
+            )
+        }
+
+        let fileManager = FileManager.default
+        let directory = url.deletingLastPathComponent()
+        let ext = url.pathExtension
+        let baseName = url.deletingPathExtension().lastPathComponent
+        let temporaryName = ext.isEmpty
+            ? ".\(baseName).taglib-\(UUID().uuidString)"
+            : ".\(baseName).taglib-\(UUID().uuidString).\(ext)"
+        let temporaryURL = directory.appendingPathComponent(temporaryName)
+        var shouldRemoveTemporaryFile = true
+
+        defer {
+            if shouldRemoveTemporaryFile {
+                try? fileManager.removeItem(at: temporaryURL)
+            }
+        }
+
+        do {
+            try fileManager.copyItem(at: url, to: temporaryURL)
+        } catch {
+            throw mutationError(
+                code: 1004,
+                description: "Could not create a transactional copy of the metadata destination.",
+                underlying: error
+            )
+        }
+
+        let result = try operation(temporaryURL)
+        let temporaryDescriptor = temporaryURL.path.withCString { temporaryPath in
+            Darwin.open(temporaryPath, O_RDONLY)
+        }
+        guard temporaryDescriptor >= 0 else {
+            let openErrorCode = errno
+            throw mutationError(
+                code: 1005,
+                description: "Could not open the verified metadata mutation for flushing.",
+                underlying: NSError(domain: NSPOSIXErrorDomain, code: Int(openErrorCode))
+            )
+        }
+
+        guard Darwin.fsync(temporaryDescriptor) == 0 else {
+            let syncErrorCode = errno
+            Darwin.close(temporaryDescriptor)
+            throw mutationError(
+                code: 1005,
+                description: "Could not flush the verified metadata mutation before commit.",
+                underlying: NSError(domain: NSPOSIXErrorDomain, code: Int(syncErrorCode))
+            )
+        }
+        Darwin.close(temporaryDescriptor)
+
+        let renameResult = temporaryURL.path.withCString { temporaryPath in
+            url.path.withCString { destinationPath in
+                Darwin.rename(temporaryPath, destinationPath)
+            }
+        }
+        let renameErrorCode = errno
+
+        guard renameResult == 0 else {
+            let underlying = NSError(domain: NSPOSIXErrorDomain, code: Int(renameErrorCode))
+            throw mutationError(
+                code: 1005,
+                description: "Could not atomically commit the metadata mutation.",
+                underlying: underlying
+            )
+        }
+
+        shouldRemoveTemporaryFile = false
+        return result
+    }
+
     nonisolated private static let hiddenInternalRawFieldKeys: Set<String> = [
         "AUDIOMATOR_TRACKNUMBER_TEXT",
         "AUDIOMATOR_DISCNUMBER_TEXT",
@@ -775,6 +899,10 @@ public struct TagLibMetadataManager {
         let afterWrite = readMetadata(from: url)
         let rawDump = rawMetadata(from: url)
 
+        if afterWrite == nil {
+            warnings.append("Could not verify metadata after save because the file could not be re-read.")
+        }
+
         if let afterWrite {
             for (field, expectedValue) in verification.expectedTextFields {
                 let expected = normalizedTrimmed(expectedValue)
@@ -804,7 +932,10 @@ public struct TagLibMetadataManager {
         if let expectedTrack = verification.expectedTrackNumberText,
            !normalizedTrimmed(expectedTrack).isEmpty,
            let afterWrite {
-            if !numberPairEquivalent(expectedTrack, afterWrite.trackNumberText) {
+            let expectedPair = parseNumberPair(expectedTrack)
+            let pairStoredAcrossFields =
+                afterWrite.track == expectedPair.number && afterWrite.trackTotal == expectedPair.total
+            if !numberPairEquivalent(expectedTrack, afterWrite.trackNumberText) && !pairStoredAcrossFields {
                 warnings.append(
                     "Track number text differs after save (expected \(expectedTrack), got \(afterWrite.trackNumberText))."
                 )
@@ -834,7 +965,10 @@ public struct TagLibMetadataManager {
         if let expectedDisc = verification.expectedDiscNumberText,
            !normalizedTrimmed(expectedDisc).isEmpty,
            let afterWrite {
-            if !numberPairEquivalent(expectedDisc, afterWrite.discNumberText) {
+            let expectedPair = parseNumberPair(expectedDisc)
+            let pairStoredAcrossFields =
+                afterWrite.disc == expectedPair.number && afterWrite.discTotal == expectedPair.total
+            if !numberPairEquivalent(expectedDisc, afterWrite.discNumberText) && !pairStoredAcrossFields {
                 warnings.append(
                     "Disc number text differs after save (expected \(expectedDisc), got \(afterWrite.discNumberText))."
                 )
@@ -1432,12 +1566,12 @@ public struct TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        try TagLibMetadataExtractor.writeMetadata(metadata, to: url)
-        let warnings = metadataWriteWarnings(for: url, verification: verification)
-        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
-        return MetadataWriteResult(
-            warnings: warnings
-        )
+        return try withAtomicFileMutation(at: url) { mutationURL in
+            try TagLibMetadataExtractor.writeMetadata(metadata, to: mutationURL)
+            let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
+            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            return MetadataWriteResult(warnings: warnings)
+        }
     }
 
     @discardableResult
@@ -1453,35 +1587,37 @@ public struct TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        try TagLibMetadataExtractor.writeTrackNumberText(
-            trackNumberText,
-            discNumberText: discNumberText,
-            to: url
-        )
-
-        if !verifyAfterWrite {
-            return MetadataWriteResult(warnings: [])
-        }
-
-        let expectedTrackPair = parseNumberPair(trackNumberText)
-        let expectedDiscPair = parseNumberPair(normalizedTrimmed(discNumberText))
-
-        let warnings = metadataWriteWarnings(
-            for: url,
-            verification: MetadataWriteVerificationContext(
-                expectedTrackNumber: expectedTrackPair.number > 0 ? expectedTrackPair.number : nil,
-                expectedTrackTotal: expectedTrackPair.total > 0 ? expectedTrackPair.total : nil,
-                expectedTrackNumberText: trackNumberText,
-                expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
-                expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
-                expectedDiscNumberText: discNumberText,
-                expectedExplicitContent: nil,
-                artworkExpectation: .unchanged,
-                customFieldKeys: []
+        return try withAtomicFileMutation(at: url) { mutationURL in
+            try TagLibMetadataExtractor.writeTrackNumberText(
+                trackNumberText,
+                discNumberText: discNumberText,
+                to: mutationURL
             )
-        )
-        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
-        return MetadataWriteResult(warnings: warnings)
+
+            if !verifyAfterWrite {
+                return MetadataWriteResult(warnings: [])
+            }
+
+            let expectedTrackPair = parseNumberPair(trackNumberText)
+            let expectedDiscPair = parseNumberPair(normalizedTrimmed(discNumberText))
+
+            let warnings = metadataWriteWarnings(
+                for: mutationURL,
+                verification: MetadataWriteVerificationContext(
+                    expectedTrackNumber: expectedTrackPair.number > 0 ? expectedTrackPair.number : nil,
+                    expectedTrackTotal: expectedTrackPair.total > 0 ? expectedTrackPair.total : nil,
+                    expectedTrackNumberText: trackNumberText,
+                    expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
+                    expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
+                    expectedDiscNumberText: discNumberText,
+                    expectedExplicitContent: nil,
+                    artworkExpectation: .unchanged,
+                    customFieldKeys: []
+                )
+            )
+            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            return MetadataWriteResult(warnings: warnings)
+        }
     }
 
     @discardableResult
@@ -1497,14 +1633,16 @@ public struct TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        let resolvedProperties = try resolvedRawPropertyMapForWrite(properties, to: url, mode: mode)
-        try TagLibMetadataExtractor.writeRawPropertyMap(resolvedProperties, to: url)
+        return try withAtomicFileMutation(at: url) { mutationURL in
+            let resolvedProperties = try resolvedRawPropertyMapForWrite(properties, to: mutationURL, mode: mode)
+            try TagLibMetadataExtractor.writeRawPropertyMap(resolvedProperties, to: mutationURL)
 
-        let warnings = verifyAfterWrite
-            ? rawPropertyMapWriteWarnings(requestedProperties: properties, for: url)
-            : []
-        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
-        return MetadataWriteResult(warnings: warnings)
+            let warnings = verifyAfterWrite
+                ? rawPropertyMapWriteWarnings(requestedProperties: properties, for: mutationURL)
+                : []
+            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            return MetadataWriteResult(warnings: warnings)
+        }
     }
 
     @discardableResult
@@ -1519,24 +1657,26 @@ public struct TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        try TagLibMetadataExtractor.writeRawPropertyMapValues(properties, to: url)
+        return try withAtomicFileMutation(at: url) { mutationURL in
+            try TagLibMetadataExtractor.writeRawPropertyMapValues(properties, to: mutationURL)
 
-        let warnings: [String]
-        if verifyAfterWrite {
-            let after = try rawMetadataResult(from: url)
-            let lookup = after.properties.reduce(into: [String: [String]]()) { result, entry in
-                result[entry.key.uppercased()] = entry.values
+            let warnings: [String]
+            if verifyAfterWrite {
+                let after = try rawMetadataResult(from: mutationURL)
+                let lookup = after.properties.reduce(into: [String: [String]]()) { result, entry in
+                    result[entry.key.uppercased()] = entry.values
+                }
+                warnings = properties.flatMap { key, values -> [String] in
+                    let persisted = lookup[key.uppercased()] ?? []
+                    return persisted == values ? [] : ["Raw multi-value key \"\(key)\" differs after save."]
+                }
+            } else {
+                warnings = []
             }
-            warnings = properties.flatMap { key, values -> [String] in
-                let persisted = lookup[key.uppercased()] ?? []
-                return Set(persisted) == Set(values) ? [] : ["Raw multi-value key \"\(key)\" differs after save."]
-            }
-        } else {
-            warnings = []
+
+            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            return MetadataWriteResult(warnings: warnings)
         }
-
-        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
-        return MetadataWriteResult(warnings: warnings)
     }
 
     public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
@@ -1549,7 +1689,12 @@ public struct TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        let dict = try TagLibMetadataExtractor.structuredMetadata(for: url)
+        let dict: [String: NSObject]
+        do {
+            dict = try TagLibMetadataExtractor.structuredMetadata(for: url)
+        } catch {
+            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
+        }
 
         let properties = dictionaryArray(dict, "properties").map {
             StructuredPropertyEntry(key: stringValue($0, "key"), values: stringArrayValue($0, "values"))
@@ -1652,24 +1797,26 @@ public struct TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        var warnings: [String] = []
-        if ["wav", "aiff", "aif", "aifc", "afc"].contains(ext) {
-            switch riffPolicy {
-            case .id3v2Only, .preserveInfo:
-                break
-            case .syncBasicFieldsToInfo:
-                warnings.append("syncBasicFieldsToInfo is documented but not yet applied by the structured bridge; existing INFO fields are preserved.")
+        return try withAtomicFileMutation(at: url) { mutationURL in
+            var warnings: [String] = []
+            if ["wav", "aiff", "aif", "aifc", "afc"].contains(ext) {
+                switch riffPolicy {
+                case .id3v2Only, .preserveInfo:
+                    break
+                case .syncBasicFieldsToInfo:
+                    warnings.append("syncBasicFieldsToInfo is documented but not yet applied by the structured bridge; existing INFO fields are preserved.")
+                }
             }
-        }
 
-        let payload = bridgePayload(from: metadata, includeProperties: includeProperties)
-        try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: url)
+            let payload = bridgePayload(from: metadata, includeProperties: includeProperties)
+            try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: mutationURL)
 
-        if verifyAfterWrite {
-            warnings.append(contentsOf: structuredWriteWarnings(expected: metadata, for: url))
+            if verifyAfterWrite {
+                warnings.append(contentsOf: structuredWriteWarnings(expected: metadata, for: mutationURL))
+            }
+            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            return MetadataWriteResult(warnings: warnings)
         }
-        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
-        return MetadataWriteResult(warnings: warnings)
     }
 
     nonisolated private static func residualWarningsAfterErase(for url: URL) -> [String] {
@@ -1727,6 +1874,18 @@ public struct TagLibMetadataManager {
     public nonisolated static func eraseAllMetadataWithVerification(
         from url: URL,
         failurePolicy: VerificationFailurePolicy = .warn
+    ) throws -> MetadataWriteResult {
+        try withAtomicFileMutation(at: url) { mutationURL in
+            try eraseAllMetadataInPlaceWithVerification(
+                from: mutationURL,
+                failurePolicy: failurePolicy
+            )
+        }
+    }
+
+    nonisolated private static func eraseAllMetadataInPlaceWithVerification(
+        from url: URL,
+        failurePolicy: VerificationFailurePolicy
     ) throws -> MetadataWriteResult {
         let meta = TagLibAudioMetadata()
         meta.title = ""
@@ -2047,7 +2206,12 @@ public struct TagLibMetadataManager {
         }
 
         // ObjC++ returns a Foundation dictionary for display; normalize it into Swift models.
-        let dict = try TagLibMetadataExtractor.rawMetadata(for: url)
+        let dict: [String: NSObject]
+        do {
+            dict = try TagLibMetadataExtractor.rawMetadata(for: url)
+        } catch {
+            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
+        }
 
         let propsAny = dict["properties"] as? [Any] ?? []
         let framesAny = dict["id3v2Frames"] as? [Any] ?? []
