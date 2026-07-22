@@ -6,6 +6,13 @@
 //
 
 #import "TagLibMetadataExtractor.h"
+#include <exception>
+#include <cstring>
+#include <cerrno>
+#include <cstdio>
+#include <fcntl.h>
+#include <limits>
+#include <unistd.h>
 #include <stdarg.h>
 
 // TagLib C++ headers
@@ -118,6 +125,195 @@ static inline void TLog(NSString *format, ...) {
     NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
     va_end(args);
     NSLog(@"[TagLib] %@", message);
+}
+
+static void SetTagLibBridgeExceptionError(NSError **error,
+                                          NSString *operation,
+                                          const char * _Nullable detail,
+                                          NSInteger code)
+{
+    if (!error) {
+        return;
+    }
+
+    NSString *detailText = detail ? [NSString stringWithUTF8String:detail] : nil;
+    NSString *description = detailText.length > 0
+        ? [NSString stringWithFormat:@"%@ failed: %@", operation, detailText]
+        : [NSString stringWithFormat:@"%@ failed because TagLib raised an unknown C++ exception", operation];
+    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                 code:code
+                             userInfo:@{ NSLocalizedDescriptionKey : description }];
+}
+
+#define TAGLIB_BRIDGE_CATCH_WITH_ERROR(ERROR_POINTER, OPERATION, FALLBACK) \
+    } catch (const std::exception &exception) { \
+        SetTagLibBridgeExceptionError(ERROR_POINTER, OPERATION, exception.what(), 9000); \
+        return FALLBACK; \
+    } catch (...) { \
+        SetTagLibBridgeExceptionError(ERROR_POINTER, OPERATION, nullptr, 9001); \
+        return FALLBACK; \
+    }
+
+#define TAGLIB_BRIDGE_CATCH_SAFE(OPERATION, FALLBACK) \
+    } catch (const std::exception &exception) { \
+        TLog(@"%@ failed with a C++ exception: %s", OPERATION, exception.what()); \
+        return FALLBACK; \
+    } catch (...) { \
+        TLog(@"%@ failed with an unknown C++ exception", OPERATION); \
+        return FALLBACK; \
+    }
+
+typedef BOOL (^TagLibAtomicMutationBlock)(NSURL *temporaryURL, NSError **error);
+
+static thread_local NSUInteger TagLibAtomicMutationDepth = 0;
+
+class TagLibAtomicMutationScope {
+public:
+    TagLibAtomicMutationScope() { ++TagLibAtomicMutationDepth; }
+    ~TagLibAtomicMutationScope() { --TagLibAtomicMutationDepth; }
+};
+
+static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
+                                        NSError **error,
+                                        NSString *operation,
+                                        TagLibAtomicMutationBlock mutation)
+{
+    if (!fileURL || !fileURL.isFileURL || !mutation) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9100
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Metadata mutations require a file URL" }];
+        }
+        return NO;
+    }
+
+    NSURL *targetURL = fileURL.URLByResolvingSymlinksInPath;
+    NSError *resourceError = nil;
+    NSNumber *isRegularFile = nil;
+    if (![targetURL getResourceValue:&isRegularFile
+                              forKey:NSURLIsRegularFileKey
+                               error:&resourceError] || !isRegularFile.boolValue) {
+        if (error) {
+            NSMutableDictionary *userInfo = [@{
+                NSLocalizedDescriptionKey : @"Metadata mutations require an existing regular file",
+            } mutableCopy];
+            if (resourceError) {
+                userInfo[NSUnderlyingErrorKey] = resourceError;
+            }
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9101
+                                     userInfo:userInfo];
+        }
+        return NO;
+    }
+
+    NSError *validationError = nil;
+    if (![TagLibMetadataExtractor extractMetadataFromURL:targetURL error:&validationError]) {
+        if (error) {
+            NSMutableDictionary *userInfo = [@{
+                NSLocalizedDescriptionKey : @"The metadata destination is not a readable, valid audio file",
+            } mutableCopy];
+            if (validationError) {
+                userInfo[NSUnderlyingErrorKey] = validationError;
+            }
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9102
+                                     userInfo:userInfo];
+        }
+        return NO;
+    }
+
+    NSString *extension = targetURL.pathExtension;
+    NSString *baseName = targetURL.URLByDeletingPathExtension.lastPathComponent;
+    NSString *temporaryName = extension.length > 0
+        ? [NSString stringWithFormat:@".%@.taglib-%@.%@", baseName, NSUUID.UUID.UUIDString, extension]
+        : [NSString stringWithFormat:@".%@.taglib-%@", baseName, NSUUID.UUID.UUIDString];
+    NSURL *temporaryURL = [targetURL.URLByDeletingLastPathComponent URLByAppendingPathComponent:temporaryName];
+
+    NSFileManager *fileManager = NSFileManager.defaultManager;
+    NSError *copyError = nil;
+    if (![fileManager copyItemAtURL:targetURL toURL:temporaryURL error:&copyError]) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9103
+                                     userInfo:@{
+                                         NSLocalizedDescriptionKey : @"Could not create a transactional copy of the metadata destination",
+                                         NSUnderlyingErrorKey : copyError,
+                                     }];
+        }
+        return NO;
+    }
+
+    NSError *mutationError = nil;
+    BOOL mutationSucceeded = NO;
+    {
+        TagLibAtomicMutationScope scope;
+        mutationSucceeded = mutation(temporaryURL, &mutationError);
+    }
+
+    if (!mutationSucceeded) {
+        [fileManager removeItemAtURL:temporaryURL error:nil];
+        if (error) {
+            *error = mutationError ?: [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                           code:9104
+                                                       userInfo:@{ NSLocalizedDescriptionKey : [NSString stringWithFormat:@"%@ failed", operation] }];
+        }
+        return NO;
+    }
+
+    NSError *postMutationValidationError = nil;
+    if (![TagLibMetadataExtractor extractMetadataFromURL:temporaryURL error:&postMutationValidationError]) {
+        [fileManager removeItemAtURL:temporaryURL error:nil];
+        if (error) {
+            NSMutableDictionary *userInfo = [@{
+                NSLocalizedDescriptionKey : @"The metadata mutation produced an unreadable audio file",
+            } mutableCopy];
+            if (postMutationValidationError) {
+                userInfo[NSUnderlyingErrorKey] = postMutationValidationError;
+            }
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9106
+                                     userInfo:userInfo];
+        }
+        return NO;
+    }
+
+    int temporaryDescriptor = open(temporaryURL.path.fileSystemRepresentation, O_RDONLY);
+    if (temporaryDescriptor < 0 || fsync(temporaryDescriptor) != 0) {
+        int syncErrorCode = errno;
+        if (temporaryDescriptor >= 0) {
+            close(temporaryDescriptor);
+        }
+        [fileManager removeItemAtURL:temporaryURL error:nil];
+        if (error) {
+            NSError *underlying = [NSError errorWithDomain:NSPOSIXErrorDomain code:syncErrorCode userInfo:nil];
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9107
+                                     userInfo:@{
+                                         NSLocalizedDescriptionKey : @"Could not flush the metadata mutation before commit",
+                                         NSUnderlyingErrorKey : underlying,
+                                     }];
+        }
+        return NO;
+    }
+    close(temporaryDescriptor);
+
+    if (std::rename(temporaryURL.path.fileSystemRepresentation, targetURL.path.fileSystemRepresentation) != 0) {
+        int renameErrorCode = errno;
+        [fileManager removeItemAtURL:temporaryURL error:nil];
+        if (error) {
+            NSError *underlying = [NSError errorWithDomain:NSPOSIXErrorDomain code:renameErrorCode userInfo:nil];
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9105
+                                     userInfo:@{
+                                         NSLocalizedDescriptionKey : @"Could not atomically commit the metadata mutation",
+                                         NSUnderlyingErrorKey : underlying,
+                                     }];
+        }
+        return NO;
+    }
+
+    return YES;
 }
 
 @implementation TagLibMetadataExtractor
@@ -259,7 +455,7 @@ static void ApplyAudioPropertiesMetadata(TagLib::AudioProperties * _Nullable pro
     }
 
     if (metadata.duration <= 0.0) {
-        metadata.duration = properties->lengthInSeconds();
+        metadata.duration = (NSTimeInterval)properties->lengthInMilliseconds() / 1000.0;
     }
     if (metadata.bitrate <= 0) {
         metadata.bitrate = properties->bitrate();
@@ -270,6 +466,11 @@ static void ApplyAudioPropertiesMetadata(TagLib::AudioProperties * _Nullable pro
     if (metadata.channels <= 0) {
         metadata.channels = properties->channels();
     }
+}
+
+static bool HasCredibleAudioProperties(TagLibAudioMetadata *metadata)
+{
+    return metadata && metadata.duration > 0.0 && metadata.sampleRate > 0 && metadata.channels > 0;
 }
 
 static NSString * _Nullable TrimmedStringOrNil(NSString * _Nullable value) {
@@ -1942,7 +2143,7 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
 static void SetID3v2TextFrame(TagLib::ID3v2::Tag *tag,
                               const char *frameID,
                               NSString * _Nullable value) {
-    if (!tag || !frameID) {
+    if (!tag || !frameID || std::strlen(frameID) != 4) {
         return;
     }
     NSString *trimmed = TrimmedStringOrNil(value);
@@ -3226,6 +3427,7 @@ static void ExtractAPEMetadata(TagLib::APE::Tag* tag, TagLibAudioMetadata* metad
 
 + (nullable TagLibAudioMetadata *)extractMetadataFromURL:(NSURL *)fileURL
                                                    error:(NSError **)error {
+    try {
     if (!fileURL || ![fileURL isFileURL]) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -3633,30 +3835,33 @@ static void ExtractAPEMetadata(TagLib::APE::Tag* tag, TagLibAudioMetadata* metad
          fileURL.lastPathComponent,
          metadata.explicitContent ? @"YES" : @"NO");
 
-    bool hasReadableMetadata =
-        metadata.title.length > 0 ||
-        metadata.artist.length > 0 ||
-        metadata.album.length > 0 ||
-        metadata.genre.length > 0 ||
-        metadata.comment.length > 0 ||
-        metadata.composer.length > 0 ||
-        metadata.albumArtist.length > 0 ||
-        metadata.releaseDate.length > 0 ||
-        metadata.year.length > 0 ||
-        metadata.trackNumber > 0 ||
-        metadata.discNumber > 0 ||
-        metadata.artworkData.length > 0;
-
-    if (!openedSpecificFile && !hasReadableMetadata && metadata.duration <= 0.0 && metadata.bitrate <= 0) {
+    if (!openedSpecificFile || !HasCredibleAudioProperties(metadata)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:2
-                                     userInfo:@{NSLocalizedDescriptionKey: @"Unable to read file or no metadata found"}];
+                                     userInfo:@{NSLocalizedDescriptionKey: @"Unable to read credible audio properties from file"}];
         }
         return nil;
     }
 
     return metadata;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Metadata extraction", nil)
+}
+
+static BOOL ValidateReadableAudioURL(NSURL *fileURL, NSError **error)
+{
+    NSError *validationError = nil;
+    TagLibAudioMetadata *metadata = [TagLibMetadataExtractor extractMetadataFromURL:fileURL
+                                                                               error:&validationError];
+    if (metadata) {
+        return YES;
+    }
+    if (error) {
+        *error = validationError ?: [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                       code:244
+                                                   userInfo:@{ NSLocalizedDescriptionKey : @"Unable to read audio file" }];
+    }
+    return NO;
 }
 
 
@@ -3788,6 +3993,16 @@ static BOOL StripAllTagsAndSave(FileType &file,
                    toURL:(NSURL *)fileURL
                    error:(NSError **)error
 {
+    try {
+    if (TagLibAtomicMutationDepth == 0) {
+        return PerformAtomicTagLibMutation(fileURL, error, @"Track-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            return [self writeTrackNumber:trackNumber
+                              totalTracks:totalTracks
+                                 padWidth:padWidth
+                                    toURL:temporaryURL
+                                    error:mutationError];
+        });
+    }
     if (!fileURL || ![fileURL isFileURL]) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -4155,12 +4370,19 @@ static BOOL StripAllTagsAndSave(FileType &file,
          (long)padWidth);
 
     return YES;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Track-number write", NO)
 }
 
 + (BOOL)writeRawPropertyMap:(NSDictionary<NSString *, NSString *> *)properties
                      toURL:(NSURL *)fileURL
                      error:(NSError **)error
 {
+    try {
+    if (TagLibAtomicMutationDepth == 0) {
+        return PerformAtomicTagLibMutation(fileURL, error, @"Raw property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            return [self writeRawPropertyMap:properties toURL:temporaryURL error:mutationError];
+        });
+    }
     if (!fileURL || !fileURL.isFileURL) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -4439,12 +4661,19 @@ static BOOL StripAllTagsAndSave(FileType &file,
                                  userInfo:@{ NSLocalizedDescriptionKey : @"Unsupported audio format" }];
     }
     return NO;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Raw property-map write", NO)
 }
 
 + (BOOL)writeRawPropertyMapValues:(NSDictionary<NSString *, NSArray<NSString *> *> *)properties
                             toURL:(NSURL *)fileURL
                             error:(NSError **)error
 {
+    try {
+    if (TagLibAtomicMutationDepth == 0) {
+        return PerformAtomicTagLibMutation(fileURL, error, @"Raw multi-value property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            return [self writeRawPropertyMapValues:properties toURL:temporaryURL error:mutationError];
+        });
+    }
     if (!fileURL || !fileURL.isFileURL) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -4539,6 +4768,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
                                  userInfo:@{ NSLocalizedDescriptionKey : @"Unsupported audio format" }];
     }
     return NO;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Raw multi-value property-map write", NO)
 }
 
 // Parse an NSString like "03/12" or "03" into numeric components and an inferred pad width.
@@ -4587,6 +4817,15 @@ static void ParseNumberPairFromNSString(NSString *text,
                        toURL:(NSURL *)fileURL
                        error:(NSError **)error
 {
+    try {
+    if (TagLibAtomicMutationDepth == 0) {
+        return PerformAtomicTagLibMutation(fileURL, error, @"Track/disc-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            return [self writeTrackNumberText:trackNumberText
+                               discNumberText:discNumberText
+                                        toURL:temporaryURL
+                                        error:mutationError];
+        });
+    }
     if (!fileURL || ![fileURL isFileURL]) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -5035,12 +5274,27 @@ static void ParseNumberPairFromNSString(NSString *text,
          discNumberText ?: @"<nil>");
 
     return YES;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Track/disc-number write", NO)
 }
 // Write metadata to file (MPEG, MP4/M4A, FLAC, WAV, AIFF supported)
 + (BOOL)writeMetadata:(TagLibAudioMetadata *)metadata
                 toURL:(NSURL *)fileURL
                 error:(NSError **)error
 {
+    try {
+    if (metadata.artworkData.length > std::numeric_limits<unsigned int>::max()) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:244
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Artwork data exceeds TagLib's supported buffer length" }];
+        }
+        return NO;
+    }
+    if (TagLibAtomicMutationDepth == 0) {
+        return PerformAtomicTagLibMutation(fileURL, error, @"Metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            return [self writeMetadata:metadata toURL:temporaryURL error:mutationError];
+        });
+    }
     if (!fileURL || ![fileURL isFileURL]) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -5822,12 +6076,19 @@ static void ParseNumberPairFromNSString(NSString *text,
 
     TLog(@"Successfully wrote metadata to '%@'", fileURL.lastPathComponent);
     return YES;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Metadata write", NO)
 }
 
 // Wipe (remove) native metadata containers from a file.
 + (BOOL)wipeMetadataFromURL:(NSURL *)fileURL
                       error:(NSError **)error
 {
+    try {
+    if (TagLibAtomicMutationDepth == 0) {
+        return PerformAtomicTagLibMutation(fileURL, error, @"Metadata wipe", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            return [self wipeMetadataFromURL:temporaryURL error:mutationError];
+        });
+    }
     if (!fileURL || ![fileURL isFileURL]) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -5992,6 +6253,7 @@ static void ParseNumberPairFromNSString(NSString *text,
     }
     TLog(@"Wipe skipped for '%@' (extension '%@' not supported)", fileURL.lastPathComponent, ext);
     return NO;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Metadata wipe", NO)
 }
 
 #pragma mark - Raw Metadata Dump (GUI feature)
@@ -6660,6 +6922,7 @@ static void AppendStructuredComplexPictures(ComplexPropertyTarget *target,
 + (nullable NSDictionary<NSString *, NSObject *> *)structuredMetadataForURL:(NSURL *)fileURL
                                                                       error:(NSError **)error
 {
+    try {
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *id3v2FramesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *mp4AtomsOut = [NSMutableArray array];
@@ -6685,6 +6948,10 @@ static void AppendStructuredComplexPictures(ComplexPropertyTarget *target,
                                          code:228
                                      userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file path" }];
         }
+        return nil;
+    }
+
+    if (!ValidateReadableAudioURL(fileURL, error)) {
         return nil;
     }
 
@@ -6832,6 +7099,7 @@ static void AppendStructuredComplexPictures(ComplexPropertyTarget *target,
 #undef STRUCTURED_PROPERTIES_ONLY
 
     return result();
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Structured metadata extraction", nil)
 }
 
 static NSArray<NSDictionary<NSString *, NSObject *> *> *StructuredArray(NSDictionary<NSString *, NSObject *> *metadata,
@@ -6842,6 +7110,199 @@ static NSArray<NSDictionary<NSString *, NSObject *> *> *StructuredArray(NSDictio
         return nil;
     }
     return (NSArray<NSDictionary<NSString *, NSObject *> *> *)value;
+}
+
+static BOOL SetStructuredPayloadValidationError(NSError **error, NSString *description)
+{
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                     code:243
+                                 userInfo:@{ NSLocalizedDescriptionKey : description }];
+    }
+    return NO;
+}
+
+static BOOL StructuredOptionalValueHasClass(NSDictionary *entry, NSString *key, Class expectedClass)
+{
+    NSObject *value = entry[key];
+    return !value || [value isKindOfClass:expectedClass];
+}
+
+static BOOL StructuredOptionalValueIsNumberLike(NSDictionary *entry, NSString *key)
+{
+    NSObject *value = entry[key];
+    return !value || [value isKindOfClass:[NSNumber class]] || [value isKindOfClass:[NSString class]];
+}
+
+static BOOL StructuredOptionalDataFitsTagLib(NSDictionary *entry, NSString *key)
+{
+    NSObject *value = entry[key];
+    if (!value) {
+        return YES;
+    }
+    return [value isKindOfClass:[NSData class]] &&
+        ((NSData *)value).length <= std::numeric_limits<unsigned int>::max();
+}
+
+static BOOL StructuredOptionalValueFitsInt(NSDictionary *entry, NSString *key)
+{
+    NSObject *value = entry[key];
+    if (!value) {
+        return YES;
+    }
+    if (![value isKindOfClass:[NSNumber class]] && ![value isKindOfClass:[NSString class]]) {
+        return NO;
+    }
+    long long number = [(id)value longLongValue];
+    return number >= std::numeric_limits<int>::min() && number <= std::numeric_limits<int>::max();
+}
+
+static BOOL StructuredValueIsStringArray(NSObject *value)
+{
+    if (![value isKindOfClass:[NSArray class]]) {
+        return NO;
+    }
+    for (NSObject *element in (NSArray *)value) {
+        if (![element isKindOfClass:[NSString class]]) {
+            return NO;
+        }
+    }
+    return YES;
+}
+
+static BOOL IsValidID3v2FrameID(NSString *frameID)
+{
+    if (![frameID isKindOfClass:[NSString class]]) {
+        return NO;
+    }
+
+    NSData *utf8 = [frameID dataUsingEncoding:NSUTF8StringEncoding allowLossyConversion:NO];
+    if (utf8.length != 4) {
+        return NO;
+    }
+
+    const unsigned char *bytes = static_cast<const unsigned char *>(utf8.bytes);
+    for (NSUInteger index = 0; index < utf8.length; ++index) {
+        unsigned char byte = bytes[index];
+        if (!((byte >= 'A' && byte <= 'Z') || (byte >= '0' && byte <= '9'))) {
+            return NO;
+        }
+    }
+    return YES;
+}
+
+static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject *> *metadata,
+                                              NSError **error)
+{
+    if (![metadata isKindOfClass:[NSDictionary class]]) {
+        return SetStructuredPayloadValidationError(error, @"Structured metadata payload must be a dictionary");
+    }
+
+    NSArray<NSString *> *collectionKeys = @[
+        @"properties", @"id3v2Frames", @"mp4Atoms", @"asfAttributes",
+        @"artwork", @"lyrics", @"comments"
+    ];
+    for (NSString *collectionKey in collectionKeys) {
+        NSObject *value = metadata[collectionKey];
+        if (!value) {
+            continue;
+        }
+        if (![value isKindOfClass:[NSArray class]]) {
+            return SetStructuredPayloadValidationError(
+                error,
+                [NSString stringWithFormat:@"Structured metadata field '%@' must be an array", collectionKey]
+            );
+        }
+        NSUInteger index = 0;
+        for (NSObject *element in (NSArray *)value) {
+            if (![element isKindOfClass:[NSDictionary class]]) {
+                return SetStructuredPayloadValidationError(
+                    error,
+                    [NSString stringWithFormat:@"Structured metadata field '%@' contains a non-dictionary element at index %lu",
+                     collectionKey, (unsigned long)index]
+                );
+            }
+            ++index;
+        }
+    }
+
+    for (NSDictionary *entry in StructuredArray(metadata, @"properties") ?: @[]) {
+        if (![entry[@"key"] isKindOfClass:[NSString class]] ||
+            !StructuredOptionalValueHasClass(entry, @"value", [NSString class]) ||
+            (entry[@"values"] && !StructuredValueIsStringArray(entry[@"values"]))) {
+            return SetStructuredPayloadValidationError(error, @"Each structured property requires a string key and string value(s)");
+        }
+    }
+
+    for (NSDictionary *entry in StructuredArray(metadata, @"id3v2Frames") ?: @[]) {
+        NSString *frameID = [entry[@"id"] isKindOfClass:[NSString class]] ? (NSString *)entry[@"id"] : nil;
+        if (!IsValidID3v2FrameID(frameID)) {
+            return SetStructuredPayloadValidationError(error, @"Each ID3v2 frame ID must be exactly four uppercase ASCII letters or digits");
+        }
+        if (![entry[@"type"] isKindOfClass:[NSString class]] ||
+            !StructuredOptionalValueHasClass(entry, @"value", [NSString class]) ||
+            (entry[@"values"] && !StructuredValueIsStringArray(entry[@"values"])) ||
+            !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"language", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"url", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"owner", [NSString class]) ||
+            !StructuredOptionalDataFitsTagLib(entry, @"data")) {
+            return SetStructuredPayloadValidationError(error, @"ID3v2 frame fields have invalid value types");
+        }
+    }
+
+    for (NSDictionary *entry in StructuredArray(metadata, @"mp4Atoms") ?: @[]) {
+        if (![entry[@"key"] isKindOfClass:[NSString class]] ||
+            ![entry[@"type"] isKindOfClass:[NSString class]] ||
+            (entry[@"value"] && ![entry[@"value"] isKindOfClass:[NSString class]] && ![entry[@"value"] isKindOfClass:[NSNumber class]]) ||
+            (entry[@"values"] && !StructuredValueIsStringArray(entry[@"values"])) ||
+            !StructuredOptionalValueFitsInt(entry, @"first") ||
+            !StructuredOptionalValueFitsInt(entry, @"second") ||
+            !StructuredOptionalValueHasClass(entry, @"freeformDescription", [NSString class])) {
+            return SetStructuredPayloadValidationError(error, @"MP4 atom fields have invalid value types");
+        }
+    }
+
+    for (NSDictionary *entry in StructuredArray(metadata, @"asfAttributes") ?: @[]) {
+        if (![entry[@"key"] isKindOfClass:[NSString class]] ||
+            ![entry[@"type"] isKindOfClass:[NSString class]] ||
+            (entry[@"value"] && ![entry[@"value"] isKindOfClass:[NSString class]] && ![entry[@"value"] isKindOfClass:[NSNumber class]]) ||
+            !StructuredOptionalDataFitsTagLib(entry, @"data") ||
+            !StructuredOptionalValueHasClass(entry, @"pictureType", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"mimeType", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
+            !StructuredOptionalValueIsNumberLike(entry, @"language") ||
+            !StructuredOptionalValueIsNumberLike(entry, @"stream")) {
+            return SetStructuredPayloadValidationError(error, @"ASF attribute fields have invalid value types");
+        }
+    }
+
+    for (NSDictionary *entry in StructuredArray(metadata, @"artwork") ?: @[]) {
+        if (![entry[@"data"] isKindOfClass:[NSData class]] ||
+            ((NSData *)entry[@"data"]).length > std::numeric_limits<unsigned int>::max() ||
+            !StructuredOptionalValueHasClass(entry, @"container", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"mimeType", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"pictureType", [NSString class]) ||
+            !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
+            !StructuredOptionalValueIsNumberLike(entry, @"pictureTypeCode")) {
+            return SetStructuredPayloadValidationError(error, @"Artwork entries require NSData and string/number metadata fields");
+        }
+    }
+
+    for (NSString *collectionKey in @[ @"lyrics", @"comments" ]) {
+        for (NSDictionary *entry in StructuredArray(metadata, collectionKey) ?: @[]) {
+            if (![entry[@"text"] isKindOfClass:[NSString class]] ||
+                !StructuredOptionalValueHasClass(entry, @"language", [NSString class]) ||
+                !StructuredOptionalValueHasClass(entry, @"description", [NSString class])) {
+                return SetStructuredPayloadValidationError(
+                    error,
+                    [NSString stringWithFormat:@"Each %@ entry requires string text, language, and description fields", collectionKey]
+                );
+            }
+        }
+    }
+
+    return YES;
 }
 
 static NSInteger IntegerValueFromObject(NSObject *value)
@@ -6962,9 +7423,11 @@ static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
                 frame->setUrl(NSStringToTagString(url));
                 tag->addFrame(frame);
             } else {
-                TagLib::ID3v2::FrameList existing = tag->frameList(frameID.UTF8String);
+                const char *frameIDBytes = frameID.UTF8String;
+                if (!frameIDBytes || std::strlen(frameIDBytes) != 4) continue;
+                TagLib::ID3v2::FrameList existing = tag->frameList(frameIDBytes);
                 for (auto it = existing.begin(); it != existing.end(); ++it) tag->removeFrame(*it);
-                auto *frame = new TagLib::ID3v2::UrlLinkFrame(TagLib::ByteVector(frameID.UTF8String, 4));
+                auto *frame = new TagLib::ID3v2::UrlLinkFrame(TagLib::ByteVector(frameIDBytes, 4));
                 frame->setUrl(NSStringToTagString(url));
                 tag->addFrame(frame);
             }
@@ -7074,12 +7537,22 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                           toURL:(NSURL *)fileURL
                           error:(NSError **)error
 {
+    try {
+    if (TagLibAtomicMutationDepth == 0) {
+        return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
+        });
+    }
     if (!fileURL || !fileURL.isFileURL) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:229
                                      userInfo:@{ NSLocalizedDescriptionKey : @"Invalid file URL" }];
         }
+        return NO;
+    }
+
+    if (!ValidateStructuredMetadataPayload(metadata, error)) {
         return NO;
     }
 
@@ -7233,6 +7706,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                                  userInfo:@{ NSLocalizedDescriptionKey : @"Structured metadata writing for this format is limited to raw PropertyMap values" }];
     }
     return NO;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Structured metadata write", NO)
 }
 
 // Return a best-effort, "raw" view of metadata as TagLib sees it.
@@ -7240,20 +7714,16 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
 + (nullable NSDictionary<NSString *, NSObject *> *)rawMetadataForURL:(NSURL *)fileURL
                                                               error:(NSError *_Nullable *_Nullable)error
 {
-    (void)error;
-
+    try {
     // Always return a dictionary with stable keys so Swift UI can render predictably.
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *id3v2FramesOut = [NSMutableArray array];
 
-    if (!fileURL || !fileURL.isFileURL) {
-        return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
+    if (!ValidateReadableAudioURL(fileURL, error)) {
+        return nil;
     }
 
     const char *filePath = fileURL.path.UTF8String;
-    if (!filePath) {
-        return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
-    }
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
     AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
@@ -7433,11 +7903,13 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     }
 
     return @{ @"properties": propertiesOut, @"id3v2Frames": id3v2FramesOut };
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Raw metadata extraction", nil)
 }
 
 + (nullable NSString *)dumpMetadataTextFromURL:(NSURL *)fileURL
                                        error:(NSError **)error
 {
+    try {
     if (!fileURL || !fileURL.isFileURL) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -7680,6 +8152,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     }
 
     return out;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Metadata text dump", nil)
 }
 
 #pragma mark - Format Support
@@ -7738,23 +8211,30 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(c
 }
 
 + (BOOL)isSupportedFormat:(NSString *)fileExtension {
+    try {
     return DescriptorForExtension(fileExtension) != nullptr;
+    TAGLIB_BRIDGE_CATCH_SAFE(@"Supported-format lookup", NO)
 }
 
 + (BOOL)isWritableFormat:(NSString *)fileExtension {
+    try {
     const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
     return descriptor ? IsWritableTagFileFormat(descriptor->format) : NO;
+    TAGLIB_BRIDGE_CATCH_SAFE(@"Writable-format lookup", NO)
 }
 
 + (NSArray<NSString *> *)supportedExtensions {
+    try {
     NSMutableArray<NSString *> *extensions = [NSMutableArray array];
     for (const auto &descriptor : kFormatCapabilityDescriptors) {
         [extensions addObjectsFromArray:ExtensionsForDescriptor(descriptor)];
     }
     return [extensions copy];
+    TAGLIB_BRIDGE_CATCH_SAFE(@"Supported-extension enumeration", @[])
 }
 
 + (NSArray<NSString *> *)writableExtensions {
+    try {
     NSMutableArray<NSString *> *extensions = [NSMutableArray array];
     for (const auto &descriptor : kFormatCapabilityDescriptors) {
         if (IsWritableTagFileFormat(descriptor.format)) {
@@ -7762,22 +8242,27 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(c
         }
     }
     return [extensions copy];
+    TAGLIB_BRIDGE_CATCH_SAFE(@"Writable-extension enumeration", @[])
 }
 
 + (nullable NSDictionary<NSString *, NSObject *> *)formatCapabilityForExtension:(NSString *)fileExtension {
+    try {
     const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
     if (!descriptor) {
         return nil;
     }
     return CapabilityDictionaryForDescriptor(*descriptor);
+    TAGLIB_BRIDGE_CATCH_SAFE(@"Format-capability lookup", nil)
 }
 
 + (NSArray<NSDictionary<NSString *, NSObject *> *> *)formatCapabilities {
+    try {
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *capabilities = [NSMutableArray array];
     for (const auto &descriptor : kFormatCapabilityDescriptors) {
         [capabilities addObject:CapabilityDictionaryForDescriptor(descriptor)];
     }
     return [capabilities copy];
+    TAGLIB_BRIDGE_CATCH_SAFE(@"Format-capability enumeration", @[])
 }
 
 

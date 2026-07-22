@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Clean build
+        run: |
+          swift package clean
+          swift build
+      - name: Test
+        run: swift test
+
+  address-sanitizer:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Address Sanitizer
+        run: swift test --sanitize=address
+
+  thread-sanitizer:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Thread Sanitizer
+        run: swift test --sanitize=thread
+
+  ios-simulator-build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for the minimum iOS Simulator target
+        run: |
+          SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          swift build --triple arm64-apple-ios16.0-simulator --sdk "$SDK_PATH"
