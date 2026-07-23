@@ -16,66 +16,65 @@
 #include <stdarg.h>
 
 // TagLib C++ headers
-#include "taglib/taglib/fileref.h"
-#include "taglib/taglib/tag.h"
-#include "taglib/taglib/audioproperties.h"
-#include "taglib/taglib/toolkit/tpropertymap.h"
+#include <TagLib/fileref.h>
+#include <TagLib/tag.h>
+#include <TagLib/audioproperties.h>
+#include <TagLib/tpropertymap.h>
 
 // Format-specific headers
-#include "taglib/taglib/mpeg/mpegfile.h"
-#include "taglib/taglib/mpeg/id3v1/id3v1tag.h"
-#include "taglib/taglib/mpeg/id3v2/id3v2tag.h"
-#include "taglib/taglib/mpeg/id3v2/id3v2frame.h"
-#include "taglib/taglib/mpeg/id3v2/frames/attachedpictureframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/textidentificationframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/commentsframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/unsynchronizedlyricsframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/popularimeterframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/attachedpictureframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/urllinkframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/uniquefileidentifierframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/chapterframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/tableofcontentsframe.h"
-#include "taglib/taglib/mpeg/id3v2/frames/podcastframe.h"
+#include <TagLib/mpegfile.h>
+#include <TagLib/id3v1tag.h>
+#include <TagLib/id3v2tag.h>
+#include <TagLib/id3v2frame.h>
+#include <TagLib/attachedpictureframe.h>
+#include <TagLib/textidentificationframe.h>
+#include <TagLib/commentsframe.h>
+#include <TagLib/unsynchronizedlyricsframe.h>
+#include <TagLib/popularimeterframe.h>
+#include <TagLib/urllinkframe.h>
+#include <TagLib/uniquefileidentifierframe.h>
+#include <TagLib/chapterframe.h>
+#include <TagLib/tableofcontentsframe.h>
+#include <TagLib/podcastframe.h>
 
-#include "taglib/taglib/mp4/mp4file.h"
-#include "taglib/taglib/mp4/mp4tag.h"
-#include "taglib/taglib/mp4/mp4item.h"
-#include "taglib/taglib/mp4/mp4coverart.h"
+#include <TagLib/mp4file.h>
+#include <TagLib/mp4tag.h>
+#include <TagLib/mp4item.h>
+#include <TagLib/mp4coverart.h>
 
-#include "taglib/taglib/flac/flacfile.h"
-#include "taglib/taglib/flac/flacpicture.h"
-#include "taglib/taglib/ogg/xiphcomment.h"
-#include "taglib/taglib/asf/asftag.h"
-#include "taglib/taglib/asf/asfattribute.h"
-#include "taglib/taglib/asf/asfpicture.h"
+#include <TagLib/flacfile.h>
+#include <TagLib/flacpicture.h>
+#include <TagLib/xiphcomment.h>
+#include <TagLib/asftag.h>
+#include <TagLib/asfattribute.h>
+#include <TagLib/asfpicture.h>
 
-#include "taglib/taglib/ogg/vorbis/vorbisfile.h"
-#include "taglib/taglib/ogg/opus/opusfile.h"
-#include "taglib/taglib/ogg/flac/oggflacfile.h"
+#include <TagLib/vorbisfile.h>
+#include <TagLib/opusfile.h>
+#include <TagLib/oggflacfile.h>
 
-#include "taglib/taglib/ape/apefile.h"
-#include "taglib/taglib/ape/apetag.h"
+#include <TagLib/apefile.h>
+#include <TagLib/apetag.h>
 
-#include "taglib/taglib/riff/wav/wavfile.h"
-#include "taglib/taglib/riff/aiff/aifffile.h"
-#include "taglib/taglib/wavpack/wavpackfile.h"
-#include "taglib/taglib/trueaudio/trueaudiofile.h"
+#include <TagLib/wavfile.h>
+#include <TagLib/aifffile.h>
+#include <TagLib/wavpackfile.h>
+#include <TagLib/trueaudiofile.h>
 
-#include "taglib/taglib/mpc/mpcfile.h"
-#include "taglib/taglib/ogg/speex/speexfile.h"
-#include "taglib/taglib/asf/asffile.h"
+#include <TagLib/mpcfile.h>
+#include <TagLib/speexfile.h>
+#include <TagLib/asffile.h>
 
-#include "taglib/taglib/dsf/dsffile.h"
-#include "taglib/taglib/dsdiff/dsdifffile.h"
-#include "taglib/taglib/shorten/shortenfile.h"
-#include "taglib/taglib/mod/modfile.h"
-#include "taglib/taglib/s3m/s3mfile.h"
-#include "taglib/taglib/it/itfile.h"
-#include "taglib/taglib/xm/xmfile.h"
+#include <TagLib/dsffile.h>
+#include <TagLib/dsdifffile.h>
+#include <TagLib/shortenfile.h>
+#include <TagLib/modfile.h>
+#include <TagLib/s3mfile.h>
+#include <TagLib/itfile.h>
+#include <TagLib/xmfile.h>
 
-#include "taglib/taglib/toolkit/tstring.h"
-#include "taglib/taglib/toolkit/tstringlist.h"
+#include <TagLib/tstring.h>
+#include <TagLib/tstringlist.h>
 
 @implementation TagLibAudioMetadata
 

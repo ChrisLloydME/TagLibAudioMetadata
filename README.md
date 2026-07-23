@@ -1,8 +1,9 @@
 # TagLibAudioMetadata
 
 `TagLibAudioMetadata` is a Swift Package for reading, writing, erasing, and
-inspecting audio metadata through a bundled TagLib bridge. App code works with a
-Swift facade instead of TagLib C++ APIs.
+inspecting audio metadata through an Objective-C++ bridge that dynamically
+links a packaged TagLib XCFramework. App code works with a Swift facade instead
+of TagLib C++ APIs.
 
 Use it when an app needs:
 
@@ -22,6 +23,10 @@ Use it when an app needs:
 - macOS 13+
 - iOS 16+
 - GNU C++20, configured by `Package.swift`
+
+Consumers do not need Homebrew, CMake, or a system TagLib installation. The
+repository root package mounts an isolated local Swift Package whose
+`binaryTarget` contains the required dynamic framework slices.
 
 ## Installation
 
@@ -50,6 +55,10 @@ import TagLibAudioMetadata
 The Swift module re-exports the underlying `CTagLibBridge` target. Advanced
 callers can reach `TagLibMetadataExtractor` and `TagLibAudioMetadata` after the
 same import, but normal app code should start with `TagLibMetadataManager`.
+
+See [docs/INSTALLATION.md](docs/INSTALLATION.md) for the package boundary,
+supported slices, dynamic framework embedding and signing, offline use,
+artifact rebuild commands, and diagnostics.
 
 ## Quick Start
 
@@ -204,32 +213,36 @@ Current SHA-256 values are:
 
 ## Verification Report
 
-Baseline on 2026-07-22 used Apple Swift 6.3.3:
+Pre-migration baseline on 2026-07-23 used Apple Swift 6.3.3:
 
 | Command | Result |
 | --- | --- |
-| `swift package clean` | Passed; user-level SwiftPM caches were unavailable in the sandbox |
-| `swift build` | Passed in 28.18 seconds |
-| `swift test` | Passed 11 tests in 2.61 seconds |
+| `swift package clean && swift build` | Passed in 26.69 seconds; verbose output compiled the vendored TagLib `.cpp` files |
+| `swift test` | Passed 20 tests |
+| `swift test --sanitize=address` | Passed 20 tests |
+| `swift test --sanitize=thread` | Passed 20 tests |
 
 Final verification on the same host:
 
 | Command | Result |
 | --- | --- |
-| Final `swift package clean` | Passed; user-level SwiftPM caches were unavailable in the sandbox |
-| Final `swift build` | Passed from clean state in 18.76 seconds |
-| Final `swift test` | Passed 20 tests in 0.42 seconds after test-target compilation |
-| `swift test --sanitize=address` | Passed 20 tests in 0.93 seconds; no Address Sanitizer findings |
-| `swift test --sanitize=thread` | Passed 20 tests in 2.14 seconds; no Thread Sanitizer findings |
-| iOS Simulator `xcodebuild` | Not runnable locally because the matching iOS 26.5 platform is not installed; CI cross-build added for `arm64-apple-ios16.0-simulator` |
+| `swift package clean && swift build` | Passed in 8.28 seconds; copied `TagLib.framework` and compiled only the bridge `.mm` file plus Swift sources |
+| `swift test` | Passed 20 tests; no failures |
+| `swift test --sanitize=address` | Passed 20 tests; no Address Sanitizer findings |
+| `swift test --sanitize=thread` | Passed 20 tests; no Thread Sanitizer findings |
+| Consumer executable | Built and ran with only `import TagLibAudioMetadata`; reported 37 readable extensions |
+| iOS Simulator cross-build | Passed for `arm64-apple-ios16.0-simulator` with minimum iOS 16.0 |
+| API digests | Swift and Objective-C bridge JSON SHA-256 values are byte-for-byte identical to baseline |
+| Dynamic link audit | Test bundle loads `@rpath/TagLib.framework/TagLib`; 362 unresolved C++ references bind to TagLib and no overlapping global definitions were found |
 
 Reliability regressions cover invalid and disguised reads, explicit raw and
 structured failures, corrupt/unwritable/symlink mutation paths, facade and direct
 bridge rollback by byte comparison, malformed/null-like/partial structured
 payloads, Unicode and long values, ordered multi-values, unknown fields,
 repeated reads and erase, exact artwork bytes, and WAV PCM payload preservation.
-CI runs clean build/test, Address Sanitizer, Thread Sanitizer, and an iOS 16
-Simulator cross-build as separate macOS jobs.
+CI verifies artifact checksums, clean build/test, consumer integration, dynamic
+linkage, Address Sanitizer, Thread Sanitizer, and an iOS 16 Simulator
+cross-build as separate macOS jobs.
 
 Residual risks are the unverified format families above, no package-level
 same-file concurrency guarantee, inode/hard-link identity changes caused by
@@ -251,10 +264,12 @@ The current API guide lives in [docs/SUPPORT.md](docs/SUPPORT.md). It covers:
 - Low-level bridge APIs.
 - Practical integration recipes.
 
-Its low-level section predates the replacement-semantics clarification above:
-do not treat a sparsely populated `TagLibAudioMetadata` as a partial patch.
+The complete migration evidence and API comparison are in
+[docs/MIGRATION_REPORT.md](docs/MIGRATION_REPORT.md).
 
-License details for the vendored TagLib source are in
+Binary distribution and rebuild details are in
+[docs/INSTALLATION.md](docs/INSTALLATION.md). License details for the packaged
+TagLib binary and its exact corresponding source revision are in
 [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).
 
 ## Package Layout
@@ -262,21 +277,28 @@ License details for the vendored TagLib source are in
 | Target | Role |
 | --- | --- |
 | `TagLibAudioMetadata` | Swift facade for application code. |
-| `CTagLibBridge` | Objective-C++ wrapper around vendored TagLib sources. |
+| `CTagLibBridge` | Existing Objective-C++ API bridge; dynamically linked to TagLib. |
+| `Vendor/TagLibBinaryPackage` | Isolated Swift Package exposing `TagLib.xcframework` as the `TagLibBinary` product. |
 
-The package vendors TagLib source directly inside `Sources/CTagLibBridge/taglib`.
-No system TagLib installation or dynamic TagLib library is required.
+The root `Package.swift` mounts `Vendor/TagLibBinaryPackage` by relative path.
+There is no TagLib source target, static fallback, Homebrew lookup, or system
+library lookup. The committed XCFramework contains dynamic macOS, iOS device,
+and iOS Simulator slices built from unmodified TagLib 2.1.1.
 
 ## License
 
 This package's Swift and Objective-C++ bridge code is released under the MIT
 License. See [LICENSE](LICENSE).
 
-The bundled TagLib library is dual-licensed under LGPL-2.1 and MPL-1.1. The
-license texts are included at:
+The dynamically packaged TagLib library is dual-licensed under LGPL-2.1 and
+MPL-1.1. The exact upstream license texts are included at:
 
-- `Sources/CTagLibBridge/taglib/COPYING.LGPL`
-- `Sources/CTagLibBridge/taglib/COPYING.MPL`
+- `Vendor/TagLibBinaryPackage/Licenses/COPYING.LGPL`
+- `Vendor/TagLibBinaryPackage/Licenses/COPYING.MPL`
+
+The bundled utf8cpp dependency is licensed under the Boost Software License
+1.0; its text is at
+`Vendor/TagLibBinaryPackage/Licenses/utfcpp-LICENSE`.
 
 Applications that distribute this package must comply with the MIT license for
 the bridge code and either the LGPL-2.1 or MPL-1.1 terms for TagLib.
