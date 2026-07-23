@@ -11,12 +11,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Toolchain
         run: swift --version
+      - name: Verify packaged TagLib artifact
+        working-directory: Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework
+        run: shasum -a 256 -c CHECKSUMS.txt
       - name: Clean build
         run: |
           swift package clean
           swift build
       - name: Test
         run: swift test
+      - name: Consumer integration
+        run: swift run --package-path IntegrationTests/Consumer TagLibAudioMetadataConsumer
+      - name: Dynamic link audit
+        run: |
+          test ! -d Sources/CTagLibBridge/taglib
+          BIN_PATH=$(swift build --show-bin-path)
+          TEST_BINARY="$BIN_PATH/TagLibAudioMetadataPackageTests.xctest/Contents/MacOS/TagLibAudioMetadataPackageTests"
+          otool -L "$TEST_BINARY" | grep '@rpath/TagLib.framework/TagLib'
+          test -d "$BIN_PATH/TagLib.framework"
+          test -z "$(find Sources/CTagLibBridge -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.cxx' \) -print -quit)"
 
   address-sanitizer:
     runs-on: macos-14

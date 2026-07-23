@@ -8,10 +8,16 @@ and how to handle container-specific behavior after writes.
 
 ## Package Shape
 
-`TagLibAudioMetadata` is a Swift Package with two targets:
+`TagLibAudioMetadata` presents the same two public modules:
 
 - `TagLibAudioMetadata`: the Swift facade used by app code.
-- `CTagLibBridge`: the Objective-C++ bridge around the bundled TagLib sources.
+- `CTagLibBridge`: the Objective-C++ bridge, dynamically linked to TagLib.
+
+The root manifest mounts a separate repository-local Swift Package at
+`Vendor/TagLibBinaryPackage`. Its `TagLibBinary` product contains a
+`binaryTarget` for the dynamic `TagLib.xcframework`. The bridge depends on that
+product; it no longer compiles or carries TagLib source and has no static/source
+fallback.
 
 Most apps should import the Swift facade:
 
@@ -28,6 +34,10 @@ Requirements:
 - macOS 13+
 - iOS 16+
 - GNU C++20, configured by `Package.swift`
+
+Consumers still depend only on the `TagLibAudioMetadata` product. See
+[INSTALLATION.md](INSTALLATION.md) for dynamic framework embedding/signing,
+supported slices, offline use, binary reproduction, and diagnostics.
 
 ## API Layers
 
@@ -681,10 +691,11 @@ Most Swift app code should call `TagLibMetadataManager`. Use the bridge directly
 only when you need a property or method the facade does not wrap.
 
 `TagLibAudioMetadata` is an Objective-C class with nullable properties. It maps
-closely to the bridge writer. This is useful for partial low-level writes:
+closely to the bridge writer. It is a full replacement model, so first read the
+current values when you intend to change only selected fields:
 
 ```swift
-let metadata = TagLibAudioMetadata()
+let metadata = try TagLibMetadataExtractor.extractMetadata(from: url)
 metadata.title = "Bridge Title"
 metadata.trackNumber = 1
 metadata.totalTracks = 10
@@ -692,6 +703,9 @@ metadata.trackNumberText = "01/10"
 
 try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
 ```
+
+A sparsely populated instance clears other writable fields where the container
+permits; it is not a patch object.
 
 `TagLibMetadataExtractor` exposes bridge methods such as:
 
@@ -834,3 +848,9 @@ library editing.
 When erasing metadata, expect residual warnings on formats that preserve unknown
 or unsupported fields. Show those warnings instead of presenting the operation as
 an unconditional wipe.
+
+When distributing an app, verify that the final product embeds and signs
+`TagLib.framework` and that its rpath resolves
+`@rpath/TagLib.framework/TagLib`. Package resolution links the framework; the
+final application target remains responsible for a valid embedded, signed copy.
+See [INSTALLATION.md](INSTALLATION.md).
