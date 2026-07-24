@@ -13,7 +13,7 @@ back to TagLib source.
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        branch: "main"
+        from: "0.4.0"
     ),
 ],
 targets: [

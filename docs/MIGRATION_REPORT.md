@@ -3,6 +3,10 @@
 Date: 2026-07-23
 Phase: dependency architecture only; TagLib remains 2.1.1
 
+This document records the 0.3 migration baseline. Version 0.4.0 adds public
+structured-metadata fields and reliability behavior described in `CHANGELOG.md`;
+the digest comparisons below intentionally remain migration-time evidence.
+
 ## Outcome
 
 The root `TagLibAudioMetadata` package now mounts
@@ -101,6 +105,9 @@ error codes remain:
 `1, 2, 10-23, 30-36, 40-47, 50-57, 100-102, 118-119, 122-123, 126-127,
 130-131, 134-135, 138-139, 142-143, 150-151, 154-155, 158-159, 162-163,
 222-224, 227-244, 9000-9001, 9100-9107`.
+
+Version 0.4.0 additionally uses bridge transaction code `9108` when the
+destination file identity changes before commit.
 
 The Swift facade error domain remains `TagLibMetadataManager`, including
 transaction codes 1001-1006. No public model, signature, import name,
