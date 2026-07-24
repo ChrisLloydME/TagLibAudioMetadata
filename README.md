@@ -34,7 +34,7 @@ Add the package to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", branch: "main")
+    .package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", from: "0.4.0")
 ],
 targets: [
     .target(
@@ -125,17 +125,18 @@ exhaustive client switches.
 All Swift facade mutations and all public bridge mutators operate on a
 same-directory copy and commit with a same-volume atomic rename only after the
 bridge operation and requested verification succeed. A failed write or erase
-therefore leaves the destination bytes unchanged. Swift facade mutations reject
-symbolic links; direct bridge mutations resolve a link and transactionally
-replace its regular-file target to preserve the bridge's historical behavior.
-Direct bridge mutations require one file-sized sibling copy. Swift facade calls
-also keep their verification-stage copy, so they can temporarily require two
-additional file-sized copies.
+therefore leaves the destination bytes unchanged. Both layers reject symbolic
+links and refuse to commit if the destination's file identity changes during a
+mutation. Direct bridge mutations require one file-sized sibling copy. Swift
+facade calls also keep their verification-stage copy, so they can temporarily
+require two additional file-sized copies.
 
 `TagLibAudioMetadata` is a full-replacement low-level model, not a patch object.
 Unset strings and zero numeric values clear fields where the container permits.
 For a partial edit, read the current model, modify it, and then write it back, or
-use the raw merge and structured omitted-collection APIs.
+use raw merge mode and omit structured collections that should remain unchanged.
+Pass `replacingCollections` when an empty structured artwork, lyrics, or comments
+array should remove the final stored entry.
 
 Calls are synchronous and the returned Foundation values own copies of any C++
 buffers. C++ pointers never escape the bridge, ARC owns returned Objective-C
@@ -222,7 +223,7 @@ Pre-migration baseline on 2026-07-23 used Apple Swift 6.3.3:
 | `swift test --sanitize=address` | Passed 20 tests |
 | `swift test --sanitize=thread` | Passed 20 tests |
 
-Final verification on the same host:
+The 0.3 post-migration verification on the same host recorded:
 
 | Command | Result |
 | --- | --- |
@@ -235,11 +236,28 @@ Final verification on the same host:
 | API digests | Swift and Objective-C bridge JSON SHA-256 values are byte-for-byte identical to baseline |
 | Dynamic link audit | Test bundle loads `@rpath/TagLib.framework/TagLib`; 362 unresolved C++ references bind to TagLib and no overlapping global definitions were found |
 
+The 0.4.0 release verification on 2026-07-24 used Apple Swift 6.3.3:
+
+| Command | Result |
+| --- | --- |
+| `swift package clean && swift build` | Passed; copied `TagLib.framework` and compiled the bridge plus Swift sources |
+| Strict warning build | Passed with Swift warnings and C-family warnings treated as errors |
+| `swift test` | Passed 28 tests; no failures |
+| `swift test --sanitize=address` | Passed 28 tests; no Address Sanitizer findings |
+| `swift test --sanitize=thread` | Passed 28 tests; no Thread Sanitizer findings |
+| Consumer executable | Not rerun in the restricted release runner because SwiftPM's nested sandbox was denied before manifest evaluation |
+| iOS Simulator cross-build | Passed for `arm64-apple-ios16.0-simulator` with minimum iOS 16.0 |
+| XCFramework checksums | Every file listed in the vendored `CHECKSUMS.txt` passed SHA-256 verification |
+| Dynamic link audit | Test bundle loads `@rpath/TagLib.framework/TagLib`; the built framework is present and no vendored C++ source is compiled by the root target |
+| XCFramework build script | Passed shell syntax validation |
+
 Reliability regressions cover invalid and disguised reads, explicit raw and
 structured failures, corrupt/unwritable/symlink mutation paths, facade and direct
 bridge rollback by byte comparison, malformed/null-like/partial structured
 payloads, Unicode and long values, ordered multi-values, unknown fields,
-repeated reads and erase, exact artwork bytes, and WAV PCM payload preservation.
+repeated reads and erase, exact and multiple artwork values, binary APE items,
+typed MP4 booleans, complete field-registry coverage, and WAV PCM payload
+preservation.
 CI verifies artifact checksums, clean build/test, consumer integration, dynamic
 linkage, Address Sanitizer, Thread Sanitizer, and an iOS 16 Simulator
 cross-build as separate macOS jobs.

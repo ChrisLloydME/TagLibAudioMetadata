@@ -5,7 +5,51 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] - 2026-05-27
+## [0.4.0] - 2026-07-24
+
+### Added
+
+- Added `StructuredMetadataReplaceableCollection` and the `replacingCollections`
+  argument to structured writes so callers can explicitly remove the final
+  artwork, lyrics, or comment entry with an empty collection.
+- Added typed chapter and table-of-contents fields to `StructuredID3v2Frame`,
+  including element IDs, timing/offset values, child IDs, ordering flags, and
+  embedded-frame counts.
+- Added registry consistency tests and broader fixture coverage for advanced
+  fields, structured artwork, boolean atoms, malformed APE items, and direct
+  bridge mutation failures.
+
+### Changed
+
+- Structured MP4 and ASF writes now apply top-level artwork collections,
+  including multiple images and explicit removal.
+- Structured post-write verification now compares typed values and collection
+  cardinality instead of accepting key-only or count-only matches.
+- Swift and bridge mutation coordinators now reject symbolic-link destinations,
+  validate transactional copies, and refuse to commit if the destination file
+  identity changed during the operation.
+- Xiph extraction now uses the shared guarded PropertyMap reader instead of a
+  duplicate unchecked parser.
+
+### Fixed
+
+- Fixed ID3v2 movement numbering by storing movement number and count together
+  in the valid `MVIN` frame (for example, `2/4`) instead of using the invalid
+  three-character `MVC` identifier.
+- Fixed structured MP4 boolean writes so textual true/false values preserve the
+  requested value.
+- Fixed extended `BasicMetadata` verification and round trips for release,
+  work, people, ReplayGain, iTunes, MusicBrainz, AcoustID, movement, BPM, and
+  compilation fields.
+- Fixed original release dates being reported as current release dates.
+- Fixed structured MPEG saves to preserve ID3v2-only output without duplicating
+  legacy tags.
+- Fixed binary APE items using familiar text keys from being interpreted as
+  text values.
+
+---
+
+## [0.3] - 2026-07-23
 
 ### Summary
 
@@ -66,7 +110,7 @@ New fields added to `BasicMetadata` and `TagLibAudioMetadata`:
 - `acoustIDFingerprint`, `musicIPPUID`
 - `asin`, `releaseStatus`, `originalAlbum`, `originalArtist`
 - `discSubtitle`, `work`, `movementNumber`, `movementCount`
-- ID3v2 direct frame parsing extended: `MVIN`, `MVC`, `TSST`, `TOAL`, `TOPE`.
+- ID3v2 direct frame parsing extended: `MVIN`, `TSST`, `TOAL`, `TOPE`.
 
 #### Metadata field schema (`9b19fe52`)
 - `MetadataFieldKey` — exhaustive enum of all known field identifiers (80+ values).

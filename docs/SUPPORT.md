@@ -414,6 +414,11 @@ Use `readStructuredMetadata(from:)` for an optional result:
 let structured = TagLibMetadataManager.readStructuredMetadata(from: url)
 ```
 
+Read-only `CHAP` and `CTOC` records expose their container data directly on
+`StructuredID3v2Frame`: `elementID`, start/end time and offsets, `isTopLevel`,
+`isOrdered`, `children`, and `embeddedFrameCount`. These complex frame types are
+preserved during edits but are not created or modified by the structured writer.
+
 ### Writing Structured Metadata
 
 ```swift
@@ -445,6 +450,19 @@ let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 `includeProperties` controls whether `StructuredMetadata.properties` is included
 in the bridge payload. Leave it `false` when you only want to edit frames, atoms,
 attributes, artwork, comments, or lyrics.
+
+Non-empty artwork, lyrics, and comments arrays use replace-all semantics. Empty
+arrays are omitted by default so a partial edit does not erase existing data. To
+remove the final entries, name the collections explicitly:
+
+```swift
+try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+    StructuredMetadata(),
+    to: url,
+    replacingCollections: [.artwork, .lyrics, .comments],
+    failurePolicy: .throw
+)
+```
 
 For MP4 freeform atoms:
 
@@ -478,6 +496,11 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
     to: url
 )
 ```
+
+Top-level structured artwork replacement is supported for ID3v2, MP4, and ASF
+containers, including multiple images. FLAC/Xiph structured writes are limited
+to PropertyMap values; use `BasicMetadata.artworkData` for artwork changes in
+those formats.
 
 `RIFFMetadataWritePolicy` applies to WAV/AIFF-style containers:
 
