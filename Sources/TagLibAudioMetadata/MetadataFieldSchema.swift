@@ -234,7 +234,7 @@ public enum MetadataFieldRegistry {
         schema(.work, "Work", .basic, ["WORK"], id3User: ["WORK"], mp4Freeform: ["WORK"]),
         schema(.movement, "Movement", .basic, ["MOVEMENT", "MOVEMENTNAME"], id3: ["MVNM"], mp4Freeform: ["MOVEMENT"]),
         schema(.movementNumber, "Movement Number", .numbering, ["MOVEMENTNUMBER"], id3: ["MVIN"], mp4Freeform: ["MOVEMENTNUMBER"]),
-        schema(.movementCount, "Movement Count", .numbering, ["MOVEMENTCOUNT"], id3: ["MVC"], mp4Freeform: ["MOVEMENTCOUNT"]),
+        schema(.movementCount, "Movement Count", .numbering, ["MOVEMENTCOUNT"], id3: ["MVIN"], mp4Freeform: ["MOVEMENTCOUNT"]),
         schema(.discSubtitle, "Disc Subtitle", .basic, ["DISCSUBTITLE"], id3: ["TSST"], mp4Freeform: ["DISCSUBTITLE"]),
         schema(.subtitle, "Subtitle", .basic, ["SUBTITLE"], id3: ["TIT3"], mp4Freeform: ["SUBTITLE"]),
         schema(.grouping, "Grouping", .basic, ["GROUPING"], id3: ["TIT1"], mp4: ["\u{00A9}grp"], multi: true),

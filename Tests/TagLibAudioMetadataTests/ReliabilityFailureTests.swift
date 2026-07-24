@@ -75,6 +75,11 @@ final class ReliabilityFailureTests: XCTestCase {
             try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: link, failurePolicy: .throw)
         )
         XCTAssertEqual(try Data(contentsOf: target), originalBytes)
+
+        let bridgeMetadata = TagLibAudioMetadata()
+        bridgeMetadata.title = "Must not persist through the bridge"
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeMetadata(bridgeMetadata, to: link))
+        XCTAssertEqual(try Data(contentsOf: target), originalBytes)
     }
 
     func testRepeatedReadsUnicodeLongUnknownAndMultiValueRoundTrip() throws {
@@ -104,6 +109,15 @@ final class ReliabilityFailureTests: XCTestCase {
             XCTAssertEqual(raw.values(for: "UNKNOWN_RELEASE_FIELD"), ["alpha", "beta"], ext)
             XCTAssertEqual(raw.values(for: "ARTIST"), ["一", "Two"], ext)
         }
+    }
+
+    func testBinaryAPEItemUsingKnownTextKeyDoesNotCrashExtraction() throws {
+        let url = try copyFixture("mp3")
+        try appendBinaryAPEv2Item(key: "TRACK", value: Data([0x01, 0x02]), to: url)
+
+        let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(metadata.track, 0)
+        XCTAssertEqual(metadata.trackNumberText, "")
     }
 
     func testRepeatedEraseAndWAVAudioPayloadPreservation() throws {
@@ -214,6 +228,38 @@ final class ReliabilityFailureTests: XCTestCase {
             offset = end + (length % 2)
         }
         return nil
+    }
+
+    private func appendBinaryAPEv2Item(key: String, value: Data, to url: URL) throws {
+        var fileData = try Data(contentsOf: url)
+        let keyBytes = Array(key.utf8)
+
+        var item = Data()
+        item.append(contentsOf: littleEndianBytes(UInt32(value.count)))
+        item.append(contentsOf: littleEndianBytes(2)) // APEv2 Binary item type.
+        item.append(contentsOf: keyBytes)
+        item.append(0)
+        item.append(value)
+
+        var footer = Data("APETAGEX".utf8)
+        footer.append(contentsOf: littleEndianBytes(2_000))
+        footer.append(contentsOf: littleEndianBytes(UInt32(item.count + 32)))
+        footer.append(contentsOf: littleEndianBytes(1))
+        footer.append(contentsOf: littleEndianBytes(0))
+        footer.append(contentsOf: repeatElement(0, count: 8))
+
+        fileData.append(item)
+        fileData.append(footer)
+        try fileData.write(to: url)
+    }
+
+    private func littleEndianBytes(_ value: UInt32) -> [UInt8] {
+        [
+            UInt8(truncatingIfNeeded: value),
+            UInt8(truncatingIfNeeded: value >> 8),
+            UInt8(truncatingIfNeeded: value >> 16),
+            UInt8(truncatingIfNeeded: value >> 24),
+        ]
     }
 }
 

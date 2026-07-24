@@ -11,7 +11,9 @@
 #include <cerrno>
 #include <cstdio>
 #include <fcntl.h>
+#include <initializer_list>
 #include <limits>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdarg.h>
 
@@ -186,7 +188,18 @@ static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
         return NO;
     }
 
-    NSURL *targetURL = fileURL.URLByResolvingSymlinksInPath;
+    NSURL *targetURL = fileURL.URLByStandardizingPath;
+    struct stat originalIdentity = {};
+    if (lstat(targetURL.path.fileSystemRepresentation, &originalIdentity) != 0 ||
+        !S_ISREG(originalIdentity.st_mode)) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9101
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Metadata mutations require an existing regular file and do not follow symbolic links" }];
+        }
+        return NO;
+    }
+
     NSError *resourceError = nil;
     NSNumber *isRegularFile = nil;
     if (![targetURL getResourceValue:&isRegularFile
@@ -239,6 +252,18 @@ static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
                                          NSLocalizedDescriptionKey : @"Could not create a transactional copy of the metadata destination",
                                          NSUnderlyingErrorKey : copyError,
                                      }];
+        }
+        return NO;
+    }
+
+    struct stat temporaryIdentity = {};
+    if (lstat(temporaryURL.path.fileSystemRepresentation, &temporaryIdentity) != 0 ||
+        !S_ISREG(temporaryIdentity.st_mode)) {
+        [fileManager removeItemAtURL:temporaryURL error:nil];
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9103
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Transactional metadata copies must remain regular files" }];
         }
         return NO;
     }
@@ -296,6 +321,20 @@ static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
         return NO;
     }
     close(temporaryDescriptor);
+
+    struct stat currentIdentity = {};
+    if (lstat(targetURL.path.fileSystemRepresentation, &currentIdentity) != 0 ||
+        !S_ISREG(currentIdentity.st_mode) ||
+        currentIdentity.st_dev != originalIdentity.st_dev ||
+        currentIdentity.st_ino != originalIdentity.st_ino) {
+        [fileManager removeItemAtURL:temporaryURL error:nil];
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9108
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"The metadata destination changed before the transaction could commit" }];
+        }
+        return NO;
+    }
 
     if (std::rename(temporaryURL.path.fileSystemRepresentation, targetURL.path.fileSystemRepresentation) != 0) {
         int renameErrorCode = errno;
@@ -639,7 +678,7 @@ static const AudioMatorMetadataFieldMapping kAudioMatorMetadataFieldMappings[] =
     { "DISCSUBTITLE", { nullptr }, "TSST", nullptr, nullptr, "DISCSUBTITLE", false, false, false },
     { "MOVEMENT", { "MOVEMENTNAME", nullptr }, "MVNM", nullptr, nullptr, "MOVEMENT", false, false, false },
     { "MOVEMENTNUMBER", { nullptr }, "MVIN", nullptr, nullptr, "MOVEMENTNUMBER", false, false, false },
-    { "MOVEMENTCOUNT", { nullptr }, "MVC", nullptr, nullptr, "MOVEMENTCOUNT", false, false, false },
+    { "MOVEMENTCOUNT", { nullptr }, "MVIN", nullptr, nullptr, "MOVEMENTCOUNT", false, false, false },
     { "WORK", { nullptr }, nullptr, "WORK", nullptr, "WORK", false, false, false },
     { "MOOD", { nullptr }, "TMOO", nullptr, nullptr, "MOOD", true, false, false },
     { "LANGUAGE", { nullptr }, "TLAN", nullptr, nullptr, "LANGUAGE", true, false, false },
@@ -2274,8 +2313,14 @@ static NSString * _Nullable GetReleaseDate(TagLibAudioMetadata *m) { return m.re
 static NSString * _Nullable GetOriginalReleaseDate(TagLibAudioMetadata *m) { return m.originalReleaseDate; }
 static NSString * _Nullable GetLabel(TagLibAudioMetadata *m) { return m.label; }
 static NSString * _Nullable GetReleaseType(TagLibAudioMetadata *m) { return m.releaseType; }
+static NSString * _Nullable GetReleaseStatus(TagLibAudioMetadata *m) { return m.releaseStatus; }
 static NSString * _Nullable GetBarcode(TagLibAudioMetadata *m) { return m.barcode; }
 static NSString * _Nullable GetCatalogNumber(TagLibAudioMetadata *m) { return m.catalogNumber; }
+static NSString * _Nullable GetASIN(TagLibAudioMetadata *m) { return m.asin; }
+static NSString * _Nullable GetOriginalAlbum(TagLibAudioMetadata *m) { return m.originalAlbum; }
+static NSString * _Nullable GetOriginalArtist(TagLibAudioMetadata *m) { return m.originalArtist; }
+static NSString * _Nullable GetDiscSubtitle(TagLibAudioMetadata *m) { return m.discSubtitle; }
+static NSString * _Nullable GetWork(TagLibAudioMetadata *m) { return m.work; }
 static NSString * _Nullable GetItunesAlbumId(TagLibAudioMetadata *m) { return m.itunesAlbumId; }
 static NSString * _Nullable GetItunesArtistId(TagLibAudioMetadata *m) { return m.itunesArtistId; }
 static NSString * _Nullable GetItunesCatalogId(TagLibAudioMetadata *m) { return m.itunesCatalogId; }
@@ -2303,6 +2348,13 @@ static NSString * _Nullable GetEngineer(TagLibAudioMetadata *m) { return m.engin
 static NSString * _Nullable GetBPM(TagLibAudioMetadata *m) { return StringFromIntegerField(m.bpm); }
 static NSString * _Nullable GetMovementNumber(TagLibAudioMetadata *m) { return StringFromIntegerField(m.movementNumber); }
 static NSString * _Nullable GetMovementCount(TagLibAudioMetadata *m) { return StringFromIntegerField(m.movementCount); }
+static NSString * _Nullable GetMovementNumberPair(TagLibAudioMetadata *m) {
+    if (m.movementNumber <= 0 && m.movementCount <= 0) return nil;
+    if (m.movementCount > 0) {
+        return [NSString stringWithFormat:@"%ld/%ld", (long)MAX(0, m.movementNumber), (long)m.movementCount];
+    }
+    return StringFromIntegerField(m.movementNumber);
+}
 
 typedef struct {
     const char *id3v2TextFrame;
@@ -2335,16 +2387,23 @@ static const AudioMatorWritableTextMapping kAudioMatorWritableTextMappings[] = {
     { "TMOO", nullptr, nullptr, "MOOD", GetMood },
     { "TMED", nullptr, nullptr, "MEDIATYPE", GetMediaType },
     { "MVNM", nullptr, nullptr, "MOVEMENT", GetMovement },
-    { "MVIN", nullptr, nullptr, "MOVEMENTNUMBER", GetMovementNumber },
-    { "MVC", nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
+    { "MVIN", nullptr, nullptr, nullptr, GetMovementNumberPair },
+    { nullptr, nullptr, nullptr, "MOVEMENTNUMBER", GetMovementNumber },
+    { nullptr, nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
     { "TCMP", nullptr, nullptr, nullptr, GetCompilation },
     { "TDRL", nullptr, "\xA9" "day", nullptr, GetReleaseDate },
     { "TDRC", nullptr, nullptr, nullptr, GetReleaseDate },
     { "TDOR", nullptr, nullptr, "ORIGINAL YEAR", GetOriginalReleaseDate },
     { "TPUB", nullptr, nullptr, "LABEL", GetLabel },
     { nullptr, "RELEASETYPE", nullptr, "RELEASETYPE", GetReleaseType },
+    { nullptr, "RELEASESTATUS", nullptr, "RELEASESTATUS", GetReleaseStatus },
     { nullptr, "BARCODE", nullptr, "BARCODE", GetBarcode },
     { nullptr, "CATALOGNUMBER", nullptr, "CATALOGNUMBER", GetCatalogNumber },
+    { nullptr, "ASIN", nullptr, "ASIN", GetASIN },
+    { "TOAL", nullptr, nullptr, "ORIGINALALBUM", GetOriginalAlbum },
+    { "TOPE", nullptr, nullptr, "ORIGINALARTIST", GetOriginalArtist },
+    { "TSST", nullptr, nullptr, "DISCSUBTITLE", GetDiscSubtitle },
+    { nullptr, "WORK", nullptr, "WORK", GetWork },
     { nullptr, "ITUNESALBUMID", nullptr, "ITUNESALBUMID", GetItunesAlbumId },
     { nullptr, "ITUNESARTISTID", nullptr, "ITUNESARTISTID", GetItunesArtistId },
     { nullptr, "ITUNESCATALOGID", nullptr, "ITUNESCATALOGID", GetItunesCatalogId },
@@ -2867,10 +2926,10 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
                 metadata.movement = TagStringToNSString(value);
             }
             else if (frameIDStr == "MVIN") {
-                metadata.movementNumber = value.toInt();
-            }
-            else if (frameIDStr == "MVC") {
-                metadata.movementCount = value.toInt();
+                NSInteger movementNumber = 0, movementCount = 0;
+                ParseNumberPair(value, movementNumber, movementCount);
+                metadata.movementNumber = movementNumber;
+                metadata.movementCount = movementCount;
             }
             else if (frameIDStr == "TSST") {
                 metadata.discSubtitle = TagStringToNSString(value);
@@ -3120,197 +3179,7 @@ static void ExtractXiphCommentMetadata(TagLib::Ogg::XiphComment* tag, TagLibAudi
     if (!tag) return;
 
     ApplyBasicTagMetadata(tag, metadata);
-
-    const TagLib::PropertyMap& properties = tag->properties();
-    ApplyGenericPropertyMapMetadata(properties, metadata);
-    
-    // Track/Disc numbers
-    if (properties.contains("TRACKNUMBER")) {
-        TagLib::String trackStr = properties["TRACKNUMBER"].front();
-        NSInteger trackNum = 0, trackTotal = 0;
-        ParseNumberPair(trackStr, trackNum, trackTotal);
-        metadata.trackNumberText = PreferredNumberText(
-            metadata.trackNumberText,
-            TagStringToNSString(trackStr)
-        );
-        metadata.trackNumber = trackNum;
-        if (trackTotal > 0) metadata.totalTracks = trackTotal;
-    }
-    if (properties.contains("TRACKTOTAL") || properties.contains("TOTALTRACKS")) {
-        TagLib::String key = properties.contains("TRACKTOTAL") ? "TRACKTOTAL" : "TOTALTRACKS";
-        metadata.totalTracks = ExtractNumber(properties[key].front());
-    }
-    if (properties.contains("DISCNUMBER")) {
-        TagLib::String discStr = properties["DISCNUMBER"].front();
-        NSInteger discNum = 0, discTotal = 0;
-        ParseNumberPair(discStr, discNum, discTotal);
-        metadata.discNumberText = PreferredNumberText(
-            metadata.discNumberText,
-            TagStringToNSString(discStr)
-        );
-        metadata.discNumber = discNum;
-        if (discTotal > 0) metadata.totalDiscs = discTotal;
-    }
-    if (properties.contains("DISCTOTAL") || properties.contains("TOTALDISCS")) {
-        TagLib::String key = properties.contains("DISCTOTAL") ? "DISCTOTAL" : "TOTALDISCS";
-        metadata.totalDiscs = ExtractNumber(properties[key].front());
-    }
-    
-    // Album Artist
-    if (properties.contains("ALBUMARTIST")) {
-        metadata.albumArtist = TagStringToNSString(properties["ALBUMARTIST"].front());
-    }
-    
-    // BPM
-    if (properties.contains("BPM")) {
-        metadata.bpm = ExtractNumber(properties["BPM"].front());
-    }
-    
-    // Sort fields
-    if (properties.contains("TITLESORT")) {
-        metadata.sortTitle = TagStringToNSString(properties["TITLESORT"].front());
-    }
-    if (properties.contains("ARTISTSORT")) {
-        metadata.sortArtist = TagStringToNSString(properties["ARTISTSORT"].front());
-    }
-    if (properties.contains("ALBUMSORT")) {
-        metadata.sortAlbum = TagStringToNSString(properties["ALBUMSORT"].front());
-    }
-    if (properties.contains("ALBUMARTISTSORT")) {
-        metadata.sortAlbumArtist = TagStringToNSString(properties["ALBUMARTISTSORT"].front());
-    }
-    if (properties.contains("COMPOSERSORT")) {
-        metadata.sortComposer = TagStringToNSString(properties["COMPOSERSORT"].front());
-    }
-    
-    // Personnel
-    if (properties.contains("CONDUCTOR")) {
-        metadata.conductor = TagStringToNSString(properties["CONDUCTOR"].front());
-    }
-    if (properties.contains("REMIXER")) {
-        metadata.remixer = TagStringToNSString(properties["REMIXER"].front());
-    }
-    if (properties.contains("PRODUCER")) {
-        metadata.producer = TagStringToNSString(properties["PRODUCER"].front());
-    }
-    if (properties.contains("ENGINEER")) {
-        metadata.engineer = TagStringToNSString(properties["ENGINEER"].front());
-    }
-    if (properties.contains("LYRICIST")) {
-        metadata.lyricist = TagStringToNSString(properties["LYRICIST"].front());
-    }
-    
-    // Descriptive
-    if (properties.contains("SUBTITLE")) {
-        metadata.subtitle = TagStringToNSString(properties["SUBTITLE"].front());
-    }
-    if (properties.contains("GROUPING")) {
-        metadata.grouping = TagStringToNSString(properties["GROUPING"].front());
-    }
-    if (properties.contains("MOVEMENT")) {
-        metadata.movement = TagStringToNSString(properties["MOVEMENT"].front());
-    }
-    if (properties.contains("MOOD")) {
-        metadata.mood = TagStringToNSString(properties["MOOD"].front());
-    }
-    if (properties.contains("LANGUAGE")) {
-        metadata.language = TagStringToNSString(properties["LANGUAGE"].front());
-    }
-    if (properties.contains("INITIALKEY") || properties.contains("KEY")) {
-        TagLib::String key = properties.contains("INITIALKEY") ? "INITIALKEY" : "KEY";
-        metadata.musicalKey = TagStringToNSString(properties[key].front());
-    }
-    
-    // Other metadata
-    if (properties.contains("COPYRIGHT")) {
-        metadata.copyright = TagStringToNSString(properties["COPYRIGHT"].front());
-    }
-    if (properties.contains("LYRICS")) {
-        metadata.lyrics = TagStringToNSString(properties["LYRICS"].front());
-    }
-    if (properties.contains("LABEL")) {
-        metadata.label = TagStringToNSString(properties["LABEL"].front());
-    }
-    if (properties.contains("ISRC")) {
-        metadata.isrc = TagStringToNSString(properties["ISRC"].front());
-    }
-    if (properties.contains("ENCODEDBY")) {
-        metadata.encodedBy = TagStringToNSString(properties["ENCODEDBY"].front());
-    }
-    if (properties.contains("ENCODERSETTINGS")) {
-        metadata.encoderSettings = TagStringToNSString(properties["ENCODERSETTINGS"].front());
-    }
-    
-    // Date fields
-    if (properties.contains("RELEASEDATE")) {
-        metadata.releaseDate = TagStringToNSString(properties["RELEASEDATE"].front());
-    } else if (properties.contains("DATE")) {
-        metadata.releaseDate = TagStringToNSString(properties["DATE"].front());
-    }
-    if (properties.contains("ORIGINALDATE")) {
-        metadata.originalReleaseDate = TagStringToNSString(properties["ORIGINALDATE"].front());
-    }
-    
-    // MusicBrainz IDs
-    if (properties.contains("MUSICBRAINZ_ARTISTID")) {
-        metadata.musicBrainzArtistId = TagStringToNSString(properties["MUSICBRAINZ_ARTISTID"].front());
-    }
-    if (properties.contains("MUSICBRAINZ_ALBUMID")) {
-        metadata.musicBrainzAlbumId = TagStringToNSString(properties["MUSICBRAINZ_ALBUMID"].front());
-    }
-    if (properties.contains("MUSICBRAINZ_TRACKID")) {
-        metadata.musicBrainzTrackId = TagStringToNSString(properties["MUSICBRAINZ_TRACKID"].front());
-    }
-    if (properties.contains("MUSICBRAINZ_RELEASEGROUPID")) {
-        metadata.musicBrainzReleaseGroupId = TagStringToNSString(properties["MUSICBRAINZ_RELEASEGROUPID"].front());
-    }
-    
-    // Professional music player fields
-    if (properties.contains("RELEASETYPE")) {
-        metadata.releaseType = TagStringToNSString(properties["RELEASETYPE"].front());
-    } else if (properties.contains("MUSICBRAINZ_ALBUMTYPE")) {
-        metadata.releaseType = TagStringToNSString(properties["MUSICBRAINZ_ALBUMTYPE"].front());
-    }
-    
-    if (properties.contains("BARCODE")) {
-        metadata.barcode = TagStringToNSString(properties["BARCODE"].front());
-    } else if (properties.contains("UPC")) {
-        metadata.barcode = TagStringToNSString(properties["UPC"].front());
-    } else if (properties.contains("EAN")) {
-        metadata.barcode = TagStringToNSString(properties["EAN"].front());
-    }
-    
-    if (properties.contains("CATALOGNUMBER")) {
-        metadata.catalogNumber = TagStringToNSString(properties["CATALOGNUMBER"].front());
-    } else if (properties.contains("CATALOG")) {
-        metadata.catalogNumber = TagStringToNSString(properties["CATALOG"].front());
-    }
-    
-    if (properties.contains("RELEASECOUNTRY")) {
-        metadata.releaseCountry = TagStringToNSString(properties["RELEASECOUNTRY"].front());
-    } else if (properties.contains("MUSICBRAINZ_ALBUMRELEASECOUNTRY")) {
-        metadata.releaseCountry = TagStringToNSString(properties["MUSICBRAINZ_ALBUMRELEASECOUNTRY"].front());
-    }
-    
-    if (properties.contains("MUSICBRAINZ_ARTISTTYPE")) {
-        metadata.artistType = TagStringToNSString(properties["MUSICBRAINZ_ARTISTTYPE"].front());
-    }
-    
-    // ReplayGain
-    if (properties.contains("REPLAYGAIN_TRACK_GAIN")) {
-        metadata.replayGainTrack = TagStringToNSString(properties["REPLAYGAIN_TRACK_GAIN"].front());
-    }
-    if (properties.contains("REPLAYGAIN_ALBUM_GAIN")) {
-        metadata.replayGainAlbum = TagStringToNSString(properties["REPLAYGAIN_ALBUM_GAIN"].front());
-    }
-    
-    // Compilation
-    if (properties.contains("COMPILATION")) {
-        TagLib::String compStr = properties["COMPILATION"].front();
-        metadata.compilation = (compStr == "1" || compStr.upper() == "TRUE");
-    }
-
-    ApplyExplicitPropertyKeys(properties, metadata);
+    ApplyGenericPropertyMapMetadata(tag->properties(), metadata);
 }
 
 // Extract FLAC picture
@@ -3328,6 +3197,32 @@ static void ExtractFLACPicture(TagLib::FLAC::File* file, TagLibAudioMetadata* me
     }
 }
 
+static bool FirstTextAPEItemValue(const TagLib::APE::ItemListMap& items,
+                                  std::initializer_list<const char *> keys,
+                                  TagLib::String& value)
+{
+    for (const char *key : keys) {
+        if (!items.contains(key)) {
+            continue;
+        }
+
+        const TagLib::APE::Item& item = items[key];
+        if (item.type() != TagLib::APE::Item::Text) {
+            continue;
+        }
+
+        const TagLib::StringList values = item.values();
+        if (values.isEmpty()) {
+            continue;
+        }
+
+        value = values.front();
+        return true;
+    }
+
+    return false;
+}
+
 // Extract APE metadata
 static void ExtractAPEMetadata(TagLib::APE::Tag* tag, TagLibAudioMetadata* metadata) {
     if (!tag) return;
@@ -3337,8 +3232,8 @@ static void ExtractAPEMetadata(TagLib::APE::Tag* tag, TagLibAudioMetadata* metad
     const TagLib::APE::ItemListMap& items = tag->itemListMap();
     
     // Track/Disc numbers
-    if (items.contains("TRACK")) {
-        TagLib::String trackStr = items["TRACK"].values().front();
+    TagLib::String trackStr;
+    if (FirstTextAPEItemValue(items, { "TRACK" }, trackStr)) {
         NSInteger trackNum = 0, trackTotal = 0;
         ParseNumberPair(trackStr, trackNum, trackTotal);
         metadata.trackNumberText = PreferredNumberText(
@@ -3348,8 +3243,8 @@ static void ExtractAPEMetadata(TagLib::APE::Tag* tag, TagLibAudioMetadata* metad
         metadata.trackNumber = trackNum;
         if (trackTotal > 0) metadata.totalTracks = trackTotal;
     }
-    if (items.contains("DISC")) {
-        TagLib::String discStr = items["DISC"].values().front();
+    TagLib::String discStr;
+    if (FirstTextAPEItemValue(items, { "DISC" }, discStr)) {
         NSInteger discNum = 0, discTotal = 0;
         ParseNumberPair(discStr, discNum, discTotal);
         metadata.discNumberText = PreferredNumberText(
@@ -3361,44 +3256,42 @@ static void ExtractAPEMetadata(TagLib::APE::Tag* tag, TagLibAudioMetadata* metad
     }
     
     // Album Artist
-    if (items.contains("ALBUM ARTIST") || items.contains("ALBUMARTIST")) {
-        TagLib::String key = items.contains("ALBUM ARTIST") ? "ALBUM ARTIST" : "ALBUMARTIST";
-        metadata.albumArtist = TagStringToNSString(items[key].values().front());
+    TagLib::String textValue;
+    if (FirstTextAPEItemValue(items, { "ALBUM ARTIST", "ALBUMARTIST" }, textValue)) {
+        metadata.albumArtist = TagStringToNSString(textValue);
     }
     
     // BPM
-    if (items.contains("BPM")) {
-        metadata.bpm = items["BPM"].values().front().toInt();
+    if (FirstTextAPEItemValue(items, { "BPM" }, textValue)) {
+        metadata.bpm = textValue.toInt();
     }
     
     // Other metadata
-    if (items.contains("COPYRIGHT")) {
-        metadata.copyright = TagStringToNSString(items["COPYRIGHT"].values().front());
+    if (FirstTextAPEItemValue(items, { "COPYRIGHT" }, textValue)) {
+        metadata.copyright = TagStringToNSString(textValue);
     }
-    if (items.contains("LYRICS")) {
-        metadata.lyrics = TagStringToNSString(items["LYRICS"].values().front());
+    if (FirstTextAPEItemValue(items, { "LYRICS" }, textValue)) {
+        metadata.lyrics = TagStringToNSString(textValue);
     }
-    if (items.contains("ISRC")) {
-        metadata.isrc = TagStringToNSString(items["ISRC"].values().front());
+    if (FirstTextAPEItemValue(items, { "ISRC" }, textValue)) {
+        metadata.isrc = TagStringToNSString(textValue);
     }
-    if (items.contains("LABEL")) {
-        metadata.label = TagStringToNSString(items["LABEL"].values().front());
+    if (FirstTextAPEItemValue(items, { "LABEL" }, textValue)) {
+        metadata.label = TagStringToNSString(textValue);
     }
     
     // Professional music player fields
-    if (items.contains("RELEASETYPE")) {
-        metadata.releaseType = TagStringToNSString(items["RELEASETYPE"].values().front());
+    if (FirstTextAPEItemValue(items, { "RELEASETYPE" }, textValue)) {
+        metadata.releaseType = TagStringToNSString(textValue);
     }
-    if (items.contains("BARCODE")) {
-        metadata.barcode = TagStringToNSString(items["BARCODE"].values().front());
-    } else if (items.contains("UPC")) {
-        metadata.barcode = TagStringToNSString(items["UPC"].values().front());
+    if (FirstTextAPEItemValue(items, { "BARCODE", "UPC" }, textValue)) {
+        metadata.barcode = TagStringToNSString(textValue);
     }
-    if (items.contains("CATALOGNUMBER")) {
-        metadata.catalogNumber = TagStringToNSString(items["CATALOGNUMBER"].values().front());
+    if (FirstTextAPEItemValue(items, { "CATALOGNUMBER" }, textValue)) {
+        metadata.catalogNumber = TagStringToNSString(textValue);
     }
-    if (items.contains("RELEASECOUNTRY")) {
-        metadata.releaseCountry = TagStringToNSString(items["RELEASECOUNTRY"].values().front());
+    if (FirstTextAPEItemValue(items, { "RELEASECOUNTRY" }, textValue)) {
+        metadata.releaseCountry = TagStringToNSString(textValue);
     }
     
     // Cover art
@@ -7278,6 +7171,7 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
 
     for (NSDictionary *entry in StructuredArray(metadata, @"artwork") ?: @[]) {
         if (![entry[@"data"] isKindOfClass:[NSData class]] ||
+            ((NSData *)entry[@"data"]).length == 0 ||
             ((NSData *)entry[@"data"]).length > std::numeric_limits<unsigned int>::max() ||
             !StructuredOptionalValueHasClass(entry, @"container", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"mimeType", [NSString class]) ||
@@ -7313,6 +7207,22 @@ static NSInteger IntegerValueFromObject(NSObject *value)
         return [(NSString *)value integerValue];
     }
     return 0;
+}
+
+static bool BooleanValueFromObject(NSObject *value)
+{
+    if ([value isKindOfClass:[NSNumber class]]) {
+        return [(NSNumber *)value boolValue];
+    }
+    if ([value isKindOfClass:[NSString class]]) {
+        NSString *normalized = [(NSString *)value stringByTrimmingCharactersInSet:
+            NSCharacterSet.whitespaceAndNewlineCharacterSet].lowercaseString;
+        return [normalized isEqualToString:@"true"] ||
+            [normalized isEqualToString:@"yes"] ||
+            [normalized isEqualToString:@"on"] ||
+            normalized.integerValue != 0;
+    }
+    return false;
 }
 
 static NSData *DataValueFromObject(NSObject *value)
@@ -7388,6 +7298,39 @@ static void ReplaceID3v2Artwork(TagLib::ID3v2::Tag *tag, NSArray<NSDictionary<NS
     }
 }
 
+static TagLib::List<TagLib::VariantMap> StructuredPictureComplexProperties(
+    NSArray<NSDictionary<NSString *, NSObject *> *> *artwork)
+{
+    TagLib::List<TagLib::VariantMap> pictures;
+    for (NSDictionary<NSString *, NSObject *> *entry in artwork ?: @[]) {
+        NSData *data = DataValueFromObject(entry[@"data"]);
+        if (data.length == 0) continue;
+
+        TagLib::VariantMap picture;
+        picture.insert("data", TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
+        picture.insert(
+            "mimeType",
+            NSStringToTagString(NormalizedArtworkMimeType((NSString *)entry[@"mimeType"]))
+        );
+        NSString *pictureType = TrimmedStringOrNil((NSString *)entry[@"pictureType"]) ?: @"Front Cover";
+        picture.insert("pictureType", NSStringToTagString(pictureType));
+        NSString *description = TrimmedStringOrNil((NSString *)entry[@"description"]);
+        if (description) {
+            picture.insert("description", NSStringToTagString(description));
+        }
+        pictures.append(picture);
+    }
+    return pictures;
+}
+
+template <typename ComplexPropertyTarget>
+static bool ReplaceStructuredComplexArtwork(ComplexPropertyTarget *target,
+                                             NSArray<NSDictionary<NSString *, NSObject *> *> *artwork)
+{
+    return !target || !artwork ||
+        target->setComplexProperties("PICTURE", StructuredPictureComplexProperties(artwork));
+}
+
 static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
                                         NSArray<NSDictionary<NSString *, NSObject *> *> *frames)
 {
@@ -7461,9 +7404,7 @@ static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
             if (list.isEmpty()) tag->removeItem(NSStringToTagString(key));
             else tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(list));
         } else if ([type isEqualToString:@"bool"]) {
-            const bool boolValue = [entry[@"value"] isKindOfClass:[NSNumber class]]
-                ? [(NSNumber *)entry[@"value"] boolValue]
-                : false;
+            const bool boolValue = BooleanValueFromObject(entry[@"value"]);
             tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(boolValue));
         } else if ([type isEqualToString:@"int"]) {
             tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((int)IntegerValueFromObject(entry[@"value"])));
@@ -7514,9 +7455,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         } else if ([type isEqualToString:@"string"]) {
             attribute = TagLib::ASF::Attribute(NSStringToTagString((NSString *)entry[@"value"]));
         } else if ([type isEqualToString:@"bool"]) {
-            const bool boolValue = [entry[@"value"] isKindOfClass:[NSNumber class]]
-                ? [(NSNumber *)entry[@"value"] boolValue]
-                : false;
+            const bool boolValue = BooleanValueFromObject(entry[@"value"]);
             attribute = TagLib::ASF::Attribute(boolValue);
         } else if ([type isEqualToString:@"int64"]) {
             attribute = TagLib::ASF::Attribute((unsigned long long)IntegerValueFromObject(entry[@"value"]));
@@ -7612,7 +7551,10 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
         ReplaceID3v2Artwork(tag, artwork);
-        if (!file.save()) {
+        if (!file.save(TagLib::MPEG::File::ID3v2,
+                       TagLib::File::StripNone,
+                       TagLib::ID3v2::v4,
+                       TagLib::File::DoNotDuplicate)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:233 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MPEG metadata" }];
             return NO;
         }
@@ -7671,6 +7613,10 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             file.setProperties(BuildRawPropertyMapValues(propertyValues));
         }
         ApplyStructuredMP4Atoms(file.tag(), mp4Atoms);
+        if (!ReplaceStructuredComplexArtwork(file.tag(), artwork)) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:243 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to apply structured MP4 artwork" }];
+            return NO;
+        }
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:239 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MP4 metadata" }];
             return NO;
@@ -7688,6 +7634,10 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             file.setProperties(BuildRawPropertyMapValues(propertyValues));
         }
         ApplyStructuredASFAttributes(file.tag(), asfAttributes);
+        if (!ReplaceStructuredComplexArtwork(file.tag(), artwork)) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:244 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to apply structured ASF artwork" }];
+            return NO;
+        }
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:241 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured ASF/WMA metadata" }];
             return NO;

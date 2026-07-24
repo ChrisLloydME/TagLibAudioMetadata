@@ -52,4 +52,24 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertTrue(mp4Schemas.contains { $0.key == .title })
         XCTAssertTrue(MetadataFieldRegistry.schema(.title, hasMappingFor: .mp4))
     }
+
+    func testFieldRegistryCoversEveryFieldExactlyOnce() {
+        let schemaKeys = MetadataFieldRegistry.allSchemas.map(\.key)
+
+        XCTAssertEqual(schemaKeys.count, Set(schemaKeys).count, "Metadata field schemas must not contain duplicate keys.")
+        XCTAssertEqual(Set(schemaKeys), Set(MetadataFieldKey.allCases), "Every public metadata field key needs one schema.")
+    }
+
+    func testCapabilityDescriptorsHaveUniqueIdentifiersAndExtensions() {
+        let capabilities = TagLibMetadataManager.formatCapabilities
+        let identifiers = capabilities.map(\.identifier)
+        let extensions = capabilities.flatMap(\.extensions)
+
+        XCTAssertEqual(identifiers.count, Set(identifiers).count)
+        XCTAssertEqual(extensions.count, Set(extensions).count)
+        for capability in capabilities {
+            XCTAssertTrue(capability.extensions.contains(capability.primaryExtension), capability.identifier)
+            XCTAssertEqual(capability.extensions, capability.extensions.map { $0.lowercased() }, capability.identifier)
+        }
+    }
 }
