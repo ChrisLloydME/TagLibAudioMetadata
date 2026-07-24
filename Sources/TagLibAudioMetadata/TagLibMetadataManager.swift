@@ -344,6 +344,14 @@ public enum RIFFMetadataWritePolicy: String, Hashable, Sendable {
     case syncBasicFieldsToInfo
 }
 
+/// Structured collections whose bridge representation has replace-all semantics.
+/// Include an empty collection here to remove every existing entry of that kind.
+public enum StructuredMetadataReplaceableCollection: String, Hashable, Sendable {
+    case artwork
+    case lyrics
+    case comments
+}
+
 public struct StructuredPropertyEntry: Identifiable, Hashable, Sendable {
     public let id = UUID()
     public var key: String
@@ -367,6 +375,15 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
     public var owner: String?
     public var data: Data?
     public var fields: [String: String]
+    public var elementID: String?
+    public var startTimeMilliseconds: Int?
+    public var endTimeMilliseconds: Int?
+    public var startOffset: Int?
+    public var endOffset: Int?
+    public var isTopLevel: Bool?
+    public var isOrdered: Bool?
+    public var children: [String]
+    public var embeddedFrameCount: Int?
 
     public init(
         frameID: String,
@@ -378,7 +395,16 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
         url: String? = nil,
         owner: String? = nil,
         data: Data? = nil,
-        fields: [String: String] = [:]
+        fields: [String: String] = [:],
+        elementID: String? = nil,
+        startTimeMilliseconds: Int? = nil,
+        endTimeMilliseconds: Int? = nil,
+        startOffset: Int? = nil,
+        endOffset: Int? = nil,
+        isTopLevel: Bool? = nil,
+        isOrdered: Bool? = nil,
+        children: [String] = [],
+        embeddedFrameCount: Int? = nil
     ) {
         self.frameID = frameID
         self.type = type
@@ -390,6 +416,15 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
         self.owner = owner
         self.data = data
         self.fields = fields
+        self.elementID = elementID
+        self.startTimeMilliseconds = startTimeMilliseconds
+        self.endTimeMilliseconds = endTimeMilliseconds
+        self.startOffset = startOffset
+        self.endOffset = endOffset
+        self.isTopLevel = isTopLevel
+        self.isOrdered = isOrdered
+        self.children = children
+        self.embeddedFrameCount = embeddedFrameCount
     }
 }
 
@@ -528,6 +563,21 @@ public struct TagLibMetadataManager {
 
     nonisolated private static let errorDomain = "TagLibMetadataManager"
 
+    nonisolated private struct FileIdentity: Equatable {
+        var device: dev_t
+        var inode: ino_t
+    }
+
+    nonisolated private static func regularFileIdentity(at url: URL) -> FileIdentity? {
+        var information = stat()
+        let status = url.path.withCString { path in
+            Darwin.lstat(path, &information)
+        }
+        let fileType = information.st_mode & mode_t(S_IFMT)
+        guard status == 0, fileType == mode_t(S_IFREG) else { return nil }
+        return FileIdentity(device: information.st_dev, inode: information.st_ino)
+    }
+
     nonisolated private static func mutationError(
         code: Int,
         description: String,
@@ -549,6 +599,13 @@ public struct TagLibMetadataManager {
     ) throws -> Result {
         guard url.isFileURL else {
             throw mutationError(code: 1001, description: "Metadata mutations require a file URL.")
+        }
+
+        guard let originalIdentity = regularFileIdentity(at: url) else {
+            throw mutationError(
+                code: 1003,
+                description: "Metadata mutations require an existing regular file and do not follow symbolic links."
+            )
         }
 
         let values: URLResourceValues
@@ -605,6 +662,13 @@ public struct TagLibMetadataManager {
             )
         }
 
+        guard regularFileIdentity(at: temporaryURL) != nil else {
+            throw mutationError(
+                code: 1004,
+                description: "The transactional metadata copy is not a regular file."
+            )
+        }
+
         let result = try operation(temporaryURL)
         let temporaryDescriptor = temporaryURL.path.withCString { temporaryPath in
             Darwin.open(temporaryPath, O_RDONLY)
@@ -628,6 +692,13 @@ public struct TagLibMetadataManager {
             )
         }
         Darwin.close(temporaryDescriptor)
+
+        guard regularFileIdentity(at: url) == originalIdentity else {
+            throw mutationError(
+                code: 1005,
+                description: "The metadata destination changed before the transaction could commit."
+            )
+        }
 
         let renameResult = temporaryURL.path.withCString { temporaryPath in
             url.path.withCString { destinationPath in
@@ -1040,6 +1111,52 @@ public struct TagLibMetadataManager {
         case "sortAlbum": metadata.sortAlbum
         case "sortAlbumArtist": metadata.sortAlbumArtist
         case "sortComposer": metadata.sortComposer
+        case "conductor": metadata.conductor
+        case "remixer": metadata.remixer
+        case "producer": metadata.producer
+        case "engineer": metadata.engineer
+        case "lyricist": metadata.lyricist
+        case "subtitle": metadata.subtitle
+        case "grouping": metadata.grouping
+        case "movement": metadata.movement
+        case "mood": metadata.mood
+        case "language": metadata.language
+        case "musicalKey": metadata.musicalKey
+        case "replayGainTrack": metadata.replayGainTrack
+        case "replayGainAlbum": metadata.replayGainAlbum
+        case "mediaType": metadata.mediaType
+        case "itunesAlbumID": metadata.itunesAlbumID
+        case "itunesArtistID": metadata.itunesArtistID
+        case "itunesCatalogID": metadata.itunesCatalogID
+        case "itunesGenreID": metadata.itunesGenreID
+        case "itunesMediaType": metadata.itunesMediaType
+        case "itunesPurchaseDate": metadata.itunesPurchaseDate
+        case "itunesNorm": metadata.itunesNorm
+        case "itunesSMPB": metadata.itunesSMPB
+        case "releaseType": metadata.releaseType
+        case "releaseStatus": metadata.releaseStatus
+        case "catalogNumber": metadata.catalogNumber
+        case "releaseCountry": metadata.releaseCountry
+        case "artistType": metadata.artistType
+        case "asin": metadata.asin
+        case "originalAlbum": metadata.originalAlbum
+        case "originalArtist": metadata.originalArtist
+        case "discSubtitle": metadata.discSubtitle
+        case "work": metadata.work
+        case "musicBrainzArtistID": metadata.musicBrainzArtistID
+        case "musicBrainzAlbumID": metadata.musicBrainzAlbumID
+        case "musicBrainzAlbumArtistID": metadata.musicBrainzAlbumArtistID
+        case "musicBrainzTrackID": metadata.musicBrainzTrackID
+        case "musicBrainzReleaseGroupID": metadata.musicBrainzReleaseGroupID
+        case "musicBrainzReleaseTrackID": metadata.musicBrainzReleaseTrackID
+        case "musicBrainzWorkID": metadata.musicBrainzWorkID
+        case "acoustID": metadata.acoustID
+        case "acoustIDFingerprint": metadata.acoustIDFingerprint
+        case "musicIPPUID": metadata.musicIPPUID
+        case "movementNumber": String(metadata.movementNumber)
+        case "movementCount": String(metadata.movementCount)
+        case "bpm": String(metadata.bpm)
+        case "isCompilation": String(metadata.isCompilation)
         default: ""
         }
     }
@@ -1208,6 +1325,13 @@ public struct TagLibMetadataManager {
         return nil
     }
 
+    nonisolated private static func boolValue(_ dict: [String: Any], _ key: String) -> Bool? {
+        if let value = dict[key] as? Bool { return value }
+        if let value = dict[key] as? NSNumber { return value.boolValue }
+        if let value = dict[key] as? String { return structuredBoolean(value) }
+        return nil
+    }
+
     nonisolated private static func stringArrayValue(_ dict: [String: Any], _ key: String) -> [String] {
         (dict[key] as? [String]) ?? []
     }
@@ -1216,7 +1340,11 @@ public struct TagLibMetadataManager {
         (dict[key] as? [[String: Any]]) ?? []
     }
 
-    nonisolated private static func bridgePayload(from metadata: StructuredMetadata, includeProperties: Bool) -> [String: NSObject] {
+    nonisolated private static func bridgePayload(
+        from metadata: StructuredMetadata,
+        includeProperties: Bool,
+        replacingCollections: Set<StructuredMetadataReplaceableCollection>
+    ) -> [String: NSObject] {
         var payload: [String: NSObject] = [:]
 
         if includeProperties {
@@ -1275,7 +1403,7 @@ public struct TagLibMetadataManager {
             } as NSArray
         }
 
-        if !metadata.artwork.isEmpty {
+        if !metadata.artwork.isEmpty || replacingCollections.contains(.artwork) {
             payload["artwork"] = metadata.artwork.map { artwork in
                 var dict: [String: Any] = [
                     "container": artwork.container,
@@ -1289,13 +1417,13 @@ public struct TagLibMetadataManager {
             } as NSArray
         }
 
-        if !metadata.lyrics.isEmpty {
+        if !metadata.lyrics.isEmpty || replacingCollections.contains(.lyrics) {
             payload["lyrics"] = metadata.lyrics.map {
                 ["language": $0.language, "description": $0.description, "text": $0.text] as NSDictionary
             } as NSArray
         }
 
-        if !metadata.comments.isEmpty {
+        if !metadata.comments.isEmpty || replacingCollections.contains(.comments) {
             payload["comments"] = metadata.comments.map {
                 ["language": $0.language, "description": $0.description, "text": $0.text] as NSDictionary
             } as NSArray
@@ -1304,34 +1432,163 @@ public struct TagLibMetadataManager {
         return payload
     }
 
-    nonisolated private static func structuredWriteWarnings(expected: StructuredMetadata, for url: URL) -> [String] {
+    nonisolated private static func structuredBoolean(_ value: String) -> Bool? {
+        let normalized = normalizedTrimmed(value).lowercased()
+        return switch normalized {
+        case "1", "true", "yes", "on": true
+        case "0", "false", "no", "off": false
+        default: Int(normalized).map { $0 != 0 }
+        }
+    }
+
+    nonisolated private static func unorderedCollectionMatches<Expected, Actual>(
+        _ expected: [Expected],
+        _ actual: [Actual],
+        requireEqualCount: Bool = true,
+        matching: (Expected, Actual) -> Bool
+    ) -> Bool {
+        if requireEqualCount, expected.count != actual.count { return false }
+        if expected.count > actual.count { return false }
+
+        var remaining = actual
+        for expectedValue in expected {
+            guard let index = remaining.firstIndex(where: { matching(expectedValue, $0) }) else {
+                return false
+            }
+            remaining.remove(at: index)
+        }
+        return true
+    }
+
+    nonisolated private static func structuredID3v2FrameMatches(
+        _ expected: StructuredID3v2Frame,
+        _ actual: StructuredID3v2Frame
+    ) -> Bool {
+        guard expected.frameID == actual.frameID, expected.type == actual.type else { return false }
+
+        let expectedText = normalizedTrimmed(
+            expected.values.isEmpty ? expected.value : expected.values.joined(separator: "; ")
+        )
+        let actualText = normalizedTrimmed(actual.value)
+
+        switch expected.type {
+        case "ufid":
+            return expected.owner == actual.owner && expected.data == actual.data
+        case "url":
+            return expected.url == actual.url &&
+                (expected.frameID != "WXXX" || expected.description == actual.description)
+        case "userText":
+            let actualValues = actual.values.dropFirst(
+                actual.values.first == actual.description ? 1 : 0
+            )
+            let actualJoined = normalizedTrimmed(actualValues.joined(separator: "; "))
+            return expected.description == actual.description &&
+                (expectedText == actualText || expectedText == actualJoined)
+        case "text":
+            let actualJoined = normalizedTrimmed(actual.values.joined(separator: "; "))
+            return expectedText == actualText || expectedText == actualJoined
+        case "chapter":
+            return expected.elementID == actual.elementID &&
+                expected.startTimeMilliseconds == actual.startTimeMilliseconds &&
+                expected.endTimeMilliseconds == actual.endTimeMilliseconds &&
+                expected.startOffset == actual.startOffset &&
+                expected.endOffset == actual.endOffset
+        case "tableOfContents":
+            return expected.elementID == actual.elementID &&
+                expected.isTopLevel == actual.isTopLevel &&
+                expected.isOrdered == actual.isOrdered &&
+                expected.children == actual.children
+        default:
+            return expectedText.isEmpty || expectedText == actualText
+        }
+    }
+
+    nonisolated private static func structuredASFAttributeMatches(
+        _ expected: StructuredASFAttribute,
+        _ actual: StructuredASFAttribute
+    ) -> Bool {
+        guard expected.key == actual.key,
+              expected.type == actual.type,
+              expected.language == actual.language,
+              expected.stream == actual.stream else {
+            return false
+        }
+
+        switch expected.type {
+        case "bool":
+            return structuredBoolean(expected.value) == structuredBoolean(actual.value)
+        case "binary", "guid":
+            return expected.data == actual.data
+        default:
+            return normalizedTrimmed(expected.value) == normalizedTrimmed(actual.value)
+        }
+    }
+
+    nonisolated private static func structuredWriteWarnings(
+        expected: StructuredMetadata,
+        replacingCollections: Set<StructuredMetadataReplaceableCollection>,
+        for url: URL
+    ) -> [String] {
         guard let after = try? readStructuredMetadataResult(from: url) else {
             return ["Could not verify structured metadata after save."]
         }
 
         var warnings: [String] = []
+        var unmatchedFrames = after.id3v2Frames
         for frame in expected.id3v2Frames {
-            if !after.id3v2Frames.contains(where: { $0.frameID == frame.frameID && $0.type == frame.type }) {
+            if let index = unmatchedFrames.firstIndex(where: { structuredID3v2FrameMatches(frame, $0) }) {
+                unmatchedFrames.remove(at: index)
+            } else {
                 warnings.append("ID3v2 frame \(frame.frameID) could not be confirmed after save.")
             }
         }
-        if !expected.comments.isEmpty, after.comments.count < expected.comments.count {
+
+        let commentsWereWritten = !expected.comments.isEmpty || replacingCollections.contains(.comments)
+        if commentsWereWritten, !unorderedCollectionMatches(expected.comments, after.comments, matching: {
+            $0.language == $1.language && $0.description == $1.description && $0.text == $1.text
+        }) {
             warnings.append("Not all structured comments could be confirmed after save.")
         }
-        if !expected.lyrics.isEmpty, after.lyrics.count < expected.lyrics.count {
+
+        let lyricsWereWritten = !expected.lyrics.isEmpty || replacingCollections.contains(.lyrics)
+        if lyricsWereWritten, !unorderedCollectionMatches(expected.lyrics, after.lyrics, matching: {
+            $0.language == $1.language && $0.description == $1.description && $0.text == $1.text
+        }) {
             warnings.append("Not all structured lyrics could be confirmed after save.")
         }
-        if !expected.artwork.isEmpty, after.artwork.count < expected.artwork.count {
+
+        let artworkWasWritten = !expected.artwork.isEmpty || replacingCollections.contains(.artwork)
+        if artworkWasWritten, !unorderedCollectionMatches(expected.artwork, after.artwork, matching: {
+            $0.data == $1.data
+        }) {
             warnings.append("Not all artwork entries could be confirmed after save.")
         }
         for atom in expected.mp4Atoms {
-            if !after.mp4Atoms.contains(where: { $0.key == atom.key }) {
+            guard let actual = after.mp4Atoms.first(where: { $0.key == atom.key && $0.type == atom.type }) else {
                 warnings.append("MP4 atom \(atom.key) could not be confirmed after save.")
+                continue
+            }
+            if atom.type == "bool" {
+                if structuredBoolean(atom.value) != structuredBoolean(actual.value) {
+                    warnings.append("MP4 atom \(atom.key) value differs after save.")
+                }
+            } else if atom.type == "intPair" {
+                if atom.first != actual.first || atom.second != actual.second {
+                    warnings.append("MP4 atom \(atom.key) value differs after save.")
+                }
+            } else if atom.type == "stringList" {
+                if atom.values != actual.values {
+                    warnings.append("MP4 atom \(atom.key) values differ after save.")
+                }
+            } else if normalizedTrimmed(atom.value) != normalizedTrimmed(actual.value) {
+                warnings.append("MP4 atom \(atom.key) value differs after save.")
             }
         }
-        for attribute in expected.asfAttributes {
-            if !after.asfAttributes.contains(where: { $0.key == attribute.key }) {
-                warnings.append("ASF attribute \(attribute.key) could not be confirmed after save.")
+        for key in Set(expected.asfAttributes.map(\.key)) {
+            let expectedForKey = expected.asfAttributes.filter { $0.key == key }
+            let actualForKey = after.asfAttributes.filter { $0.key == key }
+            if !unorderedCollectionMatches(expectedForKey, actualForKey, matching: structuredASFAttributeMatches) {
+                warnings.append("ASF attribute \(key) could not be confirmed after save.")
             }
         }
         return warnings + after.warnings
@@ -1460,7 +1717,7 @@ public struct TagLibMetadataManager {
                     : discNumberText,
                 year: meta.year ?? "",
                 albumArtist: meta.albumArtist ?? "",
-                releaseDate: meta.releaseDate ?? meta.originalReleaseDate ?? "",
+                releaseDate: meta.releaseDate ?? "",
                 originalReleaseDate: meta.originalReleaseDate ?? "",
                 isrc: meta.isrc ?? "",
                 barcode: meta.barcode ?? "",
@@ -1711,7 +1968,16 @@ public struct TagLibMetadataManager {
                 url: stringValue($0, "url").nilIfEmpty,
                 owner: stringValue($0, "owner").nilIfEmpty,
                 data: $0["data"] as? Data,
-                fields: $0.compactMapValues { $0 as? String }
+                fields: $0.compactMapValues { $0 as? String },
+                elementID: stringValue($0, "elementID").nilIfEmpty,
+                startTimeMilliseconds: intValue($0, "startTimeMilliseconds"),
+                endTimeMilliseconds: intValue($0, "endTimeMilliseconds"),
+                startOffset: intValue($0, "startOffset"),
+                endOffset: intValue($0, "endOffset"),
+                isTopLevel: boolValue($0, "isTopLevel"),
+                isOrdered: boolValue($0, "isOrdered"),
+                children: stringArrayValue($0, "children"),
+                embeddedFrameCount: intValue($0, "embeddedFrameCount")
             )
         }
 
@@ -1789,6 +2055,7 @@ public struct TagLibMetadataManager {
         to url: URL,
         riffPolicy: RIFFMetadataWritePolicy = .preserveInfo,
         includeProperties: Bool = false,
+        replacingCollections: Set<StructuredMetadataReplaceableCollection> = [],
         verifyAfterWrite: Bool = true,
         failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
@@ -1808,11 +2075,21 @@ public struct TagLibMetadataManager {
                 }
             }
 
-            let payload = bridgePayload(from: metadata, includeProperties: includeProperties)
+            let payload = bridgePayload(
+                from: metadata,
+                includeProperties: includeProperties,
+                replacingCollections: replacingCollections
+            )
             try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: mutationURL)
 
             if verifyAfterWrite {
-                warnings.append(contentsOf: structuredWriteWarnings(expected: metadata, for: mutationURL))
+                warnings.append(
+                    contentsOf: structuredWriteWarnings(
+                        expected: metadata,
+                        replacingCollections: replacingCollections,
+                        for: mutationURL
+                    )
+                )
             }
             try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
             return MetadataWriteResult(warnings: warnings)
@@ -2131,6 +2408,52 @@ public struct TagLibMetadataManager {
                     "sortAlbum": meta.sortAlbum,
                     "sortAlbumArtist": meta.sortAlbumArtist,
                     "sortComposer": meta.sortComposer,
+                    "conductor": meta.conductor,
+                    "remixer": meta.remixer,
+                    "producer": meta.producer,
+                    "engineer": meta.engineer,
+                    "lyricist": meta.lyricist,
+                    "subtitle": meta.subtitle,
+                    "grouping": meta.grouping,
+                    "movement": meta.movement,
+                    "mood": meta.mood,
+                    "language": meta.language,
+                    "musicalKey": meta.musicalKey,
+                    "replayGainTrack": meta.replayGainTrack,
+                    "replayGainAlbum": meta.replayGainAlbum,
+                    "mediaType": meta.mediaType,
+                    "itunesAlbumID": meta.itunesAlbumID,
+                    "itunesArtistID": meta.itunesArtistID,
+                    "itunesCatalogID": meta.itunesCatalogID,
+                    "itunesGenreID": meta.itunesGenreID,
+                    "itunesMediaType": meta.itunesMediaType,
+                    "itunesPurchaseDate": meta.itunesPurchaseDate,
+                    "itunesNorm": meta.itunesNorm,
+                    "itunesSMPB": meta.itunesSMPB,
+                    "releaseType": meta.releaseType,
+                    "releaseStatus": meta.releaseStatus,
+                    "catalogNumber": meta.catalogNumber,
+                    "releaseCountry": meta.releaseCountry,
+                    "artistType": meta.artistType,
+                    "asin": meta.asin,
+                    "originalAlbum": meta.originalAlbum,
+                    "originalArtist": meta.originalArtist,
+                    "discSubtitle": meta.discSubtitle,
+                    "work": meta.work,
+                    "musicBrainzArtistID": meta.musicBrainzArtistID,
+                    "musicBrainzAlbumID": meta.musicBrainzAlbumID,
+                    "musicBrainzAlbumArtistID": meta.musicBrainzAlbumArtistID,
+                    "musicBrainzTrackID": meta.musicBrainzTrackID,
+                    "musicBrainzReleaseGroupID": meta.musicBrainzReleaseGroupID,
+                    "musicBrainzReleaseTrackID": meta.musicBrainzReleaseTrackID,
+                    "musicBrainzWorkID": meta.musicBrainzWorkID,
+                    "acoustID": meta.acoustID,
+                    "acoustIDFingerprint": meta.acoustIDFingerprint,
+                    "musicIPPUID": meta.musicIPPUID,
+                    "movementNumber": String(meta.movementNumber),
+                    "movementCount": String(meta.movementCount),
+                    "bpm": String(meta.bpm),
+                    "isCompilation": String(meta.isCompilation),
                 ]
             ),
             failurePolicy: failurePolicy

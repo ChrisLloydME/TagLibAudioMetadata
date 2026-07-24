@@ -185,6 +185,152 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertTrue(structured.mp4Atoms.contains { $0.key == "----:com.apple.iTunes:TEST_STRUCTURED" })
     }
 
+    func testStructuredMP4BooleanRoundTripPreservesTrue() throws {
+        let url = try copyAudioFixture("m4a")
+        let payload = StructuredMetadata(
+            mp4Atoms: [
+                .init(key: "cpil", type: "bool", value: "true"),
+            ]
+        )
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            payload,
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let compilation = try XCTUnwrap(structured.mp4Atoms.first { $0.key == "cpil" })
+        XCTAssertEqual(compilation.type, "bool")
+        XCTAssertEqual(compilation.value, "1")
+    }
+
+    func testExtendedBasicFieldsRoundTripAcrossID3AndMP4() throws {
+        for ext in ["mp3", "m4a"] {
+            let url = try copyAudioFixture(ext)
+            var metadata = BasicMetadata.empty
+            metadata.releaseStatus = "Official"
+            metadata.asin = "B000000001"
+            metadata.originalAlbum = "Original Album"
+            metadata.originalArtist = "Original Artist"
+            metadata.discSubtitle = "Bonus Disc"
+            metadata.work = "Example Work"
+            metadata.conductor = "Example Conductor"
+            metadata.producer = "Example Producer"
+            metadata.movement = "Example Movement"
+            metadata.movementNumber = 2
+            metadata.movementCount = 4
+            metadata.bpm = 120
+            metadata.isCompilation = true
+            metadata.replayGainTrack = "-3.50 dB"
+            metadata.musicBrainzWorkID = "00000000-0000-0000-0000-000000000001"
+
+            try TagLibMetadataManager.writeMetadataWithVerification(
+                metadata,
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.releaseStatus, metadata.releaseStatus, ext)
+            XCTAssertEqual(result.asin, metadata.asin, ext)
+            XCTAssertEqual(result.originalAlbum, metadata.originalAlbum, ext)
+            XCTAssertEqual(result.originalArtist, metadata.originalArtist, ext)
+            XCTAssertEqual(result.discSubtitle, metadata.discSubtitle, ext)
+            XCTAssertEqual(result.work, metadata.work, ext)
+            XCTAssertEqual(result.conductor, metadata.conductor, ext)
+            XCTAssertEqual(result.producer, metadata.producer, ext)
+            XCTAssertEqual(result.movement, metadata.movement, ext)
+            XCTAssertEqual(result.movementNumber, metadata.movementNumber, ext)
+            XCTAssertEqual(result.movementCount, metadata.movementCount, ext)
+            XCTAssertEqual(result.bpm, metadata.bpm, ext)
+            XCTAssertEqual(result.isCompilation, metadata.isCompilation, ext)
+            XCTAssertEqual(result.replayGainTrack, metadata.replayGainTrack, ext)
+            XCTAssertEqual(result.musicBrainzWorkID, metadata.musicBrainzWorkID, ext)
+        }
+    }
+
+    func testOriginalReleaseDateDoesNotBecomeCurrentReleaseDate() throws {
+        let url = try copyAudioFixture("mp3")
+        var metadata = BasicMetadata.empty
+        metadata.originalReleaseDate = "1984-01-24"
+
+        try TagLibMetadataManager.writeMetadataWithVerification(
+            metadata,
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.releaseDate, "")
+        XCTAssertEqual(result.originalReleaseDate, metadata.originalReleaseDate)
+    }
+
+    func testStructuredCollectionsCanRemoveTheirLastEntry() throws {
+        let url = try copyAudioFixture("mp3")
+        let artwork = try Data(contentsOf: artworkFixtureURL())
+        let initial = StructuredMetadata(
+            artwork: [.init(container: "id3v2", mimeType: "image/jpeg", data: artwork)],
+            lyrics: [.init(text: "Temporary lyrics")],
+            comments: [.init(text: "Temporary comment")]
+        )
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            initial,
+            to: url,
+            failurePolicy: .throw
+        )
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(),
+            to: url,
+            replacingCollections: [.artwork, .lyrics, .comments],
+            failurePolicy: .throw
+        )
+
+        let result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        XCTAssertTrue(result.artwork.isEmpty)
+        XCTAssertTrue(result.lyrics.isEmpty)
+        XCTAssertTrue(result.comments.isEmpty)
+    }
+
+    func testStructuredArtworkRoundTripsMultipleEntriesAndCanBeCleared() throws {
+        let firstArtwork = try Data(contentsOf: artworkFixtureURL())
+        var secondArtwork = firstArtwork
+        secondArtwork.append(0)
+
+        for ext in ["mp3", "m4a"] {
+            let url = try copyAudioFixture(ext)
+            let container = ext == "mp3" ? "id3v2" : "mp4"
+            let payload = StructuredMetadata(
+                artwork: [
+                    .init(container: container, mimeType: "image/jpeg", description: "Front", data: firstArtwork),
+                    .init(container: container, mimeType: "image/jpeg", description: "Alternate", data: secondArtwork),
+                ]
+            )
+
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                payload,
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+            XCTAssertEqual(result.artwork.count, 2, ext)
+            XCTAssertEqual(Set(result.artwork.map(\.data)), Set([firstArtwork, secondArtwork]), ext)
+
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(),
+                to: url,
+                replacingCollections: [.artwork],
+                failurePolicy: .throw
+            )
+
+            result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+            XCTAssertTrue(result.artwork.isEmpty, ext)
+        }
+    }
+
     func testEraseAllMetadataReportsNoResidualCoreFields() throws {
         for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
             let url = try copyAudioFixture(ext)
