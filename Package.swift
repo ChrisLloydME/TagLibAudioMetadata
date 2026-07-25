@@ -14,15 +14,14 @@ let package = Package(
             targets: ["TagLibAudioMetadata"]
         ),
     ],
-    dependencies: [
-        .package(path: "Vendor/TagLibBinaryPackage"),
-    ],
     targets: [
+        .binaryTarget(
+            name: "TagLib",
+            path: "Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework"
+        ),
         .target(
             name: "CTagLibBridge",
-            dependencies: [
-                .product(name: "TagLibBinary", package: "TagLibBinaryPackage"),
-            ],
+            dependencies: ["TagLib"],
             publicHeadersPath: "include",
             linkerSettings: [
                 .linkedFramework("Foundation"),
