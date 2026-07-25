@@ -42,6 +42,24 @@ final class ReliabilityFailureTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), originalBytes)
     }
 
+    func testEraseRejectsUnsupportedFormatsWithStableManagerError() throws {
+        let directory = try temporaryDirectory()
+        let unsupported = directory.appendingPathComponent("notes.txt")
+        let noExtension = directory.appendingPathComponent("notes")
+        try Data("not audio".utf8).write(to: unsupported)
+        try Data("not audio".utf8).write(to: noExtension)
+
+        for url in [unsupported, noExtension] {
+            XCTAssertThrowsError(
+                try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .throw)
+            ) { error in
+                guard case TagLibManagerError.unsupportedFormat = error else {
+                    return XCTFail("Expected unsupportedFormat for \(url.lastPathComponent), got \(error)")
+                }
+            }
+        }
+    }
+
     func testUnwritableDirectoryFailurePreservesOriginalBytes() throws {
         let directory = try temporaryDirectory()
         let url = directory.appendingPathComponent("testAudioFile.mp3")

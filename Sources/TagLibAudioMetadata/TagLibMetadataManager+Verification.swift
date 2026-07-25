@@ -409,40 +409,38 @@ extension TagLibMetadataManager {
         return warnings
     }
 
-    nonisolated static func resolvedRawPropertyMapForWrite(
+    nonisolated static func resolvedRawPropertyMapValuesForMerge(
         _ properties: [String: String],
-        to url: URL,
-        mode: RawPropertyMapWriteMode
-    ) throws -> [String: String] {
-        switch mode {
-        case .replace:
-            return properties
-
-        case .merge:
-            var merged = try rawMetadataResult(from: url).properties.reduce(into: [String: String]()) { result, entry in
+        to url: URL
+    ) throws -> [String: [String]] {
+        var merged = try rawMetadataResult(from: url).properties.reduce(into: [String: [String]]()) { result, entry in
                 let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines)
-                let value = entry.value.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !key.isEmpty, !value.isEmpty else { return }
-                result[key] = value
-            }
+                guard !key.isEmpty else { return }
 
-            for (rawKey, rawValue) in properties {
-                let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !key.isEmpty else { continue }
-
-                let normalizedAliases = normalizedRawKeyAliases(for: key.uppercased())
-                for existingKey in Array(merged.keys) where normalizedAliases.contains(existingKey.uppercased()) {
-                    merged.removeValue(forKey: existingKey)
-                }
-
-                let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !value.isEmpty {
-                    merged[key] = value
-                }
-            }
-
-            return merged
+                let sourceValues = entry.values.isEmpty ? [entry.value] : entry.values
+                let values = sourceValues
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                guard !values.isEmpty else { return }
+                result[key, default: []].append(contentsOf: values)
         }
+
+        for (rawKey, rawValue) in properties {
+            let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { continue }
+
+            let normalizedAliases = normalizedRawKeyAliases(for: key.uppercased())
+            for existingKey in Array(merged.keys) where normalizedAliases.contains(existingKey.uppercased()) {
+                merged.removeValue(forKey: existingKey)
+            }
+
+            let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty {
+                merged[key] = [value]
+            }
+        }
+
+        return merged
     }
 
     nonisolated static func parsedPropertyEntries(fromDumpText text: String) -> [RawPropertyEntry] {

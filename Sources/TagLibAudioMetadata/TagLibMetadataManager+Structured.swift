@@ -226,13 +226,13 @@ extension TagLibMetadataManager {
         }
     }
 
-    nonisolated static func structuredWriteWarnings(
+    nonisolated static func structuredWriteVerification(
         expected: StructuredMetadata,
         replacingCollections: Set<StructuredMetadataReplaceableCollection>,
         for url: URL
-    ) -> [String] {
+    ) -> (failures: [String], advisories: [String]) {
         guard let after = try? readStructuredMetadataResult(from: url) else {
-            return ["Could not verify structured metadata after save."]
+            return (["Could not verify structured metadata after save."], [])
         }
 
         var warnings: [String] = []
@@ -293,7 +293,7 @@ extension TagLibMetadataManager {
                 warnings.append("ASF attribute \(key) could not be confirmed after save.")
             }
         }
-        return warnings + after.warnings
+        return (warnings, after.warnings)
     }
 
     public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
@@ -426,12 +426,15 @@ extension TagLibMetadataManager {
 
         return try withAtomicFileMutation(at: url) { mutationURL in
             var warnings: [String] = []
+            var verificationFailures: [String] = []
             if ["wav", "aiff", "aif", "aifc", "afc"].contains(ext) {
                 switch riffPolicy {
                 case .id3v2Only, .preserveInfo:
                     break
                 case .syncBasicFieldsToInfo:
-                    warnings.append("syncBasicFieldsToInfo is documented but not yet applied by the structured bridge; existing INFO fields are preserved.")
+                    let warning = "syncBasicFieldsToInfo is documented but not yet applied by the structured bridge; existing INFO fields are preserved."
+                    warnings.append(warning)
+                    verificationFailures.append(warning)
                 }
             }
 
@@ -443,15 +446,16 @@ extension TagLibMetadataManager {
             try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: mutationURL)
 
             if verifyAfterWrite {
-                warnings.append(
-                    contentsOf: structuredWriteWarnings(
-                        expected: metadata,
-                        replacingCollections: replacingCollections,
-                        for: mutationURL
-                    )
+                let verification = structuredWriteVerification(
+                    expected: metadata,
+                    replacingCollections: replacingCollections,
+                    for: mutationURL
                 )
+                verificationFailures.append(contentsOf: verification.failures)
+                warnings.append(contentsOf: verification.failures)
+                warnings.append(contentsOf: verification.advisories)
             }
-            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            try applyVerificationFailurePolicy(failurePolicy, warnings: verificationFailures)
             return MetadataWriteResult(warnings: warnings)
         }
     }

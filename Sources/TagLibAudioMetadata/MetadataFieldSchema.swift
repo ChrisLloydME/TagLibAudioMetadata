@@ -318,6 +318,7 @@ public enum MetadataFieldRegistry {
     }
 
     public nonisolated static func schemas(storableIn capability: FormatCapability) -> [MetadataFieldSchema] {
+        guard capability.isWritable else { return [] }
         let formats = capability.metadataFieldFormats
         return allSchemas.filter { schema in
             schema.mappings.contains { formats.contains($0.format) }

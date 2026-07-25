@@ -88,7 +88,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
             let removal = TagLibAudioMetadata()
             removal.removeArtwork = true
-            try TagLibMetadataManager.writeTagMetadata(
+            _ = try TagLibMetadataManager.writeTagMetadata(
                 removal,
                 to: url,
                 verification: .init(
@@ -113,6 +113,13 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             let url = try copyAudioFixture(ext)
 
             try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+                ["OLD_SENTINEL": "remove me"],
+                to: url,
+                mode: .replace,
+                failurePolicy: .throw
+            )
+
+            try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
                 ["TITLE": "Raw Title", "MOOD": "Focused", "CUSTOM_CASE": "Alpha"],
                 to: url,
                 mode: .replace,
@@ -120,6 +127,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             )
 
             var raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertFalse(raw.containsProperty("OLD_SENTINEL"), ext)
             XCTAssertTrue(raw.containsProperty("TITLE", value: "Raw Title"), ext)
             XCTAssertTrue(raw.containsProperty("MOOD", value: "Focused"), ext)
 
@@ -132,6 +140,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             XCTAssertFalse(raw.containsProperty("MOOD"), ext)
+            XCTAssertTrue(raw.containsProperty("TITLE", value: "Raw Title"), ext)
             XCTAssertTrue(raw.containsProperty("CUSTOM_CASE", value: "Beta"), ext)
 
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
@@ -143,6 +152,91 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             XCTAssertTrue(raw.properties.contains { $0.key.uppercased() == "ARTIST" && Set($0.values) == Set(["One", "Two"]) }, ext)
         }
+    }
+
+    func testRawMergePreservesUnmodifiedMultiValueProperties() throws {
+        for ext in ["flac", "ogg"] {
+            let url = try copyAudioFixture(ext)
+
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["ARTIST": ["One", "Two"]],
+                to: url,
+                failurePolicy: .throw
+            )
+            try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+                ["MOOD": "Focused"],
+                to: url,
+                mode: .merge,
+                failurePolicy: .throw
+            )
+
+            let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "ARTIST"), ["One", "Two"], ext)
+            XCTAssertEqual(raw.values(for: "MOOD"), ["Focused"], ext)
+        }
+    }
+
+    func testStructuredWAVAdvisoriesDoNotFailVerifiedWrites() throws {
+        let url = try copyAudioFixture("wav")
+        let payload = StructuredMetadata(
+            properties: [.init(key: "TITLE", values: ["Verified WAV"])]
+        )
+
+        let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            payload,
+            to: url,
+            riffPolicy: .preserveInfo,
+            includeProperties: true,
+            failurePolicy: .throw
+        )
+
+        XCTAssertFalse(result.warnings.isEmpty, "WAV capability advisories should remain visible to callers.")
+        XCTAssertTrue(
+            try TagLibMetadataManager.rawMetadataResult(from: url).containsProperty("TITLE", value: "Verified WAV")
+        )
+    }
+
+    func testVerificationFailurePolicyRollsBackOrCommitsAsRequested() throws {
+        let rollbackURL = try copyAudioFixture("mp3")
+        let rollbackBytes = try Data(contentsOf: rollbackURL)
+        let metadata = TagLibAudioMetadata()
+        metadata.title = "Written title"
+        let mismatchedVerification = TagLibMetadataManager.MetadataWriteVerificationContext(
+            expectedTrackNumber: nil,
+            expectedTrackTotal: nil,
+            expectedTrackNumberText: nil,
+            expectedDiscNumber: nil,
+            expectedDiscTotal: nil,
+            expectedDiscNumberText: nil,
+            expectedExplicitContent: nil,
+            artworkExpectation: .unchanged,
+            customFieldKeys: [],
+            expectedTextFields: ["TITLE": "Different title"]
+        )
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.writeTagMetadata(
+                metadata,
+                to: rollbackURL,
+                verification: mismatchedVerification,
+                failurePolicy: .throw
+            )
+        ) { error in
+            guard case TagLibManagerError.verificationFailed = error else {
+                return XCTFail("Expected verificationFailed, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: rollbackURL), rollbackBytes)
+
+        let warningURL = try copyAudioFixture("mp3")
+        let result = try TagLibMetadataManager.writeTagMetadata(
+            metadata,
+            to: warningURL,
+            verification: mismatchedVerification,
+            failurePolicy: .warn
+        )
+        XCTAssertFalse(result.warnings.isEmpty)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: warningURL).title, "Written title")
     }
 
     func testStructuredMetadataWritesPropertiesAndContainerDataTogether() throws {
@@ -418,5 +512,9 @@ private extension RawMetadataDump {
             guard let value else { return true }
             return entry.values.contains(value) || entry.value == value
         }
+    }
+
+    func values(for key: String) -> [String] {
+        properties.first { $0.key.caseInsensitiveCompare(key) == .orderedSame }?.values ?? []
     }
 }

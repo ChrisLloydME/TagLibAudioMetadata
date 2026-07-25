@@ -86,8 +86,13 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            let resolvedProperties = try resolvedRawPropertyMapForWrite(properties, to: mutationURL, mode: mode)
-            try TagLibMetadataExtractor.writeRawPropertyMap(resolvedProperties, to: mutationURL)
+            switch mode {
+            case .replace:
+                try TagLibMetadataExtractor.writeRawPropertyMap(properties, to: mutationURL)
+            case .merge:
+                let resolvedProperties = try resolvedRawPropertyMapValuesForMerge(properties, to: mutationURL)
+                try TagLibMetadataExtractor.writeRawPropertyMapValues(resolvedProperties, to: mutationURL)
+            }
 
             let warnings = verifyAfterWrite
                 ? rawPropertyMapWriteWarnings(requestedProperties: properties, for: mutationURL)
@@ -187,7 +192,12 @@ extension TagLibMetadataManager {
         from url: URL,
         failurePolicy: VerificationFailurePolicy = .warn
     ) throws -> MetadataWriteResult {
-        try withAtomicFileMutation(at: url) { mutationURL in
+        let ext = url.pathExtension.lowercased()
+        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
+            throw TagLibManagerError.unsupportedFormat
+        }
+
+        return try withAtomicFileMutation(at: url) { mutationURL in
             try eraseAllMetadataInPlaceWithVerification(
                 from: mutationURL,
                 failurePolicy: failurePolicy

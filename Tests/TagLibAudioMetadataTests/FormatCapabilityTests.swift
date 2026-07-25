@@ -53,6 +53,13 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertTrue(MetadataFieldRegistry.schema(.title, hasMappingFor: .mp4))
     }
 
+    func testReadOnlyCapabilitiesDoNotAdvertiseStorableFields() throws {
+        let shorten = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "shn"))
+
+        XCTAssertFalse(shorten.isWritable)
+        XCTAssertTrue(MetadataFieldRegistry.schemas(storableIn: shorten).isEmpty)
+    }
+
     func testFieldRegistryCoversEveryFieldExactlyOnce() {
         let schemaKeys = MetadataFieldRegistry.allSchemas.map(\.key)
 
