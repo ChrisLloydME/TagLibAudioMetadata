@@ -11,19 +11,38 @@ public struct TagLibMetadataManager {
 
     nonisolated private static let errorDomain = "TagLibMetadataManager"
 
-    nonisolated private struct FileIdentity: Equatable {
+    nonisolated struct FileIdentity: Equatable {
         var device: dev_t
         var inode: ino_t
+        var size: off_t
+        var modificationTime: timespec
+        var statusChangeTime: timespec
+
+        static func == (lhs: FileIdentity, rhs: FileIdentity) -> Bool {
+            lhs.device == rhs.device &&
+                lhs.inode == rhs.inode &&
+                lhs.size == rhs.size &&
+                lhs.modificationTime.tv_sec == rhs.modificationTime.tv_sec &&
+                lhs.modificationTime.tv_nsec == rhs.modificationTime.tv_nsec &&
+                lhs.statusChangeTime.tv_sec == rhs.statusChangeTime.tv_sec &&
+                lhs.statusChangeTime.tv_nsec == rhs.statusChangeTime.tv_nsec
+        }
     }
 
-    nonisolated private static func regularFileIdentity(at url: URL) -> FileIdentity? {
+    nonisolated static func regularFileIdentity(at url: URL) -> FileIdentity? {
         var information = stat()
         let status = url.path.withCString { path in
             Darwin.lstat(path, &information)
         }
         let fileType = information.st_mode & mode_t(S_IFMT)
         guard status == 0, fileType == mode_t(S_IFREG) else { return nil }
-        return FileIdentity(device: information.st_dev, inode: information.st_ino)
+        return FileIdentity(
+            device: information.st_dev,
+            inode: information.st_ino,
+            size: information.st_size,
+            modificationTime: information.st_mtimespec,
+            statusChangeTime: information.st_ctimespec
+        )
     }
 
     nonisolated private static func mutationError(
