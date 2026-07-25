@@ -6,9 +6,9 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Toolchain
         run: swift --version
       - name: Verify packaged TagLib artifact
@@ -32,23 +32,23 @@ jobs:
           test -z "$(find Sources/CTagLibBridge -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.cxx' \) -print -quit)"
 
   address-sanitizer:
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Address Sanitizer
         run: swift test --sanitize=address
 
   thread-sanitizer:
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Thread Sanitizer
         run: swift test --sanitize=thread
 
   ios-simulator-build:
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build for the minimum iOS Simulator target
         run: |
           SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
