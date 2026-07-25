@@ -7,8 +7,8 @@ target and dynamically links `TagLib.framework`; it does not compile or fall
 back to TagLib source.
 
 The source repository contains no TagLib implementation source, framework
-headers, or framework binaries. The Apple binary is published separately as an
-immutable GitHub Release asset.
+headers, or framework binaries. The Apple binary is published separately as a
+checksum-pinned GitHub Release asset that is immutable by project policy.
 
 ## Add the package
 

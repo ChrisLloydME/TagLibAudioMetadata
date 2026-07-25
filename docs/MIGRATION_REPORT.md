@@ -10,7 +10,8 @@ the digest comparisons below intentionally remain migration-time evidence.
 ## Outcome
 
 The root `TagLibAudioMetadata` package declares a binary target named `TagLib`
-backed by an immutable, checksum-pinned GitHub Release asset. The existing
+backed by a checksum-pinned GitHub Release asset that is immutable by project
+policy. The existing
 `CTagLibBridge` target depends on that target and dynamically links the selected
 framework slice. The source repository contains no TagLib sources, headers, or
 framework binaries.

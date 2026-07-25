@@ -257,6 +257,20 @@ The 0.4.0 release verification on 2026-07-24 used Apple Swift 6.3.3:
 | Dynamic link audit | Test bundle loads `@rpath/TagLib.framework/TagLib`; the built framework is present and no vendored C++ source is compiled by the root target |
 | XCFramework build script | Passed shell syntax validation |
 
+The 0.4.3 release-candidate verification on 2026-07-25 used Apple Swift 6.3.3:
+
+| Command/check | Result |
+| --- | --- |
+| Clean build and strict warning build | Passed; Swift and C-family warnings are treated as errors in the strict build |
+| `swift test` | Passed 37 tests; no failures |
+| `swift test --sanitize=address` | Passed 37 tests; no Address Sanitizer findings |
+| `swift test --sanitize=thread` | Passed 37 tests; no Thread Sanitizer findings |
+| Public API compatibility | Swift API digester found no breaking change from `0.4.2`; the Objective-C header is unchanged and runtime selector checks passed |
+| Consumer executable | Built and ran with only `import TagLibAudioMetadata`; reported 37 readable extensions |
+| Apple platform matrix | Passed macOS 13 arm64/x86_64, iOS 16 arm64, and iOS 16 Simulator arm64/x86_64 builds |
+| Dynamic link audit | The consumer loads `@rpath/TagLib.framework/TagLib`; framework layout and public Objective-C header consumption passed |
+| Pipeline configuration | Workflow YAML, package manifest, and release shell syntax parsed; pinned XCFramework architectures, platforms, deployment targets, install names, and ZIP integrity passed the release assertions |
+
 Reliability regressions cover invalid and disguised reads, explicit raw and
 structured failures, corrupt/unwritable/symlink mutation paths, facade and direct
 bridge rollback by byte comparison, malformed/null-like/partial structured
@@ -264,9 +278,9 @@ payloads, Unicode and long values, ordered multi-values, unknown fields,
 repeated reads and erase, exact and multiple artwork values, binary APE items,
 typed MP4 booleans, complete field-registry coverage, and WAV PCM payload
 preservation.
-CI verifies the remote artifact boundary, clean build/test, consumer integration, dynamic
-linkage, Address Sanitizer, Thread Sanitizer, and an iOS 16 Simulator
-cross-build as separate macOS jobs.
+CI is configured to verify the remote artifact boundary, clean build/test,
+consumer integration, dynamic linkage, Address Sanitizer, Thread Sanitizer, and
+the five-target Apple platform matrix as separate macOS jobs.
 
 Residual risks are the unverified format families above, no package-level
 same-file concurrency guarantee, inode/hard-link identity changes caused by
@@ -306,8 +320,9 @@ TagLib binary and its exact corresponding source revision are in
 
 The root `Package.swift` declares the remote XCFramework directly.
 There is no TagLib source target, static fallback, Homebrew lookup, or system
-library lookup. The immutable release asset contains dynamic macOS, iOS device,
-and iOS Simulator slices built from unmodified TagLib 2.1.1.
+library lookup. The checksum-pinned release asset, treated as immutable by
+project policy, contains dynamic macOS, iOS device, and iOS Simulator slices
+built from unmodified TagLib 2.1.1.
 
 ## License
 
