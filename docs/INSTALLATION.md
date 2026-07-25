@@ -1,10 +1,9 @@
 # Installation and binary distribution
 
 `TagLibAudioMetadata` remains the package product and Swift module consumed by
-applications. Its root manifest mounts the repository-local
-`Vendor/TagLibBinaryPackage` Swift Package, whose `TagLibBinary` product exposes
+applications. Its root manifest exposes the repository-local
 `TagLib.xcframework` through a `binaryTarget`. `CTagLibBridge` depends on that
-product and dynamically links `TagLib.framework`; it does not compile or fall
+target and dynamically links `TagLib.framework`; it does not compile or fall
 back to TagLib source.
 
 ## Add the package
@@ -13,7 +12,7 @@ back to TagLib source.
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.4.0"
+        from: "0.4.2"
     ),
 ],
 targets: [
@@ -35,8 +34,8 @@ Application code still uses only:
 import TagLibAudioMetadata
 ```
 
-Do not add `TagLibBinaryPackage` directly to an application. It is an internal,
-transitive package boundary and is mounted by the root manifest.
+Do not add the vendored binary package directory directly to an application.
+The root manifest already exposes the XCFramework as an internal target.
 
 ## Supported slices
 
@@ -82,10 +81,13 @@ credential, or pre-signed application artifact.
 ## Offline and local use
 
 The committed XCFramework is self-contained. A checkout can resolve and build
-offline because the root manifest uses a relative package path:
+offline because the root manifest uses a relative binary target path:
 
 ```swift
-.package(path: "Vendor/TagLibBinaryPackage")
+.binaryTarget(
+    name: "TagLib",
+    path: "Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework"
+)
 ```
 
 Keep the repository layout intact when copying or vendoring the package. The

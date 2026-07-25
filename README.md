@@ -25,8 +25,8 @@ Use it when an app needs:
 - GNU C++20, configured by `Package.swift`
 
 Consumers do not need Homebrew, CMake, or a system TagLib installation. The
-repository root package mounts an isolated local Swift Package whose
-`binaryTarget` contains the required dynamic framework slices.
+repository root package declares a `binaryTarget` containing the required
+dynamic framework slices.
 
 ## Installation
 
@@ -34,7 +34,7 @@ Add the package to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", from: "0.4.0")
+    .package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", from: "0.4.2")
 ],
 targets: [
     .target(
@@ -296,9 +296,9 @@ TagLib binary and its exact corresponding source revision are in
 | --- | --- |
 | `TagLibAudioMetadata` | Swift facade for application code. |
 | `CTagLibBridge` | Existing Objective-C++ API bridge; dynamically linked to TagLib. |
-| `Vendor/TagLibBinaryPackage` | Isolated Swift Package exposing `TagLib.xcframework` as the `TagLibBinary` product. |
+| `TagLib` | Binary target backed by the vendored `TagLib.xcframework`. |
 
-The root `Package.swift` mounts `Vendor/TagLibBinaryPackage` by relative path.
+The root `Package.swift` declares the vendored XCFramework directly.
 There is no TagLib source target, static fallback, Homebrew lookup, or system
 library lookup. The committed XCFramework contains dynamic macOS, iOS device,
 and iOS Simulator slices built from unmodified TagLib 2.1.1.

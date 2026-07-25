@@ -157,14 +157,24 @@ configure_and_build() {
 
 stage_framework() {
     local build_name="$1"
+    local platform="$2"
     local staged_framework="${WORK_DIRECTORY}/framework-${build_name}/TagLib.framework"
     local built_framework="${WORK_DIRECTORY}/build-${build_name}/taglib/tag.framework"
+    local content_root="${staged_framework}"
+    local info_plist="${staged_framework}/Info.plist"
 
-    mkdir -p "${staged_framework}/Headers" "${staged_framework}/Modules"
-    ditto "${built_framework}/Headers" "${staged_framework}/Headers"
-    cp "${built_framework}/tag" "${staged_framework}/TagLib"
-    chmod 755 "${staged_framework}/TagLib"
-    install_name_tool -id "@rpath/TagLib.framework/TagLib" "${staged_framework}/TagLib"
+    if [[ "${platform}" == "macos" ]]; then
+        content_root="${staged_framework}/Versions/A"
+        info_plist="${content_root}/Resources/Info.plist"
+        mkdir -p "${content_root}/Headers" "${content_root}/Modules" "${content_root}/Resources"
+    else
+        mkdir -p "${content_root}/Headers" "${content_root}/Modules"
+    fi
+
+    ditto "${built_framework}/Headers" "${content_root}/Headers"
+    cp "${built_framework}/tag" "${content_root}/TagLib"
+    chmod 755 "${content_root}/TagLib"
+    install_name_tool -id "@rpath/TagLib.framework/TagLib" "${content_root}/TagLib"
 
     printf '%s\n' \
         'framework module TagLib {' \
@@ -172,17 +182,25 @@ stage_framework() {
         '  export *' \
         '  module * { export * }' \
         '}' \
-        > "${staged_framework}/Modules/module.modulemap"
+        > "${content_root}/Modules/module.modulemap"
 
-    plutil -create xml1 "${staged_framework}/Info.plist"
-    plutil -insert CFBundleDevelopmentRegion -string English "${staged_framework}/Info.plist"
-    plutil -insert CFBundleExecutable -string TagLib "${staged_framework}/Info.plist"
-    plutil -insert CFBundleIdentifier -string org.taglib.TagLib "${staged_framework}/Info.plist"
-    plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "${staged_framework}/Info.plist"
-    plutil -insert CFBundleName -string TagLib "${staged_framework}/Info.plist"
-    plutil -insert CFBundlePackageType -string FMWK "${staged_framework}/Info.plist"
-    plutil -insert CFBundleShortVersionString -string "${TAGLIB_VERSION}" "${staged_framework}/Info.plist"
-    plutil -insert CFBundleVersion -string "${TAGLIB_VERSION}" "${staged_framework}/Info.plist"
+    plutil -create xml1 "${info_plist}"
+    plutil -insert CFBundleDevelopmentRegion -string English "${info_plist}"
+    plutil -insert CFBundleExecutable -string TagLib "${info_plist}"
+    plutil -insert CFBundleIdentifier -string org.taglib.TagLib "${info_plist}"
+    plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "${info_plist}"
+    plutil -insert CFBundleName -string TagLib "${info_plist}"
+    plutil -insert CFBundlePackageType -string FMWK "${info_plist}"
+    plutil -insert CFBundleShortVersionString -string "${TAGLIB_VERSION}" "${info_plist}"
+    plutil -insert CFBundleVersion -string "${TAGLIB_VERSION}" "${info_plist}"
+
+    if [[ "${platform}" == "macos" ]]; then
+        ln -s A "${staged_framework}/Versions/Current"
+        ln -s Versions/Current/Headers "${staged_framework}/Headers"
+        ln -s Versions/Current/Modules "${staged_framework}/Modules"
+        ln -s Versions/Current/Resources "${staged_framework}/Resources"
+        ln -s Versions/Current/TagLib "${staged_framework}/TagLib"
+    fi
 
     echo "${staged_framework}"
 }
@@ -191,9 +209,9 @@ configure_and_build macos "" "" "${MACOS_DEPLOYMENT_TARGET}" "arm64;x86_64"
 configure_and_build ios-device iOS iphoneos "${IOS_DEPLOYMENT_TARGET}" "arm64"
 configure_and_build ios-simulator iOS iphonesimulator "${IOS_DEPLOYMENT_TARGET}" "arm64;x86_64"
 
-MACOS_FRAMEWORK="$(stage_framework macos)"
-IOS_DEVICE_FRAMEWORK="$(stage_framework ios-device)"
-IOS_SIMULATOR_FRAMEWORK="$(stage_framework ios-simulator)"
+MACOS_FRAMEWORK="$(stage_framework macos macos)"
+IOS_DEVICE_FRAMEWORK="$(stage_framework ios-device ios)"
+IOS_SIMULATOR_FRAMEWORK="$(stage_framework ios-simulator ios)"
 STAGED_XCFRAMEWORK="${WORK_DIRECTORY}/TagLib.xcframework"
 
 xcodebuild -create-xcframework \
