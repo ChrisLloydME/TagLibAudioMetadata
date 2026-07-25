@@ -22,6 +22,8 @@ jobs:
         run: |
           swift package --disable-keychain --disable-netrc clean
           swift build --disable-keychain --disable-netrc
+      - name: Strict warning build
+        run: swift build --disable-keychain --disable-netrc -Xswiftc -warnings-as-errors -Xcc -Werror
       - name: Test
         run: swift test --disable-keychain --disable-netrc
       - name: Consumer integration
@@ -52,11 +54,43 @@ jobs:
       - name: Thread Sanitizer
         run: swift test --disable-keychain --disable-netrc --sanitize=thread
 
-  ios-simulator-build:
+  minimum-platform-builds:
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS 13 arm64
+            sdk: macosx
+            triple: arm64-apple-macosx13.0
+          - name: macOS 13 x86_64
+            sdk: macosx
+            triple: x86_64-apple-macosx13.0
+          - name: iOS 16 arm64
+            sdk: iphoneos
+            triple: arm64-apple-ios16.0
+          - name: iOS 16 Simulator arm64
+            sdk: iphonesimulator
+            triple: arm64-apple-ios16.0-simulator
+          - name: iOS 16 Simulator x86_64
+            sdk: iphonesimulator
+            triple: x86_64-apple-ios16.0-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build for ${{ matrix.name }}
+        run: |
+          SDK_PATH=$(xcrun --sdk "${{ matrix.sdk }}" --show-sdk-path)
+          swift build --disable-keychain --disable-netrc --triple "${{ matrix.triple }}" --sdk "$SDK_PATH"
+
+  remote-tag-consumer:
+    if: github.ref_type == 'tag' && !startsWith(github.ref_name, 'taglib-binary-')
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
-      - name: Build for the minimum iOS Simulator target
+      - name: Build a clean consumer from the published tag
         run: |
-          SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          swift build --disable-keychain --disable-netrc --triple arm64-apple-ios16.0-simulator --sdk "$SDK_PATH"
+          CONSUMER_PATH="${RUNNER_TEMP}/TagLibAudioMetadataConsumer"
+          cp -R IntegrationTests/Consumer "${CONSUMER_PATH}"
+          perl -pi -e 's#\.package\(name: "TagLibAudioMetadata", path: "\.\./\.\."\)#.package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", exact: "$ENV{GITHUB_REF_NAME}")#' "${CONSUMER_PATH}/Package.swift"
+          test -z "$(grep -F 'path: "../.."' "${CONSUMER_PATH}/Package.swift" || true)"
+          swift run --disable-keychain --disable-netrc --package-path "${CONSUMER_PATH}" TagLibAudioMetadataConsumer

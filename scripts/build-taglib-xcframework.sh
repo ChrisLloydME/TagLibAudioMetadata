@@ -72,7 +72,7 @@ case "${ARCHIVE_OUTPUT_PATH}" in
         ;;
 esac
 
-for required_tool in cmake ditto git install_name_tool lipo ninja otool plutil swift xcodebuild zip; do
+for required_tool in cmake ditto git install_name_tool lipo ninja otool plutil swift unzip vtool xcodebuild zip; do
     if ! command -v "${required_tool}" >/dev/null 2>&1; then
         echo "Required tool not found: ${required_tool}" >&2
         exit 1
@@ -251,19 +251,40 @@ ditto "${STAGED_XCFRAMEWORK}" "${OUTPUT_PATH}"
 
 echo "Created ${OUTPUT_PATH}"
 plutil -lint "${OUTPUT_PATH}/Info.plist"
-find "${OUTPUT_PATH}" -type f -name TagLib -exec file {} \;
-find "${OUTPUT_PATH}" -type f -name TagLib -exec otool -L {} \;
+
+verify_slice() {
+    local binary_path="$1"
+    local expected_platform="$2"
+    local expected_minos="$3"
+    shift 3
+    local expected_architectures=("$@")
+    local expected_architecture_count="${#expected_architectures[@]}"
+    local build_versions
+
+    test -f "${binary_path}"
+    lipo "${binary_path}" -verify_arch "${expected_architectures[@]}"
+    build_versions="$(vtool -show-build "${binary_path}")"
+    test "$(grep -c "platform ${expected_platform}" <<<"${build_versions}" || true)" -eq "${expected_architecture_count}"
+    test "$(grep -c "minos ${expected_minos}" <<<"${build_versions}" || true)" -eq "${expected_architecture_count}"
+    otool -D "${binary_path}" | grep -F '@rpath/TagLib.framework/TagLib'
+}
 
 MACOS_FRAMEWORK_PATH="${OUTPUT_PATH}/macos-arm64_x86_64/TagLib.framework"
+IOS_DEVICE_FRAMEWORK_PATH="${OUTPUT_PATH}/ios-arm64/TagLib.framework"
+IOS_SIMULATOR_FRAMEWORK_PATH="${OUTPUT_PATH}/ios-arm64_x86_64-simulator/TagLib.framework"
 test -f "${MACOS_FRAMEWORK_PATH}/Versions/A/Resources/Info.plist"
 test -L "${MACOS_FRAMEWORK_PATH}/Versions/Current"
 test -L "${MACOS_FRAMEWORK_PATH}/TagLib"
+verify_slice "${MACOS_FRAMEWORK_PATH}/Versions/A/TagLib" MACOS "${MACOS_DEPLOYMENT_TARGET}" arm64 x86_64
+verify_slice "${IOS_DEVICE_FRAMEWORK_PATH}/TagLib" IOS "${IOS_DEPLOYMENT_TARGET}" arm64
+verify_slice "${IOS_SIMULATOR_FRAMEWORK_PATH}/TagLib" IOSSIMULATOR "${IOS_DEPLOYMENT_TARGET}" arm64 x86_64
 
 mkdir -p "$(dirname "${ARCHIVE_OUTPUT_PATH}")"
 (
     cd "$(dirname "${OUTPUT_PATH}")"
     zip -qry -y "${ARCHIVE_OUTPUT_PATH}" "$(basename "${OUTPUT_PATH}")"
 )
+unzip -tq "${ARCHIVE_OUTPUT_PATH}"
 
 ARCHIVE_CHECKSUM="$(swift package compute-checksum "${ARCHIVE_OUTPUT_PATH}")"
 echo "Created ${ARCHIVE_OUTPUT_PATH}"
