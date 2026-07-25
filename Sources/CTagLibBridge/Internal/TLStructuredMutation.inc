@@ -53,6 +53,54 @@ static BOOL StructuredOptionalValueFitsInt(NSDictionary *entry, NSString *key)
     return number >= std::numeric_limits<int>::min() && number <= std::numeric_limits<int>::max();
 }
 
+static BOOL StructuredOptionalValueFitsUInt32(NSDictionary *entry, NSString *key)
+{
+    NSObject *value = entry[key];
+    if (!value) return YES;
+
+    unsigned long long parsed = 0;
+    if ([value isKindOfClass:[NSNumber class]]) {
+        NSNumber *number = (NSNumber *)value;
+        if (number.longLongValue < 0) return NO;
+        parsed = number.unsignedLongLongValue;
+    } else if ([value isKindOfClass:[NSString class]]) {
+        NSString *string = TrimmedStringOrNil((NSString *)value);
+        if (!string || [string hasPrefix:@"-"]) return NO;
+        errno = 0;
+        char *end = nullptr;
+        parsed = std::strtoull(string.UTF8String, &end, 10);
+        if (errno == ERANGE || !end || *end != '\0') return NO;
+    } else {
+        return NO;
+    }
+
+    return parsed <= std::numeric_limits<unsigned int>::max();
+}
+
+static BOOL StructuredOptionalValueIsBooleanLike(NSDictionary *entry, NSString *key)
+{
+    NSObject *value = entry[key];
+    return !value || [value isKindOfClass:[NSNumber class]] || [value isKindOfClass:[NSString class]];
+}
+
+static bool UnsignedLongLongValueFromObject(NSObject *value, unsigned long long &result)
+{
+    if ([value isKindOfClass:[NSNumber class]]) {
+        value = (NSObject *)((NSNumber *)value).stringValue;
+    }
+    if ([value isKindOfClass:[NSString class]]) {
+        NSString *string = TrimmedStringOrNil((NSString *)value);
+        if (!string || [string hasPrefix:@"-"]) return false;
+        errno = 0;
+        char *end = nullptr;
+        unsigned long long parsed = std::strtoull(string.UTF8String, &end, 10);
+        if (errno == ERANGE || !end || *end != '\0') return false;
+        result = parsed;
+        return true;
+    }
+    return false;
+}
+
 static BOOL StructuredValueIsStringArray(NSObject *value)
 {
     if (![value isKindOfClass:[NSArray class]]) {
@@ -132,18 +180,36 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
 
     for (NSDictionary *entry in StructuredArray(metadata, @"id3v2Frames") ?: @[]) {
         NSString *frameID = [entry[@"id"] isKindOfClass:[NSString class]] ? (NSString *)entry[@"id"] : nil;
+        NSString *type = [entry[@"type"] isKindOfClass:[NSString class]] ? (NSString *)entry[@"type"] : nil;
         if (!IsValidID3v2FrameID(frameID)) {
             return SetStructuredPayloadValidationError(error, @"Each ID3v2 frame ID must be exactly four uppercase ASCII letters or digits");
         }
-        if (![entry[@"type"] isKindOfClass:[NSString class]] ||
+        if (!type ||
             !StructuredOptionalValueHasClass(entry, @"value", [NSString class]) ||
             (entry[@"values"] && !StructuredValueIsStringArray(entry[@"values"])) ||
             !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"language", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"url", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"owner", [NSString class]) ||
-            !StructuredOptionalDataFitsTagLib(entry, @"data")) {
+            !StructuredOptionalDataFitsTagLib(entry, @"data") ||
+            !StructuredOptionalValueHasClass(entry, @"elementID", [NSString class]) ||
+            !StructuredOptionalValueFitsUInt32(entry, @"startTimeMilliseconds") ||
+            !StructuredOptionalValueFitsUInt32(entry, @"endTimeMilliseconds") ||
+            !StructuredOptionalValueFitsUInt32(entry, @"startOffset") ||
+            !StructuredOptionalValueFitsUInt32(entry, @"endOffset") ||
+            !StructuredOptionalValueIsBooleanLike(entry, @"isTopLevel") ||
+            !StructuredOptionalValueIsBooleanLike(entry, @"isOrdered") ||
+            (entry[@"children"] && !StructuredValueIsStringArray(entry[@"children"]))) {
             return SetStructuredPayloadValidationError(error, @"ID3v2 frame fields have invalid value types");
+        }
+        if (([type isEqualToString:@"chapter"] && ![frameID isEqualToString:@"CHAP"]) ||
+            ([type isEqualToString:@"tableOfContents"] && ![frameID isEqualToString:@"CTOC"]) ||
+            ([type isEqualToString:@"podcast"] && ![frameID isEqualToString:@"PCST"])) {
+            return SetStructuredPayloadValidationError(error, @"Structured ID3v2 frame type does not match its frame ID");
+        }
+        if (([type isEqualToString:@"chapter"] || [type isEqualToString:@"tableOfContents"]) &&
+            !TrimmedStringOrNil((NSString *)entry[@"elementID"])) {
+            return SetStructuredPayloadValidationError(error, @"CHAP and CTOC frames require a non-empty elementID");
         }
     }
 
@@ -170,6 +236,12 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             !StructuredOptionalValueIsNumberLike(entry, @"language") ||
             !StructuredOptionalValueIsNumberLike(entry, @"stream")) {
             return SetStructuredPayloadValidationError(error, @"ASF attribute fields have invalid value types");
+        }
+        if ([(NSString *)entry[@"type"] isEqualToString:@"int64"]) {
+            unsigned long long value = 0;
+            if (!UnsignedLongLongValueFromObject(entry[@"value"], value)) {
+                return SetStructuredPayloadValidationError(error, @"ASF int64 attributes require an unsigned 64-bit value");
+            }
         }
     }
 
@@ -385,6 +457,40 @@ static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
             NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
             NSString *joined = values.count ? [values componentsJoinedByString:@"; "] : (NSString *)entry[@"value"];
             SetID3v2UserTextFrame(tag, ((NSString *)entry[@"description"]).UTF8String, joined);
+        } else if ([type isEqualToString:@"chapter"]) {
+            NSString *elementID = TrimmedStringOrNil((NSString *)entry[@"elementID"]);
+            TagLib::ByteVector elementIDBytes(elementID.UTF8String, (unsigned int)strlen(elementID.UTF8String));
+            auto *frame = TagLib::ID3v2::ChapterFrame::findByElementID(tag, elementIDBytes);
+            if (!frame) {
+                frame = new TagLib::ID3v2::ChapterFrame(elementIDBytes, 0, 0, 0, 0);
+                tag->addFrame(frame);
+            }
+            frame->setStartTime((unsigned int)IntegerValueFromObject(entry[@"startTimeMilliseconds"]));
+            frame->setEndTime((unsigned int)IntegerValueFromObject(entry[@"endTimeMilliseconds"]));
+            frame->setStartOffset((unsigned int)IntegerValueFromObject(entry[@"startOffset"]));
+            frame->setEndOffset((unsigned int)IntegerValueFromObject(entry[@"endOffset"]));
+        } else if ([type isEqualToString:@"tableOfContents"]) {
+            NSString *elementID = TrimmedStringOrNil((NSString *)entry[@"elementID"]);
+            TagLib::ByteVector elementIDBytes(elementID.UTF8String, (unsigned int)strlen(elementID.UTF8String));
+            auto *frame = TagLib::ID3v2::TableOfContentsFrame::findByElementID(tag, elementIDBytes);
+            if (!frame) {
+                frame = new TagLib::ID3v2::TableOfContentsFrame(elementIDBytes);
+                tag->addFrame(frame);
+            }
+            frame->setIsTopLevel(BooleanValueFromObject(entry[@"isTopLevel"]));
+            frame->setIsOrdered(BooleanValueFromObject(entry[@"isOrdered"]));
+            TagLib::ByteVectorList children;
+            for (NSString *child in (NSArray<NSString *> *)entry[@"children"] ?: @[]) {
+                NSData *utf8 = [child dataUsingEncoding:NSUTF8StringEncoding];
+                if (utf8.length > 0) {
+                    children.append(TagLib::ByteVector((const char *)utf8.bytes, (unsigned int)utf8.length));
+                }
+            }
+            frame->setChildElements(children);
+        } else if ([type isEqualToString:@"podcast"]) {
+            TagLib::ID3v2::FrameList existing = tag->frameList("PCST");
+            for (auto it = existing.begin(); it != existing.end(); ++it) tag->removeFrame(*it);
+            tag->addFrame(new TagLib::ID3v2::PodcastFrame());
         }
     }
 }
@@ -462,7 +568,9 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             const bool boolValue = BooleanValueFromObject(entry[@"value"]);
             attribute = TagLib::ASF::Attribute(boolValue);
         } else if ([type isEqualToString:@"int64"]) {
-            attribute = TagLib::ASF::Attribute((unsigned long long)IntegerValueFromObject(entry[@"value"]));
+            unsigned long long value = 0;
+            UnsignedLongLongValueFromObject(entry[@"value"], value);
+            attribute = TagLib::ASF::Attribute(value);
         } else if ([type isEqualToString:@"binary"] || [type isEqualToString:@"guid"]) {
             NSData *data = DataValueFromObject(entry[@"data"]);
             attribute = TagLib::ASF::Attribute(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));

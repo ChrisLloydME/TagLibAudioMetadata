@@ -69,6 +69,15 @@ extension TagLibMetadataManager {
                 dict["owner"] = frame.owner
                 dict["data"] = frame.data
                 for (key, value) in frame.fields { dict[key] = value }
+                dict["elementID"] = frame.elementID
+                dict["startTimeMilliseconds"] = frame.startTimeMilliseconds
+                dict["endTimeMilliseconds"] = frame.endTimeMilliseconds
+                dict["startOffset"] = frame.startOffset
+                dict["endOffset"] = frame.endOffset
+                dict["isTopLevel"] = frame.isTopLevel
+                dict["isOrdered"] = frame.isOrdered
+                dict["children"] = frame.children
+                dict["embeddedFrameCount"] = frame.embeddedFrameCount
                 return dict as NSDictionary
             } as NSArray
         }

@@ -299,6 +299,53 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(compilation.value, "1")
     }
 
+    func testStructuredID3ChapterAndTableOfContentsRoundTrip() throws {
+        let url = try copyAudioFixture("mp3")
+        let payload = StructuredMetadata(
+            id3v2Frames: [
+                .init(
+                    frameID: "CHAP",
+                    type: "chapter",
+                    elementID: "chapter-1",
+                    startTimeMilliseconds: 1_000,
+                    endTimeMilliseconds: 5_000,
+                    startOffset: Int(UInt32.max),
+                    endOffset: Int(UInt32.max)
+                ),
+                .init(
+                    frameID: "CTOC",
+                    type: "tableOfContents",
+                    elementID: "toc-root",
+                    isTopLevel: true,
+                    isOrdered: true,
+                    children: ["chapter-1"]
+                ),
+                .init(frameID: "PCST", type: "podcast"),
+            ]
+        )
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            payload,
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let chapter = try XCTUnwrap(result.id3v2Frames.first { $0.frameID == "CHAP" })
+        XCTAssertEqual(chapter.elementID, "chapter-1")
+        XCTAssertEqual(chapter.startTimeMilliseconds, 1_000)
+        XCTAssertEqual(chapter.endTimeMilliseconds, 5_000)
+        XCTAssertEqual(chapter.startOffset, Int(UInt32.max))
+        XCTAssertEqual(chapter.endOffset, Int(UInt32.max))
+
+        let toc = try XCTUnwrap(result.id3v2Frames.first { $0.frameID == "CTOC" })
+        XCTAssertEqual(toc.elementID, "toc-root")
+        XCTAssertEqual(toc.isTopLevel, true)
+        XCTAssertEqual(toc.isOrdered, true)
+        XCTAssertEqual(toc.children, ["chapter-1"])
+        XCTAssertTrue(result.id3v2Frames.contains { $0.frameID == "PCST" && $0.type == "podcast" })
+    }
+
     func testExtendedBasicFieldsRoundTripAcrossID3AndMP4() throws {
         for ext in ["mp3", "m4a"] {
             let url = try copyAudioFixture(ext)
