@@ -121,6 +121,7 @@ extension TagLibMetadataManager {
         }
 
         do {
+            let identityBeforeRead = regularFileIdentity(at: url)
             // ObjC++ bridge API imported into Swift as `throws`.
             let meta = try TagLibMetadataExtractor.extractMetadata(from: url)
             let trackNumberText = meta.trackNumberText ?? ""
@@ -143,6 +144,12 @@ extension TagLibMetadataManager {
 
             if case nil = rawDump {
                 rawDump = rawMetadata(from: url)
+            }
+
+            guard identityBeforeRead == regularFileIdentity(at: url) else {
+                throw TagLibManagerError.failedToReadWithUnderlying(
+                    "The audio file changed while metadata was being read."
+                )
             }
 
             var trackSource: MetadataValueSource =

@@ -94,6 +94,17 @@ public:
     ~TagLibAtomicMutationScope() { --TagLibAtomicMutationDepth; }
 };
 
+static bool SameTagLibFileVersion(const struct stat &lhs, const struct stat &rhs)
+{
+    return lhs.st_dev == rhs.st_dev &&
+        lhs.st_ino == rhs.st_ino &&
+        lhs.st_size == rhs.st_size &&
+        lhs.st_mtimespec.tv_sec == rhs.st_mtimespec.tv_sec &&
+        lhs.st_mtimespec.tv_nsec == rhs.st_mtimespec.tv_nsec &&
+        lhs.st_ctimespec.tv_sec == rhs.st_ctimespec.tv_sec &&
+        lhs.st_ctimespec.tv_nsec == rhs.st_ctimespec.tv_nsec;
+}
+
 static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
                                         NSError **error,
                                         NSString *operation,
@@ -245,8 +256,7 @@ static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
     struct stat currentIdentity = {};
     if (lstat(targetURL.path.fileSystemRepresentation, &currentIdentity) != 0 ||
         !S_ISREG(currentIdentity.st_mode) ||
-        currentIdentity.st_dev != originalIdentity.st_dev ||
-        currentIdentity.st_ino != originalIdentity.st_ino) {
+        !SameTagLibFileVersion(currentIdentity, originalIdentity)) {
         [fileManager removeItemAtURL:temporaryURL error:nil];
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
