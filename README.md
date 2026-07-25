@@ -25,8 +25,14 @@ Use it when an app needs:
 - GNU C++20, configured by `Package.swift`
 
 Consumers do not need Homebrew, CMake, or a system TagLib installation. The
-repository root package declares a `binaryTarget` containing the required
-dynamic framework slices.
+repository root package declares a checksum-pinned remote `binaryTarget` for
+the required dynamic framework slices. TagLib sources, headers, and binaries
+are not stored in this source repository.
+
+The binary asset is public and needs no GitHub credentials. If command-line
+SwiftPM attempts to inspect an existing GitHub Keychain entry, pass
+`--disable-keychain --disable-netrc`; see
+[Installation and binary distribution](docs/INSTALLATION.md).
 
 ## Installation
 
@@ -34,7 +40,7 @@ Add the package to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", from: "0.4.2")
+    .package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", from: "0.4.3")
 ],
 targets: [
     .target(
@@ -247,7 +253,7 @@ The 0.4.0 release verification on 2026-07-24 used Apple Swift 6.3.3:
 | `swift test --sanitize=thread` | Passed 28 tests; no Thread Sanitizer findings |
 | Consumer executable | Not rerun in the restricted release runner because SwiftPM's nested sandbox was denied before manifest evaluation |
 | iOS Simulator cross-build | Passed for `arm64-apple-ios16.0-simulator` with minimum iOS 16.0 |
-| XCFramework checksums | Every file listed in the vendored `CHECKSUMS.txt` passed SHA-256 verification |
+| XCFramework integrity | The release archive is pinned by SwiftPM checksum; SwiftPM rejects mismatched downloads |
 | Dynamic link audit | Test bundle loads `@rpath/TagLib.framework/TagLib`; the built framework is present and no vendored C++ source is compiled by the root target |
 | XCFramework build script | Passed shell syntax validation |
 
@@ -258,7 +264,7 @@ payloads, Unicode and long values, ordered multi-values, unknown fields,
 repeated reads and erase, exact and multiple artwork values, binary APE items,
 typed MP4 booleans, complete field-registry coverage, and WAV PCM payload
 preservation.
-CI verifies artifact checksums, clean build/test, consumer integration, dynamic
+CI verifies the remote artifact boundary, clean build/test, consumer integration, dynamic
 linkage, Address Sanitizer, Thread Sanitizer, and an iOS 16 Simulator
 cross-build as separate macOS jobs.
 
@@ -296,11 +302,11 @@ TagLib binary and its exact corresponding source revision are in
 | --- | --- |
 | `TagLibAudioMetadata` | Swift facade for application code. |
 | `CTagLibBridge` | Existing Objective-C++ API bridge; dynamically linked to TagLib. |
-| `TagLib` | Binary target backed by the vendored `TagLib.xcframework`. |
+| `TagLib` | Binary target backed by a checksum-pinned GitHub Release XCFramework. |
 
-The root `Package.swift` declares the vendored XCFramework directly.
+The root `Package.swift` declares the remote XCFramework directly.
 There is no TagLib source target, static fallback, Homebrew lookup, or system
-library lookup. The committed XCFramework contains dynamic macOS, iOS device,
+library lookup. The immutable release asset contains dynamic macOS, iOS device,
 and iOS Simulator slices built from unmodified TagLib 2.1.1.
 
 ## License
@@ -311,12 +317,12 @@ License. See [LICENSE](LICENSE).
 The dynamically packaged TagLib library is dual-licensed under LGPL-2.1 and
 MPL-1.1. The exact upstream license texts are included at:
 
-- `Vendor/TagLibBinaryPackage/Licenses/COPYING.LGPL`
-- `Vendor/TagLibBinaryPackage/Licenses/COPYING.MPL`
+- `ThirdParty/TagLib/COPYING.LGPL`
+- `ThirdParty/TagLib/COPYING.MPL`
 
 The bundled utf8cpp dependency is licensed under the Boost Software License
 1.0; its text is at
-`Vendor/TagLibBinaryPackage/Licenses/utfcpp-LICENSE`.
+`ThirdParty/TagLib/utfcpp-LICENSE`.
 
 Applications that distribute this package must comply with the MIT license for
 the bridge code and either the LGPL-2.1 or MPL-1.1 terms for TagLib.

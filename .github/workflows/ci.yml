@@ -11,24 +11,31 @@ jobs:
       - uses: actions/checkout@v7
       - name: Toolchain
         run: swift --version
-      - name: Verify packaged TagLib artifact
-        working-directory: Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework
-        run: shasum -a 256 -c CHECKSUMS.txt
+      - name: Verify remote binary boundary
+        run: |
+          source scripts/taglib-binary-version.env
+          test ! -d Vendor/TagLibBinaryPackage
+          test -z "$(git ls-files '*.xcframework/**')"
+          grep -F "${TAGLIB_BINARY_RELEASE_TAG}" Package.swift
+          grep -F 'a625c90c0996a8a37484bae1f2075913b591aba1b73cafb119446d9d2294a547' Package.swift
       - name: Clean build
         run: |
-          swift package clean
-          swift build
+          swift package --disable-keychain --disable-netrc clean
+          swift build --disable-keychain --disable-netrc
       - name: Test
-        run: swift test
+        run: swift test --disable-keychain --disable-netrc
       - name: Consumer integration
-        run: swift run --package-path IntegrationTests/Consumer TagLibAudioMetadataConsumer
+        run: swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataConsumer
       - name: Dynamic link audit
         run: |
           test ! -d Sources/CTagLibBridge/taglib
-          BIN_PATH=$(swift build --show-bin-path)
+          BIN_PATH=$(swift build --disable-keychain --disable-netrc --show-bin-path)
           TEST_BINARY="$BIN_PATH/TagLibAudioMetadataPackageTests.xctest/Contents/MacOS/TagLibAudioMetadataPackageTests"
           otool -L "$TEST_BINARY" | grep '@rpath/TagLib.framework/TagLib'
           test -d "$BIN_PATH/TagLib.framework"
+          test -f "$BIN_PATH/TagLib.framework/Versions/A/Resources/Info.plist"
+          test -L "$BIN_PATH/TagLib.framework/Versions/Current"
+          test -L "$BIN_PATH/TagLib.framework/TagLib"
           test -z "$(find Sources/CTagLibBridge -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.cxx' \) -print -quit)"
 
   address-sanitizer:
@@ -36,14 +43,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Address Sanitizer
-        run: swift test --sanitize=address
+        run: swift test --disable-keychain --disable-netrc --sanitize=address
 
   thread-sanitizer:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - name: Thread Sanitizer
-        run: swift test --sanitize=thread
+        run: swift test --disable-keychain --disable-netrc --sanitize=thread
 
   ios-simulator-build:
     runs-on: macos-26
@@ -52,4 +59,4 @@ jobs:
       - name: Build for the minimum iOS Simulator target
         run: |
           SDK_PATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          swift build --triple arm64-apple-ios16.0-simulator --sdk "$SDK_PATH"
+          swift build --disable-keychain --disable-netrc --triple arm64-apple-ios16.0-simulator --sdk "$SDK_PATH"

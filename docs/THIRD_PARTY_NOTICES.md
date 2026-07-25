@@ -12,7 +12,7 @@ advice; the included license texts are authoritative.
 | Tag | `v2.1.1` |
 | Commit | `7d86716194777e0294453bfdc9dd170bd033e1f4` |
 | Upstream | <https://github.com/taglib/taglib> |
-| Distributed form | Dynamic `TagLib.framework` slices in `Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework` |
+| Distributed form | Dynamic `TagLib.framework` slices in release asset `taglib-binary-2.1.1-r1` |
 | Source modifications | None |
 | Build recipe | `scripts/build-taglib-xcframework.sh` |
 
@@ -24,9 +24,9 @@ macOS and iOS dynamic framework slices.
 TagLib is dual-licensed; distributors may choose either:
 
 - GNU Lesser General Public License version 2.1 (LGPL-2.1). Exact text:
-  `Vendor/TagLibBinaryPackage/Licenses/COPYING.LGPL`.
+  `ThirdParty/TagLib/COPYING.LGPL`.
 - Mozilla Public License version 1.1 (MPL-1.1). Exact text:
-  `Vendor/TagLibBinaryPackage/Licenses/COPYING.MPL`.
+  `ThirdParty/TagLib/COPYING.MPL`.
 
 ### Distribution notes
 
@@ -53,7 +53,7 @@ requirements of a specific distribution model or jurisdiction.
 | Upstream | <https://github.com/nemtrif/utfcpp> |
 | Relationship | TagLib 2.1.1 submodule used while compiling the framework |
 | License | Boost Software License 1.0 |
-| Exact text | `Vendor/TagLibBinaryPackage/Licenses/utfcpp-LICENSE` |
+| Exact text | `ThirdParty/TagLib/utfcpp-LICENSE` |
 
 utf8cpp is compiled as part of the TagLib implementation; it is not exposed as
 a separate SwiftPM product.

@@ -1,0 +1,51 @@
+name: Publish TagLib binary
+
+on:
+  push:
+    tags:
+      - "taglib-binary-*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install build tools
+        run: brew install cmake ninja
+      - name: Validate release identity
+        run: |
+          source scripts/taglib-binary-version.env
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "${TAGLIB_BINARY_RELEASE_TAG}" ]]; then
+            echo "Expected ${TAGLIB_BINARY_RELEASE_TAG}, got ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          git ls-remote --exit-code --tags origin "refs/tags/${TAGLIB_BINARY_RELEASE_TAG}"
+      - name: Build release archive
+        run: scripts/build-taglib-xcframework.sh --replace
+      - name: Verify archive and record checksum
+        run: |
+          source scripts/taglib-binary-version.env
+          ARCHIVE=".build/taglib-release/${TAGLIB_BINARY_ASSET_NAME}"
+          test -f "$ARCHIVE"
+          CHECKSUM=$(swift package compute-checksum "$ARCHIVE")
+          echo "SwiftPM checksum: $CHECKSUM" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Publish immutable release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source scripts/taglib-binary-version.env
+          ARCHIVE=".build/taglib-release/${TAGLIB_BINARY_ASSET_NAME}"
+          if gh release view "$TAGLIB_BINARY_RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to replace an immutable binary asset" >&2
+            exit 1
+          fi
+          gh release create "$TAGLIB_BINARY_RELEASE_TAG" "$ARCHIVE" \
+            --verify-tag \
+            --title "TagLib ${TAGLIB_VERSION} Apple dynamic XCFramework (r${TAGLIB_BINARY_REVISION})" \
+            --notes "Built from unmodified TagLib ${TAGLIB_TAG} at ${TAGLIB_COMMIT}. Supports macOS 13+, iOS 16+, and iOS Simulator."

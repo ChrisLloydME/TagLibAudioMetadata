@@ -17,7 +17,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "TagLib",
-            path: "Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework"
+            url: "https://github.com/ChrisLloydME/TagLibAudioMetadata/releases/download/taglib-binary-2.1.1-r1/TagLib-2.1.1-apple-dynamic.xcframework.zip",
+            checksum: "a625c90c0996a8a37484bae1f2075913b591aba1b73cafb119446d9d2294a547"
         ),
         .target(
             name: "CTagLibBridge",
