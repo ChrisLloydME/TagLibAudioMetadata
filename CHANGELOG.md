@@ -5,6 +5,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.1] - 2026-07-25
+
+### Fixed
+
+- Declared the vendored TagLib XCFramework directly in the root package so
+  tagged and revision-based remote SwiftPM consumers can resolve the package.
+
+---
+
 ## [0.4.0] - 2026-07-24
 
 ### Added
