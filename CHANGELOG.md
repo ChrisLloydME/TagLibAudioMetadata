@@ -5,6 +5,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.2] - 2026-07-25
+
+### Fixed
+
+- Packaged the macOS TagLib framework with the required versioned bundle
+  layout so Xcode application validation accepts embedded copies.
+
+---
+
 ## [0.4.1] - 2026-07-25
 
 ### Fixed

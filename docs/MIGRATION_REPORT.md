@@ -9,11 +9,10 @@ the digest comparisons below intentionally remain migration-time evidence.
 
 ## Outcome
 
-The root `TagLibAudioMetadata` package now mounts
-`Vendor/TagLibBinaryPackage` with a relative SwiftPM package dependency.
-That package exposes the `TagLibBinary` product backed by a binary target named
-`TagLib` at `Artifacts/TagLib.xcframework`. The existing `CTagLibBridge` target
-depends on that product and dynamically links the selected framework slice.
+The root `TagLibAudioMetadata` package declares a binary target named `TagLib`
+backed by `Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework`. The
+existing `CTagLibBridge` target depends on that target and dynamically links
+the selected framework slice.
 
 `Sources/CTagLibBridge/taglib` and its 250 tracked source/header/license files
 were removed after the external build passed. All former TagLib header search
