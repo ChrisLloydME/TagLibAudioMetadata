@@ -180,6 +180,23 @@ final class ReliabilityFailureTests: XCTestCase {
         }
     }
 
+    func testBridgeRejectsOutOfRangeStructuredNumbersWithoutChangingFile() throws {
+        let url = try copyFixture("mp3")
+        let originalBytes = try Data(contentsOf: url)
+        let payload: [String: NSObject] = [
+            "asfAttributes": [[
+                "key": "UnsignedValue",
+                "type": "int64",
+                "value": "18446744073709551616",
+                "language": 0,
+                "stream": 0,
+            ]] as NSArray,
+        ]
+
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: url))
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+    }
+
     func testDirectBridgeFailuresPreserveCorruptFileBytes() throws {
         let directory = try temporaryDirectory()
         let url = directory.appendingPathComponent("corrupt.mp3")
