@@ -357,7 +357,8 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
 ```
 
 `RawPropertyMapWriteMode.merge` starts from the current property map, applies
-the supplied keys, and removes a key when the supplied value is empty.
+the supplied keys, and removes a key when the supplied value is empty. Existing
+multi-value arrays on untouched keys remain arrays during the merge.
 
 Use `writeRawMetadataPropertyMapValuesWithVerification` when the container can
 preserve arrays:
@@ -413,10 +414,11 @@ Use `readStructuredMetadata(from:)` for an optional result:
 let structured = TagLibMetadataManager.readStructuredMetadata(from: url)
 ```
 
-Read-only `CHAP` and `CTOC` records expose their container data directly on
+`CHAP` and `CTOC` records expose their container data directly on
 `StructuredID3v2Frame`: `elementID`, start/end time and offsets, `isTopLevel`,
-`isOrdered`, `children`, and `embeddedFrameCount`. These complex frame types are
-preserved during edits but are not created or modified by the structured writer.
+`isOrdered`, `children`, and `embeddedFrameCount`. The structured writer creates
+and modifies these frames and the `PCST` podcast marker, validates their
+unsigned numeric fields, and verifies their typed values after save.
 
 ### Writing Structured Metadata
 
@@ -535,9 +537,9 @@ try TagLibMetadataManager.eraseAllMetadata(from: url)
 
 ## Verification
 
-Write methods that return `MetadataWriteResult` may include warnings. A warning
-means the bridge completed the write call, then the read-back check found a
-difference or could not confirm part of the requested change.
+Write methods that return `MetadataWriteResult` may include warnings. Most
+warnings mean the bridge completed the write call, then the read-back check
+found a difference or could not confirm part of the requested change.
 
 Common warning causes:
 
@@ -546,6 +548,9 @@ Common warning causes:
 - A custom field was stored under a container-specific alias.
 - Artwork could not be confirmed after write.
 - Structured metadata collections changed shape after TagLib saved the file.
+- A structured reader reported a container advisory. Advisories remain visible
+  in `MetadataWriteResult.warnings`, but do not by themselves make
+  `failurePolicy: .throw` roll back a correctly verified structured write.
 
 Choose the failure policy per workflow:
 
@@ -565,8 +570,8 @@ try TagLibMetadataManager.writeMetadataWithVerification(
 )
 ```
 
-Use `.throw` for tests, batch processing, and workflows where silent
-normalization would be data loss.
+Use `.throw` for tests, batch processing, and workflows where a read-back
+verification difference would be data loss.
 
 ## Field Registry
 
@@ -606,6 +611,9 @@ if let capability = TagLibMetadataManager.formatCapability(for: url.pathExtensio
     let supportedFields = MetadataFieldRegistry.schemas(storableIn: capability)
 }
 ```
+
+Read-only capabilities return an empty list because their mapped fields can be
+inspected but are not storable through the package.
 
 Check whether a field has a mapping:
 
@@ -703,8 +711,9 @@ fields, artwork, and custom fields back to the bridge model.
 
 - `unsupportedFormat`: the URL has no extension or the bridge does not support it.
 - `failedToReadWithUnderlying(String)`: TagLib or the bridge failed while reading.
-- `verificationFailed([String])`: verification produced warnings and the caller
-  requested `failurePolicy: .throw`.
+- `verificationFailed([String])`: verification produced failures and the caller
+  requested `failurePolicy: .throw`. Structured container advisories can still
+  be returned as warnings without triggering this error.
 - `failedToRead`: deprecated. Use `failedToReadWithUnderlying`.
 
 ## Low-Level Bridge API

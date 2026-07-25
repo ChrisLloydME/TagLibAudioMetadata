@@ -7,13 +7,48 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-07-25
+
+### Added
+
+- Added public-API compatibility regression tests for the Objective-C selector
+  surface and the Swift facade's existing model nesting and write-result types.
+- Added coverage for verification rollback, read-only capability schemas, raw
+  merge preservation, structured ID3v2 chapter/table-of-contents/podcast
+  round trips, unsigned ASF values, and concurrent destination changes.
+- Added strict warning builds, a five-target Apple platform matrix, a remote
+  SemVer consumer check, and release-archive slice validation to CI.
+
 ### Changed
 
-- Moved the TagLib XCFramework out of the source repository and into an
-  immutable, checksum-pinned GitHub Release asset.
+- Moved the TagLib XCFramework out of the source repository and into a
+  checksum-pinned GitHub Release asset that is immutable by project policy.
 - Added a single version configuration and release workflow so future TagLib
   upgrades rebuild, verify, and publish the Apple binary independently from the
   Swift package source.
+- Split the 8,000-line Objective-C++ bridge and 2,600-line Swift manager into
+  focused implementation files without changing the compiled bridge translation
+  unit or public headers and signatures.
+- Strengthened mutation identity checks with size and nanosecond modification
+  and change times, including the interval between the Swift facade's two read
+  snapshots.
+
+### Fixed
+
+- Preserved untouched multi-value fields when applying raw property-map merges.
+- Kept structured container advisories visible without treating them as failed
+  read-back verification under `failurePolicy: .throw`.
+- Added structured write and verification support for ID3v2 `CHAP`, `CTOC`, and
+  `PCST` frames, including validation of unsigned numeric bounds.
+- Preserved the full unsigned 64-bit range for ASF QWord attributes and rejected
+  numeric overflow instead of passing values through signed `NSInteger`.
+- Returned the established unsupported-format error for erase requests against
+  non-writable formats and stopped advertising storable schemas for read-only
+  formats.
+- Prevented manual binary-release runs from publishing a branch commit under an
+  unrelated tag; the workflow now verifies the requested tag and peeled commit.
+
+---
 
 ## [0.4.2] - 2026-07-25
 
