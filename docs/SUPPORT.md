@@ -13,9 +13,10 @@ and how to handle container-specific behavior after writes.
 - `TagLibAudioMetadata`: the Swift facade used by app code.
 - `CTagLibBridge`: the Objective-C++ bridge, dynamically linked to TagLib.
 
-The root manifest declares a `binaryTarget` for the repository-local dynamic
-`TagLib.xcframework`. The bridge depends on that target; it no longer compiles
-or carries TagLib source and has no static/source fallback.
+The root manifest declares a checksum-pinned remote `binaryTarget` for the
+dynamic `TagLib.xcframework`. The bridge depends on that target; this source
+repository no longer compiles or carries TagLib source, headers, or binaries
+and has no static/source fallback.
 
 Most apps should import the Swift facade:
 

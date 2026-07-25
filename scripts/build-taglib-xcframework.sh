@@ -2,29 +2,34 @@
 
 set -euo pipefail
 
-TAGLIB_VERSION="2.1.1"
-TAGLIB_TAG="v${TAGLIB_VERSION}"
-TAGLIB_COMMIT="7d86716194777e0294453bfdc9dd170bd033e1f4"
-UTF8CPP_COMMIT="df857efc5bbc2aa84012d865f7d7e9cccdc08562"
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPOSITORY_ROOT="$(cd "${SCRIPT_DIRECTORY}/.." && pwd)"
+VERSION_CONFIGURATION="${SCRIPT_DIRECTORY}/taglib-binary-version.env"
+
+# shellcheck source=taglib-binary-version.env
+source "${VERSION_CONFIGURATION}"
+
 TAGLIB_REPOSITORY="https://github.com/taglib/taglib.git"
 MACOS_DEPLOYMENT_TARGET="13.0"
 IOS_DEPLOYMENT_TARGET="16.0"
-
-SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPOSITORY_ROOT="$(cd "${SCRIPT_DIRECTORY}/.." && pwd)"
-OUTPUT_PATH="${REPOSITORY_ROOT}/Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework"
+OUTPUT_PATH="${REPOSITORY_ROOT}/.build/taglib-binary/TagLib.xcframework"
+ARCHIVE_OUTPUT_PATH="${REPOSITORY_ROOT}/.build/taglib-release/${TAGLIB_BINARY_ASSET_NAME}"
 SOURCE_PATH=""
 KEEP_WORK_DIRECTORY=0
 REPLACE_OUTPUT=0
 
 usage() {
-    echo "Usage: $0 [--output PATH] [--source-dir PATH] [--keep-work-dir] [--replace]"
+    echo "Usage: $0 [--output PATH] [--archive-output PATH] [--source-dir PATH] [--keep-work-dir] [--replace]"
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --output)
             OUTPUT_PATH="$2"
+            shift 2
+            ;;
+        --archive-output)
+            ARCHIVE_OUTPUT_PATH="$2"
             shift 2
             ;;
         --source-dir)
@@ -59,7 +64,15 @@ case "${OUTPUT_PATH}" in
         ;;
 esac
 
-for required_tool in cmake git install_name_tool lipo ninja otool plutil shasum xcodebuild; do
+case "${ARCHIVE_OUTPUT_PATH}" in
+    *.xcframework.zip) ;;
+    *)
+        echo "Archive output path must end in .xcframework.zip: ${ARCHIVE_OUTPUT_PATH}" >&2
+        exit 2
+        ;;
+esac
+
+for required_tool in cmake ditto git install_name_tool lipo ninja otool plutil swift xcodebuild zip; do
     if ! command -v "${required_tool}" >/dev/null 2>&1; then
         echo "Required tool not found: ${required_tool}" >&2
         exit 1
@@ -93,10 +106,23 @@ if [[ -e "${OUTPUT_PATH}" ]]; then
     rm -rf "${OUTPUT_PATH}"
 fi
 
+if [[ -e "${ARCHIVE_OUTPUT_PATH}" ]]; then
+    if [[ "${REPLACE_OUTPUT}" -ne 1 ]]; then
+        echo "Archive already exists; pass --replace to replace it: ${ARCHIVE_OUTPUT_PATH}" >&2
+        exit 1
+    fi
+    rm -f "${ARCHIVE_OUTPUT_PATH}"
+fi
+
 if [[ -z "${SOURCE_PATH}" ]]; then
     SOURCE_PATH="${WORK_DIRECTORY}/taglib"
-    git clone --branch "${TAGLIB_TAG}" --depth 1 "${TAGLIB_REPOSITORY}" "${SOURCE_PATH}"
-    git -C "${SOURCE_PATH}" submodule update --init --depth 1 3rdparty/utfcpp
+    GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone \
+        --branch "${TAGLIB_TAG}" \
+        --depth 1 \
+        "${TAGLIB_REPOSITORY}" \
+        "${SOURCE_PATH}"
+    GIT_TERMINAL_PROMPT=0 git -c credential.helper= \
+        -C "${SOURCE_PATH}" submodule update --init --depth 1 3rdparty/utfcpp
 else
     SOURCE_PATH="$(cd "${SOURCE_PATH}" && pwd)"
 fi
@@ -227,10 +253,19 @@ echo "Created ${OUTPUT_PATH}"
 plutil -lint "${OUTPUT_PATH}/Info.plist"
 find "${OUTPUT_PATH}" -type f -name TagLib -exec file {} \;
 find "${OUTPUT_PATH}" -type f -name TagLib -exec otool -L {} \;
+
+MACOS_FRAMEWORK_PATH="${OUTPUT_PATH}/macos-arm64_x86_64/TagLib.framework"
+test -f "${MACOS_FRAMEWORK_PATH}/Versions/A/Resources/Info.plist"
+test -L "${MACOS_FRAMEWORK_PATH}/Versions/Current"
+test -L "${MACOS_FRAMEWORK_PATH}/TagLib"
+
+mkdir -p "$(dirname "${ARCHIVE_OUTPUT_PATH}")"
 (
-    cd "${OUTPUT_PATH}"
-    find . -type f ! -name CHECKSUMS.txt -print0 \
-        | LC_ALL=C sort -z \
-        | xargs -0 shasum -a 256
-) > "${OUTPUT_PATH}/CHECKSUMS.txt"
-shasum -a 256 "${OUTPUT_PATH}/CHECKSUMS.txt"
+    cd "$(dirname "${OUTPUT_PATH}")"
+    zip -qry -y "${ARCHIVE_OUTPUT_PATH}" "$(basename "${OUTPUT_PATH}")"
+)
+
+ARCHIVE_CHECKSUM="$(swift package compute-checksum "${ARCHIVE_OUTPUT_PATH}")"
+echo "Created ${ARCHIVE_OUTPUT_PATH}"
+echo "Release tag: ${TAGLIB_BINARY_RELEASE_TAG}"
+echo "SwiftPM checksum: ${ARCHIVE_CHECKSUM}"

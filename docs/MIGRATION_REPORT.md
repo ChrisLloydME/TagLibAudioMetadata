@@ -10,9 +10,10 @@ the digest comparisons below intentionally remain migration-time evidence.
 ## Outcome
 
 The root `TagLibAudioMetadata` package declares a binary target named `TagLib`
-backed by `Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework`. The
-existing `CTagLibBridge` target depends on that target and dynamically links
-the selected framework slice.
+backed by an immutable, checksum-pinned GitHub Release asset. The existing
+`CTagLibBridge` target depends on that target and dynamically links the selected
+framework slice. The source repository contains no TagLib sources, headers, or
+framework binaries.
 
 `Sources/CTagLibBridge/taglib` and its 250 tracked source/header/license files
 were removed after the external build passed. All former TagLib header search
@@ -33,7 +34,7 @@ external library. Official CMake generates and installs the configuration
 headers instead.
 
 The official TagLib LGPL-2.1/MPL-1.1 texts and utf8cpp Boost Software License
-text are preserved byte-for-byte in `Vendor/TagLibBinaryPackage/Licenses`.
+text are preserved byte-for-byte in `ThirdParty/TagLib`.
 
 ## Artifact configuration and reproduction
 
@@ -63,9 +64,10 @@ Produced slices:
 | iOS Simulator | `arm64`, `x86_64` | 16.0 | Mach-O dynamic framework |
 
 Every slice has install name `@rpath/TagLib.framework/TagLib` and links only
-Apple SDK zlib, libc++, and libSystem. The artifact is 7.9 MB. The SHA-256 of
-its generated `CHECKSUMS.txt` is
-`7b6d9294744f0accfb0cc7ad7e27b9935c66d22d62d887e25d7050ae1d9ac23b`.
+Apple SDK zlib, libc++, and libSystem. The distributed ZIP is published as
+`TagLib-2.1.1-apple-dynamic.xcframework.zip` under release
+`taglib-binary-2.1.1-r1`. Its SwiftPM checksum is
+`a625c90c0996a8a37484bae1f2075913b591aba1b73cafb119446d9d2294a547`.
 
 Reference toolchain: Xcode 26.6 (17F113), Apple Clang 21.0.0, CMake 4.4.0,
 Ninja 1.13.2. A different toolchain may produce different bytes and requires
@@ -135,7 +137,30 @@ Post-migration:
 | iOS Simulator command | Passed for `arm64-apple-ios16.0-simulator` using iPhoneSimulator 26.5 SDK |
 | Additional architecture builds | Passed for `x86_64-apple-macosx13.0` and `x86_64-apple-ios16.0-simulator` |
 | Consumer package | Built and ran using only `import TagLibAudioMetadata`, including from a checkout with an arbitrary directory name; 37 readable extensions |
-| Artifact checksums | Every file passed `shasum -a 256 -c CHECKSUMS.txt` |
+| Artifact integrity | SwiftPM verified the checksum-pinned release archive |
+
+Remote binary release verification on 2026-07-25 used Apple Swift 6.3.3 and
+explicitly disabled SwiftPM Keychain and `.netrc` credential providers:
+
+| Command/check | Result |
+| --- | --- |
+| Clean-scratch `swift build` | Passed; fetched the public release asset, copied `TagLib.framework`, and compiled only the bridge `.mm` plus Swift sources |
+| `swift test` | 28/28 passed |
+| `swift test --sanitize=address` | 28/28 passed, no finding |
+| `swift test --sanitize=thread` | 28/28 passed, no finding |
+| Consumer executable | Built and ran with only `import TagLibAudioMetadata`; reported 37 readable extensions |
+| Versioned Git consumer | Resolved an exact temporary `0.4.3` Git tag, downloaded the remote binary, built, and ran; no local path dependency leaked from the root package |
+| iOS Simulator build | Passed for `arm64-apple-ios16.0-simulator` with iPhoneSimulator 26.5 SDK |
+| Public download | Anonymous download passed and SwiftPM verified checksum `a625c90c…a547` |
+| Rebuild script | Passed from a fresh anonymous clone of the exact official TagLib and utf8cpp revisions; produced all three dynamic slices and a ZIP |
+| macOS framework validation | The release slice accepted ad-hoc signing and passed `codesign --verify --deep --strict`; `Versions/A` resources and symlinks were intact |
+| API comparison with `0.4.2` | No diff under either public source module or the consumer fixture |
+
+The rebuild recipe fixes source revisions, options, deployment targets, and
+architectures, but does not promise byte-identical ZIP output. XCFramework
+metadata ordering and ZIP timestamps can change when the same inputs are
+regenerated; every newly published archive therefore receives its own SwiftPM
+checksum and immutable binary release revision.
 
 The existing tests exercise basic reads/writes/clears, erase, raw replace/merge
 and multi-value metadata, structured metadata, artwork write/removal, error
@@ -144,11 +169,10 @@ transaction rollback.
 
 ## Dynamic-link evidence
 
-Verbose build output selected and copied
-`Vendor/TagLibBinaryPackage/Artifacts/TagLib.xcframework/macos-arm64_x86_64/TagLib.framework`
-and compiled only `Sources/CTagLibBridge/TagLibMetadataExtractor.mm` for the
-bridge. `CTagLibBridge.build` contains that one object, its dependency file, and
-module map; it contains no TagLib source objects.
+Verbose build output selected the downloaded macOS XCFramework slice and
+compiled only `Sources/CTagLibBridge/TagLibMetadataExtractor.mm` for the bridge.
+`CTagLibBridge.build` contains that one object, its dependency file, and module
+map; it contains no TagLib source objects.
 
 `otool -L` on the test bundle reports:
 
@@ -174,9 +198,14 @@ contains no developer signing identity or release credentials.
   CMake-generated format macros replace the former source-compilation
   workarounds, so those unfixture-backed families should receive fixtures before
   making stronger behavior-equivalence claims.
-- The committed dynamic artifact was produced with a newer reference Apple SDK
+- The remote dynamic artifact was produced with a newer reference Apple SDK
   than some CI/developer machines may use. Its minimum load commands are macOS
   13/iOS 16, but CI must prove compatibility on the selected runner/toolchain.
+- A fresh checkout requires network access to download the release asset. The
+  URL and asset must remain available for every published package version.
+- SwiftPM enables credential providers by default. The public asset needs no
+  credential, and CI disables both Keychain and `.netrc` explicitly to prove
+  anonymous resolution and avoid local credential prompts.
 - SwiftPM command-line tests prove build-directory rpath resolution. Each final
   iOS/macOS application or archive still needs an embed-and-sign inspection.
 - Rebuilding with another compiler/SDK is source/configuration reproducible but

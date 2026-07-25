@@ -5,6 +5,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- Moved the TagLib XCFramework out of the source repository and into an
+  immutable, checksum-pinned GitHub Release asset.
+- Added a single version configuration and release workflow so future TagLib
+  upgrades rebuild, verify, and publish the Apple binary independently from the
+  Swift package source.
+
 ## [0.4.2] - 2026-07-25
 
 ### Fixed
