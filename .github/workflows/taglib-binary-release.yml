@@ -2,8 +2,14 @@ name: Publish TagLib binary
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "taglib-binary-*"
+    paths:
+      - ".github/workflows/taglib-binary-release.yml"
+      - "scripts/build-taglib-xcframework.sh"
+      - "scripts/taglib-binary-version.env"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -12,7 +18,12 @@ on:
         type: string
 
 permissions:
+  actions: write
   contents: write
+
+concurrency:
+  group: taglib-binary-${{ inputs.release_tag || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -64,30 +75,65 @@ jobs:
           ARCHIVE=".build/taglib-release/${TAGLIB_BINARY_ASSET_NAME}"
           test -f "$ARCHIVE"
           CHECKSUM=$(swift package compute-checksum "$ARCHIVE")
-          echo "SwiftPM checksum: $CHECKSUM" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Built SwiftPM checksum: $CHECKSUM" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Publish project-policy immutable release asset
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           source scripts/taglib-binary-version.env
           ARCHIVE=".build/taglib-release/${TAGLIB_BINARY_ASSET_NAME}"
+          PUBLISHED_CHECKSUM=""
           if gh release view "$TAGLIB_BINARY_RELEASE_TAG" >/dev/null 2>&1; then
             if gh release view "$TAGLIB_BINARY_RELEASE_TAG" \
               --json assets \
               --jq '.assets[].name' | grep -Fxq "$TAGLIB_BINARY_ASSET_NAME"; then
-              echo "Asset already exists; project policy forbids replacing it" >&2
-              exit 1
+              EXISTING_DIRECTORY=".build/taglib-existing"
+              mkdir -p "$EXISTING_DIRECTORY"
+              gh release download "$TAGLIB_BINARY_RELEASE_TAG" \
+                --pattern "$TAGLIB_BINARY_ASSET_NAME" \
+                --dir "$EXISTING_DIRECTORY"
+              PUBLISHED_CHECKSUM=$(swift package compute-checksum "$EXISTING_DIRECTORY/$TAGLIB_BINARY_ASSET_NAME")
+              echo "Reusing existing immutable release asset"
+            else
+              gh release upload "$TAGLIB_BINARY_RELEASE_TAG" "$ARCHIVE"
+              PUBLISHED_CHECKSUM=$(swift package compute-checksum "$ARCHIVE")
             fi
-            gh release upload "$TAGLIB_BINARY_RELEASE_TAG" "$ARCHIVE"
-            exit 0
-          fi
-          TAG_ARGUMENTS=()
-          if git show-ref --verify --quiet "refs/tags/${TAGLIB_BINARY_RELEASE_TAG}"; then
-            TAG_ARGUMENTS+=(--verify-tag)
           else
-            TAG_ARGUMENTS+=(--target "$GITHUB_SHA")
+            TAG_ARGUMENTS=()
+            if git show-ref --verify --quiet "refs/tags/${TAGLIB_BINARY_RELEASE_TAG}"; then
+              TAG_ARGUMENTS+=(--verify-tag)
+            else
+              TAG_ARGUMENTS+=(--target "$GITHUB_SHA")
+            fi
+            gh release create "$TAGLIB_BINARY_RELEASE_TAG" "$ARCHIVE" \
+              "${TAG_ARGUMENTS[@]}" \
+              --title "TagLib ${TAGLIB_VERSION} Apple dynamic XCFramework (r${TAGLIB_BINARY_REVISION})" \
+              --notes "Built from unmodified TagLib ${TAGLIB_TAG} at ${TAGLIB_COMMIT}. Supports macOS 13+, iOS 16+, and iOS Simulator."
+            PUBLISHED_CHECKSUM=$(swift package compute-checksum "$ARCHIVE")
           fi
-          gh release create "$TAGLIB_BINARY_RELEASE_TAG" "$ARCHIVE" \
-            "${TAG_ARGUMENTS[@]}" \
-            --title "TagLib ${TAGLIB_VERSION} Apple dynamic XCFramework (r${TAGLIB_BINARY_REVISION})" \
-            --notes "Built from unmodified TagLib ${TAGLIB_TAG} at ${TAGLIB_COMMIT}. Supports macOS 13+, iOS 16+, and iOS Simulator."
+          test -n "$PUBLISHED_CHECKSUM"
+          echo "checksum=$PUBLISHED_CHECKSUM" >> "$GITHUB_OUTPUT"
+          echo "Published SwiftPM checksum: $PUBLISHED_CHECKSUM" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Point the package manifest at the published asset
+        if: github.ref_type != 'tag'
+        env:
+          ARCHIVE_CHECKSUM: ${{ steps.publish.outputs.checksum }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source scripts/taglib-binary-version.env
+          BINARY_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAGLIB_BINARY_RELEASE_TAG}/${TAGLIB_BINARY_ASSET_NAME}"
+          export BINARY_URL ARCHIVE_CHECKSUM
+          perl -0pi -e 's#url: "[^"]+",\n(\s+)checksum: "[0-9a-f]+"#url: "$ENV{BINARY_URL}",\n$1checksum: "$ENV{ARCHIVE_CHECKSUM}"#' Package.swift
+          grep -F "url: \"${BINARY_URL}\"" Package.swift
+          grep -F "checksum: \"${ARCHIVE_CHECKSUM}\"" Package.swift
+          if git diff --quiet -- Package.swift; then
+            echo "Package.swift already references the published artifact"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Package.swift
+            git commit -m "fix(spm): point to published TagLib binary"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+          gh workflow run ci.yml --ref "$GITHUB_REF_NAME"
