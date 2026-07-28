@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Existing taglib-binary-* tag to build and publish"
+        description: "taglib-binary-* tag to create or publish"
         required: true
         type: string
 
@@ -21,7 +21,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+      - name: Verify publishing infrastructure
+        run: |
+          test -f scripts/taglib-binary-version.env
+          test -x scripts/build-taglib-xcframework.sh
       - name: Verify build tools
         run: |
           cmake --version
@@ -40,12 +43,18 @@ jobs:
             echo "Expected ${TAGLIB_BINARY_RELEASE_TAG}, got ${GITHUB_REF_NAME}" >&2
             exit 1
           fi
-          git ls-remote --exit-code --tags origin "refs/tags/${TAGLIB_BINARY_RELEASE_TAG}"
-          TAG_COMMIT="$(git rev-parse "${TAGLIB_BINARY_RELEASE_TAG}^{commit}")"
-          HEAD_COMMIT="$(git rev-parse HEAD)"
-          if [[ "${HEAD_COMMIT}" != "${TAG_COMMIT}" ]]; then
-            echo "HEAD ${HEAD_COMMIT} does not match ${TAGLIB_BINARY_RELEASE_TAG} at ${TAG_COMMIT}" >&2
-            exit 1
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG_COMMIT="$(git rev-parse "${TAGLIB_BINARY_RELEASE_TAG}^{commit}")"
+            HEAD_COMMIT="$(git rev-parse HEAD)"
+            if [[ "${HEAD_COMMIT}" != "${TAG_COMMIT}" ]]; then
+              echo "HEAD ${HEAD_COMMIT} does not match ${TAGLIB_BINARY_RELEASE_TAG} at ${TAG_COMMIT}" >&2
+              exit 1
+            fi
+          elif git show-ref --verify --quiet "refs/tags/${TAGLIB_BINARY_RELEASE_TAG}"; then
+            if ! git merge-base --is-ancestor "${TAGLIB_BINARY_RELEASE_TAG}^{commit}" HEAD; then
+              echo "Existing ${TAGLIB_BINARY_RELEASE_TAG} is not an ancestor of HEAD" >&2
+              exit 1
+            fi
           fi
       - name: Build release archive
         run: scripts/build-taglib-xcframework.sh --replace
@@ -63,10 +72,22 @@ jobs:
           source scripts/taglib-binary-version.env
           ARCHIVE=".build/taglib-release/${TAGLIB_BINARY_ASSET_NAME}"
           if gh release view "$TAGLIB_BINARY_RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release already exists; project policy forbids replacing a published binary asset" >&2
-            exit 1
+            if gh release view "$TAGLIB_BINARY_RELEASE_TAG" \
+              --json assets \
+              --jq '.assets[].name' | grep -Fxq "$TAGLIB_BINARY_ASSET_NAME"; then
+              echo "Asset already exists; project policy forbids replacing it" >&2
+              exit 1
+            fi
+            gh release upload "$TAGLIB_BINARY_RELEASE_TAG" "$ARCHIVE"
+            exit 0
+          fi
+          TAG_ARGUMENTS=()
+          if git show-ref --verify --quiet "refs/tags/${TAGLIB_BINARY_RELEASE_TAG}"; then
+            TAG_ARGUMENTS+=(--verify-tag)
+          else
+            TAG_ARGUMENTS+=(--target "$GITHUB_SHA")
           fi
           gh release create "$TAGLIB_BINARY_RELEASE_TAG" "$ARCHIVE" \
-            --verify-tag \
+            "${TAG_ARGUMENTS[@]}" \
             --title "TagLib ${TAGLIB_VERSION} Apple dynamic XCFramework (r${TAGLIB_BINARY_REVISION})" \
             --notes "Built from unmodified TagLib ${TAGLIB_TAG} at ${TAGLIB_COMMIT}. Supports macOS 13+, iOS 16+, and iOS Simulator."
