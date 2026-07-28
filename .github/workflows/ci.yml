@@ -2,6 +2,12 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      # These changes must publish the remote XCFramework first. The publish
+      # workflow dispatches CI after the release asset and checksum are ready.
+      - ".github/workflows/taglib-binary-release.yml"
+      - "scripts/build-taglib-xcframework.sh"
+      - "scripts/taglib-binary-version.env"
   pull_request:
   workflow_dispatch:
 
