@@ -156,16 +156,18 @@ publishing a regenerated artifact.
 
 ## Publish an artifact
 
-1. Update `scripts/taglib-binary-version.env` on the default branch and review
-   the upstream source.
-2. Run **Publish TagLib binary** on that branch with the matching
-   `taglib-binary-<version>-r<revision>` input. The workflow creates the tag when
-   needed; it deliberately uses the current branch's publishing tools instead
-   of checking out a possibly older release tag.
-3. Copy the workflow's reported checksum and release asset URL into
-   `Package.swift`.
-4. Verify a clean external consumer with isolated SwiftPM/Xcode caches.
-5. Commit the manifest update and publish a new semantic package version.
+1. Update `scripts/taglib-binary-version.env` on `main` and review the upstream
+   source.
+2. Push the change. **Publish TagLib binary** automatically builds the archive,
+   creates or completes the matching binary Release, obtains the real checksum,
+   and commits the resulting URL and checksum to `Package.swift`.
+3. The release workflow explicitly dispatches CI for the bot's manifest commit;
+   verify the clean external consumer before publishing a new semantic package
+   version.
+
+The workflow can also be started manually with the matching
+`taglib-binary-<version>-r<revision>` input. It uses the selected branch's
+publishing tools instead of checking out a possibly older release tag.
 
 The publishing workflow may attach an asset to an existing empty release, but
 refuses to replace an existing same-named asset. If a published asset has a

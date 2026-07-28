@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -17,7 +18,8 @@ jobs:
           test ! -d Vendor/TagLibBinaryPackage
           test -z "$(git ls-files '*.xcframework/**')"
           grep -F "${TAGLIB_BINARY_RELEASE_TAG}" Package.swift
-          grep -F 'a625c90c0996a8a37484bae1f2075913b591aba1b73cafb119446d9d2294a547' Package.swift
+          grep -F "${TAGLIB_BINARY_ASSET_NAME}" Package.swift
+          grep -E 'checksum: "[0-9a-f]{64}"' Package.swift
       - name: Clean build
         run: |
           swift package --disable-keychain --disable-netrc clean
