@@ -136,6 +136,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 /// TagLib metadata extractor
+///
+/// All selectors that enter TagLib are serialized internally. They are safe to
+/// call concurrently, including for different files, but execute one at a time
+/// to avoid races in TagLib's process-wide state.
 @interface TagLibMetadataExtractor : NSObject
 
 /// Extract metadata from an audio file.

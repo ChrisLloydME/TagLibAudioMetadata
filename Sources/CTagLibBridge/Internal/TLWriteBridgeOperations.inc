@@ -3,6 +3,7 @@
                 error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (metadata.artworkData.length > std::numeric_limits<unsigned int>::max()) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -805,6 +806,7 @@
                       error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Metadata wipe", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self wipeMetadataFromURL:temporaryURL error:mutationError];
