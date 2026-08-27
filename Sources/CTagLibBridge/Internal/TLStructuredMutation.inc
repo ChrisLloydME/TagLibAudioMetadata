@@ -587,8 +587,8 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                           toURL:(NSURL *)fileURL
                           error:(NSError **)error
 {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
