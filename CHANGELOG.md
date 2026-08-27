@@ -17,6 +17,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Audited equivalent mutable global state in ID3v2, RIFF/WAV, ASF/WMA, common
   handlers, and FileRef; documented the package concurrency contract and added
   concurrent cross-format read/write regression coverage.
+- Kept mutex acquisition inside every Objective-C++ exception boundary so lock
+  failures are converted to the established NSError or safe-return behavior.
 
 ---
 

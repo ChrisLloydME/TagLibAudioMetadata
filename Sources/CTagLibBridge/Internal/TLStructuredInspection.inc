@@ -661,8 +661,8 @@ static void AppendStructuredComplexPictures(ComplexPropertyTarget *target,
 + (nullable NSDictionary<NSString *, NSObject *> *)structuredMetadataForURL:(NSURL *)fileURL
                                                                       error:(NSError **)error
 {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *id3v2FramesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *mp4AtomsOut = [NSMutableArray array];
