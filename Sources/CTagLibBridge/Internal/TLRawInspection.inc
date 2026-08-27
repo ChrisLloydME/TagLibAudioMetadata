@@ -1,6 +1,7 @@
 + (nullable NSDictionary<NSString *, NSObject *> *)rawMetadataForURL:(NSURL *)fileURL
                                                               error:(NSError *_Nullable *_Nullable)error
 {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     try {
     // Always return a dictionary with stable keys so Swift UI can render predictably.
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut = [NSMutableArray array];
@@ -196,6 +197,7 @@
 + (nullable NSString *)dumpMetadataTextFromURL:(NSURL *)fileURL
                                        error:(NSError **)error
 {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     try {
     if (!fileURL || !fileURL.isFileURL) {
         if (error) {
