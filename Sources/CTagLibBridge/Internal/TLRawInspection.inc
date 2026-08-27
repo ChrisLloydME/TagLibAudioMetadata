@@ -2,6 +2,7 @@
                                                               error:(NSError *_Nullable *_Nullable)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     // Always return a dictionary with stable keys so Swift UI can render predictably.
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *id3v2FramesOut = [NSMutableArray array];
@@ -197,6 +198,7 @@
                                        error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (!fileURL || !fileURL.isFileURL) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

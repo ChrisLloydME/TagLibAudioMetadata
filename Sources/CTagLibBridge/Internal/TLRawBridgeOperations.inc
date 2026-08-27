@@ -3,6 +3,7 @@
                      error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMap:properties toURL:temporaryURL error:mutationError];
@@ -294,6 +295,7 @@
                             error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw multi-value property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMapValues:properties toURL:temporaryURL error:mutationError];
@@ -443,6 +445,7 @@ static void ParseNumberPairFromNSString(NSString *text,
                        error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Track/disc-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeTrackNumberText:trackNumberText

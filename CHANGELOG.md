@@ -7,6 +7,32 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-08-27
+
+### Fixed
+
+- Serialized all Objective-C++ entry into TagLib to prevent concurrent M4A
+  imports from racing TagLib 2.1.1's lazily initialized global MP4 item maps.
+- Added a 12-worker, six-file M4A read stress test covering 300 facade reads.
+- Audited equivalent mutable global state in ID3v2, RIFF/WAV, ASF/WMA, common
+  handlers, and FileRef; documented the package concurrency contract and added
+  concurrent cross-format read/write regression coverage.
+- Kept mutex acquisition inside every Objective-C++ exception boundary so lock
+  failures are converted to the established NSError or safe-return behavior.
+
+---
+
+## [0.4.4] - 2026-07-28
+
+### Changed
+
+- Completed the checksum-pinned TagLib binary release workflow and pointed the
+  package manifest at the published immutable XCFramework asset.
+- Prevented binary-release-only changes from unnecessarily triggering the main
+  package CI workflow.
+
+---
+
 ## [0.4.3] - 2026-07-25
 
 ### Added

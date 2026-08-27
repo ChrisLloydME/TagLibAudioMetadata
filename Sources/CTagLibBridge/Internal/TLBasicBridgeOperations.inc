@@ -1,6 +1,7 @@
 + (nullable TagLibAudioMetadata *)extractMetadataFromURL:(NSURL *)fileURL
                                                    error:(NSError **)error {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (!fileURL || ![fileURL isFileURL]) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -567,6 +568,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
                    error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Track-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeTrackNumber:trackNumber

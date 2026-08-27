@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <initializer_list>
 #include <limits>
+#include <mutex>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdarg.h>

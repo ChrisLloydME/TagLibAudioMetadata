@@ -662,6 +662,7 @@ static void AppendStructuredComplexPictures(ComplexPropertyTarget *target,
                                                                       error:(NSError **)error
 {
     try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *propertiesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *id3v2FramesOut = [NSMutableArray array];
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *mp4AtomsOut = [NSMutableArray array];
