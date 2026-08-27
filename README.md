@@ -147,9 +147,12 @@ array should remove the final stored entry.
 Calls are synchronous and the returned Foundation values own copies of any C++
 buffers. C++ pointers never escape the bridge, ARC owns returned Objective-C
 objects, and all exported Objective-C++ selectors contain C++ exception
-boundaries. The package does not promise same-path write serialization: callers
-must serialize concurrent mutations to one canonical file path. Independent
-files may be processed concurrently.
+boundaries. Calls that enter TagLib are serialized inside the Objective-C++
+bridge because TagLib does not guarantee safe concurrent parser entry. Public
+APIs may therefore be called from multiple threads, including for independent
+files, but TagLib work executes one operation at a time. The package does not
+promise same-path write ordering: callers must still serialize concurrent
+mutations to one canonical file path.
 
 ## Verified Format Matrix
 
