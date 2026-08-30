@@ -11,6 +11,20 @@ public enum StructuredMetadataSupport: String, Hashable, Sendable {
     case container
 }
 
+/// Describes how confidently this package can promise support for a format.
+public enum FormatSupportLevel: String, Hashable, Sendable {
+    /// Covered by package fixtures and read/write regression tests.
+    case verified
+    /// Available for evaluation, but container-specific field behavior is incomplete.
+    case experimental
+    /// TagLib exposes the operation, but this package has no round-trip fixture for it.
+    case upstreamSupported
+    /// Readable by the package, with no supported save path.
+    case readOnly
+    /// No supported parser or field mapping exists.
+    case unsupported
+}
+
 public struct FormatCapability: Hashable, Sendable, Identifiable {
     public var id: String { identifier }
 
@@ -29,6 +43,8 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
     public var structuredWriteSupport: StructuredMetadataSupport
     public var readOnlyReason: String?
     public var notes: String?
+    public var supportLevel: FormatSupportLevel
+    public var extensionSupportLevels: [String: FormatSupportLevel]
 
     public var metadataFieldFormats: Set<MetadataFieldFormat> {
         var formats: Set<MetadataFieldFormat> = [.tagLibPropertyMap]
@@ -42,6 +58,28 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
         if identifier == "flac" { formats.insert(.flac) }
 
         return formats
+    }
+
+    public func supportLevel(forExtension fileExtension: String) -> FormatSupportLevel {
+        extensionSupportLevels[fileExtension.lowercased()] ?? .unsupported
+    }
+
+    public func readSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
+        guard isReadable,
+              let schema = MetadataFieldRegistry.schema(for: field),
+              schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),
+              !schema.isArtworkField || canReadArtwork
+        else { return .unsupported }
+        return supportLevel
+    }
+
+    public func writeSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
+        guard isWritable,
+              let schema = MetadataFieldRegistry.schema(for: field),
+              schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),
+              !schema.isArtworkField || canWriteArtwork
+        else { return .unsupported }
+        return supportLevel
     }
 
     public init(
@@ -59,7 +97,9 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
         structuredReadSupport: StructuredMetadataSupport,
         structuredWriteSupport: StructuredMetadataSupport,
         readOnlyReason: String? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        supportLevel: FormatSupportLevel = .upstreamSupported,
+        extensionSupportLevels: [String: FormatSupportLevel] = [:]
     ) {
         self.identifier = identifier
         self.displayName = displayName
@@ -76,6 +116,8 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
         self.structuredWriteSupport = structuredWriteSupport
         self.readOnlyReason = readOnlyReason
         self.notes = notes
+        self.supportLevel = supportLevel
+        self.extensionSupportLevels = extensionSupportLevels
     }
 }
 
@@ -89,6 +131,10 @@ public extension TagLibMetadataManager {
             return nil
         }
         return FormatCapability(bridgeDictionary: dictionary)
+    }
+
+    nonisolated static func formatSupportLevel(for fileExtension: String) -> FormatSupportLevel {
+        formatCapability(for: fileExtension)?.supportLevel ?? .unsupported
     }
 }
 
@@ -109,6 +155,14 @@ private extension FormatCapability {
             .flatMap(StructuredMetadataSupport.init(rawValue:)) ?? .none
         let structuredWrite = (bridgeDictionary["structuredWriteSupport"] as? String)
             .flatMap(StructuredMetadataSupport.init(rawValue:)) ?? .none
+        let supportLevel = (bridgeDictionary["supportLevel"] as? String)
+            .flatMap(FormatSupportLevel.init(rawValue:)) ?? .upstreamSupported
+        let rawExtensionLevels = bridgeDictionary["extensionSupportLevels"] as? [String: String] ?? [:]
+        let extensionSupportLevels = rawExtensionLevels.reduce(into: [String: FormatSupportLevel]()) { result, entry in
+            if let level = FormatSupportLevel(rawValue: entry.value) {
+                result[entry.key.lowercased()] = level
+            }
+        }
 
         self.init(
             identifier: identifier,
@@ -125,7 +179,9 @@ private extension FormatCapability {
             structuredReadSupport: structuredRead,
             structuredWriteSupport: structuredWrite,
             readOnlyReason: bridgeDictionary["readOnlyReason"] as? String,
-            notes: bridgeDictionary["notes"] as? String
+            notes: bridgeDictionary["notes"] as? String,
+            supportLevel: supportLevel,
+            extensionSupportLevels: extensionSupportLevels
         )
     }
 }
