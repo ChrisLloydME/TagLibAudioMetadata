@@ -44,6 +44,36 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "flac")).structuredWriteSupport, .propertyMap)
     }
 
+    func testVerificationLevelsDistinguishFixturesUpstreamAndExperimentalFormats() throws {
+        for ext in ["mp3", "m4a", "flac", "ogg", "wav", "aac"] {
+            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .verified, ext)
+        }
+        for ext in ["mp2", "mp4", "ape", "wma", "dsf"] {
+            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .upstreamSupported, ext)
+        }
+        for ext in ["mod", "xm", "s3m", "it"] {
+            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .experimental, ext)
+        }
+        XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "shn"), .readOnly)
+        XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "not-a-format"), .unsupported)
+
+        let mp4Family = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
+        XCTAssertEqual(mp4Family.supportLevel, .verified)
+        XCTAssertEqual(mp4Family.supportLevel(forExtension: "m4a"), .verified)
+        XCTAssertEqual(mp4Family.supportLevel(forExtension: "mp4"), .upstreamSupported)
+    }
+
+    func testFieldLevelSupportReflectsMappingsArtworkAndWriteAvailability() throws {
+        let xm = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "xm"))
+        XCTAssertEqual(xm.readSupport(for: .title), .experimental)
+        XCTAssertEqual(xm.writeSupport(for: .title), .experimental)
+        XCTAssertEqual(xm.writeSupport(for: .artwork), .unsupported)
+
+        let shorten = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "shn"))
+        XCTAssertEqual(shorten.readSupport(for: .title), .readOnly)
+        XCTAssertEqual(shorten.writeSupport(for: .title), .unsupported)
+    }
+
     func testFieldSchemasCanBeFilteredByCapability() throws {
         let mp4 = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
         let mp4Schemas = MetadataFieldRegistry.schemas(storableIn: mp4)

@@ -470,16 +470,49 @@ static NSArray<NSString *> *ContainerNamesForMask(AudioMatorMetadataContainerMas
     return [names copy];
 }
 
-static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(const AudioMatorFormatCapabilityDescriptor &descriptor)
+static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDescriptor &descriptor,
+                                            NSString *extension)
+{
+    static NSSet<NSString *> *verifiedExtensions = [NSSet setWithArray:@[
+        @"mp3", @"m4a", @"flac", @"ogg", @"wav", @"aac"
+    ]];
+    if ([verifiedExtensions containsObject:extension.lowercaseString]) {
+        return "verified";
+    }
+    if (descriptor.format == AudioMatorTagFileFormatShorten) {
+        return "readOnly";
+    }
+    switch (descriptor.format) {
+        case AudioMatorTagFileFormatMOD:
+        case AudioMatorTagFileFormatS3M:
+        case AudioMatorTagFileFormatIT:
+        case AudioMatorTagFileFormatXM:
+            return "experimental";
+        default:
+            return "upstreamSupported";
+    }
+}
+
+static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
+    const AudioMatorFormatCapabilityDescriptor &descriptor,
+    NSString * _Nullable requestedExtension = nil
+)
 {
     AudioMatorMetadataContainerMask containers = ContainerMaskForFormat(descriptor.format);
     BOOL writable = IsWritableTagFileFormat(descriptor.format);
+    NSArray<NSString *> *extensions = ExtensionsForDescriptor(descriptor);
+    NSString *primaryExtension = extensions.firstObject ?: @"";
+    NSMutableDictionary<NSString *, NSString *> *extensionSupportLevels = [NSMutableDictionary dictionary];
+    for (NSString *extension in extensions) {
+        extensionSupportLevels[extension] = @(SupportLevelForExtension(descriptor, extension));
+    }
+    NSString *supportExtension = requestedExtension.lowercaseString ?: primaryExtension;
     NSMutableDictionary<NSString *, NSObject *> *capability = [NSMutableDictionary dictionaryWithDictionary:@{
         @"identifier": @(descriptor.identifier),
         @"displayName": @(descriptor.displayName),
         @"codecName": @(descriptor.codecName),
-        @"primaryExtension": ExtensionsForDescriptor(descriptor).firstObject ?: @"",
-        @"extensions": ExtensionsForDescriptor(descriptor),
+        @"primaryExtension": primaryExtension,
+        @"extensions": extensions,
         @"containers": ContainerNamesForMask(containers),
         @"isReadable": @YES,
         @"isWritable": @(writable),
@@ -488,6 +521,8 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(c
         @"preservesMultiValueProperties": @(descriptor.preservesMultiValueProperties),
         @"structuredReadSupport": @(descriptor.structuredReadSupport),
         @"structuredWriteSupport": @(writable ? descriptor.structuredWriteSupport : "none"),
+        @"supportLevel": @(SupportLevelForExtension(descriptor, supportExtension)),
+        @"extensionSupportLevels": [extensionSupportLevels copy],
     }];
 
     if (descriptor.readOnlyReason) {
@@ -540,7 +575,7 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(c
     if (!descriptor) {
         return nil;
     }
-    return CapabilityDictionaryForDescriptor(*descriptor);
+    return CapabilityDictionaryForDescriptor(*descriptor, fileExtension);
     TAGLIB_BRIDGE_CATCH_SAFE(@"Format-capability lookup", nil)
 }
 
