@@ -251,6 +251,28 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testBasicReadWritePreservesUnmodifiedCustomFieldCardinality() throws {
+        for ext in ["mp3", "m4a", "flac", "ogg"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["CUSTOM_MULTI": ["Artist A", "Artist B"]],
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(basic.customFieldValues["CUSTOM_MULTI"], ["Artist A", "Artist B"], ext)
+            basic.title = "Basic title edit"
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            XCTAssertEqual(
+                try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "CUSTOM_MULTI"),
+                ["Artist A", "Artist B"],
+                "\(ext) must not flatten an untouched multi-value custom field"
+            )
+        }
+    }
+
     func testStructuredWAVAdvisoriesDoNotFailVerifiedWrites() throws {
         let url = try copyAudioFixture("wav")
         let payload = StructuredMetadata(
@@ -544,6 +566,33 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
             result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
             XCTAssertTrue(result.artwork.isEmpty, ext)
+        }
+    }
+
+    func testBasicReadWritePreservesUnmodifiedAdditionalArtwork() throws {
+        let firstArtwork = try Data(contentsOf: artworkFixtureURL())
+        var secondArtwork = firstArtwork
+        secondArtwork.append(0)
+
+        for ext in ["mp3", "m4a"] {
+            let url = try copyAudioFixture(ext)
+            let container = ext == "mp3" ? "id3v2" : "mp4"
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(artwork: [
+                    .init(container: container, mimeType: "image/jpeg", description: "Front", data: firstArtwork),
+                    .init(container: container, mimeType: "image/jpeg", description: "Back", data: secondArtwork),
+                ]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.title = "Only the title changed"
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let artwork = try TagLibMetadataManager.readStructuredMetadataResult(from: url).artwork
+            XCTAssertEqual(artwork.count, 2, ext)
+            XCTAssertEqual(Set(artwork.map(\.data)), Set([firstArtwork, secondArtwork]), ext)
         }
     }
 
