@@ -100,6 +100,7 @@
 #include "Internal/TLWriteBridgeOperations.inc"
 #include "Internal/TLStructuredInspection.inc"
 #include "Internal/TLStructuredMutation.inc"
+#include "Internal/TLInPlaceBridgeOperations.inc"
 #include "Internal/TLRawInspection.inc"
 
 #pragma clang diagnostic pop

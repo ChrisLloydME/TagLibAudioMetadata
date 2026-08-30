@@ -238,6 +238,33 @@ NS_SWIFT_NAME(writeStructuredMetadata(_:to:));
                       error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(wipeMetadata(from:));
 
+/// Package implementation details. These mutate the supplied regular file directly.
+/// High-level consumers must use the transactional APIs above.
++ (BOOL)writeMetadataInPlace:(TagLibAudioMetadata *)metadata
+                       toURL:(NSURL *)fileURL
+                       error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeMetadataInPlace(_:to:));
++ (BOOL)writeTrackNumberTextInPlace:(NSString *)trackNumberText
+                     discNumberText:(nullable NSString *)discNumberText
+                              toURL:(NSURL *)fileURL
+                              error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeTrackNumberTextInPlace(_:discNumberText:to:));
++ (BOOL)writeRawPropertyMapInPlace:(NSDictionary<NSString *, NSString *> *)properties
+                            toURL:(NSURL *)fileURL
+                            error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeRawPropertyMapInPlace(_:to:));
++ (BOOL)writeRawPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)properties
+                                  toURL:(NSURL *)fileURL
+                                  error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeRawPropertyMapValuesInPlace(_:to:));
++ (BOOL)writeStructuredMetadataInPlace:(NSDictionary<NSString *, NSObject *> *)metadata
+                                 toURL:(NSURL *)fileURL
+                                 error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeStructuredMetadataInPlace(_:to:));
++ (BOOL)wipeMetadataInPlaceFromURL:(NSURL *)fileURL
+                             error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(wipeMetadataInPlace(from:));
+
 /// Return raw metadata as TagLib sees it for display purposes.
 ///
 /// The returned dictionary typically contains keys such as:
