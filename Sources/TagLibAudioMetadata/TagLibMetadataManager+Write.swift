@@ -414,6 +414,7 @@ extension TagLibMetadataManager {
         m.musicIpPuid = nilIfEmpty(meta.musicIPPUID)
         m.customFields = meta.customFields.isEmpty ? nil : meta.customFields
         m.artworkData = meta.artworkData
+        m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
 
         // Persist through the write coordinator so all metadata entry points
         // share post-write verification policy.

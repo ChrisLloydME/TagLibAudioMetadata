@@ -264,6 +264,10 @@ extension TagLibMetadataManager {
                 bitDepth: Int(meta.bitDepth),
                 format: meta.codec ?? "",
                 artworkData: meta.artworkData as Data?,
+                artworkMIMEType: normalizedArtworkMIMEType(
+                    meta.artworkMimeType,
+                    data: meta.artworkData as Data?
+                ),
                 customFields: meta.customFields ?? [:],
                 provenance: MetadataFieldProvenance(
                     trackNumberText: trackSource,

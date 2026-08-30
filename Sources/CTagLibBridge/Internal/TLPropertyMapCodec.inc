@@ -788,11 +788,45 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     return properties;
 }
 
-static NSString *NormalizedArtworkMimeType(NSString * _Nullable mimeType)
+static NSString *InferredArtworkMimeType(NSData * _Nullable data)
+{
+    if (data.length >= 3) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return @"image/jpeg";
+    }
+    if (data.length >= 8) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        static const unsigned char png[] = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+        if (memcmp(bytes, png, sizeof(png)) == 0) return @"image/png";
+    }
+    if (data.length >= 6) {
+        const char *bytes = static_cast<const char *>(data.bytes);
+        if (memcmp(bytes, "GIF87a", 6) == 0 || memcmp(bytes, "GIF89a", 6) == 0) return @"image/gif";
+    }
+    if (data.length >= 2) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        if (bytes[0] == 'B' && bytes[1] == 'M') return @"image/bmp";
+    }
+    if (data.length >= 4) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        if ((bytes[0] == 'I' && bytes[1] == 'I' && bytes[2] == 0x2A && bytes[3] == 0x00) ||
+            (bytes[0] == 'M' && bytes[1] == 'M' && bytes[2] == 0x00 && bytes[3] == 0x2A)) {
+            return @"image/tiff";
+        }
+    }
+    if (data.length >= 12) {
+        const char *bytes = static_cast<const char *>(data.bytes);
+        if (memcmp(bytes, "RIFF", 4) == 0 && memcmp(bytes + 8, "WEBP", 4) == 0) return @"image/webp";
+    }
+    return nil;
+}
+
+static NSString *NormalizedArtworkMimeType(NSString * _Nullable mimeType,
+                                            NSData * _Nullable data)
 {
     NSString *trimmed = TrimmedStringOrNil(mimeType);
     if (!trimmed) {
-        return @"image/png";
+        return InferredArtworkMimeType(data) ?: @"application/octet-stream";
     }
 
     NSString *lower = trimmed.lowercaseString;
@@ -813,7 +847,8 @@ static TagLib::List<TagLib::VariantMap> BuildPictureComplexProperties(TagLibAudi
     TagLib::VariantMap picture;
     picture.insert("data", TagLib::ByteVector((const char *)metadata.artworkData.bytes,
                                                (unsigned int)metadata.artworkData.length));
-    picture.insert("mimeType", NSStringToTagString(NormalizedArtworkMimeType(metadata.artworkMimeType)));
+    picture.insert("mimeType", NSStringToTagString(NormalizedArtworkMimeType(metadata.artworkMimeType,
+                                                                              metadata.artworkData)));
     picture.insert("pictureType", NSStringToTagString(@"Front Cover"));
     pictures.append(picture);
 
