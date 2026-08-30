@@ -386,7 +386,7 @@ static TagLib::List<TagLib::VariantMap> StructuredPictureComplexProperties(
         picture.insert("data", TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
         picture.insert(
             "mimeType",
-            NSStringToTagString(NormalizedArtworkMimeType((NSString *)entry[@"mimeType"]))
+            NSStringToTagString(NormalizedArtworkMimeType((NSString *)entry[@"mimeType"], data))
         );
         NSString *pictureType = TrimmedStringOrNil((NSString *)entry[@"pictureType"]) ?: @"Front Cover";
         picture.insert("pictureType", NSStringToTagString(pictureType));

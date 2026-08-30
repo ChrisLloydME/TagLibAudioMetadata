@@ -108,6 +108,46 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testJPEGArtworkBytesAndMIMETypeRoundTripTogether() throws {
+        let artwork = try Data(contentsOf: artworkFixtureURL())
+
+        for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
+            let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
+            guard capability.canWriteArtwork else { continue }
+
+            let url = try copyAudioFixture(ext)
+            var metadata = BasicMetadata.empty
+            metadata.artworkData = artwork
+            metadata.artworkMIMEType = "image/jpeg"
+
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.artworkData, artwork, ext)
+            XCTAssertEqual(result.artworkMIMEType, "image/jpeg", ext)
+        }
+    }
+
+    func testPNGArtworkMIMETypeIsInferredAndRoundTripsWithBytes() throws {
+        let artwork = try XCTUnwrap(Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        ))
+
+        for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
+            let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
+            guard capability.canWriteArtwork else { continue }
+
+            let url = try copyAudioFixture(ext)
+            var metadata = BasicMetadata.empty
+            metadata.artworkData = artwork
+            metadata.artworkMIMEType = nil
+
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.artworkData, artwork, ext)
+            XCTAssertEqual(result.artworkMIMEType, "image/png", ext)
+        }
+    }
+
     func testRawPropertyMapReplaceMergeAndMultiValueWrites() throws {
         for ext in ["flac", "ogg", "m4a"] {
             let url = try copyAudioFixture(ext)
