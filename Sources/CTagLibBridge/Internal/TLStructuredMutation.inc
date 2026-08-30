@@ -620,7 +620,6 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                           error:(NSError **)error
 {
     try {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
@@ -682,6 +681,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     NSArray<NSDictionary<NSString *, NSObject *> *> *mp4Atoms = StructuredArray(metadata, @"mp4Atoms");
     NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
 
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (format == AudioMatorTagFileFormatMPEGID3) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
