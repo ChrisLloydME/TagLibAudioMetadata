@@ -181,6 +181,13 @@ extension TagLibMetadataManager {
             case .explicit: .explicit
             default: .unspecified
             }
+            let customFields = meta.customFields ?? [:]
+            let customFieldValues = customFields.reduce(into: [String: [String]]()) { result, field in
+                let rawValues = rawDump?.properties.first {
+                    $0.key.caseInsensitiveCompare(field.key) == .orderedSame
+                }?.values ?? []
+                result[field.key] = rawValues.isEmpty ? [field.value] : rawValues
+            }
 
             return BasicMetadata(
                 title: meta.title ?? "",
@@ -273,7 +280,9 @@ extension TagLibMetadataManager {
                     meta.artworkMimeType,
                     data: meta.artworkData as Data?
                 ),
-                customFields: meta.customFields ?? [:],
+                customFields: customFields,
+                customFieldValues: customFieldValues,
+                originalCustomFieldProjection: customFields,
                 provenance: MetadataFieldProvenance(
                     trackNumberText: trackSource,
                     discNumberText: discSource,

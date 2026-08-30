@@ -853,21 +853,45 @@ static NSString *NormalizedArtworkMimeType(NSString * _Nullable mimeType,
     return lower;
 }
 
-static TagLib::List<TagLib::VariantMap> BuildPictureComplexProperties(TagLibAudioMetadata *metadata)
+static TagLib::VariantMap BuildBasicPictureComplexProperty(TagLibAudioMetadata *metadata)
 {
-    TagLib::List<TagLib::VariantMap> pictures;
-    if (!metadata || metadata.artworkData.length == 0) {
-        return pictures;
-    }
-
     TagLib::VariantMap picture;
     picture.insert("data", TagLib::ByteVector((const char *)metadata.artworkData.bytes,
                                                (unsigned int)metadata.artworkData.length));
     picture.insert("mimeType", NSStringToTagString(NormalizedArtworkMimeType(metadata.artworkMimeType,
                                                                               metadata.artworkData)));
     picture.insert("pictureType", NSStringToTagString(@"Front Cover"));
-    pictures.append(picture);
+    return picture;
+}
 
+static TagLib::List<TagLib::VariantMap> MergingBasicPictureComplexProperties(
+    const TagLib::List<TagLib::VariantMap> &existingPictures,
+    TagLibAudioMetadata *metadata)
+{
+    TagLib::List<TagLib::VariantMap> pictures;
+    if (!metadata || metadata.artworkData.length == 0) return pictures;
+
+    const TagLib::ByteVector replacementData((const char *)metadata.artworkData.bytes,
+                                              (unsigned int)metadata.artworkData.length);
+    TagLib::VariantMap replacement = BuildBasicPictureComplexProperty(metadata);
+    bool replacedPrimary = false;
+
+    for (const auto &existing : existingPictures) {
+        TagLib::String pictureType = existing.value("pictureType").value<TagLib::String>();
+        const bool isPrimary = !replacedPrimary &&
+            (pictureType.isEmpty() || pictureType.upper() == "FRONT COVER");
+        if (!isPrimary) {
+            pictures.append(existing);
+            continue;
+        }
+
+        replacedPrimary = true;
+        TagLib::ByteVector existingData = existing.value("data").value<TagLib::ByteVector>();
+        // An unchanged Basic projection must not rewrite or discard any artwork entry.
+        pictures.append(existingData == replacementData ? existing : replacement);
+    }
+
+    if (!replacedPrimary) pictures.prepend(replacement);
     return pictures;
 }
 
@@ -896,7 +920,10 @@ static bool ApplyPictureComplexProperties(ComplexPropertyTarget *target,
             return false;
         }
     } else if (metadata.artworkData.length > 0) {
-        if (!target->setComplexProperties("PICTURE", BuildPictureComplexProperties(metadata))) {
+        TagLib::List<TagLib::VariantMap> existingPictures = target->complexProperties("PICTURE");
+        TagLib::List<TagLib::VariantMap> mergedPictures =
+            MergingBasicPictureComplexProperties(existingPictures, metadata);
+        if (!target->setComplexProperties("PICTURE", mergedPictures)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:writeErrorCode

@@ -416,7 +416,15 @@ extension TagLibMetadataManager {
         m.acoustId = nilIfEmpty(meta.acoustID)
         m.acoustIdFingerprint = nilIfEmpty(meta.acoustIDFingerprint)
         m.musicIpPuid = nilIfEmpty(meta.musicIPPUID)
-        m.customFields = meta.customFields.isEmpty ? nil : meta.customFields
+        let explicitlyChangedCustomFields = meta.customFields.filter { key, value in
+            guard let originalProjection = meta.originalCustomFieldProjection.first(where: {
+                $0.key.caseInsensitiveCompare(key) == .orderedSame
+            })?.value else {
+                return true
+            }
+            return originalProjection != value
+        }
+        m.customFields = explicitlyChangedCustomFields.isEmpty ? nil : explicitlyChangedCustomFields
         m.artworkData = meta.artworkData
         m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
 

@@ -165,6 +165,11 @@ public struct BasicMetadata: Sendable {
     /// When a container omits it, reads infer common image types from reliable magic bytes.
     public var artworkMIMEType: String?
     public var customFields: [String: String]
+    /// Original cardinality for custom fields read from a file.
+    /// `customFields` remains the source-compatible, display-oriented projection.
+    public var customFieldValues: [String: [String]]
+    /// Exact projected values captured during read, used to detect intentional Basic edits.
+    public var originalCustomFieldProjection: [String: String]
     public var provenance: MetadataFieldProvenance
 
     public nonisolated static let empty = BasicMetadata(
@@ -252,6 +257,8 @@ public struct BasicMetadata: Sendable {
         artworkData: nil,
         artworkMIMEType: nil,
         customFields: [:],
+        customFieldValues: [:],
+        originalCustomFieldProjection: [:],
         provenance: .unknown
     )
 }
