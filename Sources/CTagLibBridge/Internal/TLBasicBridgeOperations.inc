@@ -559,6 +559,11 @@ static BOOL StripAllTagsAndSave(FileType &file,
 {
     try {
     TAGLIB_BRIDGE_SERIAL_GUARD();
+    if (!ValidateNonnegativeIntValue(trackNumber, @"Track number", error) ||
+        !ValidateNonnegativeIntValue(totalTracks, @"Total tracks", error) ||
+        !ValidateNonnegativeIntValue(padWidth, @"Track-number padding width", error)) {
+        return NO;
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Track-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeTrackNumber:trackNumber

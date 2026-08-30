@@ -437,6 +437,33 @@ static void ParseNumberPairFromNSString(NSString *text,
     }
 }
 
+static BOOL ValidateNumberPairTextForWrite(NSString *text,
+                                           NSString *fieldName,
+                                           NSError **error)
+{
+    NSString *trimmed = TrimmedStringOrNil(text);
+    if (!trimmed) {
+        return YES;
+    }
+
+    NSArray<NSString *> *parts = [trimmed componentsSeparatedByString:@"/"];
+    if (parts.count > 2) {
+        return SetNumericValidationError(error, [NSString stringWithFormat:@"%@ must contain at most one '/' separator", fieldName]);
+    }
+
+    for (NSString *part in parts) {
+        unsigned long long ignored = 0;
+        if (!ParseUnsignedDecimalString(part, std::numeric_limits<int>::max(), ignored)) {
+            return SetNumericValidationError(
+                error,
+                [NSString stringWithFormat:@"%@ components must be unsigned decimal values no greater than %d",
+                                           fieldName, std::numeric_limits<int>::max()]
+            );
+        }
+    }
+    return YES;
+}
+
 // Write only track/disc number text. This is useful for auto-renumbering where the UI
 // may already have produced a padded representation like "01/10".
 + (BOOL)writeTrackNumberText:(NSString *)trackNumberText
@@ -446,6 +473,10 @@ static void ParseNumberPairFromNSString(NSString *text,
 {
     try {
     TAGLIB_BRIDGE_SERIAL_GUARD();
+    if (!ValidateNumberPairTextForWrite(trackNumberText, @"Track number text", error) ||
+        !ValidateNumberPairTextForWrite(discNumberText, @"Disc number text", error)) {
+        return NO;
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Track/disc-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeTrackNumberText:trackNumberText

@@ -157,6 +157,108 @@ static NSString * _Nullable TrimmedStringOrNil(NSString * _Nullable value) {
     return trimmed.length > 0 ? trimmed : nil;
 }
 
+static bool ParseUnsignedDecimalString(NSString * _Nullable value,
+                                       unsigned long long maximum,
+                                       unsigned long long &result)
+{
+    NSString *trimmed = TrimmedStringOrNil(value);
+    if (!trimmed) {
+        result = 0;
+        return true;
+    }
+
+    const char *utf8 = trimmed.UTF8String;
+    if (!utf8 || utf8[0] == '-' || utf8[0] == '+') {
+        return false;
+    }
+
+    errno = 0;
+    char *end = nullptr;
+    unsigned long long parsed = std::strtoull(utf8, &end, 10);
+    if (errno == ERANGE || !end || end == utf8 || *end != '\0' || parsed > maximum) {
+        return false;
+    }
+
+    result = parsed;
+    return true;
+}
+
+static BOOL SetNumericValidationError(NSError **error, NSString *description)
+{
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                     code:245
+                                 userInfo:@{ NSLocalizedDescriptionKey : description }];
+    }
+    return NO;
+}
+
+static BOOL ValidateNonnegativeIntValue(NSInteger value, NSString *name, NSError **error)
+{
+    if (value < 0 || value > std::numeric_limits<int>::max()) {
+        return SetNumericValidationError(
+            error,
+            [NSString stringWithFormat:@"%@ must be between 0 and %d", name, std::numeric_limits<int>::max()]
+        );
+    }
+    return YES;
+}
+
+static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError **error)
+{
+    if (!metadata) {
+        return SetNumericValidationError(error, @"Metadata is required");
+    }
+
+    struct IntegerField {
+        NSInteger value;
+        __unsafe_unretained NSString *name;
+    } fields[] = {
+        { metadata.trackNumber, @"track number" },
+        { metadata.totalTracks, @"total tracks" },
+        { metadata.discNumber, @"disc number" },
+        { metadata.totalDiscs, @"total discs" },
+        { metadata.movementNumber, @"movement number" },
+        { metadata.movementCount, @"movement count" },
+        { metadata.bpm, @"BPM" },
+    };
+
+    for (const auto &field : fields) {
+        if (!ValidateNonnegativeIntValue(field.value, field.name, error)) {
+            return NO;
+        }
+    }
+
+    unsigned long long ignoredYear = 0;
+    if (!ParseUnsignedDecimalString(metadata.year,
+                                    std::numeric_limits<unsigned int>::max(),
+                                    ignoredYear)) {
+        return SetNumericValidationError(
+            error,
+            [NSString stringWithFormat:@"Year must be an unsigned decimal value no greater than %u",
+                                       std::numeric_limits<unsigned int>::max()]
+        );
+    }
+
+    switch (metadata.explicitAdvisory) {
+        case TagLibExplicitAdvisoryUnspecified:
+        case TagLibExplicitAdvisoryClean:
+        case TagLibExplicitAdvisoryExplicit:
+            break;
+        default:
+            return SetNumericValidationError(error, @"Explicit advisory has an unsupported rating value");
+    }
+
+    return YES;
+}
+
+static unsigned int ValidatedBasicYearValue(NSString * _Nullable year)
+{
+    unsigned long long parsed = 0;
+    bool valid = ParseUnsignedDecimalString(year, std::numeric_limits<unsigned int>::max(), parsed);
+    return valid ? static_cast<unsigned int>(parsed) : 0;
+}
+
 static NSString * _Nullable UppercaseTrimmedString(NSString * _Nullable value) {
     NSString *trimmed = TrimmedStringOrNil(value);
     return trimmed ? trimmed.uppercaseString : nil;
