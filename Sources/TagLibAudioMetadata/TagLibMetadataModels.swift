@@ -5,6 +5,19 @@
 
 import Foundation
 
+/// Keeps ephemeral UI identity out of synthesized semantic equality and hashing.
+@propertyWrapper
+public struct SemanticIdentityExcluded: Hashable, Sendable {
+    public var wrappedValue: UUID
+
+    public init(wrappedValue: UUID) {
+        self.wrappedValue = wrappedValue
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool { true }
+    public func hash(into hasher: inout Hasher) {}
+}
+
 nonisolated func normalizedArtworkMIMEType(_ mimeType: String?, data: Data?) -> String? {
     if let mimeType {
         let normalized = mimeType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -276,7 +289,7 @@ public struct RawMetadataDump: Hashable, Sendable {
 }
 
 public struct RawPropertyEntry: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var value: String
     public var values: [String]
@@ -299,7 +312,7 @@ public struct RawPropertyEntry: Identifiable, Hashable, Sendable {
 }
 
 public struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var frameID: String
     public var value: String
     public var description: String?
@@ -330,7 +343,7 @@ public enum StructuredMetadataReplaceableCollection: String, Hashable, Sendable 
 }
 
 public struct StructuredPropertyEntry: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var values: [String]
 
@@ -341,7 +354,7 @@ public struct StructuredPropertyEntry: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var frameID: String
     public var type: String
     public var value: String
@@ -406,7 +419,7 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var type: String
     public var value: String
@@ -427,7 +440,7 @@ public struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredASFAttribute: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var type: String
     public var value: String
@@ -452,7 +465,7 @@ public struct StructuredASFAttribute: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredArtwork: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var container: String
     public var pictureType: String?
     public var pictureTypeCode: Int?
@@ -471,7 +484,7 @@ public struct StructuredArtwork: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredLyrics: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var language: String
     public var description: String
     public var text: String
@@ -484,7 +497,7 @@ public struct StructuredLyrics: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredComment: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var language: String
     public var description: String
     public var text: String
