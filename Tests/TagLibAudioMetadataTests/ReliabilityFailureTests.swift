@@ -8,7 +8,6 @@ final class ReliabilityFailureTests: XCTestCase {
         let empty = directory.appendingPathComponent("empty.mp3")
         let corrupt = directory.appendingPathComponent("corrupt.mp3")
         let truncated = directory.appendingPathComponent("truncated.mp3")
-        let disguised = directory.appendingPathComponent("disguised.flac")
 
         try Data().write(to: empty)
         try Data("not audio".utf8).write(to: corrupt)
@@ -16,13 +15,19 @@ final class ReliabilityFailureTests: XCTestCase {
         let mp3 = try fixtureURL("mp3")
         let mp3Bytes = try Data(contentsOf: mp3)
         try mp3Bytes.prefix(min(32, mp3Bytes.count)).write(to: truncated)
-        try FileManager.default.copyItem(at: try fixtureURL("wav"), to: disguised)
-
-        for url in [missing, empty, corrupt, truncated, disguised] {
+        for url in [missing, empty, corrupt, truncated] {
             XCTAssertThrowsError(try TagLibMetadataManager.readMetadataResult(from: url), url.lastPathComponent)
             XCTAssertThrowsError(try TagLibMetadataManager.rawMetadataResult(from: url), url.lastPathComponent)
             XCTAssertThrowsError(try TagLibMetadataManager.readStructuredMetadataResult(from: url), url.lastPathComponent)
         }
+    }
+
+    func testBasicReadRejectsExtensionDisguisedAudioWithoutGenericFallback() throws {
+        let directory = try temporaryDirectory()
+        let disguised = directory.appendingPathComponent("disguised.flac")
+        try FileManager.default.copyItem(at: try fixtureURL("wav"), to: disguised)
+
+        XCTAssertThrowsError(try TagLibMetadataManager.readMetadataResult(from: disguised))
     }
 
     func testFailedWriteAndErasePreserveCorruptFileBytes() throws {
