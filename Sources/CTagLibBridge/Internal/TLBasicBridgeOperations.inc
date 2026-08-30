@@ -375,19 +375,6 @@
         }
     }
 
-    // Fallback path: only pay the generic FileRef cost if the format-specific
-    // opener could not read the file at all.
-    if (!openedSpecificFile) {
-        TagLib::FileRef fileRef(filePath);
-        if (!fileRef.isNull()) {
-            ApplyBasicTagMetadata(fileRef.tag(), metadata);
-            if (fileRef.file()) {
-                ApplyGenericPropertyMapMetadata(fileRef.file()->properties(), metadata);
-            }
-            ApplyAudioPropertiesMetadata(fileRef.audioProperties(), metadata);
-        }
-    }
-
     TLog(@"Basic tag for '%@': title=%@ artist=%@ album=%@ genre=%@ comment=%@ year=%@ track=%ld",
          fileURL.lastPathComponent,
          metadata.title ?: @"<nil>",
@@ -409,6 +396,9 @@
          fileURL.lastPathComponent,
          metadata.explicitContent ? @"YES" : @"NO");
 
+    // Deliberately require the extension-selected parser to succeed. A generic
+    // FileRef retry would accept extension-disguised files and still be rejected
+    // here, so it only adds a redundant full-file parse on failures.
     if (!openedSpecificFile || !HasCredibleAudioProperties(metadata)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
