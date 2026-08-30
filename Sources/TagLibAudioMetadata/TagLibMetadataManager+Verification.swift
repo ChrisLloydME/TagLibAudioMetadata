@@ -126,7 +126,7 @@ extension TagLibMetadataManager {
             return true
         }
 
-        if verification.expectedExplicitContent != nil {
+        if verification.expectedExplicitContent != nil || verification.expectedExplicitAdvisory != nil {
             return true
         }
 
@@ -234,7 +234,13 @@ extension TagLibMetadataManager {
             }
         }
 
-        if let expectedExplicit = verification.expectedExplicitContent, let afterWrite {
+        if let expectedAdvisory = verification.expectedExplicitAdvisory, let afterWrite {
+            if expectedAdvisory != afterWrite.explicitAdvisory {
+                warnings.append(
+                    "Explicit advisory differs after save (expected \(expectedAdvisory.rawValue), got \(afterWrite.explicitAdvisory.rawValue))."
+                )
+            }
+        } else if let expectedExplicit = verification.expectedExplicitContent, let afterWrite {
             if expectedExplicit != afterWrite.isExplicit {
                 warnings.append(
                     "Explicit flag differs after save (expected \(expectedExplicit ? "explicit" : "clean"), got \(afterWrite.isExplicit ? "explicit" : "clean"))."

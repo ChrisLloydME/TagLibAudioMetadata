@@ -208,6 +208,7 @@ public struct TagLibMetadataManager {
         public var expectedDiscTotal: Int?
         public var expectedDiscNumberText: String?
         public var expectedExplicitContent: Bool?
+        public var expectedExplicitAdvisory: ExplicitAdvisory?
         public var artworkExpectation: ArtworkVerificationExpectation
         public var customFieldKeys: [String]
         public var expectedTextFields: [String: String]
@@ -222,7 +223,8 @@ public struct TagLibMetadataManager {
             expectedExplicitContent: Bool?,
             artworkExpectation: ArtworkVerificationExpectation,
             customFieldKeys: [String],
-            expectedTextFields: [String: String] = [:]
+            expectedTextFields: [String: String] = [:],
+            expectedExplicitAdvisory: ExplicitAdvisory? = nil
         ) {
             self.expectedTrackNumber = expectedTrackNumber
             self.expectedTrackTotal = expectedTrackTotal
@@ -231,6 +233,7 @@ public struct TagLibMetadataManager {
             self.expectedDiscTotal = expectedDiscTotal
             self.expectedDiscNumberText = expectedDiscNumberText
             self.expectedExplicitContent = expectedExplicitContent
+            self.expectedExplicitAdvisory = expectedExplicitAdvisory
             self.artworkExpectation = artworkExpectation
             self.customFieldKeys = customFieldKeys
             self.expectedTextFields = expectedTextFields

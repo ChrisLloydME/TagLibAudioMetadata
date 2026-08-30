@@ -63,6 +63,15 @@ public struct MetadataFieldProvenance: Hashable, Sendable {
     )
 }
 
+public enum ExplicitAdvisory: String, Hashable, Sendable {
+    /// No advisory field exists in the source metadata.
+    case unspecified
+    /// The source explicitly marks the recording as clean/non-explicit.
+    case clean
+    /// The source explicitly marks the recording as explicit.
+    case explicit
+}
+
 /// Mirrors the metadata fields used in `AudioFile.swift`.
 public struct BasicMetadata: Sendable {
     public var title: String
@@ -139,7 +148,12 @@ public struct BasicMetadata: Sendable {
     public var movementCount: Int
     public var bpm: Int
     public var isCompilation: Bool
-    public var isExplicit: Bool
+    public var explicitAdvisory: ExplicitAdvisory
+    /// Compatibility convenience. Setting `false` records an explicit clean advisory.
+    public var isExplicit: Bool {
+        get { explicitAdvisory == .explicit }
+        set { explicitAdvisory = newValue ? .explicit : .clean }
+    }
     public var duration: Double
     public var bitrate: Int
     public var sampleRate: Double
@@ -228,7 +242,7 @@ public struct BasicMetadata: Sendable {
         movementCount: 0,
         bpm: 0,
         isCompilation: false,
-        isExplicit: false,
+        explicitAdvisory: .unspecified,
         duration: 0,
         bitrate: 0,
         sampleRate: 0,
