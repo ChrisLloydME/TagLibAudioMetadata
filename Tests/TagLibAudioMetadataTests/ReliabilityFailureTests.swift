@@ -1,5 +1,8 @@
 import XCTest
 import TagLibAudioMetadata
+#if os(macOS)
+import Darwin
+#endif
 
 final class ReliabilityFailureTests: XCTestCase {
     func testReadAndInspectRejectInvalidSupportedExtensionFiles() throws {
@@ -162,6 +165,50 @@ final class ReliabilityFailureTests: XCTestCase {
         XCTAssertEqual(try posixPermissions(at: url), originalPermissions)
     }
 
+#if os(macOS)
+    func testAtomicReplacementPreservesExtendedAttributesACLsAndFileFlags() throws {
+        let url = try copyFixture("mp3")
+        let ordinaryAttribute = "com.audiomator.metadata-test"
+        let ordinaryValue = Data("preserve-me".utf8)
+        let quarantineAttribute = "com.apple.quarantine"
+        let quarantineValue = Data("0081;00000000;TagLibAudioMetadataTests;".utf8)
+        try setExtendedAttribute(ordinaryAttribute, value: ordinaryValue, at: url)
+        try setExtendedAttribute(quarantineAttribute, value: quarantineValue, at: url)
+
+        XCTAssertEqual(url.path.withCString { Darwin.chflags($0, UInt32(UF_NODUMP)) }, 0)
+        try addReadACL(at: url)
+        let originalACL = try aclEntries(at: url)
+        XCTAssertFalse(originalACL.isEmpty)
+
+        var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+        metadata.title = "Preserve filesystem metadata"
+        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+
+        XCTAssertEqual(try extendedAttribute(ordinaryAttribute, at: url), ordinaryValue)
+        XCTAssertEqual(try extendedAttribute(quarantineAttribute, at: url), quarantineValue)
+        XCTAssertNotEqual(try fileFlags(at: url) & UInt32(UF_NODUMP), 0)
+        XCTAssertEqual(try aclEntries(at: url), originalACL)
+    }
+
+    func testAtomicReplacementChangesInodeAndDoesNotRetargetHardLinks() throws {
+        let url = try copyFixture("mp3")
+        let linkedURL = url.deletingLastPathComponent().appendingPathComponent("linked.mp3")
+        try FileManager.default.linkItem(at: url, to: linkedURL)
+        let originalInode = try inode(at: url)
+        XCTAssertEqual(try inode(at: linkedURL), originalInode)
+        let linkedTitleBeforeWrite = try TagLibMetadataManager.readMetadataResult(from: linkedURL).title
+
+        var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+        metadata.title = "Replacement inode"
+        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+
+        XCTAssertNotEqual(try inode(at: url), originalInode)
+        XCTAssertEqual(try inode(at: linkedURL), originalInode)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: linkedURL).title, linkedTitleBeforeWrite)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Replacement inode")
+    }
+#endif
+
     func testBridgeRejectsMalformedStructuredPayloadsWithoutChangingFile() throws {
         let malformedPayloads: [[String: NSObject]] = [
             ["id3v2Frames": [NSNull()] as NSArray],
@@ -305,6 +352,82 @@ final class ReliabilityFailureTests: XCTestCase {
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         return try XCTUnwrap(attributes[.posixPermissions] as? NSNumber).intValue
     }
+
+#if os(macOS)
+    private func setExtendedAttribute(_ name: String, value: Data, at url: URL) throws {
+        let result = url.path.withCString { path in
+            name.withCString { attributeName in
+                value.withUnsafeBytes { bytes in
+                    Darwin.setxattr(path, attributeName, bytes.baseAddress, bytes.count, 0, 0)
+                }
+            }
+        }
+        guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+    }
+
+    private func extendedAttribute(_ name: String, at url: URL) throws -> Data {
+        let length = url.path.withCString { path in
+            name.withCString { attributeName in
+                Darwin.getxattr(path, attributeName, nil, 0, 0, 0)
+            }
+        }
+        guard length >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        var data = Data(count: length)
+        let result = data.withUnsafeMutableBytes { bytes in
+            url.path.withCString { path in
+                name.withCString { attributeName in
+                    Darwin.getxattr(path, attributeName, bytes.baseAddress, bytes.count, 0, 0)
+                }
+            }
+        }
+        guard result == length else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        return data
+    }
+
+    private func fileFlags(at url: URL) throws -> UInt32 {
+        var information = stat()
+        let result = url.path.withCString { Darwin.lstat($0, &information) }
+        guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        return information.st_flags
+    }
+
+    private func inode(at url: URL) throws -> ino_t {
+        var information = stat()
+        let result = url.path.withCString { Darwin.lstat($0, &information) }
+        guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        return information.st_ino
+    }
+
+    private func addReadACL(at url: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/chmod")
+        process.arguments = ["+a", "everyone allow read", url.path]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(process.terminationStatus))
+        }
+    }
+
+    private func aclEntries(at url: URL) throws -> [String] {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/ls")
+        process.arguments = ["-lde", url.path]
+        process.standardOutput = output
+        process.standardError = output
+        try process.run()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(process.terminationStatus))
+        }
+        return String(decoding: data, as: UTF8.self)
+            .split(separator: "\n")
+            .dropFirst()
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+#endif
 
     private func wavAudioPayload(_ data: Data) -> Data? {
         guard data.count >= 12,
