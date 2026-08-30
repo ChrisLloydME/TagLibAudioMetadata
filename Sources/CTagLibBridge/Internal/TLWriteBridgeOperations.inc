@@ -12,6 +12,9 @@
         }
         return NO;
     }
+    if (!ValidateBasicMetadataNumbers(metadata, error)) {
+        return NO;
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeMetadata:metadata toURL:temporaryURL error:mutationError];
@@ -116,7 +119,7 @@
             tag->setComment(NSStringToTagString(metadata.comment));
 
             if (metadata.year.length > 0) {
-                tag->setYear((unsigned int)metadata.year.integerValue);
+                tag->setYear(ValidatedBasicYearValue(metadata.year));
             } else {
                 tag->setYear(0);
             }
@@ -212,7 +215,7 @@
         tag->setComment(NSStringToTagString(metadata.comment));
 
         if (metadata.year.length > 0) {
-            tag->setYear((unsigned int)metadata.year.integerValue);
+            tag->setYear(ValidatedBasicYearValue(metadata.year));
         } else {
             tag->setYear(0);
         }
