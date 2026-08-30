@@ -399,7 +399,11 @@ extension TagLibMetadataManager {
         // Explicit
         m.bpm = meta.bpm
         m.compilation = meta.isCompilation
-        m.explicitContent = meta.isExplicit
+        m.explicitAdvisory = switch meta.explicitAdvisory {
+        case .unspecified: .unspecified
+        case .clean: .clean
+        case .explicit: .explicit
+        }
         m.isrc = nilIfEmpty(meta.isrc)
         m.barcode = nilIfEmpty(meta.barcode)
         m.musicBrainzArtistId = nilIfEmpty(meta.musicBrainzArtistID)
@@ -428,7 +432,7 @@ extension TagLibMetadataManager {
                 expectedDiscNumber: meta.disc,
                 expectedDiscTotal: meta.discTotal,
                 expectedDiscNumberText: meta.discNumberText,
-                expectedExplicitContent: meta.isExplicit,
+                expectedExplicitContent: meta.explicitAdvisory == .unspecified ? nil : meta.isExplicit,
                 artworkExpectation: meta.artworkData == nil ? .unchanged : .present,
                 customFieldKeys: Array(meta.customFields.keys),
                 expectedTextFields: [
@@ -500,7 +504,8 @@ extension TagLibMetadataManager {
                     "movementCount": String(meta.movementCount),
                     "bpm": String(meta.bpm),
                     "isCompilation": String(meta.isCompilation),
-                ]
+                ],
+                expectedExplicitAdvisory: meta.explicitAdvisory
             ),
             failurePolicy: failurePolicy
         )

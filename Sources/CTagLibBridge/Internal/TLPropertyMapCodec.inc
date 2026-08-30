@@ -247,6 +247,22 @@ static bool ParseExplicitTagValue(const TagLib::String &value, BOOL &explicitCon
     return false;
 }
 
+static void SetParsedExplicitAdvisory(TagLibAudioMetadata *metadata, BOOL explicitContent)
+{
+    metadata.explicitAdvisory = explicitContent
+        ? TagLibExplicitAdvisoryExplicit
+        : TagLibExplicitAdvisoryClean;
+}
+
+static NSString * _Nullable SerializedExplicitAdvisory(TagLibAudioMetadata *metadata)
+{
+    switch (metadata.explicitAdvisory) {
+        case TagLibExplicitAdvisoryExplicit: return @"1";
+        case TagLibExplicitAdvisoryClean: return @"2";
+        case TagLibExplicitAdvisoryUnspecified: return nil;
+    }
+}
+
 static void ApplyExplicitPropertyKeys(const TagLib::PropertyMap &properties,
                                       TagLibAudioMetadata *metadata)
 {
@@ -265,9 +281,9 @@ static void ApplyExplicitPropertyKeys(const TagLib::PropertyMap &properties,
         }
 
         for (const auto &explicitCandidate : properties[key]) {
-            BOOL explicitValue = metadata.explicitContent;
+            BOOL explicitValue = NO;
             if (ParseExplicitTagValue(explicitCandidate, explicitValue)) {
-                metadata.explicitContent = explicitValue;
+                SetParsedExplicitAdvisory(metadata, explicitValue);
                 return;
             }
         }
@@ -619,10 +635,10 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         [normalizedKey isEqualToString:@"ADVISORY"] ||
         [normalizedKey isEqualToString:@"EXPLICITCONTENT"] ||
         [normalizedKey isEqualToString:@"EXPLICIT"]) {
-        BOOL explicitValue = metadata.explicitContent;
+        BOOL explicitValue = NO;
         TagLib::String explicitString(trimmedValue.UTF8String, TagLib::String::UTF8);
         if (ParseExplicitTagValue(explicitString, explicitValue)) {
-            metadata.explicitContent = explicitValue;
+            SetParsedExplicitAdvisory(metadata, explicitValue);
         }
         return true;
     }
@@ -754,7 +770,7 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
         metadata.bpm > 0 ? [NSString stringWithFormat:@"%ld", (long)metadata.bpm] : nil
     );
     SetPropertyMapString(properties, "COMPILATION", metadata.compilation ? @"1" : nil);
-    SetPropertyMapString(properties, "ITUNESADVISORY", metadata.explicitContent ? @"1" : nil);
+    SetPropertyMapString(properties, "ITUNESADVISORY", SerializedExplicitAdvisory(metadata));
 
     NSString *trackText = BuildPropertyMapNumberTextPreservingFormatting(
         metadata.trackNumberText,

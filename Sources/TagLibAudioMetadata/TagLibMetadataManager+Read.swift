@@ -173,9 +173,14 @@ extension TagLibMetadataManager {
             }
 
             let explicitSource = rawDump.map {
-                explicitValueSource(from: $0, fallback: meta.explicitContent)
-            } ?? (meta.explicitContent ? .nativeTag : .none)
+                explicitValueSource(from: $0, fallback: meta.explicitAdvisory != .unspecified)
+            } ?? (meta.explicitAdvisory == .unspecified ? .none : .nativeTag)
             let artworkSource: MetadataValueSource = (meta.artworkData as Data?) == nil ? .none : .nativeTag
+            let explicitAdvisory: ExplicitAdvisory = switch meta.explicitAdvisory {
+            case .clean: .clean
+            case .explicit: .explicit
+            default: .unspecified
+            }
 
             return BasicMetadata(
                 title: meta.title ?? "",
@@ -256,7 +261,7 @@ extension TagLibMetadataManager {
                 movementCount: Int(meta.movementCount),
                 bpm: Int(meta.bpm),
                 isCompilation: meta.compilation,
-                isExplicit: meta.explicitContent,
+                explicitAdvisory: explicitAdvisory,
                 duration: meta.duration,
                 bitrate: Int(meta.bitrate),
                 sampleRate: Double(meta.sampleRate),

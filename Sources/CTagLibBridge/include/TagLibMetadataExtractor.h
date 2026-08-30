@@ -12,6 +12,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
+    TagLibExplicitAdvisoryUnspecified = 0,
+    TagLibExplicitAdvisoryClean = 1,
+    TagLibExplicitAdvisoryExplicit = 2,
+};
+
 /// Comprehensive metadata container for audio tracks
 @interface TagLibAudioMetadata : NSObject
 
@@ -51,7 +57,10 @@ NS_ASSUME_NONNULL_BEGIN
 // Additional metadata
 @property (nonatomic, assign) NSInteger bpm;
 @property (nonatomic, assign) BOOL compilation;
-@property (nonatomic, assign) BOOL explicitContent; // YES = explicit, NO = non-explicit/unknown
+/// Lossless advisory state. Unlike `explicitContent`, this distinguishes no tag from an explicit clean tag.
+@property (nonatomic, assign) TagLibExplicitAdvisory explicitAdvisory;
+/// Compatibility projection. Setting NO means explicitly clean; reading YES means explicit.
+@property (nonatomic, assign) BOOL explicitContent;
 @property (nonatomic, copy, nullable) NSString *copyright;
 @property (nonatomic, copy, nullable) NSString *lyrics;
 @property (nonatomic, copy, nullable) NSString *label;

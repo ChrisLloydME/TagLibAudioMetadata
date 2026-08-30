@@ -13,12 +13,22 @@
         _bitDepth = 0;
         _bpm = 0;
         _compilation = NO;
-        _explicitContent = NO;
+        _explicitAdvisory = TagLibExplicitAdvisoryUnspecified;
         _removeArtwork = NO;
         _movementNumber = 0;
         _movementCount = 0;
     }
     return self;
+}
+
+- (BOOL)explicitContent {
+    return self.explicitAdvisory == TagLibExplicitAdvisoryExplicit;
+}
+
+- (void)setExplicitContent:(BOOL)explicitContent {
+    self.explicitAdvisory = explicitContent
+        ? TagLibExplicitAdvisoryExplicit
+        : TagLibExplicitAdvisoryClean;
 }
 
 @end

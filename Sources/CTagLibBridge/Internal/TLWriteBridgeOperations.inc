@@ -153,15 +153,8 @@
                     : (releaseDate.length >= 4 ? [releaseDate substringToIndex:4] : nil);
                 SetID3v2TextFrame(id3v2Tag, "TYER", id3v2Year);
 
-                // Explicit advisory (TXXX:ITUNESADVISORY, 0 = none, 1 = explicit, 2 = clean)
-                // Here we treat `explicitContent == YES` as advisory = 1, otherwise 0.
-                if (metadata.explicitContent) {
-                    SetID3v2UserTextFrame(id3v2Tag, "ITUNESADVISORY", @"1");
-                } else {
-                    // If you prefer to completely remove the advisory when non-explicit,
-                    // you can change @"0" to nil.
-                    SetID3v2UserTextFrame(id3v2Tag, "ITUNESADVISORY", @"0");
-                }
+                // Explicit advisory (absent = unspecified, 1 = explicit, 2 = clean).
+                SetID3v2UserTextFrame(id3v2Tag, "ITUNESADVISORY", SerializedExplicitAdvisory(metadata));
                 ApplyCustomFieldsToID3v2Tag(id3v2Tag, metadata.customFields);
 
                 if (!ApplyPictureComplexProperties(id3v2Tag,
@@ -236,7 +229,7 @@
         SetMP4TextItem(tag, "\xA9" "lyr", metadata.lyrics);
 
         // Publisher/label convention for MP4 freeform atoms.
-        SetMP4TextItem(tag, "----:com.apple.iTunes:ITUNESADVISORY", metadata.explicitContent ? @"1" : @"0");
+        SetMP4TextItem(tag, "----:com.apple.iTunes:ITUNESADVISORY", SerializedExplicitAdvisory(metadata));
         SetMP4TextItem(tag, kAudioMatorMP4TrackNumberTextKey, metadata.trackNumberText);
         SetMP4TextItem(tag, kAudioMatorMP4DiscNumberTextKey, metadata.discNumberText);
 
@@ -253,11 +246,17 @@
             tag->removeItem("cpil");
         }
 
-        // iTunes-style explicit rating: 4 = explicit. Remove atom when not explicit.
-        if (metadata.explicitContent) {
-            tag->setItem("rtng", TagLib::MP4::Item(4));
-        } else {
-            tag->removeItem("rtng");
+        // iTunes-style explicit rating: 2 = clean, 4 = explicit, absent = unspecified.
+        switch (metadata.explicitAdvisory) {
+            case TagLibExplicitAdvisoryExplicit:
+                tag->setItem("rtng", TagLib::MP4::Item(4));
+                break;
+            case TagLibExplicitAdvisoryClean:
+                tag->setItem("rtng", TagLib::MP4::Item(2));
+                break;
+            case TagLibExplicitAdvisoryUnspecified:
+                tag->removeItem("rtng");
+                break;
         }
         ApplyCustomFieldsToMP4Tag(tag, metadata.customFields);
 

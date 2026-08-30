@@ -71,6 +71,41 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testExplicitAdvisoryPreservesAbsenceCleanAndExplicitStates() throws {
+        for ext in writableFixtures {
+            let url = try copyAudioFixture(ext)
+
+            var metadata = BasicMetadata.empty
+            metadata.explicitAdvisory = .unspecified
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            XCTAssertEqual(
+                try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
+                .unspecified,
+                "\(ext) should preserve advisory absence"
+            )
+
+            metadata.explicitAdvisory = .clean
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            var result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.explicitAdvisory, .clean, "\(ext) should preserve an explicit clean advisory")
+            XCTAssertFalse(result.isExplicit, ext)
+
+            metadata.explicitAdvisory = .explicit
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.explicitAdvisory, .explicit, "\(ext) should preserve an explicit advisory")
+            XCTAssertTrue(result.isExplicit, ext)
+
+            metadata.explicitAdvisory = .unspecified
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            XCTAssertEqual(
+                try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
+                .unspecified,
+                "\(ext) should remove advisory metadata when set back to unspecified"
+            )
+        }
+    }
+
     func testArtworkCanBeWrittenAndRemovedWhereSupported() throws {
         let artwork = try Data(contentsOf: artworkFixtureURL())
 
