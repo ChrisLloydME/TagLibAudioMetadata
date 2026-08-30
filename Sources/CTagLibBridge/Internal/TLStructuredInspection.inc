@@ -361,6 +361,7 @@ static NSString *MP4ItemTypeName(TagLib::MP4::Item::Type type)
         case TagLib::MP4::Item::Type::StringList: return @"stringList";
         case TagLib::MP4::Item::Type::ByteVectorList: return @"byteVectorList";
         case TagLib::MP4::Item::Type::CoverArtList: return @"coverArtList";
+        case TagLib::MP4::Item::Type::Stem: return @"stem";
     }
 }
 
