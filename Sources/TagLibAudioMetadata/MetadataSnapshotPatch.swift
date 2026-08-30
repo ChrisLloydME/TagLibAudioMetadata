@@ -140,7 +140,7 @@ extension TagLibMetadataManager {
             }
 
             if !patch.fields.isEmpty || !patch.customFields.isEmpty || patch.explicitAdvisory != nil {
-                try TagLibMetadataExtractor.writeRawPropertyMapValues(propertyValues, to: mutationURL)
+                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(propertyValues, to: mutationURL)
             }
 
             switch patch.artwork {
@@ -152,14 +152,14 @@ extension TagLibMetadataManager {
                     includeProperties: false,
                     replacingCollections: [.artwork]
                 )
-                try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: mutationURL)
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             case .removeAll:
                 let payload = bridgePayload(
                     from: StructuredMetadata(),
                     includeProperties: false,
                     replacingCollections: [.artwork]
                 )
-                try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: mutationURL)
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
             let after = try readSnapshot(from: mutationURL)

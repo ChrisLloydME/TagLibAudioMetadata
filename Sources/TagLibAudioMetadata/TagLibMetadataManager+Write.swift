@@ -19,7 +19,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            try TagLibMetadataExtractor.writeMetadata(metadata, to: mutationURL)
+            try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
             return MetadataWriteResult(warnings: warnings)
@@ -40,7 +40,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            try TagLibMetadataExtractor.writeTrackNumberText(
+            try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
                 discNumberText: discNumberText,
                 to: mutationURL
@@ -88,10 +88,10 @@ extension TagLibMetadataManager {
         return try withAtomicFileMutation(at: url) { mutationURL in
             switch mode {
             case .replace:
-                try TagLibMetadataExtractor.writeRawPropertyMap(properties, to: mutationURL)
+                try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
             case .merge:
                 let resolvedProperties = try resolvedRawPropertyMapValuesForMerge(properties, to: mutationURL)
-                try TagLibMetadataExtractor.writeRawPropertyMapValues(resolvedProperties, to: mutationURL)
+                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(resolvedProperties, to: mutationURL)
             }
 
             let warnings = verifyAfterWrite
@@ -115,7 +115,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            try TagLibMetadataExtractor.writeRawPropertyMapValues(properties, to: mutationURL)
+            try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
 
             let warnings: [String]
             if verifyAfterWrite {
@@ -262,10 +262,10 @@ extension TagLibMetadataManager {
         meta.customFields = nil
 
         var warnings: [String] = []
+        try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
         warnings.append(
-            contentsOf: try writeTagMetadata(
-                meta,
-                to: url,
+            contentsOf: metadataWriteWarnings(
+                for: url,
                 verification: MetadataWriteVerificationContext(
                     expectedTrackNumber: nil,
                     expectedTrackTotal: nil,
@@ -276,22 +276,14 @@ extension TagLibMetadataManager {
                     expectedExplicitContent: false,
                     artworkExpectation: .absent,
                     customFieldKeys: []
-                ),
-                failurePolicy: .warn
-            ).warnings
+                )
+            )
         )
 
-        warnings.append(
-            contentsOf: try writeRawMetadataPropertyMapWithVerification(
-                [:],
-                to: url,
-                mode: .replace,
-                verifyAfterWrite: false
-            ).warnings
-        )
+        try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
 
         if shouldWipeNativeMetadataContainer(for: url) {
-            try TagLibMetadataExtractor.wipeMetadata(from: url)
+            try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
         }
 
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))

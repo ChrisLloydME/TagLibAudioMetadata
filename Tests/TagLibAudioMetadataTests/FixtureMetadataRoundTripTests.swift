@@ -701,6 +701,39 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         )
     }
 
+    func testFacadeTransactionsCleanTemporaryFilesAfterSuccessAndFailure() throws {
+        let url = try copyAudioFixture("mp3")
+        let directory = url.deletingLastPathComponent()
+        var metadata = BasicMetadata.empty
+        metadata.title = "Successful mutation"
+        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+        XCTAssertTrue(try transactionTemporaryFiles(in: directory).isEmpty)
+
+        let bridgeMetadata = TagLibAudioMetadata()
+        bridgeMetadata.title = "Must roll back"
+        let mismatched = TagLibMetadataManager.MetadataWriteVerificationContext(
+            expectedTrackNumber: nil,
+            expectedTrackTotal: nil,
+            expectedTrackNumberText: nil,
+            expectedDiscNumber: nil,
+            expectedDiscTotal: nil,
+            expectedDiscNumberText: nil,
+            expectedExplicitContent: nil,
+            artworkExpectation: .unchanged,
+            customFieldKeys: [],
+            expectedTextFields: ["title": "Different title"]
+        )
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.writeTagMetadata(
+                bridgeMetadata,
+                to: url,
+                verification: mismatched,
+                failurePolicy: .throw
+            )
+        )
+        XCTAssertTrue(try transactionTemporaryFiles(in: directory).isEmpty)
+    }
+
     private func copyAudioFixture(_ ext: String) throws -> URL {
         let source = try XCTUnwrap(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
@@ -722,6 +755,13 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             Bundle.module.url(forResource: "testCover", withExtension: "jpg", subdirectory: "Artwork")
                 ?? Bundle.module.url(forResource: "testCover", withExtension: "jpg")
         )
+    }
+
+    private func transactionTemporaryFiles(in directory: URL) throws -> [URL] {
+        try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.contains(".taglib-") }
     }
 }
 

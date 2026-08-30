@@ -452,7 +452,7 @@ extension TagLibMetadataManager {
                 includeProperties: includeProperties,
                 replacingCollections: replacingCollections
             )
-            try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: mutationURL)
+            try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
 
             if verifyAfterWrite {
                 let verification = structuredWriteVerification(
