@@ -3,7 +3,6 @@
                      error:(NSError **)error
 {
     try {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMap:properties toURL:temporaryURL error:mutationError];
@@ -41,6 +40,7 @@
 
     NSDictionary<NSString *, NSString *> *normalizedProperties = NormalizedRawPropertiesForWrite(properties ?: @{}, ext);
 
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         return WriteRawPropertyMapToFile(file,
@@ -295,7 +295,6 @@
                             error:(NSError **)error
 {
     try {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw multi-value property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMapValues:properties toURL:temporaryURL error:mutationError];
@@ -331,6 +330,7 @@
         return NO;
     }
 
+    TAGLIB_BRIDGE_SERIAL_GUARD();
 #define WRITE_VALUES_FOR_FILE(TYPE, LABEL) \
     do { \
         TYPE file(filePath); \
@@ -472,7 +472,6 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
                        error:(NSError **)error
 {
     try {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (!ValidateNumberPairTextForWrite(trackNumberText, @"Track number text", error) ||
         !ValidateNumberPairTextForWrite(discNumberText, @"Disc number text", error)) {
         return NO;
@@ -506,6 +505,7 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
         return NO;
     }
 
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     const char *filePath = fileURL.path.UTF8String;
     if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
         TagLib::MPEG::File mpegFile(filePath);

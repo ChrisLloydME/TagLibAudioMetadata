@@ -103,6 +103,50 @@ final class ConcurrentFormatOperationTests: XCTestCase {
         }
     }
 
+    func testHighContentionMixedReadWriteStressAcrossIndependentFiles() async throws {
+        let extensions = ["mp3", "m4a", "flac", "aac", "ogg", "wav"]
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let jobs = try (0..<24).map { worker -> (url: URL, worker: Int) in
+            let ext = extensions[worker % extensions.count]
+            let destination = directory.appendingPathComponent("stress-\(worker).\(ext)")
+            try FileManager.default.copyItem(at: try fixtureURL(ext), to: destination)
+            return (destination, worker)
+        }
+
+        let finalTitles = try await withThrowingTaskGroup(of: (Int, String).self) { group in
+            for job in jobs {
+                group.addTask {
+                    var expectedTitle = ""
+                    for iteration in 0..<20 {
+                        _ = try TagLibMetadataManager.readMetadataResult(from: job.url)
+                        expectedTitle = "Stress \(job.worker)-\(iteration)"
+                        var metadata = BasicMetadata.empty
+                        metadata.title = expectedTitle
+                        _ = try TagLibMetadataManager.writeMetadataWithVerification(
+                            metadata,
+                            to: job.url,
+                            failurePolicy: .throw
+                        )
+                    }
+                    let final = try TagLibMetadataManager.readMetadataResult(from: job.url)
+                    return (job.worker, final.title)
+                }
+            }
+
+            var results: [(Int, String)] = []
+            for try await result in group {
+                results.append(result)
+            }
+            return results
+        }
+
+        XCTAssertEqual(finalTitles.count, jobs.count)
+        for (worker, title) in finalTitles {
+            XCTAssertEqual(title, "Stress \(worker)-19")
+        }
+    }
+
     private func fixtureURL(_ ext: String) throws -> URL {
         try XCTUnwrap(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")

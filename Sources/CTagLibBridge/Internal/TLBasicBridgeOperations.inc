@@ -558,7 +558,6 @@ static BOOL StripAllTagsAndSave(FileType &file,
                    error:(NSError **)error
 {
     try {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (!ValidateNonnegativeIntValue(trackNumber, @"Track number", error) ||
         !ValidateNonnegativeIntValue(totalTracks, @"Total tracks", error) ||
         !ValidateNonnegativeIntValue(padWidth, @"Track-number padding width", error)) {
@@ -594,6 +593,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         return NO;
     }
 
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     const char *filePath = fileURL.path.UTF8String;
     if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
         TagLib::MPEG::File mpegFile(filePath);
