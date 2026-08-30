@@ -291,8 +291,26 @@ static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
         return NO;
     }
 
+    NSURL *parentURL = targetURL.URLByDeletingLastPathComponent;
+    int parentDescriptor = open(parentURL.path.fileSystemRepresentation, O_RDONLY | O_DIRECTORY);
+    if (parentDescriptor < 0) {
+        int openErrorCode = errno;
+        [fileManager removeItemAtURL:temporaryURL error:nil];
+        if (error) {
+            NSError *underlying = [NSError errorWithDomain:NSPOSIXErrorDomain code:openErrorCode userInfo:nil];
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9109
+                                     userInfo:@{
+                                         NSLocalizedDescriptionKey : @"Could not open the metadata destination directory for flushing",
+                                         NSUnderlyingErrorKey : underlying,
+                                     }];
+        }
+        return NO;
+    }
+
     if (std::rename(temporaryURL.path.fileSystemRepresentation, targetURL.path.fileSystemRepresentation) != 0) {
         int renameErrorCode = errno;
+        close(parentDescriptor);
         [fileManager removeItemAtURL:temporaryURL error:nil];
         if (error) {
             NSError *underlying = [NSError errorWithDomain:NSPOSIXErrorDomain code:renameErrorCode userInfo:nil];
@@ -305,6 +323,22 @@ static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
         }
         return NO;
     }
+
+    if (fsync(parentDescriptor) != 0) {
+        int syncErrorCode = errno;
+        close(parentDescriptor);
+        if (error) {
+            NSError *underlying = [NSError errorWithDomain:NSPOSIXErrorDomain code:syncErrorCode userInfo:nil];
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9110
+                                     userInfo:@{
+                                         NSLocalizedDescriptionKey : @"The metadata mutation was committed, but its directory entry could not be flushed",
+                                         NSUnderlyingErrorKey : underlying,
+                                     }];
+        }
+        return NO;
+    }
+    close(parentDescriptor);
 
     return YES;
 }
