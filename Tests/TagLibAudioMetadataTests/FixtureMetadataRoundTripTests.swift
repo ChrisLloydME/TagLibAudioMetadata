@@ -596,6 +596,56 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testMetadataPatchChangesOnlyRequestedFields() throws {
+        let firstArtwork = try Data(contentsOf: artworkFixtureURL())
+        var secondArtwork = firstArtwork
+        secondArtwork.append(0)
+
+        for ext in ["mp3", "m4a"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["TITLE": ["Before"], "CUSTOM_MULTI": ["One", "Two"]],
+                to: url,
+                failurePolicy: .throw
+            )
+            let container = ext == "mp3" ? "id3v2" : "mp4"
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(artwork: [
+                    .init(container: container, mimeType: "image/jpeg", description: "Front", data: firstArtwork),
+                    .init(container: container, mimeType: "image/jpeg", description: "Back", data: secondArtwork),
+                ]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let before = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(before.raw.values(for: "CUSTOM_MULTI"), ["One", "Two"], ext)
+            XCTAssertEqual(before.structured.artwork.count, 2, ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.title: .text("After")], explicitAdvisory: .clean),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var after = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(after.basic.title, "After", ext)
+            XCTAssertEqual(after.basic.explicitAdvisory, .clean, ext)
+            XCTAssertEqual(after.raw.values(for: "CUSTOM_MULTI"), ["One", "Two"], ext)
+            XCTAssertEqual(Set(after.structured.artwork.map(\.data)), Set([firstArtwork, secondArtwork]), ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(customFields: ["CUSTOM_MULTI": .values(["Three", "Four"])]),
+                to: url,
+                failurePolicy: .throw
+            )
+            after = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(after.basic.title, "After", ext)
+            XCTAssertEqual(after.raw.values(for: "CUSTOM_MULTI"), ["Three", "Four"], ext)
+            XCTAssertEqual(after.structured.artwork.count, 2, ext)
+        }
+    }
+
     func testEraseAllMetadataReportsNoResidualCoreFields() throws {
         for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
             let url = try copyAudioFixture(ext)
