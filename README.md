@@ -61,13 +61,18 @@ print(snapshot.raw.properties)
 print(snapshot.structured.artwork)
 ```
 
+`MetadataSnapshot` is a comprehensive semantic snapshot, not a lossless native
+serialization. Unsupported/opaque frames or atoms may be summarized rather than
+retained as reconstructable payload bytes.
+
 Apply only the requested changes while preserving everything else:
 
 ```swift
 let patch = MetadataPatch(
     fields: [
         .title: .text("New Title"),
-        .track: .text("01/12")
+        .track: .integer(1),
+        .trackTotal: .integer(12)
     ],
     customFields: ["MOOD": .values(["Focused", "Calm"])],
     explicitAdvisory: .clean,
@@ -81,9 +86,16 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
 )
 ```
 
+Typed patch values are checked against `MetadataFieldRegistry` before staging.
+The bridge applies requested PropertyMap changes to the current map in one
+session; omitted keys are not rebuilt in Swift. For text-backed booleans,
+`.boolean(false)` writes `"0"`, while `.remove` removes the key.
+
 `BasicMetadata` remains a convenient normalized projection, but it is not a
-lossless editing document: it flattens some multi-value and container-specific
-data. For professional editors, read `MetadataSnapshot` and write
+lossless editing document. Values read from a file retain a separate raw
+cardinality baseline, so unrelated Basic edits preserve untouched standard and
+custom multi-value fields without splitting display strings on semicolons.
+For professional editors, read `MetadataSnapshot` and write
 `MetadataPatch`, raw multi-value maps, or structured metadata. A basic
 full-model write intentionally means replacement: empty strings and zero
 numeric values clear corresponding fields where the container allows it.
@@ -118,13 +130,17 @@ Every facade or public bridge mutation:
 A failure before rename leaves the original pathname and bytes unchanged and
 cleans up the temporary copy. The rename changes inode identity and does not
 retarget other hard links. If the final directory flush fails, the rename has
-already committed and the API reports that distinct durability error.
+already committed and the API throws
+`TagLibManagerError.committedButDurabilityUncertain`; retrying may repeat an
+already-committed operation.
 Sibling-copy creation also requires write access to the parent directory.
 Security-scoped URLs must already be accessed by the caller; App Sandbox and
 code-signing behavior are integration responsibilities.
 
 TagLib parser and mutation work is protected by a process-wide recursive mutex.
-Copying, flushing, and renaming occur outside that mutex. Calls on independent
+Objective-C projection objects copied directly from live TagLib values are also
+built under that lock; Swift model conversion, copying, flushing, and renaming
+occur outside it. Calls on independent
 files are safe, but callers must serialize mutations to the same canonical path
 when operation order matters.
 
@@ -163,10 +179,10 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The current acceptance matrix passes 62 tests, strict warnings-as-errors,
-Address Sanitizer, Thread Sanitizer, both facade and low-level consumer
-packages, a dynamic-link/bundle audit, and builds for macOS arm64/x86_64, iOS
-arm64, and iOS Simulator arm64/x86_64.
+The current local acceptance matrix passes 67 tests, strict warnings-as-errors,
+Address Sanitizer, Thread Sanitizer, and builds both facade and low-level
+consumer packages. The published binary's broader platform and dynamic-link
+matrix remains documented in the migration report.
 
 See [Architecture](docs/ARCHITECTURE.md), [Support](docs/SUPPORT.md),
 [Thread safety](docs/THREAD_SAFETY.md), and the

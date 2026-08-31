@@ -70,10 +70,23 @@ print(snapshot.raw.properties)
 print(snapshot.structured.mp4Atoms)
 ```
 
+This is a comprehensive semantic snapshot, not a lossless native serialization.
+Known raw cardinality and supported structured frames/items are retained, but
+unknown ID3v2 frames, CHAP embedded frames, private payloads, and unsupported MP4
+or ASF values may be represented only by display/type/count summaries. Leaving
+such content out of a patch preserves the on-disk entry; rebuilding a native tag
+from the snapshot alone is not guaranteed to reproduce opaque bytes.
+
 `MetadataPatch` distinguishes omission from removal. Fields absent from the
 patch remain unchanged; `.remove` clears an explicitly named property; artwork
 has separate unchanged, replace, and remove-all cases; and
 `explicitAdvisory` preserves unspecified, clean, and explicit states.
+
+Known fields are validated against `MetadataFieldRegistry` before any staging
+copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
+integer. Custom fields remain permissive for raw workflows. Text-backed Boolean
+patches encode `.boolean(true)` as `"1"` and `.boolean(false)` as `"0"`;
+`.remove` alone makes the field absent.
 
 ```swift
 let patch = MetadataPatch(
@@ -139,7 +152,11 @@ values, artwork as `Data?`, and unknown custom fields as `[String: String]`.
 
 It is a normalized projection, not a lossless document. It can flatten
 multi-value properties and cannot represent every frame, atom, attribute,
-comment, lyric, or artwork record. A full basic write preserves rich metadata
+comment, lyric, or artwork record. Reads retain the original raw arrays and the
+corresponding normalized scalar projections for known multi-value fields such as
+`ARTIST`, `COMPOSER`, `ALBUMARTIST`, and `GENRE`. An unrelated Basic edit restores
+those untouched arrays exactly; it never guesses cardinality by splitting a
+semicolon-bearing display string. A full basic write preserves rich metadata
 that was not modified, but precise editing should use a snapshot/patch, raw
 multi-value map, or structured payload.
 
@@ -620,6 +637,26 @@ try TagLibMetadataManager.writeMetadataWithVerification(
 
 Use `.throw` for tests, batch processing, and workflows where a read-back
 verification difference would be data loss.
+
+Basic verification requests Basic+raw together and derives both checks from one
+TagLib extraction. Patch verification uses the same one-session approach and
+requests structured projection work only when artwork verification needs it.
+
+## Transaction Outcomes
+
+Facade writes validate the original, create one same-directory staging copy,
+mutate and verify that copy, flush it, recheck destination identity, atomically
+rename it, and then `fsync` the parent directory. Failures before rename leave
+the original pathname unchanged.
+
+If the final directory `fsync` fails, rename has already committed. The facade
+throws `TagLibManagerError.committedButDurabilityUncertain(String)`. Inspect the
+file before retrying because retry may repeat an already-committed operation;
+the package does not attempt a fake post-rename rollback.
+
+TagLib access and Objective-C projection construction from live native objects
+are serialized by a process-wide recursive mutex. Swift model conversion and
+filesystem copy, flush, and rename operations occur outside that lock.
 
 ## Field Registry
 

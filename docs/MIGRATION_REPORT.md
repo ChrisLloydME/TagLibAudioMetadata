@@ -1,12 +1,12 @@
 # Correctness and TagLib 2.3.1 migration report
 
-Date: 2026-08-31
+Date: 2026-09-01
 
 ## Outcome
 
 The package now consumes a published, checksum-pinned, namespaced TagLib 2.3.1
-dynamic XCFramework. It also has a lossless editing path based on unified
-snapshots and explicit patches, one-copy atomic transactions, evidence-based
+dynamic XCFramework. It also has a comprehensive semantic editing path based on
+unified snapshots and explicit patches, one-copy atomic transactions, evidence-based
 format capabilities, a defined low-level product, synchronized schema tests,
 and expanded fixture and concurrency coverage.
 
@@ -38,12 +38,15 @@ risk documented in `ARCHITECTURE.md`.
 ## API and behavior changes
 
 - `MetadataSnapshot` returns basic, raw, and structured views from one parser
-  session and rejects concurrent file changes.
+  session and rejects concurrent file changes. It is not described as a lossless
+  native serialization because opaque or unsupported payloads may be summarized.
 - `MetadataPatch` changes only explicitly supplied fields, retains raw
-  multi-values, distinguishes artwork omission/replacement/removal, and preserves
-  the advisory states unspecified/clean/explicit.
+  multi-values, validates typed values against the field schema, distinguishes
+  false from removal, distinguishes artwork omission/replacement/removal, and
+  preserves the advisory states unspecified/clean/explicit.
 - `BasicMetadata` remains a normalized full-replacement model. Its untouched
-  rich raw/structured content is now preserved during facade writes, but callers
+  standard and custom multi-value cardinality is restored from its raw baseline
+  during facade writes, but callers
   needing precise multi-value or container edits should use snapshot/patch or
   the specialized APIs.
 - Semantic `Hashable`/`Equatable` behavior no longer changes because ephemeral
@@ -67,8 +70,10 @@ one sibling copy, mutates it in place through internal bridge entry points,
 verifies it, flushes it, checks the original identity, atomically renames it,
 and flushes the directory. Copy, flush, and rename are outside the TagLib mutex.
 
-The unified projection reader avoids separate basic/raw/structured parses, and
-the ineffective generic fallback parse was removed. These are structural
+The unified projection reader avoids separate basic/raw/structured parses and
+now skips unrequested structured/raw projections. Post-write Basic and raw
+verification is derived from one extraction instead of two, and the ineffective
+generic fallback parse was removed. These are structural
 improvements; no hardware-independent elapsed-time percentage is claimed.
 
 The bridge transaction coordinator moved into its own Objective-C++ translation
@@ -97,11 +102,11 @@ passed:
 | Check | Result |
 | --- | --- |
 | Strict clean build | Passed with Swift and C-family warnings as errors |
-| Unit and integration tests | 62 passed |
-| Address Sanitizer | 62 passed, no findings |
-| Thread Sanitizer | 62 passed, no findings |
-| Facade consumer | Built and ran; reported 37 readable extensions |
-| Low-level consumer | Built and ran using the explicit product |
+| Unit tests | 67 passed |
+| Address Sanitizer | 67 passed, no findings |
+| Thread Sanitizer | 67 passed, no findings |
+| Facade consumer | Built using the facade product |
+| Low-level consumer | Built using the explicit product |
 | Dynamic audit | Namespaced install name, module map, bundle ID, licenses, and absence of generic install name verified |
 | macOS | arm64 and x86_64 builds passed |
 | iOS device | arm64 build passed |

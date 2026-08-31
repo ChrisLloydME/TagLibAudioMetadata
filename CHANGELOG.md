@@ -15,6 +15,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
   round-trip coverage.
 - Added the explicit `TagLibAudioMetadataLowLevel` product and cross-language
   metadata-schema consistency tests.
+- Added schema-aware typed patch validation and a typed
+  `committedButDurabilityUncertain` post-rename transaction outcome.
 
 ### Changed
 
@@ -23,6 +25,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
   map.
 - Removed nested facade transactions so edits use one staging copy, and unified
   basic/raw/structured extraction into one TagLib session.
+- Added selective projection extraction and consolidated Basic/raw post-write
+  verification into one parser session.
 - Narrowed the process-wide lock to TagLib object lifetimes and moved transaction
   filesystem work outside it.
 - Split the bridge transaction coordinator into a dedicated Objective-C++
@@ -32,6 +36,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 - Preserved rich metadata omitted from basic writes, including raw multi-values,
   structured entries, artwork MIME information, and three-state advisory data.
+- Preserved untouched standard multi-value fields during Basic writes without
+  splitting normalized display strings, and made patch Boolean false distinct
+  from field removal.
 - Separated semantic equality from ephemeral UI identity and rejected numeric
   overflow at bridge boundaries.
 - Flushed committed directory entries and reported post-rename durability

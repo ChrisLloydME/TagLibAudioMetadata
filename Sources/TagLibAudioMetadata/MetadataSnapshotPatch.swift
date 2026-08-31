@@ -1,10 +1,12 @@
 import Foundation
 import CTagLibBridge
 
-/// A comprehensive read result used as the source of truth for professional editing.
+/// A comprehensive semantic metadata snapshot for professional editing.
 ///
 /// `BasicMetadata` is a normalized convenience projection. The raw and structured
-/// representations retain value cardinality and container-specific entries.
+/// representations retain value cardinality and supported container-specific entries.
+/// Unsupported or opaque native frames/items may be summarized rather than copied as
+/// reconstructable payloads, so this is not a lossless native serialization.
 public struct MetadataSnapshot: Sendable {
     public var basic: BasicMetadata
     public var raw: RawMetadataDump
