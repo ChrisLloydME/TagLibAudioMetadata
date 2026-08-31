@@ -18,5 +18,11 @@ let package = Package(
                 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata"),
             ]
         ),
+        .executableTarget(
+            name: "TagLibAudioMetadataLowLevelConsumer",
+            dependencies: [
+                .product(name: "TagLibAudioMetadataLowLevel", package: "TagLibAudioMetadata"),
+            ]
+        ),
     ]
 )

@@ -35,7 +35,9 @@ jobs:
       - name: Test
         run: swift test --disable-keychain --disable-netrc
       - name: Consumer integration
-        run: swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataConsumer
+        run: |
+          swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataConsumer
+          swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataLowLevelConsumer
       - name: Dynamic link audit
         run: |
           test ! -d Sources/CTagLibBridge/taglib
