@@ -45,6 +45,10 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
     public var notes: String?
     public var supportLevel: FormatSupportLevel
     public var extensionSupportLevels: [String: FormatSupportLevel]
+    /// `nil` means field support is inferred from the format mappings.
+    public var readableFields: Set<MetadataFieldKey>?
+    /// `nil` means field support is inferred from the format mappings.
+    public var writableFields: Set<MetadataFieldKey>?
 
     public var metadataFieldFormats: Set<MetadataFieldFormat> {
         var formats: Set<MetadataFieldFormat> = [.tagLibPropertyMap]
@@ -67,6 +71,7 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
     public func readSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
         guard isReadable,
               let schema = MetadataFieldRegistry.schema(for: field),
+              readableFields?.contains(field) != false,
               schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),
               !schema.isArtworkField || canReadArtwork
         else { return .unsupported }
@@ -76,6 +81,7 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
     public func writeSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
         guard isWritable,
               let schema = MetadataFieldRegistry.schema(for: field),
+              writableFields?.contains(field) != false,
               schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),
               !schema.isArtworkField || canWriteArtwork
         else { return .unsupported }
@@ -99,7 +105,9 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
         readOnlyReason: String? = nil,
         notes: String? = nil,
         supportLevel: FormatSupportLevel = .upstreamSupported,
-        extensionSupportLevels: [String: FormatSupportLevel] = [:]
+        extensionSupportLevels: [String: FormatSupportLevel] = [:],
+        readableFields: Set<MetadataFieldKey>? = nil,
+        writableFields: Set<MetadataFieldKey>? = nil
     ) {
         self.identifier = identifier
         self.displayName = displayName
@@ -118,6 +126,8 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
         self.notes = notes
         self.supportLevel = supportLevel
         self.extensionSupportLevels = extensionSupportLevels
+        self.readableFields = readableFields
+        self.writableFields = writableFields
     }
 }
 
@@ -163,6 +173,12 @@ private extension FormatCapability {
                 result[entry.key.lowercased()] = level
             }
         }
+        let readableFields = (bridgeDictionary["readableFields"] as? [String]).map {
+            Set($0.compactMap(MetadataFieldKey.init(rawValue:)))
+        }
+        let writableFields = (bridgeDictionary["writableFields"] as? [String]).map {
+            Set($0.compactMap(MetadataFieldKey.init(rawValue:)))
+        }
 
         self.init(
             identifier: identifier,
@@ -181,7 +197,9 @@ private extension FormatCapability {
             readOnlyReason: bridgeDictionary["readOnlyReason"] as? String,
             notes: bridgeDictionary["notes"] as? String,
             supportLevel: supportLevel,
-            extensionSupportLevels: extensionSupportLevels
+            extensionSupportLevels: extensionSupportLevels,
+            readableFields: readableFields,
+            writableFields: writableFields
         )
     }
 }

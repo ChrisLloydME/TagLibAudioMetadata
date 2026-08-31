@@ -51,9 +51,10 @@ final class FormatCapabilityTests: XCTestCase {
         for ext in ["mp2", "mp4", "ape", "wma", "dsf"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .upstreamSupported, ext)
         }
-        for ext in ["mod", "xm", "s3m", "it"] {
+        for ext in ["xm", "s3m", "it"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .experimental, ext)
         }
+        XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "mod"), .readOnly)
         XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "shn"), .readOnly)
         XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "not-a-format"), .unsupported)
 
@@ -67,7 +68,18 @@ final class FormatCapabilityTests: XCTestCase {
         let xm = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "xm"))
         XCTAssertEqual(xm.readSupport(for: .title), .experimental)
         XCTAssertEqual(xm.writeSupport(for: .title), .experimental)
+        XCTAssertEqual(xm.writeSupport(for: .trackerName), .experimental)
+        XCTAssertEqual(xm.writeSupport(for: .album), .unsupported)
         XCTAssertEqual(xm.writeSupport(for: .artwork), .unsupported)
+
+        let s3m = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "s3m"))
+        XCTAssertEqual(s3m.readSupport(for: .trackerName), .experimental)
+        XCTAssertEqual(s3m.writeSupport(for: .trackerName), .unsupported)
+
+        let mod = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "mod"))
+        XCTAssertFalse(mod.isWritable)
+        XCTAssertEqual(mod.readSupport(for: .title), .readOnly)
+        XCTAssertEqual(mod.writeSupport(for: .title), .unsupported)
 
         let shorten = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "shn"))
         XCTAssertEqual(shorten.readSupport(for: .title), .readOnly)
@@ -107,6 +119,30 @@ final class FormatCapabilityTests: XCTestCase {
         for capability in capabilities {
             XCTAssertTrue(capability.extensions.contains(capability.primaryExtension), capability.identifier)
             XCTAssertEqual(capability.extensions, capability.extensions.map { $0.lowercased() }, capability.identifier)
+        }
+    }
+
+    func testBridgeFieldRestrictionsUseKnownUniqueSchemaKeys() {
+        let bridgeCapabilities = TagLibMetadataExtractor.formatCapabilities()
+        let capabilitiesByIdentifier = Dictionary(
+            uniqueKeysWithValues: TagLibMetadataManager.formatCapabilities.map { ($0.identifier, $0) }
+        )
+
+        for bridgeCapability in bridgeCapabilities {
+            guard let identifier = bridgeCapability["identifier"] as? String,
+                  let capability = capabilitiesByIdentifier[identifier]
+            else {
+                return XCTFail("Bridge capability is missing a known identifier.")
+            }
+
+            if let readable = bridgeCapability["readableFields"] as? [String] {
+                XCTAssertEqual(readable.count, Set(readable).count, identifier)
+                XCTAssertEqual(readable.count, capability.readableFields?.count, identifier)
+            }
+            if let writable = bridgeCapability["writableFields"] as? [String] {
+                XCTAssertEqual(writable.count, Set(writable).count, identifier)
+                XCTAssertEqual(writable.count, capability.writableFields?.count, identifier)
+            }
         }
     }
 }

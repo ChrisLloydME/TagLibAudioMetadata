@@ -762,6 +762,48 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testXMSupportedFieldsRoundTripWithoutCorruptingModule() throws {
+        let url = try copyAudioFixture("xm")
+        let beforeBytes = try Data(contentsOf: url)
+        let before = try TagLibMetadataManager.rawMetadataResult(from: url)
+
+        XCTAssertEqual(before.values(for: "TITLE"), ["title of song"])
+        XCTAssertEqual(
+            before.values(for: "TRACKERNAME").map { $0.trimmingCharacters(in: .whitespaces) },
+            ["MilkyTracker"]
+        )
+
+        let result = try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            [
+                "TITLE": ["XM Round Trip"],
+                "COMMENT": ["XM comment"],
+                "TRACKERNAME": ["TagLibAudioMetadata"],
+            ],
+            to: url,
+            verifyAfterWrite: false,
+            failurePolicy: .throw
+        )
+        XCTAssertTrue(result.warnings.isEmpty)
+
+        let after = try TagLibMetadataManager.rawMetadataResult(from: url)
+        XCTAssertEqual(after.values(for: "TITLE"), ["XM Round Trip"])
+        XCTAssertTrue(after.values(for: "COMMENT").first?.hasPrefix("XM comment") == true)
+        XCTAssertEqual(
+            after.values(for: "TRACKERNAME").map { $0.trimmingCharacters(in: .whitespaces) },
+            ["TagLibAudioMetadata"]
+        )
+        XCTAssertNotEqual(try Data(contentsOf: url), beforeBytes)
+
+        let basic = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(basic.title, "XM Round Trip")
+        XCTAssertTrue(basic.comment.hasPrefix("XM comment"))
+        XCTAssertEqual(basic.format, "XM")
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.title, "XM Round Trip")
+        XCTAssertEqual(snapshot.raw.values(for: "TITLE"), ["XM Round Trip"])
+    }
+
     private func copyAudioFixture(_ ext: String) throws -> URL {
         let source = try XCTUnwrap(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
