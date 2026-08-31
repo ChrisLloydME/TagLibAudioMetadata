@@ -203,11 +203,29 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
-            let after = try readSnapshot(from: mutationURL)
+            let extractionOptions: MetadataExtractionOptions = switch patch.artwork {
+            case .unchanged: [.basic, .raw]
+            case .replace, .removeAll: .all
+            }
+            let projections = try bridgeMetadataProjectionDictionary(
+                from: mutationURL,
+                options: extractionOptions
+            )
+            guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
+                  let bridgeRaw = projections["raw"] as? [String: NSObject] else {
+                throw TagLibManagerError.failedToReadWithUnderlying(
+                    "The bridge returned incomplete patch verification projections."
+                )
+            }
+            let afterRaw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
+            let afterBasic = basicMetadata(fromBridgeMetadata: bridgeBasic, rawDump: afterRaw)
+            let afterStructured = (projections["structured"] as? [String: NSObject]).map {
+                structuredMetadata(fromBridgeDictionary: $0)
+            } ?? StructuredMetadata()
             for (field, value) in patch.fields {
                 guard let schema = MetadataFieldRegistry.schema(for: field),
                       let key = schema.propertyMapKeys.first else { continue }
-                let actual = after.raw.properties.first { entry in
+                let actual = afterRaw.properties.first { entry in
                     schema.propertyMapKeys.contains { alias in
                         alias.caseInsensitiveCompare(entry.key) == .orderedSame
                     }
@@ -217,21 +235,21 @@ extension TagLibMetadataManager {
                 }
             }
             for (key, value) in patch.customFields {
-                let actual = after.raw.properties.first {
+                let actual = afterRaw.properties.first {
                     $0.key.caseInsensitiveCompare(key) == .orderedSame
                 }?.values ?? []
                 if actual != value.propertyMapValues {
                     warnings.append("Patched custom field \(key) differs after save.")
                 }
             }
-            if let advisory = patch.explicitAdvisory, after.basic.explicitAdvisory != advisory {
+            if let advisory = patch.explicitAdvisory, afterBasic.explicitAdvisory != advisory {
                 warnings.append("Patched explicit advisory differs after save.")
             }
             switch patch.artwork {
             case .unchanged: break
-            case .replace(let expected) where expected != after.structured.artwork:
+            case .replace(let expected) where expected != afterStructured.artwork:
                 warnings.append("Patched artwork differs after save.")
-            case .removeAll where !after.structured.artwork.isEmpty:
+            case .removeAll where !afterStructured.artwork.isEmpty:
                 warnings.append("Patched artwork removal could not be confirmed.")
             default: break
             }

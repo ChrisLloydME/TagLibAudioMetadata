@@ -408,13 +408,18 @@ extension TagLibMetadataManager {
 
     public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {
         let identityBeforeRead = regularFileIdentity(at: url)
-        let projections = try bridgeMetadataProjections(from: url)
+        let projections = try bridgeMetadataProjectionDictionary(from: url, options: .structured)
+        guard let bridgeStructured = projections["structured"] as? [String: NSObject] else {
+            throw TagLibManagerError.failedToReadWithUnderlying(
+                "The bridge returned an incomplete structured metadata projection set."
+            )
+        }
         guard identityBeforeRead == regularFileIdentity(at: url) else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while structured metadata was being read."
             )
         }
-        return structuredMetadata(fromBridgeDictionary: projections.structured)
+        return structuredMetadata(fromBridgeDictionary: bridgeStructured)
     }
 
     @discardableResult

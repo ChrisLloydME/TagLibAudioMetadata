@@ -849,6 +849,26 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testSelectiveProjectionExtractionReturnsOnlyRequestedRepresentations() throws {
+        let url = try copyAudioFixture("mp3")
+
+        let basicAndRaw = try TagLibMetadataExtractor.metadataProjections(
+            for: url,
+            options: [.basic, .raw]
+        )
+        XCTAssertNotNil(basicAndRaw["basic"])
+        XCTAssertNotNil(basicAndRaw["raw"])
+        XCTAssertNil(basicAndRaw["structured"])
+
+        let structuredOnly = try TagLibMetadataExtractor.metadataProjections(
+            for: url,
+            options: .structured
+        )
+        XCTAssertNil(structuredOnly["basic"])
+        XCTAssertNil(structuredOnly["raw"])
+        XCTAssertNotNil(structuredOnly["structured"])
+    }
+
     func testXMSupportedFieldsRoundTripWithoutCorruptingModule() throws {
         let url = try copyAudioFixture("xm")
         let beforeBytes = try Data(contentsOf: url)
