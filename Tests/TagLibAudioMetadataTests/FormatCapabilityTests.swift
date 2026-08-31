@@ -145,4 +145,54 @@ final class FormatCapabilityTests: XCTestCase {
             }
         }
     }
+
+    func testBridgeKnownPropertyKeysMatchSwiftSchemaAliases() {
+        let internalKeys: Set<String> = [
+            "AUDIOMATOR_TRACKNUMBER_TEXT",
+            "AUDIOMATOR_DISCNUMBER_TEXT",
+        ]
+        let bridgeKeys = Set(TagLibMetadataExtractor.knownMetadataPropertyKeys()).subtracting(internalKeys)
+
+        XCTAssertEqual(bridgeKeys, MetadataFieldRegistry.canonicalPropertyMapKeys)
+    }
+
+    func testBridgeContainerMappingsAgreeWithSwiftSchema() throws {
+        for mapping in TagLibMetadataExtractor.metadataFieldMappings() {
+            let canonical = try XCTUnwrap(mapping["canonicalPropertyKey"] as? String)
+            let aliases = mapping["propertyAliases"] as? [String] ?? []
+            let propertyKeys = Set([canonical] + aliases)
+            let schemas = MetadataFieldRegistry.allSchemas.filter {
+                !propertyKeys.isDisjoint(with: Set($0.propertyMapKeys))
+            }
+            XCTAssertFalse(schemas.isEmpty, canonical)
+
+            if let frame = mapping["id3v2TextFrame"] as? String {
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .textFrame && $0.keys.contains(frame) }
+                        || schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .binary && $0.keys.contains(frame) }
+                }, "\(canonical) / \(frame)")
+            }
+            if let description = mapping["id3v2UserTextDescription"] as? String {
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .userTextFrame && $0.keys.contains(description) }
+                }, "\(canonical) / \(description)")
+            }
+            if let atom = mapping["mp4Atom"] as? String {
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .mp4Atom && $0.keys.contains(atom) }
+                        || schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .binary && $0.keys.contains(atom) }
+                }, "\(canonical) / \(atom)")
+            }
+            if let description = mapping["mp4FreeformDescription"] as? String {
+                let atom = "----:com.apple.iTunes:\(description)"
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .mp4Freeform && $0.keys.contains(atom) }
+                }, "\(canonical) / \(atom)")
+            }
+
+            XCTAssertTrue(schemas.contains { $0.isMultiValue == ((mapping["multiValue"] as? NSNumber)?.boolValue ?? false) }, canonical)
+            XCTAssertTrue(schemas.contains { $0.isPeopleField == ((mapping["peopleField"] as? NSNumber)?.boolValue ?? false) }, canonical)
+            XCTAssertTrue(schemas.contains { $0.isRoleQualified == ((mapping["roleQualified"] as? NSNumber)?.boolValue ?? false) }, canonical)
+        }
+    }
 }

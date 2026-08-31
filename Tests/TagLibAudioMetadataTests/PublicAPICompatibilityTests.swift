@@ -23,6 +23,8 @@ final class PublicAPICompatibilityTests: XCTestCase {
             "writableExtensions",
             "formatCapabilityForExtension:",
             "formatCapabilities",
+            "knownMetadataPropertyKeys",
+            "metadataFieldMappings",
         ]
 
         for name in selectors {
