@@ -553,4 +553,7 @@ public enum TagLibManagerError: Error, Sendable {
     case failedToRead
     case failedToReadWithUnderlying(String)
     case verificationFailed([String])
+    /// Atomic rename completed, but the parent-directory fsync failed.
+    /// The new file is already visible and callers must not treat this as a pre-commit failure.
+    case committedButDurabilityUncertain(String)
 }
