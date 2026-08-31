@@ -547,10 +547,10 @@ static const AudioMatorFormatCapabilityDescriptor kFormatCapabilityDescriptors[]
     { AudioMatorTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
     { AudioMatorTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSDIFF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
     { AudioMatorTagFileFormatShorten, "shorten", "Shorten", "Shorten", kShortenExtensions, "propertyMap", "none", false, false, true, "TagLib 2.1.1 exposes Shorten metadata for reading but does not support saving it.", "Read-only format." },
-    { AudioMatorTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
-    { AudioMatorTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
-    { AudioMatorTagFileFormatIT, "it", "Impulse Tracker Module", "IT", kITExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
-    { AudioMatorTagFileFormatXM, "xm", "FastTracker Module", "XM", kXMExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
+    { AudioMatorTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "none", false, false, false, "TagLib exposes MOD metadata for reading but does not support saving it.", "MOD metadata is limited to title, comment, and a format-derived tracker name." },
+    { AudioMatorTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
+    { AudioMatorTagFileFormatIT, "it", "Impulse Tracker Module", "IT", kITExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
+    { AudioMatorTagFileFormatXM, "xm", "FastTracker Module", "XM", kXMExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title, comment, and tracker name; fixed-width instrument/sample fields normalize comment text and may pad the tracker name." },
 };
 
 static bool DescriptorContainsExtension(const AudioMatorFormatCapabilityDescriptor &descriptor,
@@ -665,6 +665,7 @@ static bool IsWritableTagFileFormat(AudioMatorTagFileFormat format)
     switch (format) {
         case AudioMatorTagFileFormatUnknown:
         case AudioMatorTagFileFormatShorten:
+        case AudioMatorTagFileFormatMOD:
             return false;
         default:
             return true;

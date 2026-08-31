@@ -142,6 +142,7 @@ public enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
     case originalAlbum
     case originalArtist
     case artistType
+    case trackerName
     case custom
 }
 
@@ -272,6 +273,7 @@ public enum MetadataFieldRegistry {
         schema(.originalAlbum, "Original Album", .release, ["ORIGINALALBUM"], id3: ["TOAL"], mp4Freeform: ["ORIGINALALBUM"]),
         schema(.originalArtist, "Original Artist", .people, ["ORIGINALARTIST"], id3: ["TOPE"], mp4Freeform: ["ORIGINALARTIST"], multi: true, people: true),
         schema(.artistType, "Artist Type", .release, ["ARTISTTYPE", "MUSICBRAINZ_ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"], id3User: ["ARTISTTYPE"], mp4Freeform: ["ARTISTTYPE"]),
+        schema(.trackerName, "Tracker Name", .technical, ["TRACKERNAME"]),
         MetadataFieldSchema(
             key: .custom,
             displayName: "Custom Field",
@@ -321,7 +323,10 @@ public enum MetadataFieldRegistry {
         guard capability.isWritable else { return [] }
         let formats = capability.metadataFieldFormats
         return allSchemas.filter { schema in
-            schema.mappings.contains { formats.contains($0.format) }
+            if let writableFields = capability.writableFields, !writableFields.contains(schema.key) {
+                return false
+            }
+            return schema.mappings.contains { formats.contains($0.format) }
         }
     }
 

@@ -267,13 +267,18 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
         }
     }
 
-    if (!openedExpectedType || !HasCredibleAudioProperties(basic)) {
+    const bool isTrackerFormat =
+        format == AudioMatorTagFileFormatMOD || format == AudioMatorTagFileFormatS3M ||
+        format == AudioMatorTagFileFormatIT || format == AudioMatorTagFileFormatXM;
+    const bool hasFormatCredibleProperties = isTrackerFormat
+        ? basic.channels > 0
+        : HasCredibleAudioProperties(basic);
+    if (!openedExpectedType || !hasFormatCredibleProperties) {
         if (error) *error = UnifiedExtractionError(9204, @"The extension-selected parser did not produce credible audio properties");
         return nil;
     }
 
-    if (format == AudioMatorTagFileFormatMOD || format == AudioMatorTagFileFormatS3M ||
-        format == AudioMatorTagFileFormatIT || format == AudioMatorTagFileFormatXM) {
+    if (isTrackerFormat) {
         [warningsOut addObject:@"Tracker fields vary by module format; only PropertyMap entries exposed by TagLib are returned."];
     }
 

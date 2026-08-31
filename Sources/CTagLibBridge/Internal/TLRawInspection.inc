@@ -292,17 +292,45 @@ static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDesc
     if ([verifiedExtensions containsObject:extension.lowercaseString]) {
         return "verified";
     }
-    if (descriptor.format == AudioMatorTagFileFormatShorten) {
+    if (descriptor.format == AudioMatorTagFileFormatShorten ||
+        descriptor.format == AudioMatorTagFileFormatMOD) {
         return "readOnly";
     }
     switch (descriptor.format) {
-        case AudioMatorTagFileFormatMOD:
         case AudioMatorTagFileFormatS3M:
         case AudioMatorTagFileFormatIT:
         case AudioMatorTagFileFormatXM:
             return "experimental";
         default:
             return "upstreamSupported";
+    }
+}
+
+static NSArray<NSString *> * _Nullable ExplicitReadableFieldsForFormat(AudioMatorTagFileFormat format)
+{
+    switch (format) {
+        case AudioMatorTagFileFormatMOD:
+        case AudioMatorTagFileFormatS3M:
+        case AudioMatorTagFileFormatIT:
+        case AudioMatorTagFileFormatXM:
+            return @[ @"title", @"comment", @"trackerName" ];
+        default:
+            return nil;
+    }
+}
+
+static NSArray<NSString *> * _Nullable ExplicitWritableFieldsForFormat(AudioMatorTagFileFormat format)
+{
+    switch (format) {
+        case AudioMatorTagFileFormatMOD:
+            return @[];
+        case AudioMatorTagFileFormatS3M:
+        case AudioMatorTagFileFormatIT:
+            return @[ @"title", @"comment" ];
+        case AudioMatorTagFileFormatXM:
+            return @[ @"title", @"comment", @"trackerName" ];
+        default:
+            return nil;
     }
 }
 
@@ -343,6 +371,12 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
     }
     if (descriptor.notes) {
         capability[@"notes"] = @(descriptor.notes);
+    }
+    if (NSArray<NSString *> *readableFields = ExplicitReadableFieldsForFormat(descriptor.format)) {
+        capability[@"readableFields"] = readableFields;
+    }
+    if (NSArray<NSString *> *writableFields = ExplicitWritableFieldsForFormat(descriptor.format)) {
+        capability[@"writableFields"] = writableFields;
     }
     return [capability copy];
 }
