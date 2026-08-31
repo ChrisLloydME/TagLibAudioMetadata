@@ -445,17 +445,19 @@ extension TagLibMetadataManager {
         var preservedStandardValues: [String: [String]] = [:]
         var preservedStandardAliases: Set<String> = []
         for (rawKey, values) in meta.originalStandardFieldValues {
-            guard let schema = MetadataFieldRegistry.allSchemas.first(where: { schema in
-                schema.propertyMapKeys.contains {
-                    $0.caseInsensitiveCompare(rawKey) == .orderedSame
-                }
-            }),
-            let originalProjection = meta.originalStandardFieldProjection.first(where: {
-                $0.key.caseInsensitiveCompare(rawKey) == .orderedSame
-            })?.value,
-            basicProjectionValue(for: schema.key, metadata: meta) == originalProjection else {
+            guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: rawKey) else {
                 continue
             }
+
+            if BasicMetadata.editableFieldKeys.contains(schema.key) {
+                guard let originalProjection = meta.originalStandardFieldProjection.first(where: {
+                    $0.key.caseInsensitiveCompare(rawKey) == .orderedSame
+                })?.value,
+                basicProjectionValue(for: schema.key, metadata: meta) == originalProjection else {
+                    continue
+                }
+            }
+
             preservedStandardValues[rawKey] = values
             preservedStandardAliases.formUnion(schema.propertyMapKeys)
         }

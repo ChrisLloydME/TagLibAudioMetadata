@@ -271,17 +271,18 @@ extension TagLibMetadataManager {
         }
         var originalStandardFieldValues: [String: [String]] = [:]
         var originalStandardFieldProjection: [String: String] = [:]
-        for schema in MetadataFieldRegistry.allSchemas where schema.isMultiValue {
-            guard let entry = rawDump.properties.first(where: { entry in
-                schema.propertyMapKeys.contains {
-                    $0.caseInsensitiveCompare(entry.key) == .orderedSame
-                }
-            }), !entry.values.isEmpty,
-            let projection = bridgeProjectionValue(for: schema.key, metadata: meta) else {
+        for entry in rawDump.properties where !entry.values.isEmpty {
+            guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key),
+                  schema.key != .custom,
+                  schema.isMultiValue || !BasicMetadata.editableFieldKeys.contains(schema.key) else {
                 continue
             }
+
             originalStandardFieldValues[entry.key] = entry.values
-            originalStandardFieldProjection[entry.key] = projection
+            if BasicMetadata.editableFieldKeys.contains(schema.key),
+               let projection = bridgeProjectionValue(for: schema.key, metadata: meta) {
+                originalStandardFieldProjection[entry.key] = projection
+            }
         }
 
         return BasicMetadata(
