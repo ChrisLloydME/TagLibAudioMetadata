@@ -783,6 +783,48 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), [])
     }
 
+    func testM4AMetadataPatchMutatesNativeExplicitAdvisoryWithoutContradictoryFreeformValue() throws {
+        struct Scenario {
+            let name: String
+            let initial: ExplicitAdvisory
+            let patched: ExplicitAdvisory
+            let expectedNativeValue: String?
+        }
+
+        let scenarios = [
+            Scenario(name: "explicit to clean", initial: .explicit, patched: .clean, expectedNativeValue: "2"),
+            Scenario(name: "clean to explicit", initial: .clean, patched: .explicit, expectedNativeValue: "4"),
+            Scenario(name: "explicit to unspecified", initial: .explicit, patched: .unspecified, expectedNativeValue: nil),
+            Scenario(name: "absent to explicit", initial: .unspecified, patched: .explicit, expectedNativeValue: "4"),
+            Scenario(name: "absent to clean", initial: .unspecified, patched: .clean, expectedNativeValue: "2"),
+        ]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
+            baseline.explicitAdvisory = scenario.initial
+            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: scenario.patched),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.basic.explicitAdvisory, scenario.patched, scenario.name)
+
+            let nativeRating = snapshot.structured.mp4Atoms.first { $0.key == "rtng" }
+            XCTAssertEqual(nativeRating?.value, scenario.expectedNativeValue, scenario.name)
+            XCTAssertFalse(
+                snapshot.structured.mp4Atoms.contains {
+                    $0.key.uppercased().contains("ITUNESADVISORY")
+                },
+                "\(scenario.name) must not leave a contradictory MP4 freeform advisory"
+            )
+        }
+    }
+
     func testMetadataPatchRejectsInvalidValueTypesBeforeMutation() throws {
         let url = try copyAudioFixture("flac")
         let originalBytes = try Data(contentsOf: url)
