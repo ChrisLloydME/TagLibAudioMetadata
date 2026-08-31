@@ -24,12 +24,6 @@ static BOOL StructuredOptionalValueHasClass(NSDictionary *entry, NSString *key, 
     return !value || [value isKindOfClass:expectedClass];
 }
 
-static BOOL StructuredOptionalValueIsNumberLike(NSDictionary *entry, NSString *key)
-{
-    NSObject *value = entry[key];
-    return !value || [value isKindOfClass:[NSNumber class]] || [value isKindOfClass:[NSString class]];
-}
-
 static BOOL StructuredOptionalDataFitsTagLib(NSDictionary *entry, NSString *key)
 {
     NSObject *value = entry[key];
@@ -49,32 +43,60 @@ static BOOL StructuredOptionalValueFitsInt(NSDictionary *entry, NSString *key)
     if (![value isKindOfClass:[NSNumber class]] && ![value isKindOfClass:[NSString class]]) {
         return NO;
     }
-    long long number = [(id)value longLongValue];
-    return number >= std::numeric_limits<int>::min() && number <= std::numeric_limits<int>::max();
+    NSString *string = [value isKindOfClass:[NSNumber class]]
+        ? ((NSNumber *)value).stringValue
+        : TrimmedStringOrNil((NSString *)value);
+    if (!string) return NO;
+
+    const char *utf8 = string.UTF8String;
+    if (!utf8) return NO;
+    errno = 0;
+    char *end = nullptr;
+    long long number = std::strtoll(utf8, &end, 10);
+    return errno != ERANGE && end && end != utf8 && *end == '\0' &&
+        number >= std::numeric_limits<int>::min() && number <= std::numeric_limits<int>::max();
 }
 
 static BOOL StructuredOptionalValueFitsUInt32(NSDictionary *entry, NSString *key)
 {
     NSObject *value = entry[key];
     if (!value) return YES;
-
+    if (![value isKindOfClass:[NSNumber class]] && ![value isKindOfClass:[NSString class]]) return NO;
+    NSString *string = [value isKindOfClass:[NSNumber class]]
+        ? ((NSNumber *)value).stringValue
+        : (NSString *)value;
     unsigned long long parsed = 0;
-    if ([value isKindOfClass:[NSNumber class]]) {
-        NSNumber *number = (NSNumber *)value;
-        if (number.longLongValue < 0) return NO;
-        parsed = number.unsignedLongLongValue;
-    } else if ([value isKindOfClass:[NSString class]]) {
-        NSString *string = TrimmedStringOrNil((NSString *)value);
-        if (!string || [string hasPrefix:@"-"]) return NO;
-        errno = 0;
-        char *end = nullptr;
-        parsed = std::strtoull(string.UTF8String, &end, 10);
-        if (errno == ERANGE || !end || *end != '\0') return NO;
-    } else {
-        return NO;
-    }
+    return ParseUnsignedDecimalString(string, std::numeric_limits<unsigned int>::max(), parsed);
+}
 
-    return parsed <= std::numeric_limits<unsigned int>::max();
+static BOOL StructuredOptionalValueFitsUInt8(NSDictionary *entry, NSString *key)
+{
+    NSObject *value = entry[key];
+    if (!value) return YES;
+    if (![value isKindOfClass:[NSNumber class]] && ![value isKindOfClass:[NSString class]]) return NO;
+    NSString *string = [value isKindOfClass:[NSNumber class]]
+        ? ((NSNumber *)value).stringValue
+        : (NSString *)value;
+    unsigned long long parsed = 0;
+    return ParseUnsignedDecimalString(string, std::numeric_limits<unsigned char>::max(), parsed);
+}
+
+static BOOL StructuredOptionalValueFitsInt64(NSDictionary *entry, NSString *key)
+{
+    NSObject *value = entry[key];
+    if (!value) return YES;
+    if (![value isKindOfClass:[NSNumber class]] && ![value isKindOfClass:[NSString class]]) return NO;
+
+    NSString *string = [value isKindOfClass:[NSNumber class]]
+        ? ((NSNumber *)value).stringValue
+        : TrimmedStringOrNil((NSString *)value);
+    if (!string) return NO;
+    const char *utf8 = string.UTF8String;
+    if (!utf8) return NO;
+    errno = 0;
+    char *end = nullptr;
+    (void)std::strtoll(utf8, &end, 10);
+    return errno != ERANGE && end && end != utf8 && *end == '\0';
 }
 
 static BOOL StructuredOptionalValueIsBooleanLike(NSDictionary *entry, NSString *key)
@@ -214,14 +236,21 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
     }
 
     for (NSDictionary *entry in StructuredArray(metadata, @"mp4Atoms") ?: @[]) {
+        NSString *type = [entry[@"type"] isKindOfClass:[NSString class]] ? (NSString *)entry[@"type"] : nil;
         if (![entry[@"key"] isKindOfClass:[NSString class]] ||
-            ![entry[@"type"] isKindOfClass:[NSString class]] ||
+            !type ||
             (entry[@"value"] && ![entry[@"value"] isKindOfClass:[NSString class]] && ![entry[@"value"] isKindOfClass:[NSNumber class]]) ||
             (entry[@"values"] && !StructuredValueIsStringArray(entry[@"values"])) ||
-            !StructuredOptionalValueFitsInt(entry, @"first") ||
-            !StructuredOptionalValueFitsInt(entry, @"second") ||
             !StructuredOptionalValueHasClass(entry, @"freeformDescription", [NSString class])) {
             return SetStructuredPayloadValidationError(error, @"MP4 atom fields have invalid value types");
+        }
+        if (([type isEqualToString:@"int"] && !StructuredOptionalValueFitsInt(entry, @"value")) ||
+            ([type isEqualToString:@"uint"] && !StructuredOptionalValueFitsUInt32(entry, @"value")) ||
+            ([type isEqualToString:@"byte"] && !StructuredOptionalValueFitsUInt8(entry, @"value")) ||
+            ([type isEqualToString:@"longLong"] && !StructuredOptionalValueFitsInt64(entry, @"value")) ||
+            ([type isEqualToString:@"intPair"] &&
+             (!StructuredOptionalValueFitsInt(entry, @"first") || !StructuredOptionalValueFitsInt(entry, @"second")))) {
+            return SetStructuredPayloadValidationError(error, @"MP4 atom numeric value is outside its declared type range");
         }
     }
 
@@ -233,15 +262,18 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             !StructuredOptionalValueHasClass(entry, @"pictureType", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"mimeType", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
-            !StructuredOptionalValueIsNumberLike(entry, @"language") ||
-            !StructuredOptionalValueIsNumberLike(entry, @"stream")) {
+            !StructuredOptionalValueFitsInt(entry, @"language") ||
+            !StructuredOptionalValueFitsInt(entry, @"stream")) {
             return SetStructuredPayloadValidationError(error, @"ASF attribute fields have invalid value types");
         }
-        if ([(NSString *)entry[@"type"] isEqualToString:@"int64"]) {
+        NSString *type = (NSString *)entry[@"type"];
+        if ([type isEqualToString:@"int64"]) {
             unsigned long long value = 0;
             if (!UnsignedLongLongValueFromObject(entry[@"value"], value)) {
                 return SetStructuredPayloadValidationError(error, @"ASF int64 attributes require an unsigned 64-bit value");
             }
+        } else if ([type isEqualToString:@"int"] && !StructuredOptionalValueFitsUInt32(entry, @"value")) {
+            return SetStructuredPayloadValidationError(error, @"ASF integer attributes require an unsigned 32-bit value");
         }
     }
 
@@ -253,7 +285,7 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             !StructuredOptionalValueHasClass(entry, @"mimeType", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"pictureType", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
-            !StructuredOptionalValueIsNumberLike(entry, @"pictureTypeCode")) {
+            !StructuredOptionalValueFitsInt(entry, @"pictureTypeCode")) {
             return SetStructuredPayloadValidationError(error, @"Artwork entries require NSData and string/number metadata fields");
         }
     }
@@ -386,7 +418,7 @@ static TagLib::List<TagLib::VariantMap> StructuredPictureComplexProperties(
         picture.insert("data", TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
         picture.insert(
             "mimeType",
-            NSStringToTagString(NormalizedArtworkMimeType((NSString *)entry[@"mimeType"]))
+            NSStringToTagString(NormalizedArtworkMimeType((NSString *)entry[@"mimeType"], data))
         );
         NSString *pictureType = TrimmedStringOrNil((NSString *)entry[@"pictureType"]) ?: @"Front Cover";
         picture.insert("pictureType", NSStringToTagString(pictureType));
@@ -588,7 +620,6 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                           error:(NSError **)error
 {
     try {
-    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
@@ -650,6 +681,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     NSArray<NSDictionary<NSString *, NSObject *> *> *mp4Atoms = StructuredArray(metadata, @"mp4Atoms");
     NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
 
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (format == AudioMatorTagFileFormatMPEGID3) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {

@@ -6,6 +6,7 @@ final class PublicAPICompatibilityTests: XCTestCase {
     func testObjectiveCBridgeClassSelectorsRemainAvailable() {
         let selectors = [
             "extractMetadataFromURL:error:",
+            "metadataProjectionsForURL:error:",
             "writeMetadata:toURL:error:",
             "writeTrackNumberText:discNumberText:toURL:error:",
             "writeTrackNumber:totalTracks:padWidth:toURL:error:",
@@ -22,6 +23,8 @@ final class PublicAPICompatibilityTests: XCTestCase {
             "writableExtensions",
             "formatCapabilityForExtension:",
             "formatCapabilities",
+            "knownMetadataPropertyKeys",
+            "metadataFieldMappings",
         ]
 
         for name in selectors {

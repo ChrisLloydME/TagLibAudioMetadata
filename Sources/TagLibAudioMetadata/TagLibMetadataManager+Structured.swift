@@ -305,23 +305,7 @@ extension TagLibMetadataManager {
         return (warnings, after.warnings)
     }
 
-    public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
-        try? readStructuredMetadataResult(from: url)
-    }
-
-    public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {
-        let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
-            throw TagLibManagerError.unsupportedFormat
-        }
-
-        let dict: [String: NSObject]
-        do {
-            dict = try TagLibMetadataExtractor.structuredMetadata(for: url)
-        } catch {
-            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
-        }
-
+    nonisolated static func structuredMetadata(fromBridgeDictionary dict: [String: NSObject]) -> StructuredMetadata {
         let properties = dictionaryArray(dict, "properties").map {
             StructuredPropertyEntry(key: stringValue($0, "key"), values: stringArrayValue($0, "values"))
         }
@@ -418,6 +402,21 @@ extension TagLibMetadataManager {
         )
     }
 
+    public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
+        try? readStructuredMetadataResult(from: url)
+    }
+
+    public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {
+        let identityBeforeRead = regularFileIdentity(at: url)
+        let projections = try bridgeMetadataProjections(from: url)
+        guard identityBeforeRead == regularFileIdentity(at: url) else {
+            throw TagLibManagerError.failedToReadWithUnderlying(
+                "The audio file changed while structured metadata was being read."
+            )
+        }
+        return structuredMetadata(fromBridgeDictionary: projections.structured)
+    }
+
     @discardableResult
     public nonisolated static func writeStructuredMetadataWithVerification(
         _ metadata: StructuredMetadata,
@@ -452,7 +451,7 @@ extension TagLibMetadataManager {
                 includeProperties: includeProperties,
                 replacingCollections: replacingCollections
             )
-            try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: mutationURL)
+            try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
 
             if verifyAfterWrite {
                 let verification = structuredWriteVerification(

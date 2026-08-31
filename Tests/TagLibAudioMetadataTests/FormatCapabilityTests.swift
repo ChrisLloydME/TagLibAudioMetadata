@@ -44,6 +44,48 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "flac")).structuredWriteSupport, .propertyMap)
     }
 
+    func testVerificationLevelsDistinguishFixturesUpstreamAndExperimentalFormats() throws {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav", "aac", "xm"] {
+            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .verified, ext)
+        }
+        for ext in ["mp2", "mp4", "ape", "wma", "dsf"] {
+            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .upstreamSupported, ext)
+        }
+        for ext in ["s3m", "it"] {
+            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .experimental, ext)
+        }
+        XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "mod"), .readOnly)
+        XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "shn"), .readOnly)
+        XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "not-a-format"), .unsupported)
+
+        let mp4Family = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
+        XCTAssertEqual(mp4Family.supportLevel, .verified)
+        XCTAssertEqual(mp4Family.supportLevel(forExtension: "m4a"), .verified)
+        XCTAssertEqual(mp4Family.supportLevel(forExtension: "mp4"), .upstreamSupported)
+    }
+
+    func testFieldLevelSupportReflectsMappingsArtworkAndWriteAvailability() throws {
+        let xm = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "xm"))
+        XCTAssertEqual(xm.readSupport(for: .title), .verified)
+        XCTAssertEqual(xm.writeSupport(for: .title), .verified)
+        XCTAssertEqual(xm.writeSupport(for: .trackerName), .verified)
+        XCTAssertEqual(xm.writeSupport(for: .album), .unsupported)
+        XCTAssertEqual(xm.writeSupport(for: .artwork), .unsupported)
+
+        let s3m = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "s3m"))
+        XCTAssertEqual(s3m.readSupport(for: .trackerName), .experimental)
+        XCTAssertEqual(s3m.writeSupport(for: .trackerName), .unsupported)
+
+        let mod = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "mod"))
+        XCTAssertFalse(mod.isWritable)
+        XCTAssertEqual(mod.readSupport(for: .title), .readOnly)
+        XCTAssertEqual(mod.writeSupport(for: .title), .unsupported)
+
+        let shorten = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "shn"))
+        XCTAssertEqual(shorten.readSupport(for: .title), .readOnly)
+        XCTAssertEqual(shorten.writeSupport(for: .title), .unsupported)
+    }
+
     func testFieldSchemasCanBeFilteredByCapability() throws {
         let mp4 = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
         let mp4Schemas = MetadataFieldRegistry.schemas(storableIn: mp4)
@@ -77,6 +119,80 @@ final class FormatCapabilityTests: XCTestCase {
         for capability in capabilities {
             XCTAssertTrue(capability.extensions.contains(capability.primaryExtension), capability.identifier)
             XCTAssertEqual(capability.extensions, capability.extensions.map { $0.lowercased() }, capability.identifier)
+        }
+    }
+
+    func testBridgeFieldRestrictionsUseKnownUniqueSchemaKeys() {
+        let bridgeCapabilities = TagLibMetadataExtractor.formatCapabilities()
+        let capabilitiesByIdentifier = Dictionary(
+            uniqueKeysWithValues: TagLibMetadataManager.formatCapabilities.map { ($0.identifier, $0) }
+        )
+
+        for bridgeCapability in bridgeCapabilities {
+            guard let identifier = bridgeCapability["identifier"] as? String,
+                  let capability = capabilitiesByIdentifier[identifier]
+            else {
+                return XCTFail("Bridge capability is missing a known identifier.")
+            }
+
+            if let readable = bridgeCapability["readableFields"] as? [String] {
+                XCTAssertEqual(readable.count, Set(readable).count, identifier)
+                XCTAssertEqual(readable.count, capability.readableFields?.count, identifier)
+            }
+            if let writable = bridgeCapability["writableFields"] as? [String] {
+                XCTAssertEqual(writable.count, Set(writable).count, identifier)
+                XCTAssertEqual(writable.count, capability.writableFields?.count, identifier)
+            }
+        }
+    }
+
+    func testBridgeKnownPropertyKeysMatchSwiftSchemaAliases() {
+        let internalKeys: Set<String> = [
+            "AUDIOMATOR_TRACKNUMBER_TEXT",
+            "AUDIOMATOR_DISCNUMBER_TEXT",
+        ]
+        let bridgeKeys = Set(TagLibMetadataExtractor.knownMetadataPropertyKeys()).subtracting(internalKeys)
+
+        XCTAssertEqual(bridgeKeys, MetadataFieldRegistry.canonicalPropertyMapKeys)
+    }
+
+    func testBridgeContainerMappingsAgreeWithSwiftSchema() throws {
+        for mapping in TagLibMetadataExtractor.metadataFieldMappings() {
+            let canonical = try XCTUnwrap(mapping["canonicalPropertyKey"] as? String)
+            let aliases = mapping["propertyAliases"] as? [String] ?? []
+            let propertyKeys = Set([canonical] + aliases)
+            let schemas = MetadataFieldRegistry.allSchemas.filter {
+                !propertyKeys.isDisjoint(with: Set($0.propertyMapKeys))
+            }
+            XCTAssertFalse(schemas.isEmpty, canonical)
+
+            if let frame = mapping["id3v2TextFrame"] as? String {
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .textFrame && $0.keys.contains(frame) }
+                        || schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .binary && $0.keys.contains(frame) }
+                }, "\(canonical) / \(frame)")
+            }
+            if let description = mapping["id3v2UserTextDescription"] as? String {
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .userTextFrame && $0.keys.contains(description) }
+                }, "\(canonical) / \(description)")
+            }
+            if let atom = mapping["mp4Atom"] as? String {
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .mp4Atom && $0.keys.contains(atom) }
+                        || schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .binary && $0.keys.contains(atom) }
+                }, "\(canonical) / \(atom)")
+            }
+            if let description = mapping["mp4FreeformDescription"] as? String {
+                let atom = "----:com.apple.iTunes:\(description)"
+                XCTAssertTrue(schemas.contains { schema in
+                    schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .mp4Freeform && $0.keys.contains(atom) }
+                }, "\(canonical) / \(atom)")
+            }
+
+            XCTAssertTrue(schemas.contains { $0.isMultiValue == ((mapping["multiValue"] as? NSNumber)?.boolValue ?? false) }, canonical)
+            XCTAssertTrue(schemas.contains { $0.isPeopleField == ((mapping["peopleField"] as? NSNumber)?.boolValue ?? false) }, canonical)
+            XCTAssertTrue(schemas.contains { $0.isRoleQualified == ((mapping["roleQualified"] as? NSNumber)?.boolValue ?? false) }, canonical)
         }
     }
 }

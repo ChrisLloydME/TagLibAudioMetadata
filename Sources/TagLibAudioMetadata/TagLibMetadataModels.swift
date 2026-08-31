@@ -5,6 +5,42 @@
 
 import Foundation
 
+/// Keeps ephemeral UI identity out of synthesized semantic equality and hashing.
+@propertyWrapper
+public struct SemanticIdentityExcluded: Hashable, Sendable {
+    public var wrappedValue: UUID
+
+    public init(wrappedValue: UUID) {
+        self.wrappedValue = wrappedValue
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool { true }
+    public func hash(into hasher: inout Hasher) {}
+}
+
+nonisolated func normalizedArtworkMIMEType(_ mimeType: String?, data: Data?) -> String? {
+    if let mimeType {
+        let normalized = mimeType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !normalized.isEmpty {
+            return normalized == "image/jpg" ? "image/jpeg" : normalized
+        }
+    }
+
+    guard let data else { return nil }
+    let bytes = [UInt8](data.prefix(12))
+    if bytes.starts(with: [0xFF, 0xD8, 0xFF]) { return "image/jpeg" }
+    if bytes.starts(with: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) { return "image/png" }
+    if bytes.starts(with: Array("GIF87a".utf8)) || bytes.starts(with: Array("GIF89a".utf8)) { return "image/gif" }
+    if bytes.starts(with: [0x42, 0x4D]) { return "image/bmp" }
+    if bytes.starts(with: [0x49, 0x49, 0x2A, 0x00]) || bytes.starts(with: [0x4D, 0x4D, 0x00, 0x2A]) { return "image/tiff" }
+    if bytes.count >= 12,
+       bytes[0..<4].elementsEqual(Array("RIFF".utf8)),
+       bytes[8..<12].elementsEqual(Array("WEBP".utf8)) {
+        return "image/webp"
+    }
+    return nil
+}
+
 public enum MetadataValueSource: String, Hashable, Sendable {
     case nativeTag
     case propertyMap
@@ -38,6 +74,15 @@ public struct MetadataFieldProvenance: Hashable, Sendable {
         explicitContent: .none,
         artwork: .none
     )
+}
+
+public enum ExplicitAdvisory: String, Hashable, Sendable {
+    /// No advisory field exists in the source metadata.
+    case unspecified
+    /// The source explicitly marks the recording as clean/non-explicit.
+    case clean
+    /// The source explicitly marks the recording as explicit.
+    case explicit
 }
 
 /// Mirrors the metadata fields used in `AudioFile.swift`.
@@ -116,7 +161,12 @@ public struct BasicMetadata: Sendable {
     public var movementCount: Int
     public var bpm: Int
     public var isCompilation: Bool
-    public var isExplicit: Bool
+    public var explicitAdvisory: ExplicitAdvisory
+    /// Compatibility convenience. Setting `false` records an explicit clean advisory.
+    public var isExplicit: Bool {
+        get { explicitAdvisory == .explicit }
+        set { explicitAdvisory = newValue ? .explicit : .clean }
+    }
     public var duration: Double
     public var bitrate: Int
     public var sampleRate: Double
@@ -124,7 +174,15 @@ public struct BasicMetadata: Sendable {
     public var bitDepth: Int
     public var format: String
     public var artworkData: Data?
+    /// The declared media type for `artworkData`, normalized to lowercase when known.
+    /// When a container omits it, reads infer common image types from reliable magic bytes.
+    public var artworkMIMEType: String?
     public var customFields: [String: String]
+    /// Original cardinality for custom fields read from a file.
+    /// `customFields` remains the source-compatible, display-oriented projection.
+    public var customFieldValues: [String: [String]]
+    /// Exact projected values captured during read, used to detect intentional Basic edits.
+    public var originalCustomFieldProjection: [String: String]
     public var provenance: MetadataFieldProvenance
 
     public nonisolated static let empty = BasicMetadata(
@@ -202,7 +260,7 @@ public struct BasicMetadata: Sendable {
         movementCount: 0,
         bpm: 0,
         isCompilation: false,
-        isExplicit: false,
+        explicitAdvisory: .unspecified,
         duration: 0,
         bitrate: 0,
         sampleRate: 0,
@@ -210,7 +268,10 @@ public struct BasicMetadata: Sendable {
         bitDepth: 0,
         format: "",
         artworkData: nil,
+        artworkMIMEType: nil,
         customFields: [:],
+        customFieldValues: [:],
+        originalCustomFieldProjection: [:],
         provenance: .unknown
     )
 }
@@ -228,7 +289,7 @@ public struct RawMetadataDump: Hashable, Sendable {
 }
 
 public struct RawPropertyEntry: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var value: String
     public var values: [String]
@@ -251,7 +312,7 @@ public struct RawPropertyEntry: Identifiable, Hashable, Sendable {
 }
 
 public struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var frameID: String
     public var value: String
     public var description: String?
@@ -282,7 +343,7 @@ public enum StructuredMetadataReplaceableCollection: String, Hashable, Sendable 
 }
 
 public struct StructuredPropertyEntry: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var values: [String]
 
@@ -293,7 +354,7 @@ public struct StructuredPropertyEntry: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var frameID: String
     public var type: String
     public var value: String
@@ -358,7 +419,7 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var type: String
     public var value: String
@@ -379,7 +440,7 @@ public struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredASFAttribute: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var key: String
     public var type: String
     public var value: String
@@ -404,7 +465,7 @@ public struct StructuredASFAttribute: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredArtwork: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var container: String
     public var pictureType: String?
     public var pictureTypeCode: Int?
@@ -423,7 +484,7 @@ public struct StructuredArtwork: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredLyrics: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var language: String
     public var description: String
     public var text: String
@@ -436,7 +497,7 @@ public struct StructuredLyrics: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredComment: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+    @SemanticIdentityExcluded public var id = UUID()
     public var language: String
     public var description: String
     public var text: String

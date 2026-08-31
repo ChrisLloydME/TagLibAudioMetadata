@@ -13,12 +13,16 @@ let package = Package(
             name: "TagLibAudioMetadata",
             targets: ["TagLibAudioMetadata"]
         ),
+        .library(
+            name: "TagLibAudioMetadataLowLevel",
+            targets: ["CTagLibBridge"]
+        ),
     ],
     targets: [
         .binaryTarget(
             name: "TagLib",
-            url: "https://github.com/ChrisLloydME/TagLibAudioMetadata/releases/download/taglib-binary-2.1.1-r1/TagLib-2.1.1-apple-dynamic.xcframework.zip",
-            checksum: "67947a18a807d01a2b11714b1733569ec0414af581a21c06158323b162900864"
+            url: "https://github.com/ChrisLloydME/TagLibAudioMetadata/releases/download/taglib-binary-2.3.1-r2/TagLibAudioMetadataTagLib-2.3.1-apple-dynamic.xcframework.zip",
+            checksum: "d7a36b2492266a17fcd97bd776cd841d9fc85275270bc0c3cb9621395b3178c7"
         ),
         .target(
             name: "CTagLibBridge",

@@ -276,20 +276,20 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
     // Explicit rating (rtng atom: 0 = none, 2 = clean, 4 = explicit)
     if (items.contains("rtng")) {
         const TagLib::MP4::Item &ratingItem = items["rtng"];
-        BOOL explicitValue = metadata.explicitContent;
+        BOOL explicitValue = NO;
         std::string ratingRaw = std::to_string(ratingItem.toInt());
         TagLib::String ratingString(ratingRaw.c_str(), TagLib::String::UTF8);
         if (ParseExplicitTagValue(ratingString, explicitValue)) {
-            metadata.explicitContent = explicitValue;
+            SetParsedExplicitAdvisory(metadata, explicitValue);
         }
     }
 
     if (items.contains("----:com.apple.iTunes:ITUNESADVISORY")) {
         TagLib::String advisoryValue =
             items["----:com.apple.iTunes:ITUNESADVISORY"].toStringList().toString();
-        BOOL explicitValue = metadata.explicitContent;
+        BOOL explicitValue = NO;
         if (ParseExplicitTagValue(advisoryValue, explicitValue)) {
-            metadata.explicitContent = explicitValue;
+            SetParsedExplicitAdvisory(metadata, explicitValue);
         }
     }
 
