@@ -313,6 +313,14 @@ NS_SWIFT_NAME(formatCapability(for:));
 + (NSArray<NSDictionary<NSString *, NSObject *> *> *)formatCapabilities
 NS_SWIFT_NAME(formatCapabilities());
 
+/// Return the normalized property keys recognized by the bridge schema.
++ (NSArray<NSString *> *)knownMetadataPropertyKeys
+NS_SWIFT_NAME(knownMetadataPropertyKeys());
+
+/// Return the bridge's canonical property, ID3v2, and MP4 field mappings.
++ (NSArray<NSDictionary<NSString *, NSObject *> *> *)metadataFieldMappings
+NS_SWIFT_NAME(metadataFieldMappings());
+
 @end
 
 NS_ASSUME_NONNULL_END

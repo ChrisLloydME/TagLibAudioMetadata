@@ -259,6 +259,46 @@
 
 #pragma mark - Format Support
 
+static NSString * _Nullable MetadataMappingString(const char * _Nullable value)
+{
+    if (!value) return nil;
+    return [[NSString alloc] initWithBytes:value
+                                   length:strlen(value)
+                                 encoding:NSISOLatin1StringEncoding];
+}
+
++ (NSArray<NSString *> *)knownMetadataPropertyKeys
+{
+    return [KnownMetadataFieldKeys().allObjects sortedArrayUsingSelector:@selector(compare:)];
+}
+
++ (NSArray<NSDictionary<NSString *, NSObject *> *> *)metadataFieldMappings
+{
+    NSMutableArray<NSDictionary<NSString *, NSObject *> *> *result = [NSMutableArray array];
+    for (const auto &mapping : kAudioMatorMetadataFieldMappings) {
+        NSMutableArray<NSString *> *aliases = [NSMutableArray array];
+        for (const char *alias : mapping.propertyAliases) {
+            if (NSString *value = MetadataMappingString(alias)) {
+                [aliases addObject:value];
+            }
+        }
+
+        NSMutableDictionary<NSString *, NSObject *> *entry = [@{
+            @"canonicalPropertyKey": MetadataMappingString(mapping.canonicalPropertyKey) ?: @"",
+            @"propertyAliases": [aliases copy],
+            @"multiValue": @(mapping.multiValue),
+            @"peopleField": @(mapping.peopleField),
+            @"roleQualified": @(mapping.roleQualified),
+        } mutableCopy];
+        if (NSString *value = MetadataMappingString(mapping.id3v2TextFrame)) entry[@"id3v2TextFrame"] = value;
+        if (NSString *value = MetadataMappingString(mapping.id3v2UserTextDescription)) entry[@"id3v2UserTextDescription"] = value;
+        if (NSString *value = MetadataMappingString(mapping.mp4Atom)) entry[@"mp4Atom"] = value;
+        if (NSString *value = MetadataMappingString(mapping.mp4FreeformDescription)) entry[@"mp4FreeformDescription"] = value;
+        [result addObject:[entry copy]];
+    }
+    return [result copy];
+}
+
 static NSArray<NSString *> *ExtensionsForDescriptor(const AudioMatorFormatCapabilityDescriptor &descriptor)
 {
     NSMutableArray<NSString *> *extensions = [NSMutableArray array];
