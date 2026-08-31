@@ -35,6 +35,7 @@
 #include "Internal/TLMetadataCore.inc"
 #include "Internal/TLPropertyMapCodec.inc"
 #include "Internal/TLPropertyMapWrites.inc"
+#include "Internal/TLPropertyMapDelta.inc"
 #include "Internal/TLContainerExtractors.inc"
 #include "Internal/TLBasicBridgeOperations.inc"
 #include "Internal/TLRawBridgeOperations.inc"

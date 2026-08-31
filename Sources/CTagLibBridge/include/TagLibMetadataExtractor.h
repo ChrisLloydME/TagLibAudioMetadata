@@ -264,6 +264,11 @@ NS_SWIFT_NAME(writeRawPropertyMapInPlace(_:to:));
                                   toURL:(NSURL *)fileURL
                                   error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(writeRawPropertyMapValuesInPlace(_:to:));
++ (BOOL)applyPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
+                         removingKeys:(NSArray<NSString *> *)keysToRemove
+                                toURL:(NSURL *)fileURL
+                                error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(applyPropertyMapValuesInPlace(_:removingKeys:to:));
 + (BOOL)writeStructuredMetadataInPlace:(NSDictionary<NSString *, NSObject *> *)metadata
                                  toURL:(NSURL *)fileURL
                                  error:(NSError *_Nullable *_Nullable)error

@@ -66,6 +66,28 @@ nonisolated private func rawNumberTexts(from dump: RawMetadataDump) -> (track: S
     )
 }
 
+nonisolated private func bridgeProjectionValue(
+    for field: MetadataFieldKey,
+    metadata: TagLibAudioMetadata
+) -> String? {
+    switch field {
+    case .artist: metadata.artist
+    case .albumArtist: metadata.albumArtist
+    case .genre: metadata.genre
+    case .composer: metadata.composer
+    case .conductor: metadata.conductor
+    case .remixer: metadata.remixer
+    case .producer: metadata.producer
+    case .engineer: metadata.engineer
+    case .lyricist: metadata.lyricist
+    case .grouping: metadata.grouping
+    case .mood: metadata.mood
+    case .language: metadata.language
+    case .originalArtist: metadata.originalArtist
+    default: nil
+    }
+}
+
 extension TagLibMetadataManager {
     // MARK: - Bridge Dump API
 
@@ -222,6 +244,20 @@ extension TagLibMetadataManager {
             }?.values ?? []
             result[field.key] = rawValues.isEmpty ? [field.value] : rawValues
         }
+        var originalStandardFieldValues: [String: [String]] = [:]
+        var originalStandardFieldProjection: [String: String] = [:]
+        for schema in MetadataFieldRegistry.allSchemas where schema.isMultiValue {
+            guard let entry = rawDump.properties.first(where: { entry in
+                schema.propertyMapKeys.contains {
+                    $0.caseInsensitiveCompare(entry.key) == .orderedSame
+                }
+            }), !entry.values.isEmpty,
+            let projection = bridgeProjectionValue(for: schema.key, metadata: meta) else {
+                continue
+            }
+            originalStandardFieldValues[entry.key] = entry.values
+            originalStandardFieldProjection[entry.key] = projection
+        }
 
         return BasicMetadata(
             title: meta.title ?? "",
@@ -317,6 +353,8 @@ extension TagLibMetadataManager {
             customFields: customFields,
             customFieldValues: customFieldValues,
             originalCustomFieldProjection: customFields,
+            originalStandardFieldValues: originalStandardFieldValues,
+            originalStandardFieldProjection: originalStandardFieldProjection,
             provenance: MetadataFieldProvenance(
                 trackNumberText: trackSource,
                 discNumberText: discSource,
