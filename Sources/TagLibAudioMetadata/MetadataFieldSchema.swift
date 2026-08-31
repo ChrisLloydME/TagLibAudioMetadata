@@ -45,6 +45,13 @@ public enum MetadataFieldStorageKind: String, Hashable, Sendable {
     case pattern
 }
 
+public enum MetadataPatchValueKind: String, CaseIterable, Hashable, Sendable {
+    case text
+    case integer
+    case boolean
+    case values
+}
+
 public struct MetadataFormatMapping: Hashable, Sendable {
     public var format: MetadataFieldFormat
     public var storageKind: MetadataFieldStorageKind
@@ -157,6 +164,20 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     public var isPeopleField: Bool
     public var isRoleQualified: Bool
     public var isArtworkField: Bool
+
+    /// Value representations accepted by the high-level typed patch API.
+    public var acceptedPatchValueKinds: Set<MetadataPatchValueKind> {
+        switch key {
+        case .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount, .bpm:
+            [.integer]
+        case .compilation:
+            [.boolean]
+        case .artwork, .explicitContent, .custom:
+            []
+        default:
+            isMultiValue ? [.text, .values] : [.text]
+        }
+    }
 
     public init(
         key: MetadataFieldKey,

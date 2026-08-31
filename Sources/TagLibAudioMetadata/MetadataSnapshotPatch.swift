@@ -24,13 +24,42 @@ public enum MetadataPatchValue: Hashable, Sendable {
     case values([String])
     case remove
 
+    nonisolated var kind: MetadataPatchValueKind? {
+        switch self {
+        case .text: .text
+        case .integer: .integer
+        case .boolean: .boolean
+        case .values: .values
+        case .remove: nil
+        }
+    }
+
     nonisolated var propertyMapValues: [String] {
         switch self {
         case .text(let value): [value]
         case .integer(let value): [String(value)]
-        case .boolean(let value): value ? ["1"] : []
+        case .boolean(let value): [value ? "1" : "0"]
         case .values(let values): values
         case .remove: []
+        }
+    }
+}
+
+public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedError {
+    case unsupportedField(MetadataFieldKey)
+    case incompatibleValue(
+        field: MetadataFieldKey,
+        expected: Set<MetadataPatchValueKind>,
+        actual: MetadataPatchValueKind
+    )
+
+    public var errorDescription: String? {
+        switch self {
+        case .unsupportedField(let field):
+            return "\(field.rawValue) uses a dedicated patch property or is not writable."
+        case .incompatibleValue(let field, let expected, let actual):
+            let expectedNames = expected.map(\.rawValue).sorted().joined(separator: " or ")
+            return "\(field.rawValue) requires \(expectedNames); received \(actual.rawValue)."
         }
     }
 }
@@ -66,6 +95,24 @@ public struct MetadataPatch: Hashable, Sendable {
 }
 
 extension TagLibMetadataManager {
+    nonisolated private static func validate(_ patch: MetadataPatch) throws {
+        for (field, value) in patch.fields {
+            guard field != .artwork, field != .custom, field != .explicitContent,
+                  let schema = MetadataFieldRegistry.schema(for: field),
+                  !schema.propertyMapKeys.isEmpty,
+                  !schema.acceptedPatchValueKinds.isEmpty else {
+                throw MetadataPatchValidationError.unsupportedField(field)
+            }
+            if let kind = value.kind, !schema.acceptedPatchValueKinds.contains(kind) {
+                throw MetadataPatchValidationError.incompatibleValue(
+                    field: field,
+                    expected: schema.acceptedPatchValueKinds,
+                    actual: kind
+                )
+            }
+        }
+    }
+
     /// Reads all public metadata representations while rejecting concurrent file changes.
     public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
         let identity = regularFileIdentity(at: url)
@@ -89,6 +136,7 @@ extension TagLibMetadataManager {
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
+        try validate(patch)
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -96,32 +144,22 @@ extension TagLibMetadataManager {
 
         return try withAtomicFileMutation(at: url) { mutationURL in
             var warnings: [String] = []
-            let before = try rawMetadataResult(from: mutationURL)
-            var propertyValues = before.properties.reduce(into: [String: [String]]()) { result, entry in
-                result[entry.key] = entry.values
-            }
+            var propertyValues: [String: [String]] = [:]
+            var keysToRemove: Set<String> = []
 
             for (field, value) in patch.fields {
-                guard field != .artwork, field != .custom, field != .explicitContent,
-                      let schema = MetadataFieldRegistry.schema(for: field),
+                guard let schema = MetadataFieldRegistry.schema(for: field),
                       let canonicalKey = schema.propertyMapKeys.first else {
-                    warnings.append("Patch field \(field.rawValue) requires its dedicated patch property or is not writable.")
                     continue
                 }
-                for alias in schema.propertyMapKeys {
-                    propertyValues.keys
-                        .filter { $0.caseInsensitiveCompare(alias) == .orderedSame }
-                        .forEach { propertyValues.removeValue(forKey: $0) }
-                }
+                keysToRemove.formUnion(schema.propertyMapKeys)
                 if !value.propertyMapValues.isEmpty {
                     propertyValues[canonicalKey] = value.propertyMapValues
                 }
             }
 
             for (key, value) in patch.customFields {
-                propertyValues.keys
-                    .filter { $0.caseInsensitiveCompare(key) == .orderedSame }
-                    .forEach { propertyValues.removeValue(forKey: $0) }
+                keysToRemove.insert(key)
                 if !value.propertyMapValues.isEmpty {
                     propertyValues[key] = value.propertyMapValues
                 }
@@ -129,9 +167,7 @@ extension TagLibMetadataManager {
 
             if let advisory = patch.explicitAdvisory {
                 for key in ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", "RTNG"] {
-                    propertyValues.keys
-                        .filter { $0.caseInsensitiveCompare(key) == .orderedSame || $0.uppercased().hasSuffix(":ITUNESADVISORY") }
-                        .forEach { propertyValues.removeValue(forKey: $0) }
+                    keysToRemove.insert(key)
                 }
                 switch advisory {
                 case .unspecified: break
@@ -141,7 +177,11 @@ extension TagLibMetadataManager {
             }
 
             if !patch.fields.isEmpty || !patch.customFields.isEmpty || patch.explicitAdvisory != nil {
-                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(propertyValues, to: mutationURL)
+                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                    propertyValues,
+                    removingKeys: Array(keysToRemove),
+                    to: mutationURL
+                )
             }
 
             switch patch.artwork {

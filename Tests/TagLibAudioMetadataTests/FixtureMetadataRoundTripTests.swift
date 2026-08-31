@@ -677,6 +677,62 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testMetadataPatchBooleanFalseIsDistinctFromRemoval() throws {
+        let url = try copyAudioFixture("flac")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.compilation: .boolean(false)]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), ["0"])
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.compilation: .boolean(true)]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), ["1"])
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.compilation: .remove]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), [])
+    }
+
+    func testMetadataPatchRejectsInvalidValueTypesBeforeMutation() throws {
+        let url = try copyAudioFixture("flac")
+        let originalBytes = try Data(contentsOf: url)
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.title: .integer(123)]),
+                to: url
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .incompatibleValue(field: .title, expected: [.text], actual: .integer)
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.bpm: .text("hello")]),
+                to: url
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .incompatibleValue(field: .bpm, expected: [.integer], actual: .text)
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+    }
+
     func testEraseAllMetadataReportsNoResidualCoreFields() throws {
         for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
             let url = try copyAudioFixture(ext)
