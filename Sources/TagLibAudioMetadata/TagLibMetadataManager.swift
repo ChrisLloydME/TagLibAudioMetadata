@@ -63,6 +63,7 @@ public struct TagLibMetadataManager {
     /// on either side of the rename for stronger directory-entry durability.
     nonisolated static func withAtomicFileMutation<Result>(
         at url: URL,
+        directorySync: (Int32) -> Int32 = Darwin.fsync,
         _ operation: (URL) throws -> Result
     ) throws -> Result {
         guard url.isFileURL else {
@@ -198,12 +199,10 @@ public struct TagLibMetadataManager {
         }
 
         shouldRemoveTemporaryFile = false
-        guard Darwin.fsync(directoryDescriptor) == 0 else {
+        guard directorySync(directoryDescriptor) == 0 else {
             let syncErrorCode = errno
-            throw mutationError(
-                code: 1007,
-                description: "The metadata mutation was committed, but its directory entry could not be flushed.",
-                underlying: NSError(domain: NSPOSIXErrorDomain, code: Int(syncErrorCode))
+            throw TagLibManagerError.committedButDurabilityUncertain(
+                "Directory fsync failed with POSIX error \(syncErrorCode). The metadata mutation is already committed; retrying may repeat it."
             )
         }
         return result
