@@ -69,9 +69,10 @@ extension TagLibMetadataManager {
     /// Reads all public metadata representations while rejecting concurrent file changes.
     public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
         let identity = regularFileIdentity(at: url)
-        let basic = try readMetadataResult(from: url)
-        let raw = try rawMetadataResult(from: url)
-        let structured = try readStructuredMetadataResult(from: url)
+        let projections = try bridgeMetadataProjections(from: url)
+        let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
+        let basic = basicMetadata(fromBridgeMetadata: projections.basic, rawDump: raw)
+        let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
         guard identity == regularFileIdentity(at: url) else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while its metadata snapshot was being read."
