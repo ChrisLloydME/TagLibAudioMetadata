@@ -732,14 +732,17 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     func testPropertyMapMetadataPatchPreservesTrackDiscPairComponents() throws {
         for ext in ["mp3", "flac", "ogg", "oga"] {
             let url = try copyAudioFixture(ext)
-            var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
-            baseline.track = 3
-            baseline.trackTotal = 12
-            baseline.trackNumberText = "3/12"
-            baseline.disc = 1
-            baseline.discTotal = 2
-            baseline.discNumberText = "1/2"
-            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                [
+                    "TRACKNUMBER": ["3/12"],
+                    "TRACKTOTAL": ["12"],
+                    "DISCNUMBER": ["1/2"],
+                    "DISCTOTAL": ["2"],
+                ],
+                to: url,
+                verifyAfterWrite: false,
+                failurePolicy: .throw
+            )
 
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),

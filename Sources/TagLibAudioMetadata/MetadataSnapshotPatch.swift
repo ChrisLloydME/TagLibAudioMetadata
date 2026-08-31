@@ -148,8 +148,54 @@ extension TagLibMetadataManager {
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
+            let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
+            let patchesNumberPair = !numberPairFields.isDisjoint(with: patch.fields.keys)
+            var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
 
-            for (field, value) in patch.fields {
+            if patchesNumberPair {
+                let current = try readMetadataResult(from: mutationURL)
+                var track = current.track
+                var trackTotal = current.trackTotal
+                var disc = current.disc
+                var discTotal = current.discTotal
+
+                func patchedInteger(_ value: MetadataPatchValue, current: Int) -> Int {
+                    switch value {
+                    case .integer(let integer): integer
+                    case .remove: 0
+                    default: current
+                    }
+                }
+
+                if let value = patch.fields[.track] {
+                    track = patchedInteger(value, current: track)
+                    expectedNumberPairs[.track] = track
+                }
+                if let value = patch.fields[.trackTotal] {
+                    trackTotal = patchedInteger(value, current: trackTotal)
+                    expectedNumberPairs[.trackTotal] = trackTotal
+                }
+                if let value = patch.fields[.disc] {
+                    disc = patchedInteger(value, current: disc)
+                    expectedNumberPairs[.disc] = disc
+                }
+                if let value = patch.fields[.discTotal] {
+                    discTotal = patchedInteger(value, current: discTotal)
+                    expectedNumberPairs[.discTotal] = discTotal
+                }
+
+                try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                    trackNumber: track,
+                    totalTracks: trackTotal,
+                    updateTrackPair: patch.fields[.track] != nil || patch.fields[.trackTotal] != nil,
+                    discNumber: disc,
+                    totalDiscs: discTotal,
+                    updateDiscPair: patch.fields[.disc] != nil || patch.fields[.discTotal] != nil,
+                    to: mutationURL
+                )
+            }
+
+            for (field, value) in patch.fields where !numberPairFields.contains(field) {
                 guard let schema = MetadataFieldRegistry.schema(for: field),
                       let canonicalKey = schema.propertyMapKeys.first else {
                     continue
@@ -178,7 +224,7 @@ extension TagLibMetadataManager {
                 }
             }
 
-            if !patch.fields.isEmpty || !patch.customFields.isEmpty || patch.explicitAdvisory != nil {
+            if !propertyValues.isEmpty || !keysToRemove.isEmpty {
                 try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
                     propertyValues,
                     removingKeys: Array(keysToRemove),
@@ -225,6 +271,19 @@ extension TagLibMetadataManager {
                 structuredMetadata(fromBridgeDictionary: $0)
             } ?? StructuredMetadata()
             for (field, value) in patch.fields {
+                if let expected = expectedNumberPairs[field] {
+                    let actual = switch field {
+                    case .track: afterBasic.track
+                    case .trackTotal: afterBasic.trackTotal
+                    case .disc: afterBasic.disc
+                    case .discTotal: afterBasic.discTotal
+                    default: expected
+                    }
+                    if actual != expected {
+                        warnings.append("Patched field \(field.rawValue) differs after save (expected \(expected), got \(actual)).")
+                    }
+                    continue
+                }
                 guard let schema = MetadataFieldRegistry.schema(for: field),
                       let key = schema.propertyMapKeys.first else { continue }
                 let actual = afterRaw.properties.first { entry in
