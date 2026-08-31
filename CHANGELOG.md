@@ -17,6 +17,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
   metadata-schema consistency tests.
 - Added schema-aware typed patch validation and a typed
   `committedButDurabilityUncertain` post-rename transaction outcome.
+- Added container-native Patch mutation for MP4 track/disc pairs and advisory
+  values, plus schema-aware custom-key and numeric constraint validation.
 
 ### Changed
 
@@ -25,8 +27,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
   map.
 - Removed nested facade transactions so edits use one staging copy, and unified
   basic/raw/structured extraction into one TagLib session.
-- Added selective projection extraction and consolidated Basic/raw post-write
-  verification into one parser session.
+- Added selective projection extraction and consolidated Basic/PropertyMap
+  post-write verification into one parser session.
+- Split PropertyMap preservation extraction from raw ID3 frame enumeration so
+  Basic reads and ordinary verification avoid unused raw-frame construction.
 - Narrowed the process-wide lock to TagLib object lifetimes and moved transaction
   filesystem work outside it.
 - Split the bridge transaction coordinator into a dedicated Objective-C++
@@ -39,6 +43,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Preserved untouched standard multi-value fields during Basic writes without
   splitting normalized display strings, and made patch Boolean false distinct
   from field removal.
+- Preserved schema-known fields outside `BasicMetadata`, defined Basic custom-key
+  absence as preservation rather than deletion, and made preservation provenance
+  caller read-only.
+- Preserved omitted MP4 track/disc pair components, updated track totals in the
+  native pair, and prevented contradictory native/freeform advisory values.
 - Separated semantic equality from ephemeral UI identity and rejected numeric
   overflow at bridge boundaries.
 - Flushed committed directory entries and reported post-rename durability

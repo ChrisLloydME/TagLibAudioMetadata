@@ -84,14 +84,18 @@ has separate unchanged, replace, and remove-all cases; and
 
 Known fields are validated against `MetadataFieldRegistry` before any staging
 copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
-integer. Custom fields remain permissive for raw workflows. Text-backed Boolean
-patches encode `.boolean(true)` as `"1"` and `.boolean(false)` as `"0"`;
-`.remove` alone makes the field absent.
+integer. Numeric typed fields accept zero through `INT_MAX`; negative and
+narrowing values fail before the staged file exists. High-level `customFields`
+accept only genuinely unknown keys: known keys, aliases, case variants, and
+typed/custom collisions are rejected with `MetadataPatchValidationError`.
+Permissive known-key editing remains available through the raw APIs.
+Text-backed Boolean patches encode `.boolean(true)` as `"1"` and
+`.boolean(false)` as `"0"`; `.remove` alone makes the field absent.
 
 ```swift
 let patch = MetadataPatch(
     fields: [.title: .text("Edited")],
-    customFields: ["ARTISTS": .values(["One", "Two"])],
+    customFields: ["APP_EDITOR_STATE": .values(["One", "Two"])],
     artwork: .unchanged
 )
 
@@ -101,6 +105,17 @@ try TagLibMetadataManager.applyMetadataPatch(
     failurePolicy: .throw
 )
 ```
+
+Track and disc fields are semantic pairs even though the Patch API exposes
+their components separately. On MP4/M4A, changing only `.track` preserves the
+existing total in native `trkn`; changing only `.trackTotal` preserves the
+number. `disc`/`discTotal` behave the same through `disk`. ID3 and
+PropertyMap-backed formats receive their corresponding native/text pair.
+
+`explicitAdvisory` is also container-aware: MP4/M4A uses native `rtng`, ID3
+uses the supported `ITUNESADVISORY` TXXX representation, and unspecified removes
+that representation. The high-level writer removes contradictory advisory
+aliases instead of leaving stale native and freeform values together.
 
 ## Format Support
 
@@ -156,9 +171,17 @@ comment, lyric, or artwork record. Reads retain the original raw arrays and the
 corresponding normalized scalar projections for known multi-value fields such as
 `ARTIST`, `COMPOSER`, `ALBUMARTIST`, and `GENRE`. An unrelated Basic edit restores
 those untouched arrays exactly; it never guesses cardinality by splitting a
-semicolon-bearing display string. A full basic write preserves rich metadata
-that was not modified, but precise editing should use a snapshot/patch, raw
-multi-value map, or structured payload.
+semicolon-bearing display string. The same schema-driven preservation retains
+known fields Basic cannot express (for example `PERFORMER`, `INVOLVEDPEOPLE`,
+and `TRACKERNAME`) and unknown custom fields.
+
+Removing an entry from `BasicMetadata.customFields` does not delete it on disk;
+absence means the normalized Basic projection is not making a deletion request.
+Use `MetadataPatch(customFields: [key: .remove])` or a raw API for deletion.
+Changing an existing custom value still writes the new value. Cardinality and
+original-projection bookkeeping is exposed read-only and cannot be mutated by
+callers to corrupt preservation decisions. Precise editing should use a
+snapshot/patch, raw multi-value map, or structured payload.
 
 Use `BasicMetadata.empty` when you want to build a value from scratch:
 
@@ -638,9 +661,12 @@ try TagLibMetadataManager.writeMetadataWithVerification(
 Use `.throw` for tests, batch processing, and workflows where a read-back
 verification difference would be data loss.
 
-Basic verification requests Basic+raw together and derives both checks from one
-TagLib extraction. Patch verification uses the same one-session approach and
-requests structured projection work only when artwork verification needs it.
+Basic verification requests Basic+PropertyMap together and derives both checks
+from one TagLib extraction without enumerating raw ID3 frame summaries. Patch
+verification uses the same one-session approach and requests structured
+projection work only when artwork verification needs it. Raw inspectors still
+request PropertyMap and raw-frame extraction; full snapshots request every
+projection in one parser session.
 
 ## Transaction Outcomes
 

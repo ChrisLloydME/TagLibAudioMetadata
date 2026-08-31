@@ -41,12 +41,16 @@ risk documented in `ARCHITECTURE.md`.
   session and rejects concurrent file changes. It is not described as a lossless
   native serialization because opaque or unsupported payloads may be summarized.
 - `MetadataPatch` changes only explicitly supplied fields, retains raw
-  multi-values, validates typed values against the field schema, distinguishes
-  false from removal, distinguishes artwork omission/replacement/removal, and
-  preserves the advisory states unspecified/clean/explicit.
-- `BasicMetadata` remains a normalized full-replacement model. Its untouched
-  standard and custom multi-value cardinality is restored from its raw baseline
-  during facade writes, but callers
+  multi-values, validates typed and custom keys plus numeric constraints against
+  the field schema, distinguishes false from removal, distinguishes artwork
+  omission/replacement/removal, and preserves the advisory states
+  unspecified/clean/explicit. MP4 number pairs and advisory values mutate native
+  `trkn`/`disk`/`rtng` items; ID3 advisory uses its supported TXXX representation.
+- `BasicMetadata` remains a normalized editing model. Its explicitly represented
+  fields use replacement semantics, while untouched multi-value fields,
+  schema-known non-Basic fields, and custom fields are restored from its raw
+  baseline during facade writes. Removing a custom projection entry is not a
+  deletion request; callers
   needing precise multi-value or container edits should use snapshot/patch or
   the specialized APIs.
 - Semantic `Hashable`/`Equatable` behavior no longer changes because ephemeral
@@ -71,9 +75,10 @@ verifies it, flushes it, checks the original identity, atomically renames it,
 and flushes the directory. Copy, flush, and rename are outside the TagLib mutex.
 
 The unified projection reader avoids separate basic/raw/structured parses and
-now skips unrequested structured/raw projections. Post-write Basic and raw
-verification is derived from one extraction instead of two, and the ineffective
-generic fallback parse was removed. These are structural
+now skips unrequested projections. Basic editing and verification request only
+Basic+PropertyMap data, avoiding raw ID3 frame enumeration. Post-write Basic and
+PropertyMap verification is derived from one extraction instead of two, and the
+ineffective generic fallback parse was removed. These are structural
 improvements; no hardware-independent elapsed-time percentage is claimed.
 
 The bridge transaction coordinator moved into its own Objective-C++ translation
@@ -102,9 +107,9 @@ passed:
 | Check | Result |
 | --- | --- |
 | Strict clean build | Passed with Swift and C-family warnings as errors |
-| Unit tests | 67 passed |
-| Address Sanitizer | 67 passed, no findings |
-| Thread Sanitizer | 67 passed, no findings |
+| Unit tests | 74 passed |
+| Address Sanitizer | 74 passed, no findings |
+| Thread Sanitizer | 74 passed, no findings |
 | Facade consumer | Built using the facade product |
 | Low-level consumer | Built using the explicit product |
 | Dynamic audit | Namespaced install name, module map, bundle ID, licenses, and absence of generic install name verified |

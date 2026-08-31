@@ -35,9 +35,10 @@ or opaque native payloads may be represented only by type/display summaries.
 byte-for-byte serialization.
 
 Selective extraction avoids building unrequested projections. Basic reads ask
-for Basic+raw because raw cardinality and provenance are needed for safe Basic
-round trips; raw reads ask only for raw; structured reads ask only for
-structured; a full snapshot asks for all three in one session.
+for Basic+PropertyMap because cardinality and provenance are needed for safe
+Basic round trips; they do not enumerate raw ID3 frame summaries. Raw reads ask
+for PropertyMap+raw frames, structured reads ask only for structured metadata,
+and a full snapshot asks for every projection in one session.
 
 ## Write pipeline
 
@@ -50,13 +51,21 @@ the same transaction principles when called directly.
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged,
 `.remove` clears a property, `explicitAdvisory` retains its three-state meaning,
 and artwork distinguishes unchanged, replacement, and removal. Typed fields are
-validated against `MetadataFieldRegistry` before staging. Text-backed booleans
-encode false as `"0"`, while `.remove` makes the field absent. Property changes
-are applied as a bridge delta to the current `PropertyMap` in one parser session;
-TagLib still saves its resulting map, so the guarantee is semantic omission
-rather than byte-for-byte container preservation. Full
-`BasicMetadata`, raw replacement maps, and structured replaceable collections
-retain their documented replacement semantics.
+validated for kind and numeric range against `MetadataFieldRegistry` before
+staging. Schema-known keys are rejected from `customFields`, including aliases
+and case variants. Text-backed booleans encode false as `"0"`, while `.remove`
+makes the field absent. Most property changes are applied as a bridge delta to
+the current `PropertyMap`; MP4 track/disc pairs and advisory data use native
+`trkn`, `disk`, and `rtng` mutation, while ID3 advisory uses the supported TXXX
+representation. TagLib still saves the affected native tag, so the guarantee is
+semantic omission rather than byte-for-byte container preservation.
+
+`BasicMetadata` has replacement semantics only for fields it explicitly
+models. Schema-known non-Basic fields and custom fields absent from its
+projection are restored from read provenance. Removing a custom dictionary key
+does not request deletion; callers use `MetadataPatchValue.remove`. Preservation
+bookkeeping is publicly readable for compatibility but writable only inside the
+module.
 
 Atomic rename provides a pathname-level all-or-nothing commit on one volume. It
 does not preserve inode identity or update sibling hard links. FileManager's
@@ -89,9 +98,10 @@ because aliases and container fields can have different evidence levels.
 The migration removes ineffective generic-read fallback parsing and avoids
 nested facade transactions. A facade edit uses one staging copy rather than the
 former nested two-copy path; a complete snapshot uses one parser session rather
-than three. Basic post-write verification now derives Basic and raw checks from
-one extraction instead of two. No synthetic percentage speedup is claimed
-because file size, storage, container, and tag density dominate elapsed time.
+than three. Basic post-write verification now derives Basic and PropertyMap
+checks from one extraction instead of two, without enumerating raw ID3 frames.
+No synthetic percentage speedup is claimed because file size, storage,
+container, and tag density dominate elapsed time.
 
 A process-wide recursive mutex covers TagLib object lifetimes and Objective-C
 objects populated while traversing them. Swift model conversion and filesystem
