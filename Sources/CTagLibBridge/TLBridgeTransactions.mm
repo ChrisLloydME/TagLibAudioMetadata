@@ -33,12 +33,12 @@ void TLog(NSString *format, ...) {
     NSLog(@"[TagLib] %@", message);
 }
 
-// TagLib 2.1.1 has unsynchronized process-wide and function-static mutable
-// state in multiple format handlers (including MP4, ID3v2, RIFF, and ASF).
-// Keep the lock in the bridge so callers of both the Swift facade and the public
-// Objective-C API receive the same safety guarantee. A recursive mutex is
-// required because atomic mutations validate their temporary file by calling
-// back into the read API on the same thread.
+// TagLib exposes process-wide registries and some format handlers retain shared
+// state. Keep TagLib entry points serialized so callers of both the Swift facade
+// and the public Objective-C API receive the same safety guarantee. File copies,
+// fsync, rename, and other transaction work remain outside this lock. A recursive
+// mutex is required because bridge transactions validate through the read API on
+// the same thread.
 std::recursive_mutex &TagLibBridgeMutex()
 {
     static std::recursive_mutex mutex;
