@@ -327,7 +327,7 @@ static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDesc
                                             NSString *extension)
 {
     static NSSet<NSString *> *verifiedExtensions = [NSSet setWithArray:@[
-        @"mp3", @"m4a", @"flac", @"ogg", @"wav", @"aac"
+        @"mp3", @"m4a", @"flac", @"ogg", @"oga", @"wav", @"aac"
     ]];
     if ([verifiedExtensions containsObject:extension.lowercaseString]) {
         return "verified";
