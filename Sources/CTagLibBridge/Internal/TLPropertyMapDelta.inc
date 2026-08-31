@@ -77,11 +77,13 @@ static NSError *PropertyMapDeltaError(NSInteger code, NSString *description)
 {
     try {
     if (!fileURL || !fileURL.isFileURL || trackNumber < 0 || totalTracks < 0 ||
-        discNumber < 0 || totalDiscs < 0) {
+        discNumber < 0 || totalDiscs < 0 ||
+        trackNumber > std::numeric_limits<int>::max() || totalTracks > std::numeric_limits<int>::max() ||
+        discNumber > std::numeric_limits<int>::max() || totalDiscs > std::numeric_limits<int>::max()) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9260
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Number-pair changes require a file URL and non-negative values" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Number-pair changes require a file URL and values between 0 and INT_MAX" }];
         }
         return NO;
     }
