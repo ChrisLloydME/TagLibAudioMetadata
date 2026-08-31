@@ -14,7 +14,9 @@ public struct MetadataExtractionOptions: OptionSet, Sendable {
     public static let basic = MetadataExtractionOptions(rawValue: 1 << 0)
     public static let raw = MetadataExtractionOptions(rawValue: 1 << 1)
     public static let structured = MetadataExtractionOptions(rawValue: 1 << 2)
-    public static let all: MetadataExtractionOptions = [.basic, .raw, .structured]
+    public static let propertyMap = MetadataExtractionOptions(rawValue: 1 << 3)
+    public static let rawFrames = MetadataExtractionOptions(rawValue: 1 << 4)
+    public static let all: MetadataExtractionOptions = [.basic, .raw, .structured, .propertyMap, .rawFrames]
 }
 
 nonisolated private func preferredRawNumberText(_ currentValue: String, _ candidateValue: String) -> String {
@@ -392,7 +394,7 @@ extension TagLibMetadataManager {
 
     public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
         let identityBeforeRead = regularFileIdentity(at: url)
-        let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .raw])
+        let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
               let bridgeRaw = projections["raw"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(

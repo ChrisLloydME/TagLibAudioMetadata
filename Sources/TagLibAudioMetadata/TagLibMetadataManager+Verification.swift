@@ -153,7 +153,7 @@ extension TagLibMetadataManager {
         var warnings: [String] = []
         let projections = try? bridgeMetadataProjectionDictionary(
             from: url,
-            options: [.basic, .raw]
+            options: [.basic, .propertyMap]
         )
         let rawDump = (projections?["raw"] as? [String: NSObject]).map {
             rawMetadataDump(fromBridgeDictionary: $0)

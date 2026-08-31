@@ -90,13 +90,19 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     const bool wantsBasic = (options & TagLibMetadataExtractionOptionBasic) != 0;
     const bool wantsRaw = (options & TagLibMetadataExtractionOptionRaw) != 0;
     const bool wantsStructured = (options & TagLibMetadataExtractionOptionStructured) != 0;
+    const bool explicitlyWantsPropertyMap =
+        (options & TagLibMetadataExtractionOptionPropertyMap) != 0;
+    const bool explicitlyWantsRawFrames =
+        (options & TagLibMetadataExtractionOptionRawFrames) != 0;
+    const bool wantsPropertyMap = wantsRaw || wantsStructured || explicitlyWantsPropertyMap;
+    const bool wantsRawFrames = wantsRaw || explicitlyWantsRawFrames;
 
     bool openedExpectedType = false;
     auto applyCommon = [&](TagLib::File *file) {
         ApplyBasicTagMetadata(file->tag(), basic);
         ApplyGenericPropertyMapMetadata(file->properties(), basic);
         ApplyAudioPropertiesMetadata(file->audioProperties(), basic);
-        if (wantsRaw || wantsStructured) AppendRawPropertyEntries(propertiesOut, file->properties());
+        if (wantsPropertyMap) AppendRawPropertyEntries(propertiesOut, file->properties());
     };
 
     if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
@@ -108,7 +114,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
                 if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
                 if (file->ID3v1Tag()) ApplyBasicTagMetadata(file->ID3v1Tag(), basic);
-                if (wantsRaw) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
+                if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
                 if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
             }
         }
@@ -204,7 +210,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             basic.codec = @"WAV";
             if (file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
-            if (wantsRaw) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
+            if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
             if (wantsStructured) {
                 AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
                 [warningsOut addObject:@"WAV structured writes default to ID3v2 while preserving existing RIFF INFO fields."];
@@ -217,7 +223,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             basic.codec = @"AIFF";
             if (file->tag()) ExtractID3v2Metadata(file->tag(), basic);
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
-            if (wantsRaw) AppendUnifiedRawID3v2Frames(file->tag(), rawFramesOut);
+            if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->tag(), rawFramesOut);
             if (wantsStructured) {
                 AppendStructuredID3v2(file->tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
                 [warningsOut addObject:@"AIFF structured writes use ID3v2."];
@@ -231,7 +237,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             if (file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
             if (file->ID3v1Tag()) ApplyBasicTagMetadata(file->ID3v1Tag(), basic);
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
-            if (wantsRaw) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
+            if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
             if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
         }
     } else if (format == AudioMatorTagFileFormatASF) {
@@ -314,7 +320,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     };
     NSMutableDictionary<NSString *, NSObject *> *result = [NSMutableDictionary dictionary];
     if (wantsBasic) result[@"basic"] = basic;
-    if (wantsRaw) result[@"raw"] = raw;
+    if (wantsRaw || explicitlyWantsPropertyMap || explicitlyWantsRawFrames) result[@"raw"] = raw;
     if (wantsStructured) result[@"structured"] = structured;
     return result;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Unified metadata extraction", nil)

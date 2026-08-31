@@ -302,7 +302,7 @@ extension TagLibMetadataManager {
             }
 
             let extractionOptions: MetadataExtractionOptions = switch patch.artwork {
-            case .unchanged: [.basic, .raw]
+            case .unchanged: [.basic, .propertyMap]
             case .replace, .removeAll: .all
             }
             let projections = try bridgeMetadataProjectionDictionary(
