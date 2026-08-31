@@ -74,7 +74,7 @@ let patch = MetadataPatch(
         .track: .integer(1),
         .trackTotal: .integer(12)
     ],
-    customFields: ["MOOD": .values(["Focused", "Calm"])],
+    customFields: ["APP_WORKFLOW": .values(["Focused", "Calm"])],
     explicitAdvisory: .clean,
     artwork: .unchanged
 )
@@ -87,18 +87,34 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
 ```
 
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
+Known keys and aliases are rejected in `customFields`; use `fields` (or a
+dedicated patch property) for schema-known metadata. Unknown custom keys remain
+available and are normalized before mutation. Integer patch fields accept
+values from zero through `INT_MAX`; invalid values fail before a staging copy is
+made.
+
 The bridge applies requested PropertyMap changes to the current map in one
 session; omitted keys are not rebuilt in Swift. For text-backed booleans,
 `.boolean(false)` writes `"0"`, while `.remove` removes the key.
 
+Track and disc numbers are container-aware. MP4/M4A patches update native
+`trkn`/`disk` pairs and preserve an omitted number or total. Advisory patches
+likewise update native MP4 `rtng` or the supported ID3 representation; they do
+not create a contradictory freeform advisory.
+
 `BasicMetadata` remains a convenient normalized projection, but it is not a
 lossless editing document. Values read from a file retain a separate raw
-cardinality baseline, so unrelated Basic edits preserve untouched standard and
-custom multi-value fields without splitting display strings on semicolons.
+cardinality/provenance baseline, so unrelated Basic edits preserve untouched
+standard multi-values, schema-known fields Basic cannot model, and custom fields
+without splitting display strings on semicolons. Removing a key from
+`BasicMetadata.customFields` is not a deletion tombstone; use
+`MetadataPatchValue.remove` for explicit deletion.
+
 For professional editors, read `MetadataSnapshot` and write
 `MetadataPatch`, raw multi-value maps, or structured metadata. A basic
-full-model write intentionally means replacement: empty strings and zero
-numeric values clear corresponding fields where the container allows it.
+write has replacement semantics for fields Basic explicitly models: empty
+strings and zero numeric values clear those fields where the container allows
+it. Internal preservation provenance is readable but not caller-mutable.
 
 Check capability evidence before enabling controls:
 
@@ -179,7 +195,7 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The current local acceptance matrix passes 67 tests, strict warnings-as-errors,
+The current local acceptance matrix passes 74 tests, strict warnings-as-errors,
 Address Sanitizer, Thread Sanitizer, and builds both facade and low-level
 consumer packages. The published binary's broader platform and dynamic-link
 matrix remains documented in the migration report.
