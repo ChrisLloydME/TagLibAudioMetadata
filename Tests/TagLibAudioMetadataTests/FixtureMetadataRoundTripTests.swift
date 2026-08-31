@@ -734,6 +734,34 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertTrue(try transactionTemporaryFiles(in: directory).isEmpty)
     }
 
+    func testUnifiedProjectionMatchesPublicBridgeReadersAcrossFixtures() throws {
+        for ext in writableFixtures {
+            let url = try copyAudioFixture(ext)
+            let projections = try TagLibMetadataExtractor.metadataProjections(for: url)
+            let projectedBasic = try XCTUnwrap(projections["basic"] as? TagLibAudioMetadata)
+            let projectedRaw = try XCTUnwrap(projections["raw"] as? NSDictionary)
+            let projectedStructured = try XCTUnwrap(projections["structured"] as? NSDictionary)
+
+            let publicBasic = try TagLibMetadataExtractor.extractMetadata(from: url)
+            let publicRaw = try TagLibMetadataExtractor.rawMetadata(for: url) as NSDictionary
+            let publicStructured = try TagLibMetadataExtractor.structuredMetadata(for: url) as NSDictionary
+
+            XCTAssertEqual(projectedBasic.title, publicBasic.title, ext)
+            XCTAssertEqual(projectedBasic.artist, publicBasic.artist, ext)
+            XCTAssertEqual(projectedBasic.album, publicBasic.album, ext)
+            XCTAssertEqual(projectedBasic.trackNumber, publicBasic.trackNumber, ext)
+            XCTAssertEqual(projectedBasic.totalTracks, publicBasic.totalTracks, ext)
+            XCTAssertEqual(projectedBasic.discNumber, publicBasic.discNumber, ext)
+            XCTAssertEqual(projectedBasic.totalDiscs, publicBasic.totalDiscs, ext)
+            XCTAssertEqual(projectedBasic.explicitAdvisory, publicBasic.explicitAdvisory, ext)
+            XCTAssertEqual(projectedBasic.artworkData, publicBasic.artworkData, ext)
+            XCTAssertEqual(projectedBasic.artworkMimeType, publicBasic.artworkMimeType, ext)
+            XCTAssertEqual(projectedBasic.customFields, publicBasic.customFields, ext)
+            XCTAssertEqual(projectedRaw, publicRaw, ext)
+            XCTAssertEqual(projectedStructured, publicStructured, ext)
+        }
+    }
+
     private func copyAudioFixture(_ ext: String) throws -> URL {
         let source = try XCTUnwrap(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")

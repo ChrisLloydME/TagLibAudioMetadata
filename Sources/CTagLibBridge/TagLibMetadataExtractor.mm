@@ -99,6 +99,7 @@
 #include "Internal/TLRawBridgeOperations.inc"
 #include "Internal/TLWriteBridgeOperations.inc"
 #include "Internal/TLStructuredInspection.inc"
+#include "Internal/TLUnifiedExtraction.inc"
 #include "Internal/TLStructuredMutation.inc"
 #include "Internal/TLInPlaceBridgeOperations.inc"
 #include "Internal/TLRawInspection.inc"

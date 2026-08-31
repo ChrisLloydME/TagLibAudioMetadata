@@ -158,6 +158,13 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
                                                    error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(extractMetadata(from:));
 
+/// Open the extension-selected TagLib file once and derive the normalized,
+/// raw, and structured representations from the same parser session.
+/// Stable keys are `basic`, `raw`, and `structured`.
++ (nullable NSDictionary<NSString *, NSObject *> *)metadataProjectionsForURL:(NSURL *)fileURL
+                                                                       error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(metadataProjections(for:));
+
 /// Write metadata back to an audio file.
 + (BOOL)writeMetadata:(TagLibAudioMetadata *)metadata
                 toURL:(NSURL *)fileURL

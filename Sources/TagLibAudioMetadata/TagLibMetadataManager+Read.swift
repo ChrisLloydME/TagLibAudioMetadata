@@ -69,6 +69,60 @@ nonisolated private func rawNumberTexts(from dump: RawMetadataDump) -> (track: S
 extension TagLibMetadataManager {
     // MARK: - Bridge Dump API
 
+    nonisolated static func bridgeMetadataProjections(
+        from url: URL
+    ) throws -> (basic: TagLibAudioMetadata, raw: [String: NSObject], structured: [String: NSObject]) {
+        let ext = url.pathExtension.lowercased()
+        guard !ext.isEmpty, TagLibMetadataExtractor.isSupportedFormat(ext) else {
+            throw TagLibManagerError.unsupportedFormat
+        }
+
+        do {
+            let projections = try TagLibMetadataExtractor.metadataProjections(for: url)
+            guard let basic = projections["basic"] as? TagLibAudioMetadata,
+                  let raw = projections["raw"] as? [String: NSObject],
+                  let structured = projections["structured"] as? [String: NSObject] else {
+                throw TagLibManagerError.failedToReadWithUnderlying(
+                    "The bridge returned an incomplete metadata projection set."
+                )
+            }
+            return (basic, raw, structured)
+        } catch let managerError as TagLibManagerError {
+            throw managerError
+        } catch {
+            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
+        }
+    }
+
+    nonisolated static func rawMetadataDump(fromBridgeDictionary dict: [String: NSObject]) -> RawMetadataDump {
+        let propsAny = dict["properties"] as? [Any] ?? []
+        let framesAny = dict["id3v2Frames"] as? [Any] ?? []
+
+        let properties: [RawPropertyEntry] = propsAny.compactMap { item in
+            guard let d = item as? NSDictionary else { return nil }
+            let key = d["key"] as? String ?? ""
+            let value = d["value"] as? String ?? ""
+            let values = (d["values"] as? [String])
+                ?? (d["values"] as? [Any])?.compactMap { $0 as? String }
+                ?? []
+            let count = (d["count"] as? NSNumber)?.intValue ?? values.count
+            guard !isHiddenInternalRawFieldKey(key) else { return nil }
+            return RawPropertyEntry(key: key, value: value, values: values, count: count)
+        }
+        .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+
+        let id3v2Frames = framesAny.compactMap { item -> RawID3v2FrameEntry? in
+            guard let d = item as? NSDictionary else { return nil }
+            return RawID3v2FrameEntry(
+                frameID: d["id"] as? String ?? "",
+                value: d["value"] as? String ?? "",
+                description: d["description"] as? String,
+                language: d["language"] as? String
+            )
+        }
+        return RawMetadataDump(properties: properties, id3v2Frames: id3v2Frames)
+    }
+
     /// Return a single plain-text dump of metadata as TagLib sees it.
     ///
     /// Preferred path: call the ObjC++ bridge API directly (Swift `throws`).
@@ -111,191 +165,179 @@ extension TagLibMetadataManager {
         return nil
     }
 
-    public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
-        // 1. Quickly filter by file extension.
-        let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty else { throw TagLibManagerError.unsupportedFormat }
+    nonisolated static func basicMetadata(
+        fromBridgeMetadata meta: TagLibAudioMetadata,
+        rawDump: RawMetadataDump
+    ) -> BasicMetadata {
+        let trackNumberText = meta.trackNumberText ?? ""
+        let discNumberText = meta.discNumberText ?? ""
+        let needsTrackTextFallback =
+            trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            meta.trackNumber > 0
+        let needsDiscTextFallback =
+            discNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            meta.discNumber > 0
 
-        if !TagLibMetadataExtractor.isSupportedFormat(ext) {
-            throw TagLibManagerError.unsupportedFormat
+        let rawNumberText: (track: String, disc: String)
+        if needsTrackTextFallback || needsDiscTextFallback {
+            rawNumberText = rawNumberTexts(from: rawDump)
+        } else {
+            rawNumberText = (track: "", disc: "")
         }
 
-        do {
-            let identityBeforeRead = regularFileIdentity(at: url)
-            // ObjC++ bridge API imported into Swift as `throws`.
-            let meta = try TagLibMetadataExtractor.extractMetadata(from: url)
-            let trackNumberText = meta.trackNumberText ?? ""
-            let discNumberText = meta.discNumberText ?? ""
-            let needsTrackTextFallback =
-                trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                meta.trackNumber > 0
-            let needsDiscTextFallback =
-                discNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                meta.discNumber > 0
+        var trackSource: MetadataValueSource =
+            trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? (meta.trackNumber > 0 ? .derivedNumeric : .none)
+            : .nativeTag
 
-            var rawDump: RawMetadataDump?
-            let rawNumberText: (track: String, disc: String)
-            if needsTrackTextFallback || needsDiscTextFallback {
-                rawDump = rawMetadata(from: url)
-                rawNumberText = rawDump.map(rawNumberTexts(from:)) ?? (track: "", disc: "")
-            } else {
-                rawNumberText = (track: "", disc: "")
-            }
+        var discSource: MetadataValueSource =
+            discNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? (meta.discNumber > 0 ? .derivedNumeric : .none)
+            : .nativeTag
 
-            if case nil = rawDump {
-                rawDump = rawMetadata(from: url)
-            }
+        if needsTrackTextFallback,
+           !rawNumberText.track.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            trackSource = .rawFallback
+        }
 
-            guard identityBeforeRead == regularFileIdentity(at: url) else {
-                throw TagLibManagerError.failedToReadWithUnderlying(
-                    "The audio file changed while metadata was being read."
-                )
-            }
+        if needsDiscTextFallback,
+           !rawNumberText.disc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            discSource = .rawFallback
+        }
 
-            var trackSource: MetadataValueSource =
-                trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? (meta.trackNumber > 0 ? .derivedNumeric : .none)
-                : .nativeTag
+        let explicitSource = explicitValueSource(
+            from: rawDump,
+            fallback: meta.explicitAdvisory != .unspecified
+        )
+        let artworkSource: MetadataValueSource = (meta.artworkData as Data?) == nil ? .none : .nativeTag
+        let explicitAdvisory: ExplicitAdvisory = switch meta.explicitAdvisory {
+        case .clean: .clean
+        case .explicit: .explicit
+        default: .unspecified
+        }
+        let customFields = meta.customFields ?? [:]
+        let customFieldValues = customFields.reduce(into: [String: [String]]()) { result, field in
+            let rawValues = rawDump.properties.first {
+                $0.key.caseInsensitiveCompare(field.key) == .orderedSame
+            }?.values ?? []
+            result[field.key] = rawValues.isEmpty ? [field.value] : rawValues
+        }
 
-            var discSource: MetadataValueSource =
-                discNumberText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? (meta.discNumber > 0 ? .derivedNumeric : .none)
-                : .nativeTag
-
-            if needsTrackTextFallback,
-               !rawNumberText.track.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                trackSource = .rawFallback
-            }
-
-            if needsDiscTextFallback,
-               !rawNumberText.disc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                discSource = .rawFallback
-            }
-
-            let explicitSource = rawDump.map {
-                explicitValueSource(from: $0, fallback: meta.explicitAdvisory != .unspecified)
-            } ?? (meta.explicitAdvisory == .unspecified ? .none : .nativeTag)
-            let artworkSource: MetadataValueSource = (meta.artworkData as Data?) == nil ? .none : .nativeTag
-            let explicitAdvisory: ExplicitAdvisory = switch meta.explicitAdvisory {
-            case .clean: .clean
-            case .explicit: .explicit
-            default: .unspecified
-            }
-            let customFields = meta.customFields ?? [:]
-            let customFieldValues = customFields.reduce(into: [String: [String]]()) { result, field in
-                let rawValues = rawDump?.properties.first {
-                    $0.key.caseInsensitiveCompare(field.key) == .orderedSame
-                }?.values ?? []
-                result[field.key] = rawValues.isEmpty ? [field.value] : rawValues
-            }
-
-            return BasicMetadata(
-                title: meta.title ?? "",
-                artist: meta.artist ?? "",
-                album: meta.album ?? "",
-                composer: meta.composer ?? "",
-                genre: meta.genre ?? "",
-                comment: meta.comment ?? "",
-                lyrics: meta.lyrics ?? "",
-                track: Int(meta.trackNumber),
-                trackTotal: Int(meta.totalTracks),
-                disc: Int(meta.discNumber),
-                discTotal: Int(meta.totalDiscs),
-                trackNumberText: needsTrackTextFallback
-                    ? preferredRawNumberText(trackNumberText, rawNumberText.track)
-                    : trackNumberText,
-                discNumberText: needsDiscTextFallback
-                    ? preferredRawNumberText(discNumberText, rawNumberText.disc)
-                    : discNumberText,
-                year: meta.year ?? "",
-                albumArtist: meta.albumArtist ?? "",
-                releaseDate: meta.releaseDate ?? "",
-                originalReleaseDate: meta.originalReleaseDate ?? "",
-                isrc: meta.isrc ?? "",
-                barcode: meta.barcode ?? "",
-                musicBrainzArtistID: meta.musicBrainzArtistId ?? "",
-                musicBrainzAlbumID: meta.musicBrainzAlbumId ?? "",
-                musicBrainzAlbumArtistID: meta.musicBrainzAlbumArtistId ?? "",
-                musicBrainzTrackID: meta.musicBrainzTrackId ?? "",
-                musicBrainzReleaseGroupID: meta.musicBrainzReleaseGroupId ?? "",
-                musicBrainzReleaseTrackID: meta.musicBrainzReleaseTrackId ?? "",
-                musicBrainzWorkID: meta.musicBrainzWorkId ?? "",
-                acoustID: meta.acoustId ?? "",
-                acoustIDFingerprint: meta.acoustIdFingerprint ?? "",
-                musicIPPUID: meta.musicIpPuid ?? "",
-                publisher: meta.label ?? "",
-                copyright: meta.copyright ?? "",
-                encodedBy: meta.encodedBy ?? "",
-                encoderSettings: meta.encoderSettings ?? "",
-                sortTitle: meta.sortTitle ?? "",
-                sortArtist: meta.sortArtist ?? "",
-                sortAlbum: meta.sortAlbum ?? "",
-                sortAlbumArtist: meta.sortAlbumArtist ?? "",
-                sortComposer: meta.sortComposer ?? "",
-                conductor: meta.conductor ?? "",
-                remixer: meta.remixer ?? "",
-                producer: meta.producer ?? "",
-                engineer: meta.engineer ?? "",
-                lyricist: meta.lyricist ?? "",
-                subtitle: meta.subtitle ?? "",
-                grouping: meta.grouping ?? "",
-                movement: meta.movement ?? "",
-                mood: meta.mood ?? "",
-                language: meta.language ?? "",
-                musicalKey: meta.musicalKey ?? "",
-                replayGainTrack: meta.replayGainTrack ?? "",
-                replayGainAlbum: meta.replayGainAlbum ?? "",
-                mediaType: meta.mediaType ?? "",
-                itunesAlbumID: meta.itunesAlbumId ?? "",
-                itunesArtistID: meta.itunesArtistId ?? "",
-                itunesCatalogID: meta.itunesCatalogId ?? "",
-                itunesGenreID: meta.itunesGenreId ?? "",
-                itunesMediaType: meta.itunesMediaType ?? "",
-                itunesPurchaseDate: meta.itunesPurchaseDate ?? "",
-                itunesNorm: meta.itunesNorm ?? "",
-                itunesSMPB: meta.itunesSmpb ?? "",
-                releaseType: meta.releaseType ?? "",
-                releaseStatus: meta.releaseStatus ?? "",
-                catalogNumber: meta.catalogNumber ?? "",
-                releaseCountry: meta.releaseCountry ?? "",
-                artistType: meta.artistType ?? "",
-                asin: meta.asin ?? "",
-                originalAlbum: meta.originalAlbum ?? "",
-                originalArtist: meta.originalArtist ?? "",
-                discSubtitle: meta.discSubtitle ?? "",
-                work: meta.work ?? "",
-                movementNumber: Int(meta.movementNumber),
-                movementCount: Int(meta.movementCount),
-                bpm: Int(meta.bpm),
-                isCompilation: meta.compilation,
-                explicitAdvisory: explicitAdvisory,
-                duration: meta.duration,
-                bitrate: Int(meta.bitrate),
-                sampleRate: Double(meta.sampleRate),
-                channels: Int(meta.channels),
-                bitDepth: Int(meta.bitDepth),
-                format: meta.codec ?? "",
-                artworkData: meta.artworkData as Data?,
-                artworkMIMEType: normalizedArtworkMIMEType(
-                    meta.artworkMimeType,
-                    data: meta.artworkData as Data?
-                ),
-                customFields: customFields,
-                customFieldValues: customFieldValues,
-                originalCustomFieldProjection: customFields,
-                provenance: MetadataFieldProvenance(
-                    trackNumberText: trackSource,
-                    discNumberText: discSource,
-                    explicitContent: explicitSource,
-                    artwork: artworkSource
-                )
+        return BasicMetadata(
+            title: meta.title ?? "",
+            artist: meta.artist ?? "",
+            album: meta.album ?? "",
+            composer: meta.composer ?? "",
+            genre: meta.genre ?? "",
+            comment: meta.comment ?? "",
+            lyrics: meta.lyrics ?? "",
+            track: Int(meta.trackNumber),
+            trackTotal: Int(meta.totalTracks),
+            disc: Int(meta.discNumber),
+            discTotal: Int(meta.totalDiscs),
+            trackNumberText: needsTrackTextFallback
+                ? preferredRawNumberText(trackNumberText, rawNumberText.track)
+                : trackNumberText,
+            discNumberText: needsDiscTextFallback
+                ? preferredRawNumberText(discNumberText, rawNumberText.disc)
+                : discNumberText,
+            year: meta.year ?? "",
+            albumArtist: meta.albumArtist ?? "",
+            releaseDate: meta.releaseDate ?? "",
+            originalReleaseDate: meta.originalReleaseDate ?? "",
+            isrc: meta.isrc ?? "",
+            barcode: meta.barcode ?? "",
+            musicBrainzArtistID: meta.musicBrainzArtistId ?? "",
+            musicBrainzAlbumID: meta.musicBrainzAlbumId ?? "",
+            musicBrainzAlbumArtistID: meta.musicBrainzAlbumArtistId ?? "",
+            musicBrainzTrackID: meta.musicBrainzTrackId ?? "",
+            musicBrainzReleaseGroupID: meta.musicBrainzReleaseGroupId ?? "",
+            musicBrainzReleaseTrackID: meta.musicBrainzReleaseTrackId ?? "",
+            musicBrainzWorkID: meta.musicBrainzWorkId ?? "",
+            acoustID: meta.acoustId ?? "",
+            acoustIDFingerprint: meta.acoustIdFingerprint ?? "",
+            musicIPPUID: meta.musicIpPuid ?? "",
+            publisher: meta.label ?? "",
+            copyright: meta.copyright ?? "",
+            encodedBy: meta.encodedBy ?? "",
+            encoderSettings: meta.encoderSettings ?? "",
+            sortTitle: meta.sortTitle ?? "",
+            sortArtist: meta.sortArtist ?? "",
+            sortAlbum: meta.sortAlbum ?? "",
+            sortAlbumArtist: meta.sortAlbumArtist ?? "",
+            sortComposer: meta.sortComposer ?? "",
+            conductor: meta.conductor ?? "",
+            remixer: meta.remixer ?? "",
+            producer: meta.producer ?? "",
+            engineer: meta.engineer ?? "",
+            lyricist: meta.lyricist ?? "",
+            subtitle: meta.subtitle ?? "",
+            grouping: meta.grouping ?? "",
+            movement: meta.movement ?? "",
+            mood: meta.mood ?? "",
+            language: meta.language ?? "",
+            musicalKey: meta.musicalKey ?? "",
+            replayGainTrack: meta.replayGainTrack ?? "",
+            replayGainAlbum: meta.replayGainAlbum ?? "",
+            mediaType: meta.mediaType ?? "",
+            itunesAlbumID: meta.itunesAlbumId ?? "",
+            itunesArtistID: meta.itunesArtistId ?? "",
+            itunesCatalogID: meta.itunesCatalogId ?? "",
+            itunesGenreID: meta.itunesGenreId ?? "",
+            itunesMediaType: meta.itunesMediaType ?? "",
+            itunesPurchaseDate: meta.itunesPurchaseDate ?? "",
+            itunesNorm: meta.itunesNorm ?? "",
+            itunesSMPB: meta.itunesSmpb ?? "",
+            releaseType: meta.releaseType ?? "",
+            releaseStatus: meta.releaseStatus ?? "",
+            catalogNumber: meta.catalogNumber ?? "",
+            releaseCountry: meta.releaseCountry ?? "",
+            artistType: meta.artistType ?? "",
+            asin: meta.asin ?? "",
+            originalAlbum: meta.originalAlbum ?? "",
+            originalArtist: meta.originalArtist ?? "",
+            discSubtitle: meta.discSubtitle ?? "",
+            work: meta.work ?? "",
+            movementNumber: Int(meta.movementNumber),
+            movementCount: Int(meta.movementCount),
+            bpm: Int(meta.bpm),
+            isCompilation: meta.compilation,
+            explicitAdvisory: explicitAdvisory,
+            duration: meta.duration,
+            bitrate: Int(meta.bitrate),
+            sampleRate: Double(meta.sampleRate),
+            channels: Int(meta.channels),
+            bitDepth: Int(meta.bitDepth),
+            format: meta.codec ?? "",
+            artworkData: meta.artworkData as Data?,
+            artworkMIMEType: normalizedArtworkMIMEType(
+                meta.artworkMimeType,
+                data: meta.artworkData as Data?
+            ),
+            customFields: customFields,
+            customFieldValues: customFieldValues,
+            originalCustomFieldProjection: customFields,
+            provenance: MetadataFieldProvenance(
+                trackNumberText: trackSource,
+                discNumberText: discSource,
+                explicitContent: explicitSource,
+                artwork: artworkSource
             )
-        } catch {
-            if let managerError = error as? TagLibManagerError {
-                throw managerError
-            }
-            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
+        )
+    }
+
+    public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
+        let identityBeforeRead = regularFileIdentity(at: url)
+        let projections = try bridgeMetadataProjections(from: url)
+        guard identityBeforeRead == regularFileIdentity(at: url) else {
+            throw TagLibManagerError.failedToReadWithUnderlying(
+                "The audio file changed while metadata was being read."
+            )
         }
+        return basicMetadata(
+            fromBridgeMetadata: projections.basic,
+            rawDump: rawMetadataDump(fromBridgeDictionary: projections.raw)
+        )
     }
 
     public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
@@ -315,79 +357,14 @@ extension TagLibMetadataManager {
     }
 
     public nonisolated static func rawMetadataResult(from url: URL) throws -> RawMetadataDump {
-        let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty else {
-            throw TagLibManagerError.unsupportedFormat
+        let identityBeforeRead = regularFileIdentity(at: url)
+        let projections = try bridgeMetadataProjections(from: url)
+        guard identityBeforeRead == regularFileIdentity(at: url) else {
+            throw TagLibManagerError.failedToReadWithUnderlying(
+                "The audio file changed while raw metadata was being read."
+            )
         }
-
-        guard TagLibMetadataExtractor.isSupportedFormat(ext) else {
-            throw TagLibManagerError.unsupportedFormat
-        }
-
-        // ObjC++ returns a Foundation dictionary for display; normalize it into Swift models.
-        let dict: [String: NSObject]
-        do {
-            dict = try TagLibMetadataExtractor.rawMetadata(for: url)
-        } catch {
-            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
-        }
-
-        let propsAny = dict["properties"] as? [Any] ?? []
-        let framesAny = dict["id3v2Frames"] as? [Any] ?? []
-
-        let properties: [RawPropertyEntry] = propsAny.compactMap { item in
-            guard let d = item as? NSDictionary else { return nil }
-
-            let key = d["key"] as? String ?? ""
-            let value = d["value"] as? String ?? ""
-
-            let values: [String]
-            if let arr = d["values"] as? [String] {
-                values = arr
-            } else if let arr = d["values"] as? [Any] {
-                values = arr.compactMap { $0 as? String }
-            } else {
-                values = []
-            }
-
-            let count: Int
-            if let n = d["count"] as? Int {
-                count = n
-            } else if let n = d["count"] as? NSNumber {
-                count = n.intValue
-            } else {
-                count = values.count
-            }
-
-            guard !isHiddenInternalRawFieldKey(key) else { return nil }
-
-            return RawPropertyEntry(key: key, value: value, values: values, count: count)
-        }
-        .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
-
-        let id3v2Frames: [RawID3v2FrameEntry] = framesAny.compactMap { item in
-            guard let d = item as? NSDictionary else { return nil }
-
-            let frameID = d["id"] as? String ?? ""
-            let value = d["value"] as? String ?? ""
-            let desc = d["description"] as? String
-            let lang = d["language"] as? String
-
-            return RawID3v2FrameEntry(frameID: frameID, value: value, description: desc, language: lang)
-        }
-
-        if !properties.isEmpty {
-            return RawMetadataDump(properties: properties, id3v2Frames: id3v2Frames)
-        }
-
-        if let dumpText = try? TagLibMetadataExtractor.dumpMetadataText(from: url) {
-            let fallbackProperties = parsedPropertyEntries(fromDumpText: dumpText)
-            if !fallbackProperties.isEmpty {
-                return RawMetadataDump(properties: fallbackProperties, id3v2Frames: id3v2Frames)
-            }
-        }
-
-        return RawMetadataDump(properties: properties, id3v2Frames: id3v2Frames)
+        return rawMetadataDump(fromBridgeDictionary: projections.raw)
     }
 
     /// Formats *raw* metadata (as seen by TagLib) into a single text blob for GUI display.
