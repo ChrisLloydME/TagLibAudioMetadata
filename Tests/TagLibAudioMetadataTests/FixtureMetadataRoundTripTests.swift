@@ -273,6 +273,37 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testBasicReadWritePreservesUnmodifiedStandardFieldCardinality() throws {
+        let originalValues: [String: [String]] = [
+            "ARTIST": ["Artist A", "Artist B"],
+            "COMPOSER": ["Composer A", "Composer B"],
+            "ALBUMARTIST": ["Album Artist A", "Album Artist B"],
+            "GENRE": ["Rock", "Alternative"],
+        ]
+
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                originalValues,
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.title = "Unrelated Basic title edit"
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            for (key, values) in originalValues {
+                XCTAssertEqual(
+                    raw.values(for: key),
+                    values,
+                    "\(ext) must preserve untouched \(key) cardinality during a Basic write"
+                )
+            }
+        }
+    }
+
     func testStructuredWAVAdvisoriesDoNotFailVerifiedWrites() throws {
         let url = try copyAudioFixture("wav")
         let payload = StructuredMetadata(
