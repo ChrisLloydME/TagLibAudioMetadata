@@ -290,6 +290,10 @@ NS_SWIFT_NAME(applyPropertyMapValuesInPlace(_:removingKeys:to:));
                                           toURL:(NSURL *)fileURL
                                           error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(writeNumberPairsInPlace(trackNumber:totalTracks:updateTrackPair:discNumber:totalDiscs:updateDiscPair:to:));
++ (BOOL)writeExplicitAdvisoryInPlace:(TagLibExplicitAdvisory)advisory
+                               toURL:(NSURL *)fileURL
+                               error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeExplicitAdvisoryInPlace(_:to:));
 + (BOOL)writeStructuredMetadataInPlace:(NSDictionary<NSString *, NSObject *> *)metadata
                                  toURL:(NSURL *)fileURL
                                  error:(NSError *_Nullable *_Nullable)error

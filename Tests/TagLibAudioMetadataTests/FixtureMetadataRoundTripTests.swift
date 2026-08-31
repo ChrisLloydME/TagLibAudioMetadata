@@ -825,6 +825,38 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testMP3MetadataPatchUsesSingleID3AdvisoryRepresentation() throws {
+        let url = try copyAudioFixture("mp3")
+        var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
+        baseline.explicitAdvisory = .explicit
+        try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .clean),
+            to: url,
+            failurePolicy: .throw
+        )
+        var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .clean)
+        XCTAssertEqual(
+            snapshot.raw.id3v2Frames.filter {
+                $0.frameID == "TXXX" && $0.description?.uppercased() == "ITUNESADVISORY"
+            }.map(\.value),
+            ["[ITUNESADVISORY] 2"]
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .unspecified),
+            to: url,
+            failurePolicy: .throw
+        )
+        snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .unspecified)
+        XCTAssertFalse(snapshot.raw.id3v2Frames.contains {
+            $0.frameID == "TXXX" && $0.description?.uppercased() == "ITUNESADVISORY"
+        })
+    }
+
     func testMetadataPatchRejectsInvalidValueTypesBeforeMutation() throws {
         let url = try copyAudioFixture("flac")
         let originalBytes = try Data(contentsOf: url)
