@@ -1,51 +1,46 @@
-# Thread Safety
+# Thread safety
 
 ## Public contract
 
 `TagLibMetadataManager` and `TagLibMetadataExtractor` may be called from
-multiple threads. Every Objective-C++ selector that enters TagLib is serialized
-inside the package with one process-wide recursive mutex. Operations on
-independent files are safe but their TagLib portions execute one at a time.
+multiple threads. A process-wide recursive mutex covers each interval that
+creates or uses TagLib C++ parser, tag, property-map, or file objects. Foundation
+value construction, sibling-file copying, `fsync`, and atomic rename run outside
+that lock, so slow filesystem work does not unnecessarily block parsing another
+file.
 
-Callers must still serialize mutations to the same canonical file path when
-write ordering matters. The package's atomic replacement and identity checks
-prevent a stale mutation from silently overwriting a changed destination, but
-they do not define which concurrent same-file write should win.
+Operations on independent files are safe. The package does not promise ordering
+for concurrent mutations of the same canonical pathname; callers must serialize
+those operations when ordering matters. Destination identity checks reject a
+stale transaction when another actor changes the original before commit, but
+they do not choose which writer should win.
 
-This guarantee assumes clients do not independently mutate TagLib's global
-hooks through another direct linkage to the same TagLib binary while package
-operations are running.
+This contract assumes the client does not concurrently mutate TagLib global
+hooks through another direct linkage. Loading another TagLib C++ implementation
+in the same process can also cause symbol interposition and is unsupported.
 
-## TagLib 2.1.1 audit
+## Why the mutex remains
 
-The package binary is built from TagLib commit
-`7d86716194777e0294453bfdc9dd170bd033e1f4`. The following process-wide or
-function-static mutable state is not internally synchronized by that revision:
+TagLib 2.3.1 improved thread-safety behavior, but still exposes process-global
+configuration hooks and has format-specific static initialization paths. The
+bridge keeps one recursive lock as a conservative boundary around upstream
+objects. Recursion supports validation paths that re-enter package readers on
+the same thread.
 
-| Area | State | Exposure |
-| --- | --- | --- |
-| MP4/M4A | `MP4::ItemFactory::factory` lazily fills three maps from `const` lookups | Read and write |
-| MP3/ID3v2 | `TextIdentificationFrame::involvedPeopleMap()` lazily fills a static map | Read and write |
-| MP3/ID3v2 | FrameFactory lazily fills the static `tiplKeys` list | ID3v2.3 conversion |
-| WAV/RIFF INFO | `Tag::setProperties()` lazily fills `idForPropertyKey` | Write |
-| ASF/WMA | `Tag::setProperties()` lazily fills `reverseKeyMap` | Write |
-| Common hooks | Debug listener, FileRef resolver list, and ID3/RIFF string-handler pointers | Configuration and use |
-
-The bridge mutex covers all package read, raw inspection, structured
-inspection, write, and erase entry points. It is recursive because raw
-inspection validates through the basic reader, and atomic mutations validate a
-temporary file by re-entering the reader on the same thread.
+The lock does not protect arbitrary external access to the file. Snapshot reads
+compare device, inode, size, modification time, and status-change time before
+and after extraction. Transactions compare the same identity immediately before
+rename.
 
 ## Sanitizer coverage
-
-Run the regression suite with:
 
 ```sh
 swift test --sanitize=address
 swift test --sanitize=thread
 ```
 
-These commands instrument the Swift and Objective-C++ package targets. The
-distributed TagLib XCFramework is a precompiled Release binary, so its internal
-instructions are not sanitizer-instrumented. Fully instrumented upstream
-diagnosis requires a separate diagnostic TagLib build.
+The current 62-test suite passes both commands and includes concurrent
+cross-format reads and writes plus repeated M4A stress. These commands instrument
+the Swift and Objective-C++ targets. The distributed Release XCFramework is
+precompiled and is not internally sanitizer-instrumented; fully instrumented
+upstream diagnosis requires a separate diagnostic TagLib build.
