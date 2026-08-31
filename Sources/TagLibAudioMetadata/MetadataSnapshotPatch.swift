@@ -54,6 +54,11 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
         expected: Set<MetadataPatchValueKind>,
         actual: MetadataPatchValueKind
     )
+    case integerOutOfRange(field: MetadataFieldKey, minimum: Int, maximum: Int, actual: Int)
+    case knownFieldRequiresTypedAPI(customKey: String, field: MetadataFieldKey)
+    case conflictingFieldRepresentations(field: MetadataFieldKey, customKey: String)
+    case duplicateCustomField(normalizedKey: String)
+    case invalidCustomFieldKey(String)
 
     public var errorDescription: String? {
         switch self {
@@ -62,6 +67,16 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
         case .incompatibleValue(let field, let expected, let actual):
             let expectedNames = expected.map(\.rawValue).sorted().joined(separator: " or ")
             return "\(field.rawValue) requires \(expectedNames); received \(actual.rawValue)."
+        case .integerOutOfRange(let field, let minimum, let maximum, let actual):
+            return "\(field.rawValue) must be between \(minimum) and \(maximum); received \(actual)."
+        case .knownFieldRequiresTypedAPI(let customKey, let field):
+            return "Custom key \(customKey) is the known \(field.rawValue) field; use the typed MetadataPatch API."
+        case .conflictingFieldRepresentations(let field, let customKey):
+            return "\(field.rawValue) was specified through both typed fields and custom key \(customKey)."
+        case .duplicateCustomField(let normalizedKey):
+            return "Multiple custom field keys normalize to \(normalizedKey)."
+        case .invalidCustomFieldKey(let key):
+            return "Custom field key \(key.debugDescription) is empty after normalization."
         }
     }
 }
@@ -97,7 +112,7 @@ public struct MetadataPatch: Hashable, Sendable {
 }
 
 extension TagLibMetadataManager {
-    nonisolated private static func validate(_ patch: MetadataPatch) throws {
+    nonisolated private static func validate(_ patch: MetadataPatch) throws -> [String: MetadataPatchValue] {
         for (field, value) in patch.fields {
             guard field != .artwork, field != .custom, field != .explicitContent,
                   let schema = MetadataFieldRegistry.schema(for: field),
@@ -112,7 +127,41 @@ extension TagLibMetadataManager {
                     actual: kind
                 )
             }
+            if case .integer(let integer) = value, let constraint = schema.integerConstraint,
+               !(constraint.minimum...constraint.maximum).contains(integer) {
+                throw MetadataPatchValidationError.integerOutOfRange(
+                    field: field,
+                    minimum: constraint.minimum,
+                    maximum: constraint.maximum,
+                    actual: integer
+                )
+            }
         }
+
+        var normalizedCustomFields: [String: MetadataPatchValue] = [:]
+        for (key, value) in patch.customFields {
+            let normalizedKey = MetadataFieldRegistry.normalizePropertyMapKey(key)
+            guard !normalizedKey.isEmpty else {
+                throw MetadataPatchValidationError.invalidCustomFieldKey(key)
+            }
+            if let schema = MetadataFieldRegistry.schema(forHighLevelCustomKey: normalizedKey) {
+                if patch.fields[schema.key] != nil {
+                    throw MetadataPatchValidationError.conflictingFieldRepresentations(
+                        field: schema.key,
+                        customKey: key
+                    )
+                }
+                throw MetadataPatchValidationError.knownFieldRequiresTypedAPI(
+                    customKey: key,
+                    field: schema.key
+                )
+            }
+            guard normalizedCustomFields[normalizedKey] == nil else {
+                throw MetadataPatchValidationError.duplicateCustomField(normalizedKey: normalizedKey)
+            }
+            normalizedCustomFields[normalizedKey] = value
+        }
+        return normalizedCustomFields
     }
 
     /// Reads all public metadata representations while rejecting concurrent file changes.
@@ -138,7 +187,7 @@ extension TagLibMetadataManager {
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
-        try validate(patch)
+        let normalizedCustomFields = try validate(patch)
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -206,7 +255,7 @@ extension TagLibMetadataManager {
                 }
             }
 
-            for (key, value) in patch.customFields {
+            for (key, value) in normalizedCustomFields {
                 keysToRemove.insert(key)
                 if !value.propertyMapValues.isEmpty {
                     propertyValues[key] = value.propertyMapValues
@@ -296,7 +345,7 @@ extension TagLibMetadataManager {
                     warnings.append("Patched field \(key) differs after save.")
                 }
             }
-            for (key, value) in patch.customFields {
+            for (key, value) in normalizedCustomFields {
                 let actual = afterRaw.properties.first {
                     $0.key.caseInsensitiveCompare(key) == .orderedSame
                 }?.values ?? []

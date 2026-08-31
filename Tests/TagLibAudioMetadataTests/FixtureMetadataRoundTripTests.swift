@@ -916,6 +916,125 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), originalBytes)
     }
 
+    func testMetadataPatchCustomFieldsCannotBypassTypedSchemaValidation() throws {
+        let url = try copyAudioFixture("flac")
+        let originalBytes = try Data(contentsOf: url)
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["TITLE": .integer(123)]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .knownFieldRequiresTypedAPI(customKey: "TITLE", field: .title)
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["album artist": .text("Alias")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .knownFieldRequiresTypedAPI(customKey: "album artist", field: .albumArtist)
+            )
+        }
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.title: .text("Typed")], customFields: ["title": .text("Custom")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .conflictingFieldRepresentations(field: .title, customKey: "title")
+            )
+        }
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["case_key": .text("One"), "CASE_KEY": .text("Two")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .duplicateCustomField(normalizedKey: "CASE_KEY")
+            )
+        }
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["truly_unknown": .values(["One", "Two"])]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(
+            try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "TRULY_UNKNOWN"),
+            ["One", "Two"]
+        )
+    }
+
+    func testMetadataPatchEnforcesSharedNumericConstraintsBeforeMutation() throws {
+        for (field, value) in [
+            (MetadataFieldKey.track, -1),
+            (.disc, -1),
+            (.bpm, -20),
+        ] {
+            let url = try copyAudioFixture("flac")
+            let originalBytes = try Data(contentsOf: url)
+            XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [field: .integer(value)]),
+                to: url
+            )) { error in
+                XCTAssertEqual(
+                    error as? MetadataPatchValidationError,
+                    .integerOutOfRange(
+                        field: field,
+                        minimum: 0,
+                        maximum: Int(Int32.max),
+                        actual: value
+                    )
+                )
+            }
+            XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+        }
+
+        let zeroURL = try copyAudioFixture("flac")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.track: .integer(0), .disc: .integer(0), .bpm: .integer(0)]),
+            to: zeroURL,
+            failurePolicy: .throw
+        )
+        let zero = try TagLibMetadataManager.readMetadataResult(from: zeroURL)
+        XCTAssertEqual(zero.track, 0)
+        XCTAssertEqual(zero.disc, 0)
+        XCTAssertEqual(zero.bpm, 0)
+
+        let maximumURL = try copyAudioFixture("flac")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.bpm: .integer(Int(Int32.max))]),
+            to: maximumURL,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: maximumURL).bpm, Int(Int32.max))
+        let maximumBytes = try Data(contentsOf: maximumURL)
+
+        let aboveMaximum = Int(Int32.max) + 1
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.bpm: .integer(aboveMaximum)]),
+            to: maximumURL
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .integerOutOfRange(
+                    field: .bpm,
+                    minimum: 0,
+                    maximum: Int(Int32.max),
+                    actual: aboveMaximum
+                )
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: maximumURL), maximumBytes)
+    }
+
     func testEraseAllMetadataReportsNoResidualCoreFields() throws {
         for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
             let url = try copyAudioFixture(ext)
