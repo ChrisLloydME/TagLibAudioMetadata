@@ -13,6 +13,10 @@ let package = Package(
             name: "TagLibAudioMetadata",
             targets: ["TagLibAudioMetadata"]
         ),
+        .library(
+            name: "TagLibAudioMetadataLowLevel",
+            targets: ["CTagLibBridge"]
+        ),
     ],
     targets: [
         .binaryTarget(
