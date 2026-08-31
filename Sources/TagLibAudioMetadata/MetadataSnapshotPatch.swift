@@ -214,14 +214,15 @@ extension TagLibMetadataManager {
             }
 
             if let advisory = patch.explicitAdvisory {
-                for key in ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", "RTNG"] {
-                    keysToRemove.insert(key)
+                let bridgeAdvisory: TagLibExplicitAdvisory = switch advisory {
+                case .unspecified: .unspecified
+                case .clean: .clean
+                case .explicit: .explicit
                 }
-                switch advisory {
-                case .unspecified: break
-                case .clean: propertyValues["ITUNESADVISORY"] = ["2"]
-                case .explicit: propertyValues["ITUNESADVISORY"] = ["1"]
-                }
+                try TagLibMetadataExtractor.writeExplicitAdvisoryInPlace(
+                    bridgeAdvisory,
+                    to: mutationURL
+                )
             }
 
             if !propertyValues.isEmpty || !keysToRemove.isEmpty {
