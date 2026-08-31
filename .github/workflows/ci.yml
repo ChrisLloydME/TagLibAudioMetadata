@@ -43,11 +43,19 @@ jobs:
           test ! -d Sources/CTagLibBridge/taglib
           BIN_PATH=$(swift build --disable-keychain --disable-netrc --show-bin-path)
           TEST_BINARY="$BIN_PATH/TagLibAudioMetadataPackageTests.xctest/Contents/MacOS/TagLibAudioMetadataPackageTests"
-          otool -L "$TEST_BINARY" | grep '@rpath/TagLib.framework/TagLib'
-          test -d "$BIN_PATH/TagLib.framework"
-          test -f "$BIN_PATH/TagLib.framework/Versions/A/Resources/Info.plist"
-          test -L "$BIN_PATH/TagLib.framework/Versions/Current"
-          test -L "$BIN_PATH/TagLib.framework/TagLib"
+          FRAMEWORK="$BIN_PATH/TagLibAudioMetadataTagLib.framework"
+          FRAMEWORK_RESOURCES="$FRAMEWORK/Versions/A/Resources"
+          otool -L "$TEST_BINARY" | grep '@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib'
+          test -z "$(otool -L "$TEST_BINARY" | grep '@rpath/TagLib.framework/TagLib' || true)"
+          test -d "$FRAMEWORK"
+          test -f "$FRAMEWORK_RESOURCES/Info.plist"
+          test -L "$FRAMEWORK/Versions/Current"
+          test -L "$FRAMEWORK/TagLibAudioMetadataTagLib"
+          test "$(plutil -extract CFBundleIdentifier raw "$FRAMEWORK_RESOURCES/Info.plist")" = "com.chrislloyd.taglibaudiometadata.taglib"
+          grep -F 'framework module TagLibAudioMetadataTagLib' "$FRAMEWORK/Versions/A/Modules/module.modulemap"
+          test -f "$FRAMEWORK_RESOURCES/Licenses/TagLib-LGPL-2.1.txt"
+          test -f "$FRAMEWORK_RESOURCES/Licenses/TagLib-MPL-1.1.txt"
+          test -f "$FRAMEWORK_RESOURCES/Licenses/utfcpp-Boost-1.0.txt"
           test -z "$(find Sources/CTagLibBridge -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.cxx' \) -print -quit)"
 
   address-sanitizer:
