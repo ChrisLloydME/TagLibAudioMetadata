@@ -327,7 +327,7 @@ static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDesc
                                             NSString *extension)
 {
     static NSSet<NSString *> *verifiedExtensions = [NSSet setWithArray:@[
-        @"mp3", @"m4a", @"flac", @"ogg", @"oga", @"wav", @"aac"
+        @"mp3", @"m4a", @"flac", @"ogg", @"oga", @"wav", @"aac", @"xm"
     ]];
     if ([verifiedExtensions containsObject:extension.lowercaseString]) {
         return "verified";
@@ -339,7 +339,6 @@ static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDesc
     switch (descriptor.format) {
         case AudioMatorTagFileFormatS3M:
         case AudioMatorTagFileFormatIT:
-        case AudioMatorTagFileFormatXM:
             return "experimental";
         default:
             return "upstreamSupported";

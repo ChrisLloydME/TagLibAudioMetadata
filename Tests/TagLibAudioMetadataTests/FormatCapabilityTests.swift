@@ -45,13 +45,13 @@ final class FormatCapabilityTests: XCTestCase {
     }
 
     func testVerificationLevelsDistinguishFixturesUpstreamAndExperimentalFormats() throws {
-        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav", "aac"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav", "aac", "xm"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .verified, ext)
         }
         for ext in ["mp2", "mp4", "ape", "wma", "dsf"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .upstreamSupported, ext)
         }
-        for ext in ["xm", "s3m", "it"] {
+        for ext in ["s3m", "it"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .experimental, ext)
         }
         XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "mod"), .readOnly)
@@ -66,9 +66,9 @@ final class FormatCapabilityTests: XCTestCase {
 
     func testFieldLevelSupportReflectsMappingsArtworkAndWriteAvailability() throws {
         let xm = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "xm"))
-        XCTAssertEqual(xm.readSupport(for: .title), .experimental)
-        XCTAssertEqual(xm.writeSupport(for: .title), .experimental)
-        XCTAssertEqual(xm.writeSupport(for: .trackerName), .experimental)
+        XCTAssertEqual(xm.readSupport(for: .title), .verified)
+        XCTAssertEqual(xm.writeSupport(for: .title), .verified)
+        XCTAssertEqual(xm.writeSupport(for: .trackerName), .verified)
         XCTAssertEqual(xm.writeSupport(for: .album), .unsupported)
         XCTAssertEqual(xm.writeSupport(for: .artwork), .unsupported)
 
