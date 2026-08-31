@@ -677,6 +677,84 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testM4AMetadataPatchPreservesAndUpdatesNativeTrackDiscPairs() throws {
+        struct Scenario {
+            let name: String
+            let fields: [MetadataFieldKey: MetadataPatchValue]
+            let expectedTrack: Int
+            let expectedTrackTotal: Int
+            let expectedDisc: Int
+            let expectedDiscTotal: Int
+        }
+
+        let scenarios = [
+            Scenario(name: "track only", fields: [.track: .integer(5)], expectedTrack: 5, expectedTrackTotal: 12, expectedDisc: 1, expectedDiscTotal: 2),
+            Scenario(name: "track total only", fields: [.trackTotal: .integer(20)], expectedTrack: 3, expectedTrackTotal: 20, expectedDisc: 1, expectedDiscTotal: 2),
+            Scenario(name: "track pair", fields: [.track: .integer(6), .trackTotal: .integer(24)], expectedTrack: 6, expectedTrackTotal: 24, expectedDisc: 1, expectedDiscTotal: 2),
+            Scenario(name: "disc only", fields: [.disc: .integer(2)], expectedTrack: 3, expectedTrackTotal: 12, expectedDisc: 2, expectedDiscTotal: 2),
+            Scenario(name: "disc total only", fields: [.discTotal: .integer(4)], expectedTrack: 3, expectedTrackTotal: 12, expectedDisc: 1, expectedDiscTotal: 4),
+            Scenario(name: "disc pair", fields: [.disc: .integer(3), .discTotal: .integer(5)], expectedTrack: 3, expectedTrackTotal: 12, expectedDisc: 3, expectedDiscTotal: 5),
+        ]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
+            baseline.track = 3
+            baseline.trackTotal = 12
+            baseline.trackNumberText = "3/12"
+            baseline.disc = 1
+            baseline.discTotal = 2
+            baseline.discNumberText = "1/2"
+            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: scenario.fields),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(result.trackTotal, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(result.disc, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(result.discTotal, scenario.expectedDiscTotal, scenario.name)
+
+            let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+            let trackAtom = try XCTUnwrap(atoms.first { $0.key == "trkn" }, scenario.name)
+            let discAtom = try XCTUnwrap(atoms.first { $0.key == "disk" }, scenario.name)
+            XCTAssertEqual(trackAtom.first, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(trackAtom.second, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(discAtom.first, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(discAtom.second, scenario.expectedDiscTotal, scenario.name)
+        }
+    }
+
+    func testPropertyMapMetadataPatchPreservesTrackDiscPairComponents() throws {
+        for ext in ["mp3", "flac", "ogg", "oga"] {
+            let url = try copyAudioFixture(ext)
+            var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
+            baseline.track = 3
+            baseline.trackTotal = 12
+            baseline.trackNumberText = "3/12"
+            baseline.disc = 1
+            baseline.discTotal = 2
+            baseline.discNumberText = "1/2"
+            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, 5, ext)
+            XCTAssertEqual(result.trackTotal, 12, ext)
+            XCTAssertEqual(result.disc, 1, ext)
+            XCTAssertEqual(result.discTotal, 4, ext)
+        }
+    }
+
     func testMetadataPatchBooleanFalseIsDistinctFromRemoval() throws {
         let url = try copyAudioFixture("flac")
 
