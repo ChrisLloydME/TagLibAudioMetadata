@@ -45,7 +45,7 @@ final class FormatCapabilityTests: XCTestCase {
     }
 
     func testVerificationLevelsDistinguishFixturesUpstreamAndExperimentalFormats() throws {
-        for ext in ["mp3", "m4a", "flac", "ogg", "wav", "aac"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav", "aac"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .verified, ext)
         }
         for ext in ["mp2", "mp4", "ape", "wma", "dsf"] {

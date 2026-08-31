@@ -2,7 +2,7 @@ import XCTest
 import TagLibAudioMetadata
 
 final class FixtureMetadataRoundTripTests: XCTestCase {
-    private let writableFixtures = ["mp3", "m4a", "flac", "aac", "ogg", "wav"]
+    private let writableFixtures = ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav"]
 
     func testBasicMetadataWritesAndClearsAcrossFixtures() throws {
         for ext in writableFixtures {
@@ -109,7 +109,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     func testArtworkCanBeWrittenAndRemovedWhereSupported() throws {
         let artwork = try Data(contentsOf: artworkFixtureURL())
 
-        for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
             let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
             guard capability.canWriteArtwork else { continue }
 
@@ -146,7 +146,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     func testJPEGArtworkBytesAndMIMETypeRoundTripTogether() throws {
         let artwork = try Data(contentsOf: artworkFixtureURL())
 
-        for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
             let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
             guard capability.canWriteArtwork else { continue }
 
@@ -167,7 +167,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
         ))
 
-        for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
             let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
             guard capability.canWriteArtwork else { continue }
 
@@ -184,7 +184,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     }
 
     func testRawPropertyMapReplaceMergeAndMultiValueWrites() throws {
-        for ext in ["flac", "ogg", "m4a"] {
+        for ext in ["flac", "ogg", "oga", "m4a"] {
             let url = try copyAudioFixture(ext)
 
             try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
@@ -230,7 +230,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     }
 
     func testRawMergePreservesUnmodifiedMultiValueProperties() throws {
-        for ext in ["flac", "ogg"] {
+        for ext in ["flac", "ogg", "oga"] {
             let url = try copyAudioFixture(ext)
 
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
@@ -252,7 +252,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     }
 
     func testBasicReadWritePreservesUnmodifiedCustomFieldCardinality() throws {
-        for ext in ["mp3", "m4a", "flac", "ogg"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga"] {
             let url = try copyAudioFixture(ext)
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 ["CUSTOM_MULTI": ["Artist A", "Artist B"]],
@@ -647,7 +647,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     }
 
     func testEraseAllMetadataReportsNoResidualCoreFields() throws {
-        for ext in ["mp3", "m4a", "flac", "ogg", "wav"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
             let url = try copyAudioFixture(ext)
             var metadata = BasicMetadata.empty
             metadata.title = "Erase Title"
