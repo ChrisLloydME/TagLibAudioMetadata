@@ -12,7 +12,9 @@ source "${VERSION_CONFIGURATION}"
 TAGLIB_REPOSITORY="https://github.com/taglib/taglib.git"
 MACOS_DEPLOYMENT_TARGET="13.0"
 IOS_DEPLOYMENT_TARGET="16.0"
-OUTPUT_PATH="${REPOSITORY_ROOT}/.build/taglib-binary/TagLib.xcframework"
+FRAMEWORK_NAME="TagLibAudioMetadataTagLib"
+FRAMEWORK_BUNDLE_IDENTIFIER="com.chrislloyd.taglibaudiometadata.taglib"
+OUTPUT_PATH="${REPOSITORY_ROOT}/.build/taglib-binary/${FRAMEWORK_NAME}.xcframework"
 ARCHIVE_OUTPUT_PATH="${REPOSITORY_ROOT}/.build/taglib-release/${TAGLIB_BINARY_ASSET_NAME}"
 SOURCE_PATH=""
 KEEP_WORK_DIRECTORY=0
@@ -184,7 +186,7 @@ configure_and_build() {
 stage_framework() {
     local build_name="$1"
     local platform="$2"
-    local staged_framework="${WORK_DIRECTORY}/framework-${build_name}/TagLib.framework"
+    local staged_framework="${WORK_DIRECTORY}/framework-${build_name}/${FRAMEWORK_NAME}.framework"
     local built_framework="${WORK_DIRECTORY}/build-${build_name}/taglib/tag.framework"
     local content_root="${staged_framework}"
     local info_plist="${staged_framework}/Info.plist"
@@ -192,18 +194,21 @@ stage_framework() {
     if [[ "${platform}" == "macos" ]]; then
         content_root="${staged_framework}/Versions/A"
         info_plist="${content_root}/Resources/Info.plist"
-        mkdir -p "${content_root}/Headers" "${content_root}/Modules" "${content_root}/Resources"
+        mkdir -p "${content_root}/Headers" "${content_root}/Modules" "${content_root}/Resources/Licenses"
     else
-        mkdir -p "${content_root}/Headers" "${content_root}/Modules"
+        mkdir -p "${content_root}/Headers" "${content_root}/Modules" "${content_root}/Resources/Licenses"
     fi
 
     ditto "${built_framework}/Headers" "${content_root}/Headers"
-    cp "${built_framework}/tag" "${content_root}/TagLib"
-    chmod 755 "${content_root}/TagLib"
-    install_name_tool -id "@rpath/TagLib.framework/TagLib" "${content_root}/TagLib"
+    cp "${built_framework}/tag" "${content_root}/${FRAMEWORK_NAME}"
+    chmod 755 "${content_root}/${FRAMEWORK_NAME}"
+    install_name_tool -id "@rpath/${FRAMEWORK_NAME}.framework/${FRAMEWORK_NAME}" "${content_root}/${FRAMEWORK_NAME}"
+    cp "${REPOSITORY_ROOT}/ThirdParty/TagLib/COPYING.LGPL" "${content_root}/Resources/Licenses/TagLib-LGPL-2.1.txt"
+    cp "${REPOSITORY_ROOT}/ThirdParty/TagLib/COPYING.MPL" "${content_root}/Resources/Licenses/TagLib-MPL-1.1.txt"
+    cp "${REPOSITORY_ROOT}/ThirdParty/TagLib/utfcpp-LICENSE" "${content_root}/Resources/Licenses/utfcpp-Boost-1.0.txt"
 
     printf '%s\n' \
-        'framework module TagLib {' \
+        "framework module ${FRAMEWORK_NAME} {" \
         '  umbrella header "taglib.h"' \
         '  export *' \
         '  module * { export * }' \
@@ -212,10 +217,10 @@ stage_framework() {
 
     plutil -create xml1 "${info_plist}"
     plutil -insert CFBundleDevelopmentRegion -string English "${info_plist}"
-    plutil -insert CFBundleExecutable -string TagLib "${info_plist}"
-    plutil -insert CFBundleIdentifier -string org.taglib.TagLib "${info_plist}"
+    plutil -insert CFBundleExecutable -string "${FRAMEWORK_NAME}" "${info_plist}"
+    plutil -insert CFBundleIdentifier -string "${FRAMEWORK_BUNDLE_IDENTIFIER}" "${info_plist}"
     plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "${info_plist}"
-    plutil -insert CFBundleName -string TagLib "${info_plist}"
+    plutil -insert CFBundleName -string "${FRAMEWORK_NAME}" "${info_plist}"
     plutil -insert CFBundlePackageType -string FMWK "${info_plist}"
     plutil -insert CFBundleShortVersionString -string "${TAGLIB_VERSION}" "${info_plist}"
     plutil -insert CFBundleVersion -string "${TAGLIB_VERSION}" "${info_plist}"
@@ -225,7 +230,7 @@ stage_framework() {
         ln -s Versions/Current/Headers "${staged_framework}/Headers"
         ln -s Versions/Current/Modules "${staged_framework}/Modules"
         ln -s Versions/Current/Resources "${staged_framework}/Resources"
-        ln -s Versions/Current/TagLib "${staged_framework}/TagLib"
+        ln -s "Versions/Current/${FRAMEWORK_NAME}" "${staged_framework}/${FRAMEWORK_NAME}"
     fi
 
     echo "${staged_framework}"
@@ -238,7 +243,7 @@ configure_and_build ios-simulator iOS iphonesimulator "${IOS_DEPLOYMENT_TARGET}"
 MACOS_FRAMEWORK="$(stage_framework macos macos)"
 IOS_DEVICE_FRAMEWORK="$(stage_framework ios-device ios)"
 IOS_SIMULATOR_FRAMEWORK="$(stage_framework ios-simulator ios)"
-STAGED_XCFRAMEWORK="${WORK_DIRECTORY}/TagLib.xcframework"
+STAGED_XCFRAMEWORK="${WORK_DIRECTORY}/${FRAMEWORK_NAME}.xcframework"
 
 xcodebuild -create-xcframework \
     -framework "${MACOS_FRAMEWORK}" \
@@ -266,18 +271,40 @@ verify_slice() {
     build_versions="$(vtool -show-build "${binary_path}")"
     test "$(grep -c "platform ${expected_platform}" <<<"${build_versions}" || true)" -eq "${expected_architecture_count}"
     test "$(grep -c "minos ${expected_minos}" <<<"${build_versions}" || true)" -eq "${expected_architecture_count}"
-    otool -D "${binary_path}" | grep -F '@rpath/TagLib.framework/TagLib'
+    otool -D "${binary_path}" | grep -F "@rpath/${FRAMEWORK_NAME}.framework/${FRAMEWORK_NAME}"
+    if otool -L "${binary_path}" | grep -F '@rpath/TagLib.framework/TagLib'; then
+        echo "Generic TagLib install name leaked into ${binary_path}" >&2
+        exit 1
+    fi
 }
 
-MACOS_FRAMEWORK_PATH="${OUTPUT_PATH}/macos-arm64_x86_64/TagLib.framework"
-IOS_DEVICE_FRAMEWORK_PATH="${OUTPUT_PATH}/ios-arm64/TagLib.framework"
-IOS_SIMULATOR_FRAMEWORK_PATH="${OUTPUT_PATH}/ios-arm64_x86_64-simulator/TagLib.framework"
+MACOS_FRAMEWORK_PATH="${OUTPUT_PATH}/macos-arm64_x86_64/${FRAMEWORK_NAME}.framework"
+IOS_DEVICE_FRAMEWORK_PATH="${OUTPUT_PATH}/ios-arm64/${FRAMEWORK_NAME}.framework"
+IOS_SIMULATOR_FRAMEWORK_PATH="${OUTPUT_PATH}/ios-arm64_x86_64-simulator/${FRAMEWORK_NAME}.framework"
 test -f "${MACOS_FRAMEWORK_PATH}/Versions/A/Resources/Info.plist"
 test -L "${MACOS_FRAMEWORK_PATH}/Versions/Current"
-test -L "${MACOS_FRAMEWORK_PATH}/TagLib"
-verify_slice "${MACOS_FRAMEWORK_PATH}/Versions/A/TagLib" MACOS "${MACOS_DEPLOYMENT_TARGET}" arm64 x86_64
-verify_slice "${IOS_DEVICE_FRAMEWORK_PATH}/TagLib" IOS "${IOS_DEPLOYMENT_TARGET}" arm64
-verify_slice "${IOS_SIMULATOR_FRAMEWORK_PATH}/TagLib" IOSSIMULATOR "${IOS_DEPLOYMENT_TARGET}" arm64 x86_64
+test -L "${MACOS_FRAMEWORK_PATH}/${FRAMEWORK_NAME}"
+test "$(plutil -extract CFBundleIdentifier raw "${MACOS_FRAMEWORK_PATH}/Versions/A/Resources/Info.plist")" = "${FRAMEWORK_BUNDLE_IDENTIFIER}"
+test "$(plutil -extract CFBundleIdentifier raw "${IOS_DEVICE_FRAMEWORK_PATH}/Info.plist")" = "${FRAMEWORK_BUNDLE_IDENTIFIER}"
+test "$(plutil -extract CFBundleIdentifier raw "${IOS_SIMULATOR_FRAMEWORK_PATH}/Info.plist")" = "${FRAMEWORK_BUNDLE_IDENTIFIER}"
+grep -F "framework module ${FRAMEWORK_NAME}" "${MACOS_FRAMEWORK_PATH}/Versions/A/Modules/module.modulemap"
+grep -F '#define TAGLIB_MAJOR_VERSION 2' "${MACOS_FRAMEWORK_PATH}/Versions/A/Headers/taglib.h"
+grep -F '#define TAGLIB_MINOR_VERSION 3' "${MACOS_FRAMEWORK_PATH}/Versions/A/Headers/taglib.h"
+grep -F '#define TAGLIB_PATCH_VERSION 1' "${MACOS_FRAMEWORK_PATH}/Versions/A/Headers/taglib.h"
+test -z "$(find "${OUTPUT_PATH}" -type d -name 'TagLib.framework' -print -quit)"
+verify_slice "${MACOS_FRAMEWORK_PATH}/Versions/A/${FRAMEWORK_NAME}" MACOS "${MACOS_DEPLOYMENT_TARGET}" arm64 x86_64
+verify_slice "${IOS_DEVICE_FRAMEWORK_PATH}/${FRAMEWORK_NAME}" IOS "${IOS_DEPLOYMENT_TARGET}" arm64
+verify_slice "${IOS_SIMULATOR_FRAMEWORK_PATH}/${FRAMEWORK_NAME}" IOSSIMULATOR "${IOS_DEPLOYMENT_TARGET}" arm64 x86_64
+
+for framework_path in "${MACOS_FRAMEWORK_PATH}" "${IOS_DEVICE_FRAMEWORK_PATH}" "${IOS_SIMULATOR_FRAMEWORK_PATH}"; do
+    resource_root="${framework_path}/Resources"
+    if [[ "${framework_path}" == "${MACOS_FRAMEWORK_PATH}" ]]; then
+        resource_root="${framework_path}/Versions/A/Resources"
+    fi
+    test -f "${resource_root}/Licenses/TagLib-LGPL-2.1.txt"
+    test -f "${resource_root}/Licenses/TagLib-MPL-1.1.txt"
+    test -f "${resource_root}/Licenses/utfcpp-Boost-1.0.txt"
+done
 
 mkdir -p "$(dirname "${ARCHIVE_OUTPUT_PATH}")"
 (
@@ -285,6 +312,9 @@ mkdir -p "$(dirname "${ARCHIVE_OUTPUT_PATH}")"
     zip -qry -y "${ARCHIVE_OUTPUT_PATH}" "$(basename "${OUTPUT_PATH}")"
 )
 unzip -tq "${ARCHIVE_OUTPUT_PATH}"
+unzip -l "${ARCHIVE_OUTPUT_PATH}" | grep -F 'Licenses/TagLib-LGPL-2.1.txt'
+unzip -l "${ARCHIVE_OUTPUT_PATH}" | grep -F 'Licenses/TagLib-MPL-1.1.txt'
+unzip -l "${ARCHIVE_OUTPUT_PATH}" | grep -F 'Licenses/utfcpp-Boost-1.0.txt'
 
 ARCHIVE_CHECKSUM="$(swift package compute-checksum "${ARCHIVE_OUTPUT_PATH}")"
 echo "Created ${ARCHIVE_OUTPUT_PATH}"
