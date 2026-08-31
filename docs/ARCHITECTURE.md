@@ -28,8 +28,16 @@ check rejects a file changed during extraction.
 Legacy basic, raw, and structured entry points remain available. The unified
 snapshot eliminates three independent parses when an editor needs all views.
 `BasicMetadata` is normalized for convenience and is deliberately not a
-lossless round-trip representation; raw and structured projections retain
-multi-value and container-specific information.
+lossless round-trip representation. Raw and structured projections retain
+semantic multi-value and supported container-specific information, but unknown
+or opaque native payloads may be represented only by type/display summaries.
+`MetadataSnapshot` is therefore a comprehensive semantic snapshot, not a native
+byte-for-byte serialization.
+
+Selective extraction avoids building unrequested projections. Basic reads ask
+for Basic+raw because raw cardinality and provenance are needed for safe Basic
+round trips; raw reads ask only for raw; structured reads ask only for
+structured; a full snapshot asks for all three in one session.
 
 ## Write pipeline
 
@@ -41,7 +49,12 @@ the same transaction principles when called directly.
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged,
 `.remove` clears a property, `explicitAdvisory` retains its three-state meaning,
-and artwork distinguishes unchanged, replacement, and removal. Full
+and artwork distinguishes unchanged, replacement, and removal. Typed fields are
+validated against `MetadataFieldRegistry` before staging. Text-backed booleans
+encode false as `"0"`, while `.remove` makes the field absent. Property changes
+are applied as a bridge delta to the current `PropertyMap` in one parser session;
+TagLib still saves its resulting map, so the guarantee is semantic omission
+rather than byte-for-byte container preservation. Full
 `BasicMetadata`, raw replacement maps, and structured replaceable collections
 retain their documented replacement semantics.
 
@@ -52,6 +65,11 @@ clients with strict ACL, extended-attribute, quarantine, immutable-flag, or
 security-scoped requirements must validate those properties in their deployment
 environment. The caller needs read access to the file and create/rename access
 in its parent directory.
+
+If rename succeeds but the final parent-directory `fsync` fails, the new file is
+already committed. The Swift facade throws
+`committedButDurabilityUncertain`; it does not attempt rollback, and blind retry
+may repeat the operation.
 
 ## Schema and capabilities
 
@@ -71,11 +89,14 @@ because aliases and container fields can have different evidence levels.
 The migration removes ineffective generic-read fallback parsing and avoids
 nested facade transactions. A facade edit uses one staging copy rather than the
 former nested two-copy path; a complete snapshot uses one parser session rather
-than three. No synthetic percentage speedup is claimed because file size,
-storage, container, and tag density dominate elapsed time.
+than three. Basic post-write verification now derives Basic and raw checks from
+one extraction instead of two. No synthetic percentage speedup is claimed
+because file size, storage, container, and tag density dominate elapsed time.
 
-A process-wide recursive mutex covers TagLib object lifetimes. Filesystem copy,
-flush, and rename work is outside the lock. See [THREAD_SAFETY.md](THREAD_SAFETY.md).
+A process-wide recursive mutex covers TagLib object lifetimes and Objective-C
+objects populated while traversing them. Swift model conversion and filesystem
+copy, flush, and rename work are outside the lock. See
+[THREAD_SAFETY.md](THREAD_SAFETY.md).
 
 ## Source layout
 
