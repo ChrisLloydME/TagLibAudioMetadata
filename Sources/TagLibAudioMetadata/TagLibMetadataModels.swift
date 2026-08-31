@@ -183,6 +183,11 @@ public struct BasicMetadata: Sendable {
     public var customFieldValues: [String: [String]]
     /// Exact projected values captured during read, used to detect intentional Basic edits.
     public var originalCustomFieldProjection: [String: String]
+    /// Original raw cardinality for standard multi-value fields captured during read.
+    /// The scalar properties above remain the normalized display projection.
+    public var originalStandardFieldValues: [String: [String]]
+    /// Original scalar display values paired with `originalStandardFieldValues`.
+    public var originalStandardFieldProjection: [String: String]
     public var provenance: MetadataFieldProvenance
 
     public nonisolated static let empty = BasicMetadata(
@@ -272,6 +277,8 @@ public struct BasicMetadata: Sendable {
         customFields: [:],
         customFieldValues: [:],
         originalCustomFieldProjection: [:],
+        originalStandardFieldValues: [:],
+        originalStandardFieldProjection: [:],
         provenance: .unknown
     )
 }
