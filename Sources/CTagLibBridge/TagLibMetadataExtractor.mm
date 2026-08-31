@@ -83,7 +83,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnullability-completeness"
 
-#include "Internal/TLBridgeTransactions.inc"
+#include "Internal/TLBridgeTransactions.hpp"
 
 @implementation TagLibMetadataExtractor
 

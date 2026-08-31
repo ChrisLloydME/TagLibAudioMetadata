@@ -1,37 +1,12 @@
-@implementation TagLibAudioMetadata
+#import "Internal/TLBridgeTransactions.hpp"
 
-- (instancetype)init {
-    if (self = [super init]) {
-        _trackNumber = 0;
-        _totalTracks = 0;
-        _discNumber = 0;
-        _totalDiscs = 0;
-        _duration = 0.0;
-        _bitrate = 0;
-        _sampleRate = 0;
-        _channels = 0;
-        _bitDepth = 0;
-        _bpm = 0;
-        _compilation = NO;
-        _explicitAdvisory = TagLibExplicitAdvisoryUnspecified;
-        _removeArtwork = NO;
-        _movementNumber = 0;
-        _movementCount = 0;
-    }
-    return self;
-}
-
-- (BOOL)explicitContent {
-    return self.explicitAdvisory == TagLibExplicitAdvisoryExplicit;
-}
-
-- (void)setExplicitContent:(BOOL)explicitContent {
-    self.explicitAdvisory = explicitContent
-        ? TagLibExplicitAdvisoryExplicit
-        : TagLibExplicitAdvisoryClean;
-}
-
-@end
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // Simple logging helper for TagLib debugging
 static bool TagLibDebugLoggingEnabled() {
@@ -46,7 +21,7 @@ static bool TagLibDebugLoggingEnabled() {
     return enabled;
 }
 
-static inline void TLog(NSString *format, ...) {
+void TLog(NSString *format, ...) {
     if (!TagLibDebugLoggingEnabled()) {
         return;
     }
@@ -64,19 +39,16 @@ static inline void TLog(NSString *format, ...) {
 // Objective-C API receive the same safety guarantee. A recursive mutex is
 // required because atomic mutations validate their temporary file by calling
 // back into the read API on the same thread.
-static std::recursive_mutex &TagLibBridgeMutex()
+std::recursive_mutex &TagLibBridgeMutex()
 {
     static std::recursive_mutex mutex;
     return mutex;
 }
 
-#define TAGLIB_BRIDGE_SERIAL_GUARD() \
-    std::lock_guard<std::recursive_mutex> tagLibBridgeSerialGuard(TagLibBridgeMutex())
-
-static void SetTagLibBridgeExceptionError(NSError **error,
-                                          NSString *operation,
-                                          const char * _Nullable detail,
-                                          NSInteger code)
+void SetTagLibBridgeExceptionError(NSError * _Nullable * _Nullable error,
+                                   NSString *operation,
+                                   const char * _Nullable detail,
+                                   NSInteger code)
 {
     if (!error) {
         return;
@@ -91,33 +63,10 @@ static void SetTagLibBridgeExceptionError(NSError **error,
                              userInfo:@{ NSLocalizedDescriptionKey : description }];
 }
 
-#define TAGLIB_BRIDGE_CATCH_WITH_ERROR(ERROR_POINTER, OPERATION, FALLBACK) \
-    } catch (const std::exception &exception) { \
-        SetTagLibBridgeExceptionError(ERROR_POINTER, OPERATION, exception.what(), 9000); \
-        return FALLBACK; \
-    } catch (...) { \
-        SetTagLibBridgeExceptionError(ERROR_POINTER, OPERATION, nullptr, 9001); \
-        return FALLBACK; \
-    }
+thread_local NSUInteger TagLibAtomicMutationDepth = 0;
 
-#define TAGLIB_BRIDGE_CATCH_SAFE(OPERATION, FALLBACK) \
-    } catch (const std::exception &exception) { \
-        TLog(@"%@ failed with a C++ exception: %s", OPERATION, exception.what()); \
-        return FALLBACK; \
-    } catch (...) { \
-        TLog(@"%@ failed with an unknown C++ exception", OPERATION); \
-        return FALLBACK; \
-    }
-
-typedef BOOL (^TagLibAtomicMutationBlock)(NSURL *temporaryURL, NSError **error);
-
-static thread_local NSUInteger TagLibAtomicMutationDepth = 0;
-
-class TagLibAtomicMutationScope {
-public:
-    TagLibAtomicMutationScope() { ++TagLibAtomicMutationDepth; }
-    ~TagLibAtomicMutationScope() { --TagLibAtomicMutationDepth; }
-};
+TagLibAtomicMutationScope::TagLibAtomicMutationScope() { ++TagLibAtomicMutationDepth; }
+TagLibAtomicMutationScope::~TagLibAtomicMutationScope() { --TagLibAtomicMutationDepth; }
 
 static bool SameTagLibFileVersion(const struct stat &lhs, const struct stat &rhs)
 {
@@ -130,10 +79,10 @@ static bool SameTagLibFileVersion(const struct stat &lhs, const struct stat &rhs
         lhs.st_ctimespec.tv_nsec == rhs.st_ctimespec.tv_nsec;
 }
 
-static BOOL PerformAtomicTagLibMutation(NSURL *fileURL,
-                                        NSError **error,
-                                        NSString *operation,
-                                        TagLibAtomicMutationBlock mutation)
+BOOL PerformAtomicTagLibMutation(NSURL * _Nullable fileURL,
+                                 NSError * _Nullable * _Nullable error,
+                                 NSString *operation,
+                                 TagLibAtomicMutationBlock _Nullable mutation)
 {
     if (!fileURL || !fileURL.isFileURL || !mutation) {
         if (error) {
