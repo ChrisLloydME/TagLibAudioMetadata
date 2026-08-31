@@ -151,8 +151,18 @@ extension TagLibMetadataManager {
         guard hasVerificationExpectations(verification) else { return [] }
 
         var warnings: [String] = []
-        let afterWrite = readMetadata(from: url)
-        let rawDump = rawMetadata(from: url)
+        let projections = try? bridgeMetadataProjectionDictionary(
+            from: url,
+            options: [.basic, .raw]
+        )
+        let rawDump = (projections?["raw"] as? [String: NSObject]).map {
+            rawMetadataDump(fromBridgeDictionary: $0)
+        }
+        let afterWrite: BasicMetadata? = {
+            guard let bridgeBasic = projections?["basic"] as? TagLibAudioMetadata,
+                  let rawDump else { return nil }
+            return basicMetadata(fromBridgeMetadata: bridgeBasic, rawDump: rawDump)
+        }()
 
         if afterWrite == nil {
             warnings.append("Could not verify metadata after save because the file could not be re-read.")

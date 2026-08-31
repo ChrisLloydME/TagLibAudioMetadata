@@ -143,6 +143,12 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
 
 @end
 
+typedef NS_OPTIONS(NSUInteger, TagLibMetadataExtractionOptions) {
+    TagLibMetadataExtractionOptionBasic = 1 << 0,
+    TagLibMetadataExtractionOptionRaw = 1 << 1,
+    TagLibMetadataExtractionOptionStructured = 1 << 2,
+    TagLibMetadataExtractionOptionAll = NSUIntegerMax,
+};
 
 /// TagLib metadata extractor
 ///
@@ -164,6 +170,12 @@ NS_SWIFT_NAME(extractMetadata(from:));
 + (nullable NSDictionary<NSString *, NSObject *> *)metadataProjectionsForURL:(NSURL *)fileURL
                                                                        error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(metadataProjections(for:));
+
+/// Selectively derive projections from one extension-selected parser session.
++ (nullable NSDictionary<NSString *, NSObject *> *)metadataProjectionsForURL:(NSURL *)fileURL
+                                                                     options:(TagLibMetadataExtractionOptions)options
+                                                                       error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(metadataProjections(for:options:));
 
 /// Write metadata back to an audio file.
 + (BOOL)writeMetadata:(TagLibAudioMetadata *)metadata
