@@ -191,13 +191,17 @@ public struct BasicMetadata: Sendable {
     public var customFields: [String: String]
     /// Original cardinality for custom fields read from a file.
     /// `customFields` remains the source-compatible, display-oriented projection.
-    public var customFieldValues: [String: [String]]
+    /// This read-only provenance is not caller-editable metadata.
+    public internal(set) var customFieldValues: [String: [String]]
     /// Exact projected values captured during read, used to detect intentional Basic edits.
+    /// This read-only provenance is not caller-editable metadata.
     public internal(set) var originalCustomFieldProjection: [String: String]
-    /// Original raw cardinality for standard multi-value fields captured during read.
+    /// Original raw cardinality for standard fields captured during read.
     /// The scalar properties above remain the normalized display projection.
+    /// This read-only provenance is not caller-editable metadata.
     public internal(set) var originalStandardFieldValues: [String: [String]]
     /// Original scalar display values paired with `originalStandardFieldValues`.
+    /// This read-only provenance is not caller-editable metadata.
     public internal(set) var originalStandardFieldProjection: [String: String]
     public var provenance: MetadataFieldProvenance
 
