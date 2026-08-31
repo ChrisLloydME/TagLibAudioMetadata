@@ -247,6 +247,22 @@ static bool ParseExplicitTagValue(const TagLib::String &value, BOOL &explicitCon
     return false;
 }
 
+static void SetParsedExplicitAdvisory(TagLibAudioMetadata *metadata, BOOL explicitContent)
+{
+    metadata.explicitAdvisory = explicitContent
+        ? TagLibExplicitAdvisoryExplicit
+        : TagLibExplicitAdvisoryClean;
+}
+
+static NSString * _Nullable SerializedExplicitAdvisory(TagLibAudioMetadata *metadata)
+{
+    switch (metadata.explicitAdvisory) {
+        case TagLibExplicitAdvisoryExplicit: return @"1";
+        case TagLibExplicitAdvisoryClean: return @"2";
+        case TagLibExplicitAdvisoryUnspecified: return nil;
+    }
+}
+
 static void ApplyExplicitPropertyKeys(const TagLib::PropertyMap &properties,
                                       TagLibAudioMetadata *metadata)
 {
@@ -265,9 +281,9 @@ static void ApplyExplicitPropertyKeys(const TagLib::PropertyMap &properties,
         }
 
         for (const auto &explicitCandidate : properties[key]) {
-            BOOL explicitValue = metadata.explicitContent;
+            BOOL explicitValue = NO;
             if (ParseExplicitTagValue(explicitCandidate, explicitValue)) {
-                metadata.explicitContent = explicitValue;
+                SetParsedExplicitAdvisory(metadata, explicitValue);
                 return;
             }
         }
@@ -619,10 +635,10 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         [normalizedKey isEqualToString:@"ADVISORY"] ||
         [normalizedKey isEqualToString:@"EXPLICITCONTENT"] ||
         [normalizedKey isEqualToString:@"EXPLICIT"]) {
-        BOOL explicitValue = metadata.explicitContent;
+        BOOL explicitValue = NO;
         TagLib::String explicitString(trimmedValue.UTF8String, TagLib::String::UTF8);
         if (ParseExplicitTagValue(explicitString, explicitValue)) {
-            metadata.explicitContent = explicitValue;
+            SetParsedExplicitAdvisory(metadata, explicitValue);
         }
         return true;
     }
@@ -754,7 +770,7 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
         metadata.bpm > 0 ? [NSString stringWithFormat:@"%ld", (long)metadata.bpm] : nil
     );
     SetPropertyMapString(properties, "COMPILATION", metadata.compilation ? @"1" : nil);
-    SetPropertyMapString(properties, "ITUNESADVISORY", metadata.explicitContent ? @"1" : nil);
+    SetPropertyMapString(properties, "ITUNESADVISORY", SerializedExplicitAdvisory(metadata));
 
     NSString *trackText = BuildPropertyMapNumberTextPreservingFormatting(
         metadata.trackNumberText,
@@ -788,11 +804,45 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     return properties;
 }
 
-static NSString *NormalizedArtworkMimeType(NSString * _Nullable mimeType)
+static NSString *InferredArtworkMimeType(NSData * _Nullable data)
+{
+    if (data.length >= 3) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return @"image/jpeg";
+    }
+    if (data.length >= 8) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        static const unsigned char png[] = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+        if (memcmp(bytes, png, sizeof(png)) == 0) return @"image/png";
+    }
+    if (data.length >= 6) {
+        const char *bytes = static_cast<const char *>(data.bytes);
+        if (memcmp(bytes, "GIF87a", 6) == 0 || memcmp(bytes, "GIF89a", 6) == 0) return @"image/gif";
+    }
+    if (data.length >= 2) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        if (bytes[0] == 'B' && bytes[1] == 'M') return @"image/bmp";
+    }
+    if (data.length >= 4) {
+        const unsigned char *bytes = static_cast<const unsigned char *>(data.bytes);
+        if ((bytes[0] == 'I' && bytes[1] == 'I' && bytes[2] == 0x2A && bytes[3] == 0x00) ||
+            (bytes[0] == 'M' && bytes[1] == 'M' && bytes[2] == 0x00 && bytes[3] == 0x2A)) {
+            return @"image/tiff";
+        }
+    }
+    if (data.length >= 12) {
+        const char *bytes = static_cast<const char *>(data.bytes);
+        if (memcmp(bytes, "RIFF", 4) == 0 && memcmp(bytes + 8, "WEBP", 4) == 0) return @"image/webp";
+    }
+    return nil;
+}
+
+static NSString *NormalizedArtworkMimeType(NSString * _Nullable mimeType,
+                                            NSData * _Nullable data)
 {
     NSString *trimmed = TrimmedStringOrNil(mimeType);
     if (!trimmed) {
-        return @"image/png";
+        return InferredArtworkMimeType(data) ?: @"application/octet-stream";
     }
 
     NSString *lower = trimmed.lowercaseString;
@@ -803,20 +853,45 @@ static NSString *NormalizedArtworkMimeType(NSString * _Nullable mimeType)
     return lower;
 }
 
-static TagLib::List<TagLib::VariantMap> BuildPictureComplexProperties(TagLibAudioMetadata *metadata)
+static TagLib::VariantMap BuildBasicPictureComplexProperty(TagLibAudioMetadata *metadata)
 {
-    TagLib::List<TagLib::VariantMap> pictures;
-    if (!metadata || metadata.artworkData.length == 0) {
-        return pictures;
-    }
-
     TagLib::VariantMap picture;
     picture.insert("data", TagLib::ByteVector((const char *)metadata.artworkData.bytes,
                                                (unsigned int)metadata.artworkData.length));
-    picture.insert("mimeType", NSStringToTagString(NormalizedArtworkMimeType(metadata.artworkMimeType)));
+    picture.insert("mimeType", NSStringToTagString(NormalizedArtworkMimeType(metadata.artworkMimeType,
+                                                                              metadata.artworkData)));
     picture.insert("pictureType", NSStringToTagString(@"Front Cover"));
-    pictures.append(picture);
+    return picture;
+}
 
+static TagLib::List<TagLib::VariantMap> MergingBasicPictureComplexProperties(
+    const TagLib::List<TagLib::VariantMap> &existingPictures,
+    TagLibAudioMetadata *metadata)
+{
+    TagLib::List<TagLib::VariantMap> pictures;
+    if (!metadata || metadata.artworkData.length == 0) return pictures;
+
+    const TagLib::ByteVector replacementData((const char *)metadata.artworkData.bytes,
+                                              (unsigned int)metadata.artworkData.length);
+    TagLib::VariantMap replacement = BuildBasicPictureComplexProperty(metadata);
+    bool replacedPrimary = false;
+
+    for (const auto &existing : existingPictures) {
+        TagLib::String pictureType = existing.value("pictureType").value<TagLib::String>();
+        const bool isPrimary = !replacedPrimary &&
+            (pictureType.isEmpty() || pictureType.upper() == "FRONT COVER");
+        if (!isPrimary) {
+            pictures.append(existing);
+            continue;
+        }
+
+        replacedPrimary = true;
+        TagLib::ByteVector existingData = existing.value("data").value<TagLib::ByteVector>();
+        // An unchanged Basic projection must not rewrite or discard any artwork entry.
+        pictures.append(existingData == replacementData ? existing : replacement);
+    }
+
+    if (!replacedPrimary) pictures.prepend(replacement);
     return pictures;
 }
 
@@ -845,7 +920,10 @@ static bool ApplyPictureComplexProperties(ComplexPropertyTarget *target,
             return false;
         }
     } else if (metadata.artworkData.length > 0) {
-        if (!target->setComplexProperties("PICTURE", BuildPictureComplexProperties(metadata))) {
+        TagLib::List<TagLib::VariantMap> existingPictures = target->complexProperties("PICTURE");
+        TagLib::List<TagLib::VariantMap> mergedPictures =
+            MergingBasicPictureComplexProperties(existingPictures, metadata);
+        if (!target->setComplexProperties("PICTURE", mergedPictures)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:writeErrorCode

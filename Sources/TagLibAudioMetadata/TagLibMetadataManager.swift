@@ -5,7 +5,7 @@
 
 import Foundation
 import Darwin
-@_exported import CTagLibBridge
+import CTagLibBridge
 
 public struct TagLibMetadataManager {
 
@@ -59,7 +59,8 @@ public struct TagLibMetadataManager {
 
     /// Runs the complete mutation and verification sequence on a sibling copy.
     /// The destination is replaced with a same-volume atomic rename only after
-    /// every step succeeds, so thrown bridge or verification errors preserve it.
+    /// every pre-commit step succeeds. The file and parent directory are synced
+    /// on either side of the rename for stronger directory-entry durability.
     nonisolated static func withAtomicFileMutation<Result>(
         at url: URL,
         _ operation: (URL) throws -> Result
@@ -167,6 +168,19 @@ public struct TagLibMetadataManager {
             )
         }
 
+        let directoryDescriptor = directory.path.withCString { directoryPath in
+            Darwin.open(directoryPath, O_RDONLY | O_DIRECTORY)
+        }
+        guard directoryDescriptor >= 0 else {
+            let openErrorCode = errno
+            throw mutationError(
+                code: 1005,
+                description: "Could not open the metadata destination directory for flushing.",
+                underlying: NSError(domain: NSPOSIXErrorDomain, code: Int(openErrorCode))
+            )
+        }
+        defer { Darwin.close(directoryDescriptor) }
+
         let renameResult = temporaryURL.path.withCString { temporaryPath in
             url.path.withCString { destinationPath in
                 Darwin.rename(temporaryPath, destinationPath)
@@ -184,6 +198,14 @@ public struct TagLibMetadataManager {
         }
 
         shouldRemoveTemporaryFile = false
+        guard Darwin.fsync(directoryDescriptor) == 0 else {
+            let syncErrorCode = errno
+            throw mutationError(
+                code: 1007,
+                description: "The metadata mutation was committed, but its directory entry could not be flushed.",
+                underlying: NSError(domain: NSPOSIXErrorDomain, code: Int(syncErrorCode))
+            )
+        }
         return result
     }
 
@@ -208,6 +230,7 @@ public struct TagLibMetadataManager {
         public var expectedDiscTotal: Int?
         public var expectedDiscNumberText: String?
         public var expectedExplicitContent: Bool?
+        public var expectedExplicitAdvisory: ExplicitAdvisory?
         public var artworkExpectation: ArtworkVerificationExpectation
         public var customFieldKeys: [String]
         public var expectedTextFields: [String: String]
@@ -222,7 +245,8 @@ public struct TagLibMetadataManager {
             expectedExplicitContent: Bool?,
             artworkExpectation: ArtworkVerificationExpectation,
             customFieldKeys: [String],
-            expectedTextFields: [String: String] = [:]
+            expectedTextFields: [String: String] = [:],
+            expectedExplicitAdvisory: ExplicitAdvisory? = nil
         ) {
             self.expectedTrackNumber = expectedTrackNumber
             self.expectedTrackTotal = expectedTrackTotal
@@ -231,6 +255,7 @@ public struct TagLibMetadataManager {
             self.expectedDiscTotal = expectedDiscTotal
             self.expectedDiscNumberText = expectedDiscNumberText
             self.expectedExplicitContent = expectedExplicitContent
+            self.expectedExplicitAdvisory = expectedExplicitAdvisory
             self.artworkExpectation = artworkExpectation
             self.customFieldKeys = customFieldKeys
             self.expectedTextFields = expectedTextFields

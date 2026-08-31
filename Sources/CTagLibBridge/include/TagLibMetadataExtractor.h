@@ -12,6 +12,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
+    TagLibExplicitAdvisoryUnspecified = 0,
+    TagLibExplicitAdvisoryClean = 1,
+    TagLibExplicitAdvisoryExplicit = 2,
+};
+
 /// Comprehensive metadata container for audio tracks
 @interface TagLibAudioMetadata : NSObject
 
@@ -51,7 +57,10 @@ NS_ASSUME_NONNULL_BEGIN
 // Additional metadata
 @property (nonatomic, assign) NSInteger bpm;
 @property (nonatomic, assign) BOOL compilation;
-@property (nonatomic, assign) BOOL explicitContent; // YES = explicit, NO = non-explicit/unknown
+/// Lossless advisory state. Unlike `explicitContent`, this distinguishes no tag from an explicit clean tag.
+@property (nonatomic, assign) TagLibExplicitAdvisory explicitAdvisory;
+/// Compatibility projection. Setting NO means explicitly clean; reading YES means explicit.
+@property (nonatomic, assign) BOOL explicitContent;
 @property (nonatomic, copy, nullable) NSString *copyright;
 @property (nonatomic, copy, nullable) NSString *lyrics;
 @property (nonatomic, copy, nullable) NSString *label;
@@ -149,6 +158,13 @@ NS_ASSUME_NONNULL_BEGIN
                                                    error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(extractMetadata(from:));
 
+/// Open the extension-selected TagLib file once and derive the normalized,
+/// raw, and structured representations from the same parser session.
+/// Stable keys are `basic`, `raw`, and `structured`.
++ (nullable NSDictionary<NSString *, NSObject *> *)metadataProjectionsForURL:(NSURL *)fileURL
+                                                                       error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(metadataProjections(for:));
+
 /// Write metadata back to an audio file.
 + (BOOL)writeMetadata:(TagLibAudioMetadata *)metadata
                 toURL:(NSURL *)fileURL
@@ -229,6 +245,33 @@ NS_SWIFT_NAME(writeStructuredMetadata(_:to:));
                       error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(wipeMetadata(from:));
 
+/// Package implementation details. These mutate the supplied regular file directly.
+/// High-level consumers must use the transactional APIs above.
++ (BOOL)writeMetadataInPlace:(TagLibAudioMetadata *)metadata
+                       toURL:(NSURL *)fileURL
+                       error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeMetadataInPlace(_:to:));
++ (BOOL)writeTrackNumberTextInPlace:(NSString *)trackNumberText
+                     discNumberText:(nullable NSString *)discNumberText
+                              toURL:(NSURL *)fileURL
+                              error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeTrackNumberTextInPlace(_:discNumberText:to:));
++ (BOOL)writeRawPropertyMapInPlace:(NSDictionary<NSString *, NSString *> *)properties
+                            toURL:(NSURL *)fileURL
+                            error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeRawPropertyMapInPlace(_:to:));
++ (BOOL)writeRawPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)properties
+                                  toURL:(NSURL *)fileURL
+                                  error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeRawPropertyMapValuesInPlace(_:to:));
++ (BOOL)writeStructuredMetadataInPlace:(NSDictionary<NSString *, NSObject *> *)metadata
+                                 toURL:(NSURL *)fileURL
+                                 error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeStructuredMetadataInPlace(_:to:));
++ (BOOL)wipeMetadataInPlaceFromURL:(NSURL *)fileURL
+                             error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(wipeMetadataInPlace(from:));
+
 /// Return raw metadata as TagLib sees it for display purposes.
 ///
 /// The returned dictionary typically contains keys such as:
@@ -269,6 +312,14 @@ NS_SWIFT_NAME(formatCapability(for:));
 /// Return stable capability metadata for every known format family.
 + (NSArray<NSDictionary<NSString *, NSObject *> *> *)formatCapabilities
 NS_SWIFT_NAME(formatCapabilities());
+
+/// Return the normalized property keys recognized by the bridge schema.
++ (NSArray<NSString *> *)knownMetadataPropertyKeys
+NS_SWIFT_NAME(knownMetadataPropertyKeys());
+
+/// Return the bridge's canonical property, ID3v2, and MP4 field mappings.
++ (NSArray<NSDictionary<NSString *, NSObject *> *> *)metadataFieldMappings
+NS_SWIFT_NAME(metadataFieldMappings());
 
 @end
 

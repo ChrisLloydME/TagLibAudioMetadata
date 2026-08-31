@@ -1,15 +1,9 @@
 import Foundation
 import TagLibAudioMetadata
 
-// These references intentionally cover both the Swift facade and the
-// re-exported Objective-C bridge while importing only TagLibAudioMetadata.
 let metadataManagerType = TagLibMetadataManager.self
-let metadataExtractorType = TagLibMetadataExtractor.self
-let bridgeMetadata = TagLibAudioMetadata()
-bridgeMetadata.title = "Consumer smoke test"
 
 precondition(TagLibMetadataManager.isReadableFormat("mp3"))
-precondition(TagLibMetadataExtractor.isSupportedFormat("mp3"))
 precondition(BasicMetadata.empty.title.isEmpty)
 precondition(RawMetadataDump.empty.properties.isEmpty)
 
@@ -30,13 +24,8 @@ func compileTypicalFileCalls(_ url: URL) throws {
     )
     _ = try TagLibMetadataManager.eraseAllMetadata(from: url)
 
-    let lowLevel = try TagLibMetadataExtractor.extractMetadata(from: url)
-    _ = try TagLibMetadataExtractor.rawMetadata(for: url)
-    _ = try TagLibMetadataExtractor.structuredMetadata(for: url)
-    _ = try TagLibMetadataExtractor.writeMetadata(lowLevel, to: url)
 }
 
 _ = metadataManagerType
-_ = metadataExtractorType
 _ = compileTypicalFileCalls
 print("TagLibAudioMetadata consumer OK: \(TagLibMetadataManager.readableExtensions.count) readable extensions")

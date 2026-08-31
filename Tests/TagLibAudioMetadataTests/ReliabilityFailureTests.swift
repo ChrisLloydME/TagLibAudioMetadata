@@ -1,5 +1,8 @@
 import XCTest
 import TagLibAudioMetadata
+#if os(macOS)
+import Darwin
+#endif
 
 final class ReliabilityFailureTests: XCTestCase {
     func testReadAndInspectRejectInvalidSupportedExtensionFiles() throws {
@@ -8,7 +11,6 @@ final class ReliabilityFailureTests: XCTestCase {
         let empty = directory.appendingPathComponent("empty.mp3")
         let corrupt = directory.appendingPathComponent("corrupt.mp3")
         let truncated = directory.appendingPathComponent("truncated.mp3")
-        let disguised = directory.appendingPathComponent("disguised.flac")
 
         try Data().write(to: empty)
         try Data("not audio".utf8).write(to: corrupt)
@@ -16,13 +18,19 @@ final class ReliabilityFailureTests: XCTestCase {
         let mp3 = try fixtureURL("mp3")
         let mp3Bytes = try Data(contentsOf: mp3)
         try mp3Bytes.prefix(min(32, mp3Bytes.count)).write(to: truncated)
-        try FileManager.default.copyItem(at: try fixtureURL("wav"), to: disguised)
-
-        for url in [missing, empty, corrupt, truncated, disguised] {
+        for url in [missing, empty, corrupt, truncated] {
             XCTAssertThrowsError(try TagLibMetadataManager.readMetadataResult(from: url), url.lastPathComponent)
             XCTAssertThrowsError(try TagLibMetadataManager.rawMetadataResult(from: url), url.lastPathComponent)
             XCTAssertThrowsError(try TagLibMetadataManager.readStructuredMetadataResult(from: url), url.lastPathComponent)
         }
+    }
+
+    func testBasicReadRejectsExtensionDisguisedAudioWithoutGenericFallback() throws {
+        let directory = try temporaryDirectory()
+        let disguised = directory.appendingPathComponent("disguised.flac")
+        try FileManager.default.copyItem(at: try fixtureURL("wav"), to: disguised)
+
+        XCTAssertThrowsError(try TagLibMetadataManager.readMetadataResult(from: disguised))
     }
 
     func testFailedWriteAndErasePreserveCorruptFileBytes() throws {
@@ -157,6 +165,50 @@ final class ReliabilityFailureTests: XCTestCase {
         XCTAssertEqual(try posixPermissions(at: url), originalPermissions)
     }
 
+#if os(macOS)
+    func testAtomicReplacementPreservesExtendedAttributesACLsAndFileFlags() throws {
+        let url = try copyFixture("mp3")
+        let ordinaryAttribute = "com.audiomator.metadata-test"
+        let ordinaryValue = Data("preserve-me".utf8)
+        let quarantineAttribute = "com.apple.quarantine"
+        let quarantineValue = Data("0081;00000000;TagLibAudioMetadataTests;".utf8)
+        try setExtendedAttribute(ordinaryAttribute, value: ordinaryValue, at: url)
+        try setExtendedAttribute(quarantineAttribute, value: quarantineValue, at: url)
+
+        XCTAssertEqual(url.path.withCString { Darwin.chflags($0, UInt32(UF_NODUMP)) }, 0)
+        try addReadACL(at: url)
+        let originalACL = try aclEntries(at: url)
+        XCTAssertFalse(originalACL.isEmpty)
+
+        var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+        metadata.title = "Preserve filesystem metadata"
+        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+
+        XCTAssertEqual(try extendedAttribute(ordinaryAttribute, at: url), ordinaryValue)
+        XCTAssertEqual(try extendedAttribute(quarantineAttribute, at: url), quarantineValue)
+        XCTAssertNotEqual(try fileFlags(at: url) & UInt32(UF_NODUMP), 0)
+        XCTAssertEqual(try aclEntries(at: url), originalACL)
+    }
+
+    func testAtomicReplacementChangesInodeAndDoesNotRetargetHardLinks() throws {
+        let url = try copyFixture("mp3")
+        let linkedURL = url.deletingLastPathComponent().appendingPathComponent("linked.mp3")
+        try FileManager.default.linkItem(at: url, to: linkedURL)
+        let originalInode = try inode(at: url)
+        XCTAssertEqual(try inode(at: linkedURL), originalInode)
+        let linkedTitleBeforeWrite = try TagLibMetadataManager.readMetadataResult(from: linkedURL).title
+
+        var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+        metadata.title = "Replacement inode"
+        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+
+        XCTAssertNotEqual(try inode(at: url), originalInode)
+        XCTAssertEqual(try inode(at: linkedURL), originalInode)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: linkedURL).title, linkedTitleBeforeWrite)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Replacement inode")
+    }
+#endif
+
     func testBridgeRejectsMalformedStructuredPayloadsWithoutChangingFile() throws {
         let malformedPayloads: [[String: NSObject]] = [
             ["id3v2Frames": [NSNull()] as NSArray],
@@ -195,6 +247,67 @@ final class ReliabilityFailureTests: XCTestCase {
 
         XCTAssertThrowsError(try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: url))
         XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+    }
+
+    func testBasicWritesRejectNegativeAndNarrowingNumericValuesWithoutChangingFile() throws {
+        let invalidMutations: [(String, (inout BasicMetadata) -> Void)] = [
+            ("negative track", { $0.track = -1 }),
+            ("overflowing track total", { $0.trackTotal = Int.max }),
+            ("negative disc", { $0.disc = -1 }),
+            ("overflowing disc total", { $0.discTotal = Int.max }),
+            ("negative year", { $0.year = "-1" }),
+            ("overflowing year", { $0.year = "4294967296" }),
+            ("negative BPM", { $0.bpm = -1 }),
+            ("overflowing BPM", { $0.bpm = Int.max }),
+            ("negative movement", { $0.movementNumber = -1 }),
+            ("overflowing movement count", { $0.movementCount = Int.max }),
+        ]
+
+        for ext in ["mp3", "m4a"] {
+            for (label, mutation) in invalidMutations {
+                let url = try copyFixture(ext)
+                let originalBytes = try Data(contentsOf: url)
+                var metadata = BasicMetadata.empty
+                mutation(&metadata)
+
+                XCTAssertThrowsError(
+                    try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw),
+                    "\(ext): \(label)"
+                )
+                XCTAssertEqual(try Data(contentsOf: url), originalBytes, "\(ext): \(label)")
+            }
+        }
+    }
+
+    func testLowLevelNumericWritesRejectInvalidValuesWithoutChangingFile() throws {
+        let invalidStructuredPayloads: [[String: NSObject]] = [
+            ["mp4Atoms": [["key": "uint", "type": "uint", "value": -1] as NSDictionary] as NSArray],
+            ["mp4Atoms": [["key": "byte", "type": "byte", "value": 256] as NSDictionary] as NSArray],
+            ["mp4Atoms": [["key": "int", "type": "int", "value": Int.max] as NSDictionary] as NSArray],
+            ["mp4Atoms": [["key": "pair", "type": "intPair", "first": Int.max, "second": 1] as NSDictionary] as NSArray],
+            ["mp4Atoms": [["key": "long", "type": "longLong", "value": "9223372036854775808"] as NSDictionary] as NSArray],
+            ["asfAttributes": [["key": "UnsignedValue", "type": "int", "value": -1, "language": 0, "stream": 0] as NSDictionary] as NSArray],
+        ]
+
+        for (index, payload) in invalidStructuredPayloads.enumerated() {
+            let url = try copyFixture("m4a")
+            let originalBytes = try Data(contentsOf: url)
+            XCTAssertThrowsError(try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: url), "payload \(index)")
+            XCTAssertEqual(try Data(contentsOf: url), originalBytes, "payload \(index)")
+        }
+
+        let trackURL = try copyFixture("mp3")
+        let originalTrackBytes = try Data(contentsOf: trackURL)
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeTrackNumber(-1, totalTracks: 10, padWidth: 2, to: trackURL))
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeTrackNumberText("1/2147483648", discNumberText: nil, to: trackURL))
+        XCTAssertEqual(try Data(contentsOf: trackURL), originalTrackBytes)
+
+        let ratingURL = try copyFixture("m4a")
+        let originalRatingBytes = try Data(contentsOf: ratingURL)
+        let bridgeMetadata = TagLibAudioMetadata()
+        bridgeMetadata.explicitAdvisory = TagLibExplicitAdvisory(rawValue: 99)!
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeMetadata(bridgeMetadata, to: ratingURL))
+        XCTAssertEqual(try Data(contentsOf: ratingURL), originalRatingBytes)
     }
 
     func testDirectBridgeFailuresPreserveCorruptFileBytes() throws {
@@ -239,6 +352,82 @@ final class ReliabilityFailureTests: XCTestCase {
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         return try XCTUnwrap(attributes[.posixPermissions] as? NSNumber).intValue
     }
+
+#if os(macOS)
+    private func setExtendedAttribute(_ name: String, value: Data, at url: URL) throws {
+        let result = url.path.withCString { path in
+            name.withCString { attributeName in
+                value.withUnsafeBytes { bytes in
+                    Darwin.setxattr(path, attributeName, bytes.baseAddress, bytes.count, 0, 0)
+                }
+            }
+        }
+        guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+    }
+
+    private func extendedAttribute(_ name: String, at url: URL) throws -> Data {
+        let length = url.path.withCString { path in
+            name.withCString { attributeName in
+                Darwin.getxattr(path, attributeName, nil, 0, 0, 0)
+            }
+        }
+        guard length >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        var data = Data(count: length)
+        let result = data.withUnsafeMutableBytes { bytes in
+            url.path.withCString { path in
+                name.withCString { attributeName in
+                    Darwin.getxattr(path, attributeName, bytes.baseAddress, bytes.count, 0, 0)
+                }
+            }
+        }
+        guard result == length else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        return data
+    }
+
+    private func fileFlags(at url: URL) throws -> UInt32 {
+        var information = stat()
+        let result = url.path.withCString { Darwin.lstat($0, &information) }
+        guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        return information.st_flags
+    }
+
+    private func inode(at url: URL) throws -> ino_t {
+        var information = stat()
+        let result = url.path.withCString { Darwin.lstat($0, &information) }
+        guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        return information.st_ino
+    }
+
+    private func addReadACL(at url: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/chmod")
+        process.arguments = ["+a", "everyone allow read", url.path]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(process.terminationStatus))
+        }
+    }
+
+    private func aclEntries(at url: URL) throws -> [String] {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/ls")
+        process.arguments = ["-lde", url.path]
+        process.standardOutput = output
+        process.standardError = output
+        try process.run()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(process.terminationStatus))
+        }
+        return String(decoding: data, as: UTF8.self)
+            .split(separator: "\n")
+            .dropFirst()
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+#endif
 
     private func wavAudioPayload(_ data: Data) -> Data? {
         guard data.count >= 12,

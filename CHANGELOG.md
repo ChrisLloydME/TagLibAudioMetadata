@@ -7,6 +7,36 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Added `MetadataSnapshot` and `MetadataPatch` for one-session comprehensive
+  reads and omission-safe, verified partial edits.
+- Added evidence-based format support levels and fixture-backed Ogg FLAC and XM
+  round-trip coverage.
+- Added the explicit `TagLibAudioMetadataLowLevel` product and cross-language
+  metadata-schema consistency tests.
+
+### Changed
+
+- Upgraded the published dynamic binary from TagLib 2.1.1 to 2.3.1 and
+  namespaced its framework, install name, bundle identifier, headers, and module
+  map.
+- Removed nested facade transactions so edits use one staging copy, and unified
+  basic/raw/structured extraction into one TagLib session.
+- Narrowed the process-wide lock to TagLib object lifetimes and moved transaction
+  filesystem work outside it.
+- Split the bridge transaction coordinator into a dedicated Objective-C++
+  translation unit and centralized dual-version TagLib header selection.
+
+### Fixed
+
+- Preserved rich metadata omitted from basic writes, including raw multi-values,
+  structured entries, artwork MIME information, and three-state advisory data.
+- Separated semantic equality from ephemeral UI identity and rejected numeric
+  overflow at bridge boundaries.
+- Flushed committed directory entries and reported post-rename durability
+  failures without claiming rollback.
+
 ## [0.4.5] - 2026-08-27
 
 ### Fixed

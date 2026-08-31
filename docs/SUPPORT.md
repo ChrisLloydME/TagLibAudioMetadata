@@ -8,13 +8,15 @@ and how to handle container-specific behavior after writes.
 
 ## Package Shape
 
-`TagLibAudioMetadata` presents the same two public modules:
+`TagLibAudioMetadata` presents two public products:
 
 - `TagLibAudioMetadata`: the Swift facade used by app code.
-- `CTagLibBridge`: the Objective-C++ bridge, dynamically linked to TagLib.
+- `TagLibAudioMetadataLowLevel`: the `CTagLibBridge` Objective-C bridge for
+  advanced integrations.
 
 The root manifest declares a checksum-pinned remote `binaryTarget` for the
-dynamic `TagLib.xcframework`. The bridge depends on that target; this source
+dynamic, namespaced `TagLibAudioMetadataTagLib.xcframework`. The bridge depends
+on that target; this source
 repository no longer compiles or carries TagLib source, headers, or binaries
 and has no static/source fallback.
 
@@ -24,8 +26,10 @@ Most apps should import the Swift facade:
 import TagLibAudioMetadata
 ```
 
-The Swift module re-exports `CTagLibBridge`, so advanced callers can still reach
-`TagLibMetadataExtractor` and `TagLibAudioMetadata` after importing the package.
+The Swift module temporarily re-exports `CTagLibBridge`, so existing callers can
+still reach `TagLibMetadataExtractor` and `TagLibAudioMetadata`. New direct
+bridge integrations should depend on `TagLibAudioMetadataLowLevel` and
+`import CTagLibBridge`; the re-export may be removed in a future major release.
 
 Requirements:
 
@@ -40,17 +44,50 @@ supported slices, offline use, binary reproduction, and diagnostics.
 
 ## API Layers
 
-The package exposes three metadata layers. Pick the highest-level layer that keeps
-the data you need.
+The package exposes a comprehensive snapshot plus three metadata projections.
+Pick the highest-level layer that keeps the data you need.
 
 | Layer | Main types | Use it for |
 | --- | --- | --- |
+| Comprehensive editing | `MetadataSnapshot`, `MetadataPatch`, `readSnapshot`, `applyMetadataPatch` | Professional editors that must preserve omitted and container-specific data. |
 | Basic metadata | `BasicMetadata`, `TagLibMetadataManager.readMetadataResult`, `writeMetadataWithVerification` | Track editors, library views, common tags, artwork, common IDs, ReplayGain, iTunes fields. |
 | Raw property map | `RawMetadataDump`, `RawPropertyEntry`, `writeRawMetadataPropertyMapWithVerification` | Advanced editors that expose TagLib property keys directly. |
 | Structured metadata | `StructuredMetadata`, `StructuredID3v2Frame`, `StructuredMP4Atom`, `StructuredASFAttribute` | Container-aware editing of ID3v2 frames, MP4 atoms, ASF attributes, comments, lyrics, and artwork. |
 
-Start with `BasicMetadata`. Move to raw or structured APIs only when the user
-needs to see or preserve container details that the basic model does not expose.
+Use `BasicMetadata` for display and simple full-model editing. Use snapshots and
+patches when preserving data the UI did not expose is part of the contract.
+
+## Comprehensive Snapshots and Patches
+
+`readSnapshot(from:)` obtains the basic, raw, and structured projections from
+one TagLib file session and rejects a file whose identity changes during the
+read:
+
+```swift
+let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+print(snapshot.basic.title)
+print(snapshot.raw.properties)
+print(snapshot.structured.mp4Atoms)
+```
+
+`MetadataPatch` distinguishes omission from removal. Fields absent from the
+patch remain unchanged; `.remove` clears an explicitly named property; artwork
+has separate unchanged, replace, and remove-all cases; and
+`explicitAdvisory` preserves unspecified, clean, and explicit states.
+
+```swift
+let patch = MetadataPatch(
+    fields: [.title: .text("Edited")],
+    customFields: ["ARTISTS": .values(["One", "Two"])],
+    artwork: .unchanged
+)
+
+try TagLibMetadataManager.applyMetadataPatch(
+    patch,
+    to: url,
+    failurePolicy: .throw
+)
+```
 
 ## Format Support
 
@@ -69,7 +106,10 @@ let capability = TagLibMetadataManager.formatCapability(for: ext)
 
 Use `formatCapability(for:)` for UI decisions. It reports the format family,
 all extension aliases, metadata containers, artwork support, multi-value support,
-structured support, and read-only caveats.
+structured support, read-only caveats, and evidence level. `verified` is backed
+by a repository fixture and round-trip tests; `experimental` exposes incomplete
+container behavior; `upstreamSupported` is an unverified upstream parser path;
+`readOnly` has no supported save route; and `unsupported` has no package route.
 
 ```swift
 if let capability = TagLibMetadataManager.formatCapability(for: "m4a") {
@@ -77,6 +117,8 @@ if let capability = TagLibMetadataManager.formatCapability(for: "m4a") {
     print(capability.extensions)              // extension aliases for the family
     print(capability.canWriteArtwork)
     print(capability.structuredWriteSupport)
+    print(capability.supportLevel)
+    print(capability.writeSupport(for: .artwork))
 }
 ```
 
@@ -94,6 +136,12 @@ same capability data.
 `BasicMetadata` is the model for common app-level metadata. It stores text fields
 as `String`, numbers as `Int`, booleans as `Bool`, audio properties as numeric
 values, artwork as `Data?`, and unknown custom fields as `[String: String]`.
+
+It is a normalized projection, not a lossless document. It can flatten
+multi-value properties and cannot represent every frame, atom, attribute,
+comment, lyric, or artwork record. A full basic write preserves rich metadata
+that was not modified, but precise editing should use a snapshot/patch, raw
+multi-value map, or structured payload.
 
 Use `BasicMetadata.empty` when you want to build a value from scratch:
 
@@ -721,6 +769,15 @@ fields, artwork, and custom fields back to the bridge model.
 Most Swift app code should call `TagLibMetadataManager`. Use the bridge directly
 only when you need a property or method the facade does not wrap.
 
+Declare the `TagLibAudioMetadataLowLevel` product and import its module:
+
+```swift
+import CTagLibBridge
+```
+
+Existing facade clients may still see these declarations through the temporary
+re-export. Do not rely on that for a new low-level integration.
+
 `TagLibAudioMetadata` is an Objective-C class with nullable properties. It maps
 closely to the bridge writer. It is a full replacement model, so first read the
 current values when you intend to change only selected fields:
@@ -881,7 +938,8 @@ or unsupported fields. Show those warnings instead of presenting the operation a
 an unconditional wipe.
 
 When distributing an app, verify that the final product embeds and signs
-`TagLib.framework` and that its rpath resolves
-`@rpath/TagLib.framework/TagLib`. Package resolution links the framework; the
-final application target remains responsible for a valid embedded, signed copy.
+`TagLibAudioMetadataTagLib.framework` and that its rpath resolves
+`@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib`. Package
+resolution links the framework; the final application target remains
+responsible for a valid embedded, signed copy.
 See [INSTALLATION.md](INSTALLATION.md).

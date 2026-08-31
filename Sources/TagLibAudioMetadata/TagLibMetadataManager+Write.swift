@@ -19,7 +19,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            try TagLibMetadataExtractor.writeMetadata(metadata, to: mutationURL)
+            try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
             return MetadataWriteResult(warnings: warnings)
@@ -40,7 +40,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            try TagLibMetadataExtractor.writeTrackNumberText(
+            try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
                 discNumberText: discNumberText,
                 to: mutationURL
@@ -88,10 +88,10 @@ extension TagLibMetadataManager {
         return try withAtomicFileMutation(at: url) { mutationURL in
             switch mode {
             case .replace:
-                try TagLibMetadataExtractor.writeRawPropertyMap(properties, to: mutationURL)
+                try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
             case .merge:
                 let resolvedProperties = try resolvedRawPropertyMapValuesForMerge(properties, to: mutationURL)
-                try TagLibMetadataExtractor.writeRawPropertyMapValues(resolvedProperties, to: mutationURL)
+                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(resolvedProperties, to: mutationURL)
             }
 
             let warnings = verifyAfterWrite
@@ -115,7 +115,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            try TagLibMetadataExtractor.writeRawPropertyMapValues(properties, to: mutationURL)
+            try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
 
             let warnings: [String]
             if verifyAfterWrite {
@@ -262,10 +262,10 @@ extension TagLibMetadataManager {
         meta.customFields = nil
 
         var warnings: [String] = []
+        try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
         warnings.append(
-            contentsOf: try writeTagMetadata(
-                meta,
-                to: url,
+            contentsOf: metadataWriteWarnings(
+                for: url,
                 verification: MetadataWriteVerificationContext(
                     expectedTrackNumber: nil,
                     expectedTrackTotal: nil,
@@ -276,22 +276,14 @@ extension TagLibMetadataManager {
                     expectedExplicitContent: false,
                     artworkExpectation: .absent,
                     customFieldKeys: []
-                ),
-                failurePolicy: .warn
-            ).warnings
+                )
+            )
         )
 
-        warnings.append(
-            contentsOf: try writeRawMetadataPropertyMapWithVerification(
-                [:],
-                to: url,
-                mode: .replace,
-                verifyAfterWrite: false
-            ).warnings
-        )
+        try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
 
         if shouldWipeNativeMetadataContainer(for: url) {
-            try TagLibMetadataExtractor.wipeMetadata(from: url)
+            try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
         }
 
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))
@@ -399,7 +391,11 @@ extension TagLibMetadataManager {
         // Explicit
         m.bpm = meta.bpm
         m.compilation = meta.isCompilation
-        m.explicitContent = meta.isExplicit
+        m.explicitAdvisory = switch meta.explicitAdvisory {
+        case .unspecified: .unspecified
+        case .clean: .clean
+        case .explicit: .explicit
+        }
         m.isrc = nilIfEmpty(meta.isrc)
         m.barcode = nilIfEmpty(meta.barcode)
         m.musicBrainzArtistId = nilIfEmpty(meta.musicBrainzArtistID)
@@ -412,8 +408,17 @@ extension TagLibMetadataManager {
         m.acoustId = nilIfEmpty(meta.acoustID)
         m.acoustIdFingerprint = nilIfEmpty(meta.acoustIDFingerprint)
         m.musicIpPuid = nilIfEmpty(meta.musicIPPUID)
-        m.customFields = meta.customFields.isEmpty ? nil : meta.customFields
+        let explicitlyChangedCustomFields = meta.customFields.filter { key, value in
+            guard let originalProjection = meta.originalCustomFieldProjection.first(where: {
+                $0.key.caseInsensitiveCompare(key) == .orderedSame
+            })?.value else {
+                return true
+            }
+            return originalProjection != value
+        }
+        m.customFields = explicitlyChangedCustomFields.isEmpty ? nil : explicitlyChangedCustomFields
         m.artworkData = meta.artworkData
+        m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
 
         // Persist through the write coordinator so all metadata entry points
         // share post-write verification policy.
@@ -427,7 +432,7 @@ extension TagLibMetadataManager {
                 expectedDiscNumber: meta.disc,
                 expectedDiscTotal: meta.discTotal,
                 expectedDiscNumberText: meta.discNumberText,
-                expectedExplicitContent: meta.isExplicit,
+                expectedExplicitContent: meta.explicitAdvisory == .unspecified ? nil : meta.isExplicit,
                 artworkExpectation: meta.artworkData == nil ? .unchanged : .present,
                 customFieldKeys: Array(meta.customFields.keys),
                 expectedTextFields: [
@@ -499,7 +504,8 @@ extension TagLibMetadataManager {
                     "movementCount": String(meta.movementCount),
                     "bpm": String(meta.bpm),
                     "isCompilation": String(meta.isCompilation),
-                ]
+                ],
+                expectedExplicitAdvisory: meta.explicitAdvisory
             ),
             failurePolicy: failurePolicy
         )

@@ -157,6 +157,108 @@ static NSString * _Nullable TrimmedStringOrNil(NSString * _Nullable value) {
     return trimmed.length > 0 ? trimmed : nil;
 }
 
+static bool ParseUnsignedDecimalString(NSString * _Nullable value,
+                                       unsigned long long maximum,
+                                       unsigned long long &result)
+{
+    NSString *trimmed = TrimmedStringOrNil(value);
+    if (!trimmed) {
+        result = 0;
+        return true;
+    }
+
+    const char *utf8 = trimmed.UTF8String;
+    if (!utf8 || utf8[0] == '-' || utf8[0] == '+') {
+        return false;
+    }
+
+    errno = 0;
+    char *end = nullptr;
+    unsigned long long parsed = std::strtoull(utf8, &end, 10);
+    if (errno == ERANGE || !end || end == utf8 || *end != '\0' || parsed > maximum) {
+        return false;
+    }
+
+    result = parsed;
+    return true;
+}
+
+static BOOL SetNumericValidationError(NSError **error, NSString *description)
+{
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                     code:245
+                                 userInfo:@{ NSLocalizedDescriptionKey : description }];
+    }
+    return NO;
+}
+
+static BOOL ValidateNonnegativeIntValue(NSInteger value, NSString *name, NSError **error)
+{
+    if (value < 0 || value > std::numeric_limits<int>::max()) {
+        return SetNumericValidationError(
+            error,
+            [NSString stringWithFormat:@"%@ must be between 0 and %d", name, std::numeric_limits<int>::max()]
+        );
+    }
+    return YES;
+}
+
+static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError **error)
+{
+    if (!metadata) {
+        return SetNumericValidationError(error, @"Metadata is required");
+    }
+
+    struct IntegerField {
+        NSInteger value;
+        __unsafe_unretained NSString *name;
+    } fields[] = {
+        { metadata.trackNumber, @"track number" },
+        { metadata.totalTracks, @"total tracks" },
+        { metadata.discNumber, @"disc number" },
+        { metadata.totalDiscs, @"total discs" },
+        { metadata.movementNumber, @"movement number" },
+        { metadata.movementCount, @"movement count" },
+        { metadata.bpm, @"BPM" },
+    };
+
+    for (const auto &field : fields) {
+        if (!ValidateNonnegativeIntValue(field.value, field.name, error)) {
+            return NO;
+        }
+    }
+
+    unsigned long long ignoredYear = 0;
+    if (!ParseUnsignedDecimalString(metadata.year,
+                                    std::numeric_limits<unsigned int>::max(),
+                                    ignoredYear)) {
+        return SetNumericValidationError(
+            error,
+            [NSString stringWithFormat:@"Year must be an unsigned decimal value no greater than %u",
+                                       std::numeric_limits<unsigned int>::max()]
+        );
+    }
+
+    switch (metadata.explicitAdvisory) {
+        case TagLibExplicitAdvisoryUnspecified:
+        case TagLibExplicitAdvisoryClean:
+        case TagLibExplicitAdvisoryExplicit:
+            break;
+        default:
+            return SetNumericValidationError(error, @"Explicit advisory has an unsupported rating value");
+    }
+
+    return YES;
+}
+
+static unsigned int ValidatedBasicYearValue(NSString * _Nullable year)
+{
+    unsigned long long parsed = 0;
+    bool valid = ParseUnsignedDecimalString(year, std::numeric_limits<unsigned int>::max(), parsed);
+    return valid ? static_cast<unsigned int>(parsed) : 0;
+}
+
 static NSString * _Nullable UppercaseTrimmedString(NSString * _Nullable value) {
     NSString *trimmed = TrimmedStringOrNil(value);
     return trimmed ? trimmed.uppercaseString : nil;
@@ -202,7 +304,7 @@ static NSSet<NSString *> *KnownMetadataFieldKeys()
         @"MUSICBRAINZ_ALBUMSTATUS", @"MUSICBRAINZ ALBUM STATUS",
         @"MUSICBRAINZ_ALBUMRELEASECOUNTRY", @"MUSICBRAINZ ALBUM RELEASE COUNTRY",
         @"ACOUSTID_ID", @"ACOUSTID ID", @"ACOUSTID_FINGERPRINT", @"ACOUSTID FINGERPRINT", @"MUSICIP_PUID",
-        @"REPLAYGAIN_TRACK_GAIN", @"REPLAYGAIN_ALBUM_GAIN"
+        @"REPLAYGAIN_TRACK_GAIN", @"REPLAYGAIN_ALBUM_GAIN", @"TRACKERNAME"
         ]];
         return [mappedKeys copy];
     }();
@@ -444,11 +546,11 @@ static const AudioMatorFormatCapabilityDescriptor kFormatCapabilityDescriptors[]
     { AudioMatorTagFileFormatASF, "asf", "ASF / WMA", "WMA", kASFExtensions, "container", "container", true, true, false, nullptr, "ASF attributes are exposed for structured editing." },
     { AudioMatorTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
     { AudioMatorTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSDIFF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
-    { AudioMatorTagFileFormatShorten, "shorten", "Shorten", "Shorten", kShortenExtensions, "propertyMap", "none", false, false, true, "TagLib 2.1.1 exposes Shorten metadata for reading but does not support saving it.", "Read-only format." },
-    { AudioMatorTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
-    { AudioMatorTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
-    { AudioMatorTagFileFormatIT, "it", "Impulse Tracker Module", "IT", kITExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
-    { AudioMatorTagFileFormatXM, "xm", "FastTracker Module", "XM", kXMExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Tracker metadata is edited through the generic PropertyMap path." },
+    { AudioMatorTagFileFormatShorten, "shorten", "Shorten", "Shorten", kShortenExtensions, "propertyMap", "none", false, false, true, "TagLib 2.3.1 exposes Shorten metadata for reading but does not support saving it.", "Read-only format." },
+    { AudioMatorTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "none", false, false, false, "TagLib exposes MOD metadata for reading but does not support saving it.", "MOD metadata is limited to title, comment, and a format-derived tracker name." },
+    { AudioMatorTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
+    { AudioMatorTagFileFormatIT, "it", "Impulse Tracker Module", "IT", kITExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
+    { AudioMatorTagFileFormatXM, "xm", "FastTracker Module", "XM", kXMExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title, comment, and tracker name; fixed-width instrument/sample fields normalize comment text and may pad the tracker name." },
 };
 
 static bool DescriptorContainsExtension(const AudioMatorFormatCapabilityDescriptor &descriptor,
@@ -563,6 +665,7 @@ static bool IsWritableTagFileFormat(AudioMatorTagFileFormat format)
     switch (format) {
         case AudioMatorTagFileFormatUnknown:
         case AudioMatorTagFileFormatShorten:
+        case AudioMatorTagFileFormatMOD:
             return false;
         default:
             return true;
