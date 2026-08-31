@@ -304,6 +304,34 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testBasicReadWritePreservesKnownFieldsOutsideBasicMetadata() throws {
+        let preservedValues: [String: [String]] = [
+            "PERFORMER": ["Guitar", "Piano"],
+            "INVOLVEDPEOPLE": ["Producer", "Engineer"],
+            "TRACKERNAME": ["Non-Basic single value"],
+            "UNREGISTERED_CUSTOM": ["Custom A", "Custom B"],
+        ]
+
+        for ext in ["flac", "ogg", "oga"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                preservedValues,
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.title = "Only Basic title changed"
+            basic.customFields.removeValue(forKey: "UNREGISTERED_CUSTOM")
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            for (key, values) in preservedValues {
+                XCTAssertEqual(raw.values(for: key), values, "\(ext) must preserve \(key)")
+            }
+        }
+    }
+
     func testStructuredWAVAdvisoriesDoNotFailVerifiedWrites() throws {
         let url = try copyAudioFixture("wav")
         let payload = StructuredMetadata(

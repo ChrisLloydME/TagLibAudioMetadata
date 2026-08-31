@@ -87,6 +87,17 @@ public enum ExplicitAdvisory: String, Hashable, Sendable {
 
 /// Mirrors the metadata fields used in `AudioFile.swift`.
 public struct BasicMetadata: Sendable {
+    /// Schema fields that this normalized projection can explicitly edit.
+    /// Fields outside this set are preservation-only during a Basic round trip.
+    nonisolated static let editableFieldKeys: Set<MetadataFieldKey> =
+        Set(MetadataFieldKey.allCases).subtracting([
+            .performer,
+            .involvedPeople,
+            .musicianCredits,
+            .trackerName,
+            .custom,
+        ])
+
     public var title: String
     public var artist: String
     public var album: String
@@ -182,12 +193,12 @@ public struct BasicMetadata: Sendable {
     /// `customFields` remains the source-compatible, display-oriented projection.
     public var customFieldValues: [String: [String]]
     /// Exact projected values captured during read, used to detect intentional Basic edits.
-    public var originalCustomFieldProjection: [String: String]
+    public internal(set) var originalCustomFieldProjection: [String: String]
     /// Original raw cardinality for standard multi-value fields captured during read.
     /// The scalar properties above remain the normalized display projection.
-    public var originalStandardFieldValues: [String: [String]]
+    public internal(set) var originalStandardFieldValues: [String: [String]]
     /// Original scalar display values paired with `originalStandardFieldValues`.
-    public var originalStandardFieldProjection: [String: String]
+    public internal(set) var originalStandardFieldProjection: [String: String]
     public var provenance: MetadataFieldProvenance
 
     public nonisolated static let empty = BasicMetadata(
