@@ -1154,13 +1154,19 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     func testSelectiveProjectionExtractionReturnsOnlyRequestedRepresentations() throws {
         let url = try copyAudioFixture("mp3")
 
-        let basicAndRaw = try TagLibMetadataExtractor.metadataProjections(
+        let basicAndPropertyMap = try TagLibMetadataExtractor.metadataProjections(
             for: url,
-            options: [.basic, .raw]
+            options: [.basic, .propertyMap]
         )
-        XCTAssertNotNil(basicAndRaw["basic"])
-        XCTAssertNotNil(basicAndRaw["raw"])
-        XCTAssertNil(basicAndRaw["structured"])
+        XCTAssertNotNil(basicAndPropertyMap["basic"])
+        let preservationRaw = try XCTUnwrap(basicAndPropertyMap["raw"] as? [String: NSObject])
+        XCTAssertNotNil(preservationRaw["properties"])
+        XCTAssertEqual((preservationRaw["id3v2Frames"] as? NSArray)?.count, 0)
+        XCTAssertNil(basicAndPropertyMap["structured"])
+
+        let raw = try TagLibMetadataExtractor.metadataProjections(for: url, options: .raw)
+        let completeRaw = try XCTUnwrap(raw["raw"] as? [String: NSObject])
+        XCTAssertGreaterThan((completeRaw["id3v2Frames"] as? NSArray)?.count ?? 0, 0)
 
         let structuredOnly = try TagLibMetadataExtractor.metadataProjections(
             for: url,

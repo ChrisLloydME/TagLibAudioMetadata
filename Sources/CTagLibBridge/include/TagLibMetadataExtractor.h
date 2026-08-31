@@ -147,6 +147,8 @@ typedef NS_OPTIONS(NSUInteger, TagLibMetadataExtractionOptions) {
     TagLibMetadataExtractionOptionBasic = 1 << 0,
     TagLibMetadataExtractionOptionRaw = 1 << 1,
     TagLibMetadataExtractionOptionStructured = 1 << 2,
+    TagLibMetadataExtractionOptionPropertyMap = 1 << 3,
+    TagLibMetadataExtractionOptionRawFrames = 1 << 4,
     TagLibMetadataExtractionOptionAll = NSUIntegerMax,
 };
 
