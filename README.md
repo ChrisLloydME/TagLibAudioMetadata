@@ -111,6 +111,16 @@ not create a contradictory freeform advisory. MP4 cleanup is limited to the
 recognized aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and
 `EXPLICIT`.
 
+Advisory metadata has four semantic states: `.unspecified` means the field is
+absent, while `.notExplicit`, `.explicit`, and `.clean` mean a field is present.
+Canonical MP4/M4A storage is respectively absent, `rtng = 0`, `rtng = 1`, and
+`rtng = 2`, matching Apple/iTunes metadata. ID3 and generic PropertyMap formats
+retain their established container-specific `ITUNESADVISORY` representation
+using values `0`, `1`, and `2`. Legacy `4`, text `TRUE`/`YES`/`EXPLICIT`, and
+`FALSE`/`NO`/`NONE`/`-1` remain readable; a high-level rewrite emits canonical
+values. The compatibility Boolean `isExplicit` is intentionally lossy: use
+`explicitAdvisory` whenever absence, not-explicit, and clean must remain distinct.
+
 Basic MP4 advisory writes use the same canonical `rtng` helper and alias cleanup
 as Patch writes, so switching between the two high-level APIs cannot leave a
 contradictory recognized freeform advisory. ID3 movement number/count patches

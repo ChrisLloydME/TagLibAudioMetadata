@@ -39,7 +39,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Preserved rich metadata omitted from basic writes, including raw multi-values,
-  structured entries, artwork MIME information, and three-state advisory data.
+  structured entries, artwork MIME information, and four-state advisory data.
 - Preserved untouched standard multi-value fields during Basic writes without
   splitting normalized display strings, and made patch Boolean false distinct
   from field removal.
@@ -55,6 +55,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Canonicalized MP4 advisory writes across Basic and Patch APIs, and prevented
   ordinary Basic writes from introducing private AudioMator track/disc formatting
   atoms into standard-only files.
+- Restored the distinct absent, not-explicit, explicit, and clean advisory states;
+  canonical MP4/M4A writes now emit `rtng` values `0`, `1`, and `2` respectively
+  for the three present states while retaining legacy `rtng = 4` read compatibility.
 - Synchronized existing AudioMator MP4 track/disc formatting provenance after
   Basic numeric edits while keeping native `trkn`/`disk` authoritative and
   preserving unchanged formatted text during unrelated edits.
