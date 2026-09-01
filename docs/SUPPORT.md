@@ -84,7 +84,9 @@ has separate unchanged, replace, and remove-all cases; and
 
 Known fields are validated against `MetadataFieldRegistry` before any staging
 copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
-integer. Numeric typed fields accept zero through `INT_MAX`; negative and
+integer. Track/disc numbers and totals accept `1...INT_MAX`, with `.remove` as
+their explicit unset operation. BPM and movement numbering retain their
+schema-defined `0...INT_MAX` range. Negative, zero where disallowed, and
 narrowing values fail before the staged file exists. High-level `customFields`
 accept only genuinely unknown keys: known keys, aliases, case variants, and
 typed/custom collisions are rejected with `MetadataPatchValidationError`.
@@ -117,19 +119,29 @@ number. `disc`/`discTotal` behave the same through `disk`. ID3 and
 PropertyMap-backed formats receive their corresponding native/text pair. Generic
 PropertyMap formats use separate `TRACKNUMBER`/`TRACKTOTAL` and
 `DISCNUMBER`/`DISCTOTAL` values, so the total is not duplicated inside the
-number field. ID3 retains its combined `TRCK`/`TPOS` representation.
+number field. ID3 retains its combined `TRCK`/`TPOS` representation. ID3
+movement number/count uses native `MVIN`; patching either component preserves
+the other.
 
-An ordinary MP4 number Patch writes only standard `trkn`/`disk` metadata. It
-does not introduce `AUDIOMATOR_TRACKNUMBER_TEXT` or
+An ordinary MP4 number Patch or Basic read-modify-write writes standard
+`trkn`/`disk` metadata. It does not introduce `AUDIOMATOR_TRACKNUMBER_TEXT` or
 `AUDIOMATOR_DISCNUMBER_TEXT`. If either private formatting atom was already
-present, the Patch updates it and preserves its number-padding convention.
+present, the high-level writer preserves or updates it and retains its
+number-padding convention.
 
-`explicitAdvisory` is also container-aware: MP4/M4A uses native `rtng`, ID3
+`explicitAdvisory` is also container-aware in both Basic and Patch writes:
+MP4/M4A uses native `rtng`, ID3
 uses the supported `ITUNESADVISORY` TXXX representation, and unspecified removes
 that representation. The high-level MP4 writer removes the explicitly recognized
 freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 instead of leaving stale native and freeform values together. Unrelated
 freeform metadata is not removed by fuzzy name matching.
+
+When a capability descriptor supplies an explicit writable-field allowlist,
+`MetadataPatch` rejects unsupported typed fields before creating a staging copy.
+Formats without reliable field-level restrictions continue to rely on their
+schema mappings and TagLib behavior. Raw APIs are not restricted by this
+high-level preflight.
 
 ## Format Support
 

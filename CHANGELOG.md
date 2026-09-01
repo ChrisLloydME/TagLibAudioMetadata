@@ -52,6 +52,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
   keys instead of redundantly encoding totals in both fields.
 - Removed all recognized conflicting MP4 advisory aliases when making native
   `rtng` authoritative.
+- Canonicalized MP4 advisory writes across Basic and Patch APIs, and prevented
+  ordinary Basic writes from introducing private AudioMator track/disc formatting
+  atoms into standard-only files.
+- Made `.remove` the explicit unset operation for track/disc pair components,
+  rejected integer zero for those fields, and preserved omitted native ID3
+  movement number/count components in `MVIN`.
+- Rejected typed Patch fields before staging when a format publishes a reliable
+  explicit writable-field allowlist, without restricting Raw APIs.
 - Normalized Patch text and arrays once for mutation and verification, rejected
   empty values in favor of `.remove`, and stopped ordinary MP4 number patches
   from injecting new AudioMator-specific formatting atoms.

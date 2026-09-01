@@ -49,6 +49,14 @@ risk documented in `ARCHITECTURE.md`.
   Generic PropertyMap formats keep separate number and total keys. MP4 patches
   remove every recognized advisory alias and do not inject private AudioMator
   number-formatting atoms unless such provenance already exists.
+- Basic and Patch MP4 advisory writes now share native `rtng` canonicalization;
+  ordinary Basic number writes also avoid creating private AudioMator formatting
+  atoms while retaining existing provenance.
+- Track/disc Patch integers begin at one and `.remove` is their explicit unset
+  operation. Native ID3 `MVIN` mutation preserves an omitted movement number or
+  count.
+- Typed Patch fields are preflighted against explicit reliable format allowlists;
+  Raw APIs remain permissive.
 - Patch text and arrays are trimmed once and verified against that normalized
   form. Empty text, empty arrays, and empty array elements are rejected in favor
   of explicit `.remove` deletion.

@@ -89,9 +89,12 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
 Known keys and aliases are rejected in `customFields`; use `fields` (or a
 dedicated patch property) for schema-known metadata. Unknown custom keys remain
-available and are normalized before mutation. Integer patch fields accept
-values from zero through `INT_MAX`; invalid values fail before a staging copy is
-made.
+available and are normalized before mutation. Track/disc numbers and totals
+accept `1...INT_MAX`; use `.remove` to unset those components. Numeric fields
+whose schema permits zero, such as BPM and movement numbering, accept
+`0...INT_MAX`. Invalid values fail before a staging copy is made. Formats with
+explicit field allowlists reject unsupported typed fields before mutation; Raw
+APIs remain permissive.
 
 Patch text and array elements are trimmed once before mutation, and verification
 uses those same normalized values. Empty text, empty arrays, and arrays containing
@@ -108,9 +111,14 @@ not create a contradictory freeform advisory. MP4 cleanup is limited to the
 recognized aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and
 `EXPLICIT`.
 
+Basic MP4 advisory writes use the same canonical `rtng` helper and alias cleanup
+as Patch writes, so switching between the two high-level APIs cannot leave a
+contradictory recognized freeform advisory. ID3 movement number/count patches
+likewise preserve the omitted component of native `MVIN`.
+
 Generic PropertyMap formats store number and total separately as
 `TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
-`TRCK`/`TPOS` text. Ordinary MP4 numeric patches do not create private
+`TRCK`/`TPOS` text. Ordinary MP4 Patch or Basic writes do not create private
 `AUDIOMATOR_*_TEXT` atoms. If such a formatting atom already exists, it is
 updated while retaining its number padding.
 
