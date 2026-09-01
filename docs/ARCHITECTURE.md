@@ -77,7 +77,11 @@ ID3 uses combined `TRCK`/`TPOS`, MP4 uses native `trkn`/`disk`, and ID3 movement
 number/count uses combined `MVIN`; pair mutations preserve an omitted component.
 Track/disc integers begin at one, while `.remove` unsets a component. MP4
 numeric Patch and Basic writes update an existing AudioMator formatting atom but
-do not introduce one into a standard-only file. MP4 advisory mutation from both
+do not introduce one into a standard-only file. Native `trkn`/`disk` pairs are
+authoritative for ordinary Basic writes: changing a numeric component rebuilds
+existing private text with its prior number-padding convention, while an
+unchanged pair preserves the private text exactly. Dedicated number-text APIs
+remain the explicit formatted-input path. MP4 advisory mutation from both
 high-level APIs removes exactly the recognized
 freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 before making native `rtng` authoritative.

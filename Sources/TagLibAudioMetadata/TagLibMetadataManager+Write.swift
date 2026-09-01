@@ -48,6 +48,8 @@ extension TagLibMetadataManager {
         }
     }
 
+    /// Intentionally writes formatted track/disc number text. Unlike an ordinary
+    /// Basic numeric edit, the supplied text is the authoritative input.
     @discardableResult
     public nonisolated static func writeTrackNumberText(
         _ trackNumberText: String,

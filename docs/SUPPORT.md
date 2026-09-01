@@ -126,8 +126,10 @@ the other.
 An ordinary MP4 number Patch or Basic read-modify-write writes standard
 `trkn`/`disk` metadata. It does not introduce `AUDIOMATOR_TRACKNUMBER_TEXT` or
 `AUDIOMATOR_DISCNUMBER_TEXT`. If either private formatting atom was already
-present, the high-level writer preserves or updates it and retains its
-number-padding convention.
+present, it is formatting provenance rather than the numeric authority. A Basic
+numeric edit synchronizes it from `trkn`/`disk` values while retaining its
+number-padding convention; an unrelated edit preserves its text unchanged.
+Use `writeTrackNumberText` for an intentional formatted-text write.
 
 `explicitAdvisory` is also container-aware in both Basic and Patch writes:
 MP4/M4A uses native `rtng`, ID3
