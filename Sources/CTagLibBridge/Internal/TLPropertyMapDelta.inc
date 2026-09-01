@@ -111,6 +111,28 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                                     discNumber:(NSInteger)discNumber
                                      totalDiscs:(NSInteger)totalDiscs
                                 updateDiscPair:(BOOL)updateDiscPair
+                                          toURL:(NSURL *)fileURL
+                                          error:(NSError **)error
+{
+    return [self writeNumberPairsInPlaceWithTrackNumber:trackNumber
+                                            totalTracks:totalTracks
+                                        updateTrackPair:updateTrackPair
+                                             discNumber:discNumber
+                                              totalDiscs:totalDiscs
+                                         updateDiscPair:updateDiscPair
+                                         movementNumber:0
+                                           movementCount:0
+                                      updateMovementPair:NO
+                                                   toURL:fileURL
+                                                   error:error];
+}
+
++ (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
+                                   totalTracks:(NSInteger)totalTracks
+                               updateTrackPair:(BOOL)updateTrackPair
+                                    discNumber:(NSInteger)discNumber
+                                     totalDiscs:(NSInteger)totalDiscs
+                                updateDiscPair:(BOOL)updateDiscPair
                                 movementNumber:(NSInteger)movementNumber
                                   movementCount:(NSInteger)movementCount
                              updateMovementPair:(BOOL)updateMovementPair
