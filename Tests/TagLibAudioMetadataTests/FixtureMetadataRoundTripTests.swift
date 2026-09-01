@@ -1628,6 +1628,37 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(snapshot.raw.values(for: "TITLE"), ["XM Round Trip"])
     }
 
+    func testMetadataPatchPreflightsReliableFormatFieldRestrictions() throws {
+        let url = try copyAudioFixture("xm")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.title: .text("Typed XM Title")]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Typed XM Title")
+
+        let beforeUnsupportedPatch = try Data(contentsOf: url)
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.album: .text("Unsupported Album")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .unsupportedFieldForFormat(field: .album, format: "xm")
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)
+
+        // Raw APIs remain permissive and continue to defer to TagLib/container behavior.
+        XCTAssertNoThrow(try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["ALBUM": ["Raw attempt"]],
+            to: url,
+            verifyAfterWrite: false,
+            failurePolicy: .warn
+        ))
+    }
+
     private func copyAudioFixture(_ ext: String) throws -> URL {
         let source = try XCTUnwrap(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")

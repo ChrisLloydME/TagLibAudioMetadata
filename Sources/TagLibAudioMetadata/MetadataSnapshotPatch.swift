@@ -79,6 +79,7 @@ public enum MetadataPatchValue: Hashable, Sendable {
 
 public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedError {
     case unsupportedField(MetadataFieldKey)
+    case unsupportedFieldForFormat(field: MetadataFieldKey, format: String)
     case incompatibleValue(
         field: MetadataFieldKey,
         expected: Set<MetadataPatchValueKind>,
@@ -97,6 +98,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
         switch self {
         case .unsupportedField(let field):
             return "\(field.rawValue) uses a dedicated patch property or is not writable."
+        case .unsupportedFieldForFormat(let field, let format):
+            return "\(field.rawValue) is not writable for the \(format) format through MetadataPatch."
         case .incompatibleValue(let field, let expected, let actual):
             let expectedNames = expected.map(\.rawValue).sorted().joined(separator: " or ")
             return "\(field.rawValue) requires \(expectedNames); received \(actual.rawValue)."
@@ -238,6 +241,21 @@ extension TagLibMetadataManager {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
+        }
+        if let capability = formatCapability(for: ext),
+           let writableFields = capability.writableFields {
+            let requestedFields = Set(validatedPatch.fields.keys)
+                .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])
+                .union(patch.artwork == .unchanged ? [] : [.artwork])
+            if let unsupported = requestedFields
+                .filter({ !writableFields.contains($0) })
+                .sorted(by: { $0.rawValue < $1.rawValue })
+                .first {
+                throw MetadataPatchValidationError.unsupportedFieldForFormat(
+                    field: unsupported,
+                    format: capability.identifier
+                )
+            }
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
