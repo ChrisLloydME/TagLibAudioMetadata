@@ -1182,6 +1182,67 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: maximumURL), maximumBytes)
     }
 
+    func testMetadataPatchNormalizesOnceForMutationAndVerification() throws {
+        let url = try copyAudioFixture("flac")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                fields: [
+                    .title: .text("  Normalized Title\n"),
+                    .artist: .values([" Artist A ", "\tArtist B"]),
+                ],
+                customFields: [
+                    " custom_normalized ": .values([" One ", "Two\n"]),
+                ]
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.title, "Normalized Title")
+        XCTAssertEqual(snapshot.raw.values(for: "ARTIST"), ["Artist A", "Artist B"])
+        XCTAssertEqual(snapshot.raw.values(for: "CUSTOM_NORMALIZED"), ["One", "Two"])
+    }
+
+    func testMetadataPatchRejectsEmptyTextAndValueListsBeforeMutation() throws {
+        let url = try copyAudioFixture("flac")
+        let originalBytes = try Data(contentsOf: url)
+        let invalidPatches: [(MetadataPatch, MetadataPatchValidationError)] = [
+            (
+                MetadataPatch(fields: [.title: .text("")]),
+                .emptyText(location: "title")
+            ),
+            (
+                MetadataPatch(fields: [.title: .text(" \n\t")]),
+                .emptyText(location: "title")
+            ),
+            (
+                MetadataPatch(fields: [.artist: .values([])]),
+                .emptyValueList(location: "artist")
+            ),
+            (
+                MetadataPatch(fields: [.artist: .values(["Artist", " "])]),
+                .emptyValue(location: "artist", index: 1)
+            ),
+            (
+                MetadataPatch(customFields: ["CUSTOM_EMPTY": .text("")]),
+                .emptyText(location: "CUSTOM_EMPTY")
+            ),
+        ]
+
+        for (patch, expectedError) in invalidPatches {
+            XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(patch, to: url)) { error in
+                XCTAssertEqual(error as? MetadataPatchValidationError, expectedError)
+            }
+            XCTAssertEqual(
+                try Data(contentsOf: url),
+                originalBytes,
+                "Invalid empty values must fail before a staging mutation"
+            )
+        }
+    }
+
     func testEraseAllMetadataReportsNoResidualCoreFields() throws {
         for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
             let url = try copyAudioFixture(ext)
