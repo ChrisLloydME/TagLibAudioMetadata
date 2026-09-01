@@ -516,20 +516,34 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertFalse(roundTripped.values.contains("TEST"))
     }
 
-    func testStructuredID3VerificationDistinguishesValueCardinality() {
-        let expected = StructuredID3v2Frame(
-            frameID: "TIT3",
-            type: "text",
-            values: ["A", "B"]
-        )
-        let flattened = StructuredID3v2Frame(
-            frameID: "TIT3",
-            type: "text",
-            value: "A; B",
-            values: ["A; B"]
+    func testStructuredID3VerificationDistinguishesValueCardinality() throws {
+        let url = try copyAudioFixture("mp3")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["SUBTITLE": ["A; B"]],
+            to: url,
+            failurePolicy: .throw
         )
 
-        XCTAssertFalse(TagLibMetadataManager.structuredID3v2FrameMatches(expected, flattened))
+        let expected = StructuredMetadata(
+            id3v2Frames: [
+                .init(frameID: "TIT3", type: "text", values: ["A", "B"]),
+            ]
+        )
+        let verification = TagLibMetadataManager.structuredWriteVerification(
+            expected: expected,
+            replacingCollections: [],
+            for: url
+        )
+
+        XCTAssertEqual(verification.failures.count, 1)
+        XCTAssertThrowsError(try TagLibMetadataManager.applyVerificationFailurePolicy(
+            .throw,
+            warnings: verification.failures
+        )) { error in
+            guard case TagLibManagerError.verificationFailed = error else {
+                return XCTFail("Expected verificationFailed, got \(error)")
+            }
+        }
     }
 
     func testStructuredID3ChapterAndTableOfContentsRoundTrip() throws {
