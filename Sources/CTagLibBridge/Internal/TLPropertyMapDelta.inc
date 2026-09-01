@@ -107,13 +107,45 @@ static NSError *PropertyMapDeltaError(NSInteger code, NSString *description)
         }
         TagLib::MP4::Tag *tag = file.tag();
         if (updateTrackPair) {
+            NSString *existingFormatting = nil;
+            if (tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey)) {
+                existingFormatting = TagStringToNSString(
+                    tag->itemMap()[kAudioMatorMP4TrackNumberTextKey].toStringList().toString()
+                );
+            }
             tag->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
             SetMP4IntPairItem(tag, "trkn", trackNumber, totalTracks);
-            SetMP4TextItem(tag, kAudioMatorMP4TrackNumberTextKey, trackText);
+            if (existingFormatting) {
+                NSInteger ignoredNumber = 0;
+                NSInteger ignoredTotal = 0;
+                NSInteger padWidth = 0;
+                ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
+                SetMP4TextItem(
+                    tag,
+                    kAudioMatorMP4TrackNumberTextKey,
+                    BuildTRCKString(trackNumber, totalTracks, padWidth)
+                );
+            }
         }
         if (updateDiscPair) {
+            NSString *existingFormatting = nil;
+            if (tag->itemMap().contains(kAudioMatorMP4DiscNumberTextKey)) {
+                existingFormatting = TagStringToNSString(
+                    tag->itemMap()[kAudioMatorMP4DiscNumberTextKey].toStringList().toString()
+                );
+            }
             SetMP4IntPairItem(tag, "disk", discNumber, totalDiscs);
-            SetMP4TextItem(tag, kAudioMatorMP4DiscNumberTextKey, discText);
+            if (existingFormatting) {
+                NSInteger ignoredNumber = 0;
+                NSInteger ignoredTotal = 0;
+                NSInteger padWidth = 0;
+                ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
+                SetMP4TextItem(
+                    tag,
+                    kAudioMatorMP4DiscNumberTextKey,
+                    BuildTRCKString(discNumber, totalDiscs, padWidth)
+                );
+            }
         }
         if (!file.save()) {
             if (error) *error = PropertyMapDeltaError(9263, @"TagLib could not save native MP4/M4A number pairs");
@@ -155,13 +187,25 @@ static NSError *PropertyMapDeltaError(NSInteger code, NSString *description)
     }
     TagLib::PropertyMap properties = file->properties();
     if (updateTrackPair) {
-        SetPropertyMapDynamicString(properties, @"TRACKNUMBER", trackText);
+        NSString *existingTrackNumber = FirstStringFromProperty(properties, {"TRACKNUMBER", "TRACK"});
+        SetPropertyMapDynamicString(
+            properties,
+            @"TRACKNUMBER",
+            BuildPropertyMapNumberTextPreservingFormatting(existingTrackNumber, trackNumber)
+        );
         SetPropertyMapDynamicString(properties, @"TRACKTOTAL", totalTracks > 0 ? [NSString stringWithFormat:@"%ld", (long)totalTracks] : nil);
+        properties.erase("TRACK");
         properties.erase("TOTALTRACKS");
     }
     if (updateDiscPair) {
-        SetPropertyMapDynamicString(properties, @"DISCNUMBER", discText);
+        NSString *existingDiscNumber = FirstStringFromProperty(properties, {"DISCNUMBER", "DISC"});
+        SetPropertyMapDynamicString(
+            properties,
+            @"DISCNUMBER",
+            BuildPropertyMapNumberTextPreservingFormatting(existingDiscNumber, discNumber)
+        );
         SetPropertyMapDynamicString(properties, @"DISCTOTAL", totalDiscs > 0 ? [NSString stringWithFormat:@"%ld", (long)totalDiscs] : nil);
+        properties.erase("DISC");
         properties.erase("TOTALDISCS");
     }
     file->setProperties(properties);

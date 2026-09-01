@@ -757,14 +757,14 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
-    func testPropertyMapMetadataPatchPreservesTrackDiscPairComponents() throws {
-        for ext in ["mp3", "flac", "ogg", "oga"] {
+    func testGenericPropertyMapMetadataPatchUsesSeparateTrackDiscFields() throws {
+        for ext in ["flac", "ogg", "oga"] {
             let url = try copyAudioFixture(ext)
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 [
-                    "TRACKNUMBER": ["3/12"],
+                    "TRACKNUMBER": ["3"],
                     "TRACKTOTAL": ["12"],
-                    "DISCNUMBER": ["1/2"],
+                    "DISCNUMBER": ["1"],
                     "DISCTOTAL": ["2"],
                 ],
                 to: url,
@@ -773,17 +773,105 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             )
 
             try TagLibMetadataManager.applyMetadataPatch(
-                MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
+                MetadataPatch(fields: [.track: .integer(5)]),
                 to: url,
                 failurePolicy: .throw
             )
+            var raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "TRACKNUMBER"), ["5"], ext)
+            XCTAssertEqual(raw.values(for: "TRACKTOTAL"), ["12"], ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.trackTotal: .integer(20)]),
+                to: url,
+                failurePolicy: .throw
+            )
+            raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "TRACKNUMBER"), ["5"], ext)
+            XCTAssertEqual(raw.values(for: "TRACKTOTAL"), ["20"], ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.disc: .integer(2)]),
+                to: url,
+                failurePolicy: .throw
+            )
+            raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "DISCNUMBER"), ["2"], ext)
+            XCTAssertEqual(raw.values(for: "DISCTOTAL"), ["2"], ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.discTotal: .integer(4)]),
+                to: url,
+                failurePolicy: .throw
+            )
+            raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "DISCNUMBER"), ["2"], ext)
+            XCTAssertEqual(raw.values(for: "DISCTOTAL"), ["4"], ext)
 
             let result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.track, 5, ext)
-            XCTAssertEqual(result.trackTotal, 12, ext)
-            XCTAssertEqual(result.disc, 1, ext)
+            XCTAssertEqual(result.trackTotal, 20, ext)
+            XCTAssertEqual(result.disc, 2, ext)
             XCTAssertEqual(result.discTotal, 4, ext)
         }
+    }
+
+    func testM4AOrdinaryNumberPatchDoesNotInjectPrivateFormattingAtoms() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        var atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_") })
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_") })
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, 5)
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, 12)
+        XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, 1)
+        XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 4)
+    }
+
+    func testM4ANumberPatchUpdatesExistingPrivateFormattingAtoms() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+                .init(key: "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT", type: "stringList", values: ["03/12"]),
+                .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+            ["05/12"]
+        )
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+            ["01/4"]
+        )
     }
 
     func testMetadataPatchBooleanFalseIsDistinctFromRemoval() throws {
