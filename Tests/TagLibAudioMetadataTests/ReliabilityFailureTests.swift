@@ -1,10 +1,35 @@
 import XCTest
-import TagLibAudioMetadata
+@testable import TagLibAudioMetadata
 #if os(macOS)
 import Darwin
 #endif
 
 final class ReliabilityFailureTests: XCTestCase {
+    func testDirectorySyncFailureReportsCommittedButDurabilityUncertain() throws {
+        let url = try copyFixture("flac")
+        let metadata = TagLibAudioMetadata()
+        metadata.title = "Committed despite directory sync failure"
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.withAtomicFileMutation(
+                at: url,
+                directorySync: { _ in -1 }
+            ) { mutationURL in
+                try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
+            }
+        ) { error in
+            guard case TagLibManagerError.committedButDurabilityUncertain(let detail) = error else {
+                return XCTFail("Expected committedButDurabilityUncertain, got \(error)")
+            }
+            XCTAssertTrue(detail.contains("already committed"))
+        }
+
+        XCTAssertEqual(
+            try TagLibMetadataManager.readMetadataResult(from: url).title,
+            "Committed despite directory sync failure"
+        )
+    }
+
     func testReadAndInspectRejectInvalidSupportedExtensionFiles() throws {
         let directory = try temporaryDirectory()
         let missing = directory.appendingPathComponent("missing.mp3")

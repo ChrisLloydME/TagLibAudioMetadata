@@ -273,21 +273,24 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
         metadata.compilation = items["cpil"].toBool();
     }
 
-    // Explicit rating (rtng atom: 0 = none, 2 = clean, 4 = explicit)
+    // Apple/iTunes rating: 0 = not explicit, 1 = explicit, 2 = clean.
+    // Legacy 4 remains accepted as explicit by ParseExplicitTagValue.
+    bool parsedNativeAdvisory = false;
     if (items.contains("rtng")) {
         const TagLib::MP4::Item &ratingItem = items["rtng"];
-        BOOL explicitValue = NO;
+        TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
         std::string ratingRaw = std::to_string(ratingItem.toInt());
         TagLib::String ratingString(ratingRaw.c_str(), TagLib::String::UTF8);
         if (ParseExplicitTagValue(ratingString, explicitValue)) {
             SetParsedExplicitAdvisory(metadata, explicitValue);
+            parsedNativeAdvisory = true;
         }
     }
 
-    if (items.contains("----:com.apple.iTunes:ITUNESADVISORY")) {
+    if (!parsedNativeAdvisory && items.contains("----:com.apple.iTunes:ITUNESADVISORY")) {
         TagLib::String advisoryValue =
             items["----:com.apple.iTunes:ITUNESADVISORY"].toStringList().toString();
-        BOOL explicitValue = NO;
+        TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
         if (ParseExplicitTagValue(advisoryValue, explicitValue)) {
             SetParsedExplicitAdvisory(metadata, explicitValue);
         }

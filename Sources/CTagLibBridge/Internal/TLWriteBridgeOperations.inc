@@ -207,6 +207,17 @@
             return NO;
         }
 
+        const bool hadTrackNumberFormatting =
+            tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey);
+        const bool hadDiscNumberFormatting =
+            tag->itemMap().contains(kAudioMatorMP4DiscNumberTextKey);
+        NSString *existingTrackNumberFormatting = hadTrackNumberFormatting
+            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4TrackNumberTextKey)
+            : nil;
+        NSString *existingDiscNumberFormatting = hadDiscNumberFormatting
+            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4DiscNumberTextKey)
+            : nil;
+
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
         tag->setTitle(NSStringToTagString(metadata.title));
         tag->setArtist(NSStringToTagString(metadata.artist));
@@ -231,10 +242,28 @@
         ApplyWritableTextMappingsToMP4Tag(tag, metadata);
         SetMP4TextItem(tag, "\xA9" "lyr", metadata.lyrics);
 
-        // Publisher/label convention for MP4 freeform atoms.
-        SetMP4TextItem(tag, "----:com.apple.iTunes:ITUNESADVISORY", SerializedExplicitAdvisory(metadata));
-        SetMP4TextItem(tag, kAudioMatorMP4TrackNumberTextKey, metadata.trackNumberText);
-        SetMP4TextItem(tag, kAudioMatorMP4DiscNumberTextKey, metadata.discNumberText);
+        if (hadTrackNumberFormatting) {
+            SetMP4TextItem(
+                tag,
+                kAudioMatorMP4TrackNumberTextKey,
+                BuildSynchronizedNumberTextPreservingFormatting(
+                    existingTrackNumberFormatting,
+                    metadata.trackNumber,
+                    metadata.totalTracks
+                )
+            );
+        }
+        if (hadDiscNumberFormatting) {
+            SetMP4TextItem(
+                tag,
+                kAudioMatorMP4DiscNumberTextKey,
+                BuildSynchronizedNumberTextPreservingFormatting(
+                    existingDiscNumberFormatting,
+                    metadata.discNumber,
+                    metadata.totalDiscs
+                )
+            );
+        }
 
         SetMP4IntPairItem(tag, "trkn", metadata.trackNumber, metadata.totalTracks);
         SetMP4IntPairItem(tag, "disk", metadata.discNumber, metadata.totalDiscs);
@@ -249,19 +278,10 @@
             tag->removeItem("cpil");
         }
 
-        // iTunes-style explicit rating: 2 = clean, 4 = explicit, absent = unspecified.
-        switch (metadata.explicitAdvisory) {
-            case TagLibExplicitAdvisoryExplicit:
-                tag->setItem("rtng", TagLib::MP4::Item(4));
-                break;
-            case TagLibExplicitAdvisoryClean:
-                tag->setItem("rtng", TagLib::MP4::Item(2));
-                break;
-            case TagLibExplicitAdvisoryUnspecified:
-                tag->removeItem("rtng");
-                break;
-        }
         ApplyCustomFieldsToMP4Tag(tag, metadata.customFields);
+        // Keep Basic and Patch writes canonical: rtng is authoritative and all
+        // explicitly recognized legacy/freeform aliases are removed.
+        ApplyCanonicalMP4Advisory(tag, metadata.explicitAdvisory);
 
         if (!ApplyPictureComplexProperties(tag,
                                            metadata,

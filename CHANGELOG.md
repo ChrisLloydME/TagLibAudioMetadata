@@ -15,6 +15,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
   round-trip coverage.
 - Added the explicit `TagLibAudioMetadataLowLevel` product and cross-language
   metadata-schema consistency tests.
+- Added schema-aware typed patch validation and a typed
+  `committedButDurabilityUncertain` post-rename transaction outcome.
+- Added container-native Patch mutation for MP4 track/disc pairs and advisory
+  values, plus schema-aware custom-key and numeric constraint validation.
 
 ### Changed
 
@@ -23,6 +27,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
   map.
 - Removed nested facade transactions so edits use one staging copy, and unified
   basic/raw/structured extraction into one TagLib session.
+- Added selective projection extraction and consolidated Basic/PropertyMap
+  post-write verification into one parser session.
+- Split PropertyMap preservation extraction from raw ID3 frame enumeration so
+  Basic reads and ordinary verification avoid unused raw-frame construction.
 - Narrowed the process-wide lock to TagLib object lifetimes and moved transaction
   filesystem work outside it.
 - Split the bridge transaction coordinator into a dedicated Objective-C++
@@ -30,8 +38,47 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Structured ID3v2 text and `TXXX` writes now preserve native ordered value
+  lists. `TXXX` descriptions remain frame identity rather than being duplicated
+  into `StructuredID3v2Frame.values`, and post-write verification compares value
+  cardinality, ordering, and contents instead of joined display strings.
+- Structured ID3v2 and ASF artwork now preserve valid picture type code `0`
+  (`Other`). Artwork verification checks container-supported MIME type, picture
+  type, description, and image data rather than image bytes alone.
+- TrueAudio/TTA now advertises PropertyMap-level Structured write support, which
+  matches its implemented mutation path; Structured reads continue to expose its
+  ID3v2 container.
 - Preserved rich metadata omitted from basic writes, including raw multi-values,
-  structured entries, artwork MIME information, and three-state advisory data.
+  structured entries, artwork MIME information, and four-state advisory data.
+- Preserved untouched standard multi-value fields during Basic writes without
+  splitting normalized display strings, and made patch Boolean false distinct
+  from field removal.
+- Preserved schema-known fields outside `BasicMetadata`, defined Basic custom-key
+  absence as preservation rather than deletion, and made preservation provenance
+  caller read-only.
+- Preserved omitted MP4 track/disc pair components, updated track totals in the
+  native pair, and prevented contradictory native/freeform advisory values.
+- Kept generic PropertyMap track/disc numbers and totals in separate canonical
+  keys instead of redundantly encoding totals in both fields.
+- Removed all recognized conflicting MP4 advisory aliases when making native
+  `rtng` authoritative.
+- Canonicalized MP4 advisory writes across Basic and Patch APIs, and prevented
+  ordinary Basic writes from introducing private AudioMator track/disc formatting
+  atoms into standard-only files.
+- Restored the distinct absent, not-explicit, explicit, and clean advisory states;
+  canonical MP4/M4A writes now emit `rtng` values `0`, `1`, and `2` respectively
+  for the three present states while retaining legacy `rtng = 4` read compatibility.
+- Synchronized existing AudioMator MP4 track/disc formatting provenance after
+  Basic numeric edits while keeping native `trkn`/`disk` authoritative and
+  preserving unchanged formatted text during unrelated edits.
+- Made `.remove` the explicit unset operation for track/disc pair components,
+  rejected integer zero for those fields, and preserved omitted native ID3
+  movement number/count components in `MVIN`.
+- Rejected typed Patch fields before staging when a format publishes a reliable
+  explicit writable-field allowlist, without restricting Raw APIs.
+- Normalized Patch text and arrays once for mutation and verification, rejected
+  empty values in favor of `.remove`, and stopped ordinary MP4 number patches
+  from injecting new AudioMator-specific formatting atoms.
 - Separated semantic equality from ephemeral UI identity and rejected numeric
   overflow at bridge boundaries.
 - Flushed committed directory entries and reported post-rename durability

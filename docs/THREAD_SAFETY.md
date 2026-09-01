@@ -5,9 +5,11 @@
 `TagLibMetadataManager` and `TagLibMetadataExtractor` may be called from
 multiple threads. A process-wide recursive mutex covers each interval that
 creates or uses TagLib C++ parser, tag, property-map, or file objects. Foundation
-value construction, sibling-file copying, `fsync`, and atomic rename run outside
-that lock, so slow filesystem work does not unnecessarily block parsing another
-file.
+collections and `NSData` populated directly while traversing live TagLib objects
+are currently constructed inside that interval. After the bridge returns,
+Swift value-model conversion, sibling-file copying, `fsync`, and atomic rename
+run outside the lock, so slow filesystem work does not unnecessarily block
+parsing another file.
 
 Operations on independent files are safe. The package does not promise ordering
 for concurrent mutations of the same canonical pathname; callers must serialize
@@ -39,7 +41,7 @@ swift test --sanitize=address
 swift test --sanitize=thread
 ```
 
-The current 62-test suite passes both commands and includes concurrent
+The current 94-test suite passes both commands and includes concurrent
 cross-format reads and writes plus repeated M4A stress. These commands instrument
 the Swift and Objective-C++ targets. The distributed Release XCFramework is
 precompiled and is not internally sanitizer-instrumented; fully instrumented

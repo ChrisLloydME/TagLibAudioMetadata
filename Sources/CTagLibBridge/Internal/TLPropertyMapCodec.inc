@@ -215,7 +215,8 @@ static void ApplyCustomFieldsToPropertyMap(TagLib::PropertyMap &properties,
     }
 }
 
-static bool ParseExplicitTagValue(const TagLib::String &value, BOOL &explicitContent)
+static bool ParseExplicitTagValue(const TagLib::String &value,
+                                  TagLibExplicitAdvisory &advisory)
 {
     if (value.isEmpty()) {
         return false;
@@ -225,38 +226,48 @@ static bool ParseExplicitTagValue(const TagLib::String &value, BOOL &explicitCon
     std::string raw = upper.to8Bit(true);
 
     if (upper == "EXPLICIT" || upper == "TRUE" || upper == "YES") {
-        explicitContent = YES;
+        advisory = TagLibExplicitAdvisoryExplicit;
         return true;
     }
 
-    if (upper == "CLEAN" || upper == "FALSE" || upper == "NO" || upper == "NONE") {
-        explicitContent = NO;
+    if (upper == "CLEAN") {
+        advisory = TagLibExplicitAdvisoryClean;
+        return true;
+    }
+
+    if (upper == "FALSE" || upper == "NO" || upper == "NONE") {
+        advisory = TagLibExplicitAdvisoryNotExplicit;
         return true;
     }
 
     if (raw == "4" || raw == "1") {
-        explicitContent = YES;
+        advisory = TagLibExplicitAdvisoryExplicit;
         return true;
     }
 
-    if (raw == "2" || raw == "0" || raw == "-1") {
-        explicitContent = NO;
+    if (raw == "2") {
+        advisory = TagLibExplicitAdvisoryClean;
+        return true;
+    }
+
+    if (raw == "0" || raw == "-1") {
+        advisory = TagLibExplicitAdvisoryNotExplicit;
         return true;
     }
 
     return false;
 }
 
-static void SetParsedExplicitAdvisory(TagLibAudioMetadata *metadata, BOOL explicitContent)
+static void SetParsedExplicitAdvisory(TagLibAudioMetadata *metadata,
+                                      TagLibExplicitAdvisory advisory)
 {
-    metadata.explicitAdvisory = explicitContent
-        ? TagLibExplicitAdvisoryExplicit
-        : TagLibExplicitAdvisoryClean;
+    metadata.explicitAdvisory = advisory;
 }
 
 static NSString * _Nullable SerializedExplicitAdvisory(TagLibAudioMetadata *metadata)
 {
     switch (metadata.explicitAdvisory) {
+        case TagLibExplicitAdvisoryNotExplicit: return @"0";
         case TagLibExplicitAdvisoryExplicit: return @"1";
         case TagLibExplicitAdvisoryClean: return @"2";
         case TagLibExplicitAdvisoryUnspecified: return nil;
@@ -281,7 +292,7 @@ static void ApplyExplicitPropertyKeys(const TagLib::PropertyMap &properties,
         }
 
         for (const auto &explicitCandidate : properties[key]) {
-            BOOL explicitValue = NO;
+            TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
             if (ParseExplicitTagValue(explicitCandidate, explicitValue)) {
                 SetParsedExplicitAdvisory(metadata, explicitValue);
                 return;
@@ -635,7 +646,7 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         [normalizedKey isEqualToString:@"ADVISORY"] ||
         [normalizedKey isEqualToString:@"EXPLICITCONTENT"] ||
         [normalizedKey isEqualToString:@"EXPLICIT"]) {
-        BOOL explicitValue = NO;
+        TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
         TagLib::String explicitString(trimmedValue.UTF8String, TagLib::String::UTF8);
         if (ParseExplicitTagValue(explicitString, explicitValue)) {
             SetParsedExplicitAdvisory(metadata, explicitValue);

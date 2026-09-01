@@ -7,6 +7,28 @@ import Foundation
 import CTagLibBridge
 
 extension TagLibMetadataManager {
+    nonisolated private static func basicProjectionValue(
+        for field: MetadataFieldKey,
+        metadata: BasicMetadata
+    ) -> String? {
+        switch field {
+        case .artist: metadata.artist
+        case .albumArtist: metadata.albumArtist
+        case .genre: metadata.genre
+        case .composer: metadata.composer
+        case .conductor: metadata.conductor
+        case .remixer: metadata.remixer
+        case .producer: metadata.producer
+        case .engineer: metadata.engineer
+        case .lyricist: metadata.lyricist
+        case .grouping: metadata.grouping
+        case .mood: metadata.mood
+        case .language: metadata.language
+        case .originalArtist: metadata.originalArtist
+        default: nil
+        }
+    }
+
     public nonisolated static func writeTagMetadata(
         _ metadata: TagLibAudioMetadata,
         to url: URL,
@@ -26,6 +48,8 @@ extension TagLibMetadataManager {
         }
     }
 
+    /// Intentionally writes formatted track/disc number text. Unlike an ordinary
+    /// Basic numeric edit, the supplied text is the authoritative input.
     @discardableResult
     public nonisolated static func writeTrackNumberText(
         _ trackNumberText: String,
@@ -393,6 +417,7 @@ extension TagLibMetadataManager {
         m.compilation = meta.isCompilation
         m.explicitAdvisory = switch meta.explicitAdvisory {
         case .unspecified: .unspecified
+        case .notExplicit: .notExplicit
         case .clean: .clean
         case .explicit: .explicit
         }
@@ -420,18 +445,49 @@ extension TagLibMetadataManager {
         m.artworkData = meta.artworkData
         m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
 
-        // Persist through the write coordinator so all metadata entry points
-        // share post-write verification policy.
-        let result = try writeTagMetadata(
-            m,
-            to: url,
-            verification: MetadataWriteVerificationContext(
+        var preservedStandardValues: [String: [String]] = [:]
+        var preservedStandardAliases: Set<String> = []
+        for (rawKey, values) in meta.originalStandardFieldValues {
+            guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: rawKey) else {
+                continue
+            }
+
+            if BasicMetadata.editableFieldKeys.contains(schema.key) {
+                guard let originalProjection = meta.originalStandardFieldProjection.first(where: {
+                    $0.key.caseInsensitiveCompare(rawKey) == .orderedSame
+                })?.value,
+                basicProjectionValue(for: schema.key, metadata: meta) == originalProjection else {
+                    continue
+                }
+            }
+
+            preservedStandardValues[rawKey] = values
+            preservedStandardAliases.formUnion(schema.propertyMapKeys)
+        }
+
+        let isMP4Family = formatCapability(for: ext)?.identifier == "mp4"
+        let expectedTrackNumberText = isMP4Family
+            ? numberTextPreservingFormatting(
+                meta.trackNumberText,
+                number: meta.track,
+                total: meta.trackTotal
+            )
+            : meta.trackNumberText
+        let expectedDiscNumberText = isMP4Family
+            ? numberTextPreservingFormatting(
+                meta.discNumberText,
+                number: meta.disc,
+                total: meta.discTotal
+            )
+            : meta.discNumberText
+
+        let verification = MetadataWriteVerificationContext(
                 expectedTrackNumber: meta.track,
                 expectedTrackTotal: meta.trackTotal,
-                expectedTrackNumberText: meta.trackNumberText,
+                expectedTrackNumberText: expectedTrackNumberText,
                 expectedDiscNumber: meta.disc,
                 expectedDiscTotal: meta.discTotal,
-                expectedDiscNumberText: meta.discNumberText,
+                expectedDiscNumberText: expectedDiscNumberText,
                 expectedExplicitContent: meta.explicitAdvisory == .unspecified ? nil : meta.isExplicit,
                 artworkExpectation: meta.artworkData == nil ? .unchanged : .present,
                 customFieldKeys: Array(meta.customFields.keys),
@@ -506,10 +562,21 @@ extension TagLibMetadataManager {
                     "isCompilation": String(meta.isCompilation),
                 ],
                 expectedExplicitAdvisory: meta.explicitAdvisory
-            ),
-            failurePolicy: failurePolicy
-        )
-        return result
+            )
+
+        return try withAtomicFileMutation(at: url) { mutationURL in
+            try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
+            if !preservedStandardValues.isEmpty {
+                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                    preservedStandardValues,
+                    removingKeys: Array(preservedStandardAliases),
+                    to: mutationURL
+                )
+            }
+            let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
+            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            return MetadataWriteResult(warnings: warnings)
+        }
     }
 
     /// Write `BasicMetadata` back to the file using TagLib.
