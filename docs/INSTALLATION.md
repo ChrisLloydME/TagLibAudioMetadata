@@ -10,7 +10,7 @@ Depend on the Swift facade for normal application code:
 ```swift
 .package(
     url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-    from: "0.4.5"
+    from: "0.5.0"
 )
 
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
