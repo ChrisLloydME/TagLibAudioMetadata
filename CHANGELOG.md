@@ -48,6 +48,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
   caller read-only.
 - Preserved omitted MP4 track/disc pair components, updated track totals in the
   native pair, and prevented contradictory native/freeform advisory values.
+- Kept generic PropertyMap track/disc numbers and totals in separate canonical
+  keys instead of redundantly encoding totals in both fields.
+- Removed all recognized conflicting MP4 advisory aliases when making native
+  `rtng` authoritative.
+- Normalized Patch text and arrays once for mutation and verification, rejected
+  empty values in favor of `.remove`, and stopped ordinary MP4 number patches
+  from injecting new AudioMator-specific formatting atoms.
 - Separated semantic equality from ephemeral UI identity and rejected numeric
   overflow at bridge boundaries.
 - Flushed committed directory entries and reported post-rename durability

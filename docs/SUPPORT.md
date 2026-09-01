@@ -91,6 +91,10 @@ typed/custom collisions are rejected with `MetadataPatchValidationError`.
 Permissive known-key editing remains available through the raw APIs.
 Text-backed Boolean patches encode `.boolean(true)` as `"1"` and
 `.boolean(false)` as `"0"`; `.remove` alone makes the field absent.
+Text and array elements are trimmed once before mutation, and verification uses
+that same normalized representation. `.text("")`, `.values([])`, and arrays
+containing empty or whitespace-only elements are validation errors. Use
+`.remove` when absence is intended.
 
 ```swift
 let patch = MetadataPatch(
@@ -110,12 +114,22 @@ Track and disc fields are semantic pairs even though the Patch API exposes
 their components separately. On MP4/M4A, changing only `.track` preserves the
 existing total in native `trkn`; changing only `.trackTotal` preserves the
 number. `disc`/`discTotal` behave the same through `disk`. ID3 and
-PropertyMap-backed formats receive their corresponding native/text pair.
+PropertyMap-backed formats receive their corresponding native/text pair. Generic
+PropertyMap formats use separate `TRACKNUMBER`/`TRACKTOTAL` and
+`DISCNUMBER`/`DISCTOTAL` values, so the total is not duplicated inside the
+number field. ID3 retains its combined `TRCK`/`TPOS` representation.
+
+An ordinary MP4 number Patch writes only standard `trkn`/`disk` metadata. It
+does not introduce `AUDIOMATOR_TRACKNUMBER_TEXT` or
+`AUDIOMATOR_DISCNUMBER_TEXT`. If either private formatting atom was already
+present, the Patch updates it and preserves its number-padding convention.
 
 `explicitAdvisory` is also container-aware: MP4/M4A uses native `rtng`, ID3
 uses the supported `ITUNESADVISORY` TXXX representation, and unspecified removes
-that representation. The high-level writer removes contradictory advisory
-aliases instead of leaving stale native and freeform values together.
+that representation. The high-level MP4 writer removes the explicitly recognized
+freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
+instead of leaving stale native and freeform values together. Unrelated
+freeform metadata is not removed by fuzzy name matching.
 
 ## Format Support
 
@@ -667,6 +681,12 @@ verification uses the same one-session approach and requests structured
 projection work only when artwork verification needs it. Raw inspectors still
 request PropertyMap and raw-frame extraction; full snapshots request every
 projection in one parser session.
+
+Structured-only calls return only the structured projection, although the
+current unified Objective-C++ traversal still constructs an internal Basic
+carrier. A complex Patch may also perform separate staged-file open/save cycles
+for number pairs, advisory, PropertyMap values, and artwork. Both are documented
+performance follow-ups rather than semantic limitations.
 
 ## Transaction Outcomes
 
