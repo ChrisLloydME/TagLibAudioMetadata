@@ -35,8 +35,10 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
 {
     if (!tag) return;
     RemoveRecognizedMP4AdvisoryFreeformItems(tag);
-    if (advisory == TagLibExplicitAdvisoryExplicit) {
-        tag->setItem("rtng", TagLib::MP4::Item(4));
+    if (advisory == TagLibExplicitAdvisoryNotExplicit) {
+        tag->setItem("rtng", TagLib::MP4::Item(0));
+    } else if (advisory == TagLibExplicitAdvisoryExplicit) {
+        tag->setItem("rtng", TagLib::MP4::Item(1));
     } else if (advisory == TagLibExplicitAdvisoryClean) {
         tag->setItem("rtng", TagLib::MP4::Item(2));
     } else {
@@ -317,8 +319,11 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                                error:(NSError **)error
 {
     try {
-    if (!fileURL || !fileURL.isFileURL || advisory < TagLibExplicitAdvisoryUnspecified ||
-        advisory > TagLibExplicitAdvisoryExplicit) {
+    const bool validAdvisory = advisory == TagLibExplicitAdvisoryUnspecified ||
+        advisory == TagLibExplicitAdvisoryNotExplicit ||
+        advisory == TagLibExplicitAdvisoryExplicit ||
+        advisory == TagLibExplicitAdvisoryClean;
+    if (!fileURL || !fileURL.isFileURL || !validAdvisory) {
         if (error) *error = PropertyMapDeltaError(9270, @"Explicit-advisory changes require a file URL and valid advisory state");
         return NO;
     }
@@ -331,9 +336,13 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
     AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
-    NSString *serialized = advisory == TagLibExplicitAdvisoryExplicit
-        ? @"1"
-        : (advisory == TagLibExplicitAdvisoryClean ? @"2" : nil);
+    NSString *serialized = nil;
+    switch (advisory) {
+        case TagLibExplicitAdvisoryNotExplicit: serialized = @"0"; break;
+        case TagLibExplicitAdvisoryExplicit: serialized = @"1"; break;
+        case TagLibExplicitAdvisoryClean: serialized = @"2"; break;
+        case TagLibExplicitAdvisoryUnspecified: break;
+    }
 
     if (format == AudioMatorTagFileFormatMP4) {
         TagLib::MP4::File file(filePath);

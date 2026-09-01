@@ -242,6 +242,7 @@ static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError 
 
     switch (metadata.explicitAdvisory) {
         case TagLibExplicitAdvisoryUnspecified:
+        case TagLibExplicitAdvisoryNotExplicit:
         case TagLibExplicitAdvisoryClean:
         case TagLibExplicitAdvisoryExplicit:
             break;

@@ -417,6 +417,7 @@ extension TagLibMetadataManager {
         m.compilation = meta.isCompilation
         m.explicitAdvisory = switch meta.explicitAdvisory {
         case .unspecified: .unspecified
+        case .notExplicit: .notExplicit
         case .clean: .clean
         case .explicit: .explicit
         }

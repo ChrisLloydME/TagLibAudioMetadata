@@ -71,7 +71,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
-    func testExplicitAdvisoryPreservesAbsenceCleanAndExplicitStates() throws {
+    func testExplicitAdvisoryPreservesAllFourStates() throws {
         for ext in writableFixtures {
             let url = try copyAudioFixture(ext)
 
@@ -84,9 +84,15 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 "\(ext) should preserve advisory absence"
             )
 
-            metadata.explicitAdvisory = .clean
+            metadata.explicitAdvisory = .notExplicit
             try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
             var result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.explicitAdvisory, .notExplicit, "\(ext) should preserve not-explicit")
+            XCTAssertFalse(result.isExplicit, ext)
+
+            metadata.explicitAdvisory = .clean
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.explicitAdvisory, .clean, "\(ext) should preserve an explicit clean advisory")
             XCTAssertFalse(result.isExplicit, ext)
 
@@ -1072,10 +1078,12 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
         let scenarios = [
             Scenario(name: "explicit to clean", initial: .explicit, patched: .clean, expectedNativeValue: "2"),
-            Scenario(name: "clean to explicit", initial: .clean, patched: .explicit, expectedNativeValue: "4"),
+            Scenario(name: "clean to explicit", initial: .clean, patched: .explicit, expectedNativeValue: "1"),
+            Scenario(name: "clean to not explicit", initial: .clean, patched: .notExplicit, expectedNativeValue: "0"),
             Scenario(name: "explicit to unspecified", initial: .explicit, patched: .unspecified, expectedNativeValue: nil),
-            Scenario(name: "absent to explicit", initial: .unspecified, patched: .explicit, expectedNativeValue: "4"),
+            Scenario(name: "absent to explicit", initial: .unspecified, patched: .explicit, expectedNativeValue: "1"),
             Scenario(name: "absent to clean", initial: .unspecified, patched: .clean, expectedNativeValue: "2"),
+            Scenario(name: "absent to not explicit", initial: .unspecified, patched: .notExplicit, expectedNativeValue: "0"),
         ]
 
         for scenario in scenarios {
@@ -1115,7 +1123,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
         let scenarios = [
             Scenario(name: "native explicit with clean aliases", initial: .explicit, freeformValue: "2", patched: .clean, expectedNativeValue: "2"),
-            Scenario(name: "native clean with explicit aliases", initial: .clean, freeformValue: "1", patched: .explicit, expectedNativeValue: "4"),
+            Scenario(name: "native clean with explicit aliases", initial: .clean, freeformValue: "1", patched: .explicit, expectedNativeValue: "1"),
             Scenario(name: "remove native and aliases", initial: .explicit, freeformValue: "1", patched: .unspecified, expectedNativeValue: nil),
         ]
         let aliases = ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"]
@@ -1191,31 +1199,31 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             )
         }
 
-        let patchThenBasic = try copyAudioFixture("m4a")
-        try TagLibMetadataManager.applyMetadataPatch(
-            MetadataPatch(explicitAdvisory: .explicit),
-            to: patchThenBasic,
-            failurePolicy: .throw
-        )
-        var basic = try TagLibMetadataManager.readMetadataResult(from: patchThenBasic)
-        basic.explicitAdvisory = .clean
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: patchThenBasic, failurePolicy: .throw)
-        try assertCanonical(patchThenBasic, advisory: .clean, nativeValue: "2")
+        let states: [(ExplicitAdvisory, String?)] = [
+            (.unspecified, nil),
+            (.notExplicit, "0"),
+            (.explicit, "1"),
+            (.clean, "2"),
+        ]
 
-        let basicThenPatch = try copyAudioFixture("m4a")
-        basic = try TagLibMetadataManager.readMetadataResult(from: basicThenPatch)
-        basic.explicitAdvisory = .explicit
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicThenPatch, failurePolicy: .throw)
-        try assertCanonical(basicThenPatch, advisory: .explicit, nativeValue: "4")
-        try TagLibMetadataManager.applyMetadataPatch(
-            MetadataPatch(explicitAdvisory: .clean),
-            to: basicThenPatch,
-            failurePolicy: .throw
-        )
-        try assertCanonical(basicThenPatch, advisory: .clean, nativeValue: "2")
+        for (advisory, nativeValue) in states {
+            let basicURL = try copyAudioFixture("m4a")
+            var basic = try TagLibMetadataManager.readMetadataResult(from: basicURL)
+            basic.explicitAdvisory = advisory
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicURL, failurePolicy: .throw)
+            try assertCanonical(basicURL, advisory: advisory, nativeValue: nativeValue)
+
+            let patchURL = try copyAudioFixture("m4a")
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: advisory),
+                to: patchURL,
+                failurePolicy: .throw
+            )
+            try assertCanonical(patchURL, advisory: advisory, nativeValue: nativeValue)
+        }
 
         let basicRemoval = try copyAudioFixture("m4a")
-        basic = try TagLibMetadataManager.readMetadataResult(from: basicRemoval)
+        var basic = try TagLibMetadataManager.readMetadataResult(from: basicRemoval)
         basic.explicitAdvisory = .explicit
         try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicRemoval, failurePolicy: .throw)
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
@@ -1229,6 +1237,60 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         basic.explicitAdvisory = .unspecified
         try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicRemoval, failurePolicy: .throw)
         try assertCanonical(basicRemoval, advisory: .unspecified, nativeValue: nil)
+    }
+
+    func testM4AReadsNativeFourStateAdvisoryAndCanonicalizesLegacyExplicit() throws {
+        let nativeStates: [(Int, ExplicitAdvisory)] = [
+            (0, .notExplicit),
+            (1, .explicit),
+            (2, .clean),
+        ]
+
+        let absentURL = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .unspecified),
+            to: absentURL,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(
+            try TagLibMetadataManager.readMetadataResult(from: absentURL).explicitAdvisory,
+            .unspecified
+        )
+
+        for (nativeValue, advisory) in nativeStates {
+            let url = try copyAudioFixture("m4a")
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(mp4Atoms: [
+                    .init(key: "rtng", type: "int", value: String(nativeValue)),
+                ]),
+                to: url,
+                verifyAfterWrite: false,
+                failurePolicy: .throw
+            )
+            XCTAssertEqual(
+                try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
+                advisory,
+                "rtng=\(nativeValue)"
+            )
+        }
+
+        let legacyURL = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "rtng", type: "int", value: "4"),
+            ]),
+            to: legacyURL,
+            verifyAfterWrite: false,
+            failurePolicy: .throw
+        )
+        var legacy = try TagLibMetadataManager.readMetadataResult(from: legacyURL)
+        XCTAssertEqual(legacy.explicitAdvisory, .explicit)
+
+        legacy.title = "Canonical legacy rewrite"
+        try TagLibMetadataManager.writeMetadataWithVerification(legacy, to: legacyURL, failurePolicy: .throw)
+        let rewritten = try TagLibMetadataManager.readSnapshot(from: legacyURL)
+        XCTAssertEqual(rewritten.basic.explicitAdvisory, .explicit)
+        XCTAssertEqual(rewritten.structured.mp4Atoms.first { $0.key == "rtng" }?.value, "1")
     }
 
     func testMP3MetadataPatchUsesSingleID3AdvisoryRepresentation() throws {
@@ -1252,6 +1314,20 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         )
 
         try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .notExplicit),
+            to: url,
+            failurePolicy: .throw
+        )
+        snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .notExplicit)
+        XCTAssertEqual(
+            snapshot.raw.id3v2Frames.filter {
+                $0.frameID == "TXXX" && $0.description?.uppercased() == "ITUNESADVISORY"
+            }.map(\.value),
+            ["[ITUNESADVISORY] 0"]
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(explicitAdvisory: .unspecified),
             to: url,
             failurePolicy: .throw
@@ -1261,6 +1337,59 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertFalse(snapshot.raw.id3v2Frames.contains {
             $0.frameID == "TXXX" && $0.description?.uppercased() == "ITUNESADVISORY"
         })
+    }
+
+    func testGenericPropertyMapAdvisoryUsesCanonicalFourStateValues() throws {
+        let states: [(ExplicitAdvisory, String?)] = [
+            (.unspecified, nil),
+            (.notExplicit, "0"),
+            (.explicit, "1"),
+            (.clean, "2"),
+        ]
+
+        for (advisory, storedValue) in states {
+            let url = try copyAudioFixture("flac")
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: advisory),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.basic.explicitAdvisory, advisory)
+            XCTAssertEqual(
+                snapshot.raw.values(for: "ITUNESADVISORY"),
+                storedValue.map { [$0] } ?? []
+            )
+        }
+    }
+
+    func testLegacyAdvisoryTextValuesRemainReadable() throws {
+        let legacyValues: [(String, ExplicitAdvisory)] = [
+            ("4", .explicit),
+            ("-1", .notExplicit),
+            ("TRUE", .explicit),
+            ("FALSE", .notExplicit),
+            ("YES", .explicit),
+            ("NO", .notExplicit),
+            ("EXPLICIT", .explicit),
+            ("CLEAN", .clean),
+            ("NONE", .notExplicit),
+        ]
+
+        for (storedValue, expected) in legacyValues {
+            let url = try copyAudioFixture("flac")
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["ITUNESADVISORY": [storedValue]],
+                to: url,
+                failurePolicy: .throw
+            )
+            XCTAssertEqual(
+                try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
+                expected,
+                storedValue
+            )
+        }
     }
 
     func testMetadataPatchRejectsInvalidValueTypesBeforeMutation() throws {

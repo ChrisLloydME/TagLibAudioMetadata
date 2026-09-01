@@ -79,6 +79,8 @@ public struct MetadataFieldProvenance: Hashable, Sendable {
 public enum ExplicitAdvisory: String, Hashable, Sendable {
     /// No advisory field exists in the source metadata.
     case unspecified
+    /// The source contains an advisory field explicitly marked as not explicit.
+    case notExplicit
     /// The source explicitly marks the recording as clean/non-explicit.
     case clean
     /// The source explicitly marks the recording as explicit.

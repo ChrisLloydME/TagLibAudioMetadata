@@ -347,6 +347,7 @@ extension TagLibMetadataManager {
             if let advisory = patch.explicitAdvisory {
                 let bridgeAdvisory: TagLibExplicitAdvisory = switch advisory {
                 case .unspecified: .unspecified
+                case .notExplicit: .notExplicit
                 case .clean: .clean
                 case .explicit: .explicit
                 }
