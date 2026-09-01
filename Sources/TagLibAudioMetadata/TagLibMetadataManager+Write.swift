@@ -462,13 +462,29 @@ extension TagLibMetadataManager {
             preservedStandardAliases.formUnion(schema.propertyMapKeys)
         }
 
+        let isMP4Family = formatCapability(for: ext)?.identifier == "mp4"
+        let expectedTrackNumberText = isMP4Family
+            ? numberTextPreservingFormatting(
+                meta.trackNumberText,
+                number: meta.track,
+                total: meta.trackTotal
+            )
+            : meta.trackNumberText
+        let expectedDiscNumberText = isMP4Family
+            ? numberTextPreservingFormatting(
+                meta.discNumberText,
+                number: meta.disc,
+                total: meta.discTotal
+            )
+            : meta.discNumberText
+
         let verification = MetadataWriteVerificationContext(
                 expectedTrackNumber: meta.track,
                 expectedTrackTotal: meta.trackTotal,
-                expectedTrackNumberText: meta.trackNumberText,
+                expectedTrackNumberText: expectedTrackNumberText,
                 expectedDiscNumber: meta.disc,
                 expectedDiscTotal: meta.discTotal,
-                expectedDiscNumberText: meta.discNumberText,
+                expectedDiscNumberText: expectedDiscNumberText,
                 expectedExplicitContent: meta.explicitAdvisory == .unspecified ? nil : meta.isExplicit,
                 artworkExpectation: meta.artworkData == nil ? .unchanged : .present,
                 customFieldKeys: Array(meta.customFields.keys),

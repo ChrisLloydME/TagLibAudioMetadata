@@ -44,6 +44,28 @@ static NSString * _Nullable BuildNumberTextPreservingFormatting(NSString * _Null
     return BuildTRCKString(number, total, padWidth);
 }
 
+static NSString * _Nullable BuildSynchronizedNumberTextPreservingFormatting(
+    NSString * _Nullable existingText,
+    NSInteger number,
+    NSInteger total
+)
+{
+    NSString *trimmedExistingText = TrimmedStringOrNil(existingText);
+    NSInteger existingNumber = 0;
+    NSInteger existingTotal = 0;
+    NSInteger ignoredPadWidth = 0;
+    ParseNumberPairFromNSString(
+        trimmedExistingText,
+        existingNumber,
+        existingTotal,
+        ignoredPadWidth
+    );
+    if (existingNumber == number && existingTotal == total) {
+        return trimmedExistingText;
+    }
+    return BuildNumberTextPreservingFormatting(trimmedExistingText, number, total);
+}
+
 static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSString * _Nullable existingText,
                                                                            NSInteger number)
 {
