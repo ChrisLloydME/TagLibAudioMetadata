@@ -85,7 +85,11 @@ public enum ExplicitAdvisory: String, Hashable, Sendable {
     case explicit
 }
 
-/// Mirrors the metadata fields used in `AudioFile.swift`.
+/// A normalized editing and display projection of commonly used metadata.
+///
+/// Fields this model cannot express, including raw cardinality and supported
+/// container-specific entries, are preservation data rather than editable
+/// properties. Use `MetadataPatch`, Raw, or Structured APIs for precise edits.
 public struct BasicMetadata: Sendable {
     /// Schema fields that this normalized projection can explicitly edit.
     /// Fields outside this set are preservation-only during a Basic round trip.

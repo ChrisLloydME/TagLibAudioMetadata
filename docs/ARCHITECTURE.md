@@ -63,15 +63,22 @@ the current `PropertyMap`; MP4 track/disc pairs and advisory data use native
 representation. TagLib still saves the affected native tag, so the guarantee is
 semantic omission rather than byte-for-byte container preservation.
 
+Explicit format field allowlists, when present in `FormatCapability`, are also
+checked before staging. This preflight applies only to the typed Patch surface;
+Raw APIs remain container-permissive.
+
 Patch text and value arrays are normalized once before mutation. Leading and
 trailing whitespace is removed, empty text/lists/elements are rejected, and the
 same normalized representation drives verification. `.remove` is the sole
 high-level deletion marker.
 
 Generic PropertyMap number pairs use separate canonical number/total keys.
-ID3 uses combined `TRCK`/`TPOS`, and MP4 uses native `trkn`/`disk`. MP4 numeric
-patches update an existing AudioMator formatting atom but do not introduce one
-into a standard-only file. MP4 advisory mutation removes exactly the recognized
+ID3 uses combined `TRCK`/`TPOS`, MP4 uses native `trkn`/`disk`, and ID3 movement
+number/count uses combined `MVIN`; pair mutations preserve an omitted component.
+Track/disc integers begin at one, while `.remove` unsets a component. MP4
+numeric Patch and Basic writes update an existing AudioMator formatting atom but
+do not introduce one into a standard-only file. MP4 advisory mutation from both
+high-level APIs removes exactly the recognized
 freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 before making native `rtng` authoritative.
 

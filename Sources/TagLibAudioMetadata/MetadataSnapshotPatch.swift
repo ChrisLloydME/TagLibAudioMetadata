@@ -22,6 +22,8 @@ public struct MetadataSnapshot: Sendable {
 public enum MetadataPatchValue: Hashable, Sendable {
     /// Non-empty text. Leading and trailing whitespace is removed before mutation.
     case text(String)
+    /// A schema-constrained integer. Track/disc pair components begin at one;
+    /// use `.remove` to unset them. Other numeric fields retain their schema ranges.
     case integer(Int)
     case boolean(Bool)
     /// One or more non-empty values. Each value is trimmed before mutation.
