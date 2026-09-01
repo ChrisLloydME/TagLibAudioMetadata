@@ -289,9 +289,12 @@ NS_SWIFT_NAME(applyPropertyMapValuesInPlace(_:removingKeys:to:));
                                      discNumber:(NSInteger)discNumber
                                      totalDiscs:(NSInteger)totalDiscs
                                 updateDiscPair:(BOOL)updateDiscPair
+                                movementNumber:(NSInteger)movementNumber
+                                  movementCount:(NSInteger)movementCount
+                             updateMovementPair:(BOOL)updateMovementPair
                                           toURL:(NSURL *)fileURL
                                           error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeNumberPairsInPlace(trackNumber:totalTracks:updateTrackPair:discNumber:totalDiscs:updateDiscPair:to:));
+NS_SWIFT_NAME(writeNumberPairsInPlace(trackNumber:totalTracks:updateTrackPair:discNumber:totalDiscs:updateDiscPair:movementNumber:movementCount:updateMovementPair:to:));
 + (BOOL)writeExplicitAdvisoryInPlace:(TagLibExplicitAdvisory)advisory
                                toURL:(NSURL *)fileURL
                                error:(NSError *_Nullable *_Nullable)error

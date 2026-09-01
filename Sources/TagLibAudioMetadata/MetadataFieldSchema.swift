@@ -192,7 +192,9 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     /// Numeric limits shared with the Objective-C++ bridge's integer validation.
     public var integerConstraint: MetadataIntegerConstraint? {
         switch key {
-        case .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount, .bpm:
+        case .track, .trackTotal, .disc, .discTotal:
+            MetadataIntegerConstraint(minimum: 1, maximum: Int(Int32.max))
+        case .movementNumber, .movementCount, .bpm:
             MetadataIntegerConstraint(minimum: 0, maximum: Int(Int32.max))
         default:
             nil

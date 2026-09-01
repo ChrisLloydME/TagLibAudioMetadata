@@ -1242,10 +1242,10 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
     }
 
     func testMetadataPatchEnforcesSharedNumericConstraintsBeforeMutation() throws {
-        for (field, value) in [
-            (MetadataFieldKey.track, -1),
-            (.disc, -1),
-            (.bpm, -20),
+        for (field, value, minimum) in [
+            (MetadataFieldKey.track, -1, 1),
+            (.disc, -1, 1),
+            (.bpm, -20, 0),
         ] {
             let url = try copyAudioFixture("flac")
             let originalBytes = try Data(contentsOf: url)
@@ -1257,7 +1257,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     error as? MetadataPatchValidationError,
                     .integerOutOfRange(
                         field: field,
-                        minimum: 0,
+                        minimum: minimum,
                         maximum: Int(Int32.max),
                         actual: value
                     )
@@ -1266,16 +1266,53 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             XCTAssertEqual(try Data(contentsOf: url), originalBytes)
         }
 
-        let zeroURL = try copyAudioFixture("flac")
+        for field in [MetadataFieldKey.track, .trackTotal, .disc, .discTotal] {
+            let zeroURL = try copyAudioFixture("flac")
+            let originalBytes = try Data(contentsOf: zeroURL)
+            XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [field: .integer(0)]),
+                to: zeroURL
+            )) { error in
+                XCTAssertEqual(
+                    error as? MetadataPatchValidationError,
+                    .integerOutOfRange(
+                        field: field,
+                        minimum: 1,
+                        maximum: Int(Int32.max),
+                        actual: 0
+                    )
+                )
+            }
+            XCTAssertEqual(try Data(contentsOf: zeroURL), originalBytes)
+        }
+
+        let zeroBPMURL = try copyAudioFixture("flac")
         try TagLibMetadataManager.applyMetadataPatch(
-            MetadataPatch(fields: [.track: .integer(0), .disc: .integer(0), .bpm: .integer(0)]),
-            to: zeroURL,
+            MetadataPatch(fields: [.bpm: .integer(0)]),
+            to: zeroBPMURL,
             failurePolicy: .throw
         )
-        let zero = try TagLibMetadataManager.readMetadataResult(from: zeroURL)
-        XCTAssertEqual(zero.track, 0)
-        XCTAssertEqual(zero.disc, 0)
-        XCTAssertEqual(zero.bpm, 0)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: zeroBPMURL).bpm, 0)
+
+        let removalURL = try copyAudioFixture("flac")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            [
+                "TRACKNUMBER": ["3"], "TRACKTOTAL": ["12"],
+                "DISCNUMBER": ["1"], "DISCTOTAL": ["2"],
+            ],
+            to: removalURL,
+            failurePolicy: .throw
+        )
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.track: .remove, .discTotal: .remove]),
+            to: removalURL,
+            failurePolicy: .throw
+        )
+        let removed = try TagLibMetadataManager.rawMetadataResult(from: removalURL)
+        XCTAssertEqual(removed.values(for: "TRACKNUMBER"), [])
+        XCTAssertEqual(removed.values(for: "TRACKTOTAL"), ["12"])
+        XCTAssertEqual(removed.values(for: "DISCNUMBER"), ["1"])
+        XCTAssertEqual(removed.values(for: "DISCTOTAL"), [])
 
         let maximumURL = try copyAudioFixture("flac")
         try TagLibMetadataManager.applyMetadataPatch(
@@ -1302,6 +1339,48 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             )
         }
         XCTAssertEqual(try Data(contentsOf: maximumURL), maximumBytes)
+    }
+
+    func testMP3MetadataPatchPreservesUntouchedMovementPairComponent() throws {
+        let numberURL = try copyAudioFixture("mp3")
+        var basic = try TagLibMetadataManager.readMetadataResult(from: numberURL)
+        basic.movementNumber = 2
+        basic.movementCount = 4
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: numberURL, failurePolicy: .throw)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.movementNumber: .integer(3)]),
+            to: numberURL,
+            failurePolicy: .throw
+        )
+        var result = try TagLibMetadataManager.readMetadataResult(from: numberURL)
+        XCTAssertEqual(result.movementNumber, 3)
+        XCTAssertEqual(result.movementCount, 4)
+        XCTAssertEqual(
+            try TagLibMetadataManager.readStructuredMetadataResult(from: numberURL)
+                .id3v2Frames.first { $0.frameID == "MVIN" }?.value,
+            "3/4"
+        )
+
+        let countURL = try copyAudioFixture("mp3")
+        basic = try TagLibMetadataManager.readMetadataResult(from: countURL)
+        basic.movementNumber = 2
+        basic.movementCount = 4
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: countURL, failurePolicy: .throw)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.movementCount: .integer(6)]),
+            to: countURL,
+            failurePolicy: .throw
+        )
+        result = try TagLibMetadataManager.readMetadataResult(from: countURL)
+        XCTAssertEqual(result.movementNumber, 2)
+        XCTAssertEqual(result.movementCount, 6)
+        XCTAssertEqual(
+            try TagLibMetadataManager.readStructuredMetadataResult(from: countURL)
+                .id3v2Frames.first { $0.frameID == "MVIN" }?.value,
+            "2/6"
+        )
     }
 
     func testMetadataPatchNormalizesOnceForMutationAndVerification() throws {

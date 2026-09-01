@@ -111,14 +111,18 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                                     discNumber:(NSInteger)discNumber
                                      totalDiscs:(NSInteger)totalDiscs
                                 updateDiscPair:(BOOL)updateDiscPair
+                                movementNumber:(NSInteger)movementNumber
+                                  movementCount:(NSInteger)movementCount
+                             updateMovementPair:(BOOL)updateMovementPair
                                           toURL:(NSURL *)fileURL
                                           error:(NSError **)error
 {
     try {
     if (!fileURL || !fileURL.isFileURL || trackNumber < 0 || totalTracks < 0 ||
-        discNumber < 0 || totalDiscs < 0 ||
+        discNumber < 0 || totalDiscs < 0 || movementNumber < 0 || movementCount < 0 ||
         trackNumber > std::numeric_limits<int>::max() || totalTracks > std::numeric_limits<int>::max() ||
-        discNumber > std::numeric_limits<int>::max() || totalDiscs > std::numeric_limits<int>::max()) {
+        discNumber > std::numeric_limits<int>::max() || totalDiscs > std::numeric_limits<int>::max() ||
+        movementNumber > std::numeric_limits<int>::max() || movementCount > std::numeric_limits<int>::max()) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9260
@@ -137,6 +141,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
     NSString *trackText = BuildTRCKString(trackNumber, totalTracks, 0);
     NSString *discText = BuildTRCKString(discNumber, totalDiscs, 0);
+    NSString *movementText = BuildTRCKString(movementNumber, movementCount, 0);
 
     if (format == AudioMatorTagFileFormatMP4) {
         TagLib::MP4::File file(filePath);
@@ -186,6 +191,18 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                 );
             }
         }
+        if (updateMovementPair) {
+            SetMP4FreeformTextItem(
+                tag,
+                @"MOVEMENTNUMBER",
+                movementNumber > 0 ? [NSString stringWithFormat:@"%ld", (long)movementNumber] : nil
+            );
+            SetMP4FreeformTextItem(
+                tag,
+                @"MOVEMENTCOUNT",
+                movementCount > 0 ? [NSString stringWithFormat:@"%ld", (long)movementCount] : nil
+            );
+        }
         if (!file.save()) {
             if (error) *error = PropertyMapDeltaError(9263, @"TagLib could not save native MP4/M4A number pairs");
             return NO;
@@ -210,6 +227,11 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
             for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
             SetID3v2TextFrame(tag, "TPOS", discText);
+        }
+        if (updateMovementPair) {
+            TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
+            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
+            SetID3v2TextFrame(tag, "MVIN", movementText);
         }
         if (!file.save()) {
             if (error) *error = PropertyMapDeltaError(9265, @"TagLib could not save native MPEG number pairs");
@@ -246,6 +268,18 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         SetPropertyMapDynamicString(properties, @"DISCTOTAL", totalDiscs > 0 ? [NSString stringWithFormat:@"%ld", (long)totalDiscs] : nil);
         properties.erase("DISC");
         properties.erase("TOTALDISCS");
+    }
+    if (updateMovementPair) {
+        SetPropertyMapDynamicString(
+            properties,
+            @"MOVEMENTNUMBER",
+            movementNumber > 0 ? [NSString stringWithFormat:@"%ld", (long)movementNumber] : nil
+        );
+        SetPropertyMapDynamicString(
+            properties,
+            @"MOVEMENTCOUNT",
+            movementCount > 0 ? [NSString stringWithFormat:@"%ld", (long)movementCount] : nil
+        );
     }
     file->setProperties(properties);
     if (!file->save()) {
