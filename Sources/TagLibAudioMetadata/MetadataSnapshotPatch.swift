@@ -244,7 +244,9 @@ extension TagLibMetadataManager {
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
-            let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
+            let numberPairFields: Set<MetadataFieldKey> = [
+                .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
+            ]
             let patchesNumberPair = !numberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
 
@@ -254,6 +256,8 @@ extension TagLibMetadataManager {
                 var trackTotal = current.trackTotal
                 var disc = current.disc
                 var discTotal = current.discTotal
+                var movementNumber = current.movementNumber
+                var movementCount = current.movementCount
 
                 func patchedInteger(_ value: MetadataPatchValue, current: Int) -> Int {
                     switch value {
@@ -279,6 +283,14 @@ extension TagLibMetadataManager {
                     discTotal = patchedInteger(value, current: discTotal)
                     expectedNumberPairs[.discTotal] = discTotal
                 }
+                if let value = validatedPatch.fields[.movementNumber] {
+                    movementNumber = patchedInteger(value, current: movementNumber)
+                    expectedNumberPairs[.movementNumber] = movementNumber
+                }
+                if let value = validatedPatch.fields[.movementCount] {
+                    movementCount = patchedInteger(value, current: movementCount)
+                    expectedNumberPairs[.movementCount] = movementCount
+                }
 
                 try TagLibMetadataExtractor.writeNumberPairsInPlace(
                     trackNumber: track,
@@ -287,6 +299,9 @@ extension TagLibMetadataManager {
                     discNumber: disc,
                     totalDiscs: discTotal,
                     updateDiscPair: validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil,
+                    movementNumber: movementNumber,
+                    movementCount: movementCount,
+                    updateMovementPair: validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil,
                     to: mutationURL
                 )
             }
@@ -374,6 +389,8 @@ extension TagLibMetadataManager {
                     case .trackTotal: afterBasic.trackTotal
                     case .disc: afterBasic.disc
                     case .discTotal: afterBasic.discTotal
+                    case .movementNumber: afterBasic.movementNumber
+                    case .movementCount: afterBasic.movementCount
                     default: expected
                     }
                     if actual != expected {
