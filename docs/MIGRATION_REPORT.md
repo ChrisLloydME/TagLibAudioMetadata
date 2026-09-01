@@ -44,7 +44,7 @@ risk documented in `ARCHITECTURE.md`.
   multi-values, validates typed and custom keys plus numeric constraints against
   the field schema, distinguishes false from removal, distinguishes artwork
   omission/replacement/removal, and preserves the advisory states
-  unspecified/clean/explicit. MP4 number pairs and advisory values mutate native
+  unspecified/not-explicit/explicit/clean. MP4 number pairs and advisory values mutate native
   `trkn`/`disk`/`rtng` items; ID3 advisory uses its supported TXXX representation.
   Generic PropertyMap formats keep separate number and total keys. MP4 patches
   remove every recognized advisory alias and do not inject private AudioMator
@@ -52,6 +52,9 @@ risk documented in `ARCHITECTURE.md`.
 - Basic and Patch MP4 advisory writes now share native `rtng` canonicalization;
   ordinary Basic number writes also avoid creating private AudioMator formatting
   atoms while retaining existing provenance.
+- MP4 advisory canonicalization distinguishes a missing atom from `rtng = 0` and
+  writes not-explicit/explicit/clean as `0`/`1`/`2`. Legacy `rtng = 4` remains
+  readable as explicit and is rewritten as canonical `1` by high-level writes.
 - Track/disc Patch integers begin at one and `.remove` is their explicit unset
   operation. Native ID3 `MVIN` mutation preserves an omitted movement number or
   count.

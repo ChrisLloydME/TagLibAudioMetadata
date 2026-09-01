@@ -80,7 +80,9 @@ from the snapshot alone is not guaranteed to reproduce opaque bytes.
 `MetadataPatch` distinguishes omission from removal. Fields absent from the
 patch remain unchanged; `.remove` clears an explicitly named property; artwork
 has separate unchanged, replace, and remove-all cases; and
-`explicitAdvisory` preserves unspecified, clean, and explicit states.
+`explicitAdvisory` preserves unspecified, not-explicit, explicit, and clean
+states. The compatibility Boolean `isExplicit` is a lossy projection; use the
+enum when the distinction matters.
 
 Known fields are validated against `MetadataFieldRegistry` before any staging
 copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
@@ -132,9 +134,15 @@ number-padding convention; an unrelated edit preserves its text unchanged.
 Use `writeTrackNumberText` for an intentional formatted-text write.
 
 `explicitAdvisory` is also container-aware in both Basic and Patch writes:
-MP4/M4A uses native `rtng`, ID3
-uses the supported `ITUNESADVISORY` TXXX representation, and unspecified removes
-that representation. The high-level MP4 writer removes the explicitly recognized
+MP4/M4A uses native `rtng`, ID3 uses the supported `ITUNESADVISORY` TXXX
+representation, and generic PropertyMap formats retain their corresponding
+`ITUNESADVISORY` key. For MP4/M4A, atom absence means unspecified, while native
+values `0`, `1`, and `2` mean not-explicit, explicit, and clean. High-level writes
+emit only that canonical mapping. Legacy MP4 value `4` is read as explicit and
+canonicalized to `1` on rewrite. The textual compatibility reader also accepts
+`TRUE`, `YES`, and `EXPLICIT` as explicit; `CLEAN` as clean; and `FALSE`, `NO`,
+`NONE`, and `-1` as not-explicit. Unspecified removes the container's supported
+representation. The high-level MP4 writer removes the explicitly recognized
 freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 instead of leaving stale native and freeform values together. Unrelated
 freeform metadata is not removed by fuzzy name matching.

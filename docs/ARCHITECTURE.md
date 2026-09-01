@@ -52,7 +52,7 @@ renames atomically, and flushes the parent directory. Public bridge mutators use
 the same transaction principles when called directly.
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged,
-`.remove` clears a property, `explicitAdvisory` retains its three-state meaning,
+`.remove` clears a property, `explicitAdvisory` retains all four advisory states,
 and artwork distinguishes unchanged, replacement, and removal. Typed fields are
 validated for kind and numeric range against `MetadataFieldRegistry` before
 staging. Schema-known keys are rejected from `customFields`, including aliases
@@ -85,6 +85,14 @@ remain the explicit formatted-input path. MP4 advisory mutation from both
 high-level APIs removes exactly the recognized
 freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 before making native `rtng` authoritative.
+
+The shared advisory model distinguishes field absence (`unspecified`) from a
+present not-explicit value, explicit, and clean. Canonical MP4/M4A native values
+are absent, `rtng = 0`, `rtng = 1`, and `rtng = 2`. ID3 and generic PropertyMap
+storage remains container-specific and uses the established `ITUNESADVISORY`
+representation. Readers accept documented legacy aliases, including MP4 value
+`4` as explicit, but all high-level writes use the canonical values. The Boolean
+`isExplicit` compatibility projection cannot express all four states.
 
 `BasicMetadata` has replacement semantics only for fields it explicitly
 models. Schema-known non-Basic fields and custom fields absent from its

@@ -81,7 +81,7 @@ public enum ExplicitAdvisory: String, Hashable, Sendable {
     case unspecified
     /// The source contains an advisory field explicitly marked as not explicit.
     case notExplicit
-    /// The source explicitly marks the recording as clean/non-explicit.
+    /// The source explicitly marks the recording as clean.
     case clean
     /// The source explicitly marks the recording as explicit.
     case explicit
@@ -183,7 +183,8 @@ public struct BasicMetadata: Sendable {
     public var bpm: Int
     public var isCompilation: Bool
     public var explicitAdvisory: ExplicitAdvisory
-    /// Compatibility convenience. Setting `false` records an explicit clean advisory.
+    /// Lossy compatibility convenience. Setting `false` records a clean advisory;
+    /// use `explicitAdvisory` to distinguish absence, not-explicit, and clean.
     public var isExplicit: Bool {
         get { explicitAdvisory == .explicit }
         set { explicitAdvisory = newValue ? .explicit : .clean }
