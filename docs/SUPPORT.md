@@ -544,6 +544,14 @@ let structured = TagLibMetadataManager.readStructuredMetadata(from: url)
 and modifies these frames and the `PCST` podcast marker, validates their
 unsigned numeric fields, and verifies their typed values after save.
 
+For ordinary ID3v2 text frames, `values` is the ordered native TagLib string
+list. Structured writes pass that list to the native text-frame API without
+joining it into a display string. For `TXXX`, `description` is the user-text
+frame identifier and `values` contains only the semantic payload values; the
+description is not duplicated into the array. Verified writes compare frame ID,
+type, description where applicable, value count, ordering, and each value, so
+`["A", "B"]` is not equivalent to `["A; B"]`.
+
 ### Writing Structured Metadata
 
 ```swift
@@ -626,6 +634,17 @@ Top-level structured artwork replacement is supported for ID3v2, MP4, and ASF
 containers, including multiple images. FLAC/Xiph structured writes are limited
 to PropertyMap values; use `BasicMetadata.artworkData` for artwork changes in
 those formats.
+
+Picture type code `0` is valid and means `Other`; it is preserved rather than
+treated as a missing type. When no picture type is supplied, the ID3v2/ASF
+structured writer defaults to Front Cover (`3`). Verification compares image
+data and MIME type for every supported artwork container, plus picture type and
+description for ID3v2/ASF. MP4 `covr` does not serialize those latter fields, so
+they are not part of MP4 post-write verification.
+
+TrueAudio/TTA Structured reads expose its ID3v2 metadata, but its current
+Structured mutation route is limited to PropertyMap values. Accordingly,
+`structuredWriteSupport` reports `.propertyMap`, not `.container`.
 
 `RIFFMetadataWritePolicy` applies to WAV/AIFF-style containers:
 

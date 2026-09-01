@@ -73,6 +73,16 @@ same normalized representation drives verification. `.remove` is the sole
 high-level deletion marker.
 
 Generic PropertyMap number pairs use separate canonical number/total keys.
+
+Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered
+value cardinality. `TXXX` descriptions identify frames and are kept separate
+from their payload arrays. Structured verification compares those arrays
+element-by-element. Artwork verification compares the semantic fields supported
+by each container: bytes and MIME type everywhere, plus picture type and
+description for ID3v2/ASF. Valid ID3/ASF picture type `0` (`Other`) is distinct
+from an omitted type, which defaults to Front Cover. TTA exposes container-level
+Structured reads but advertises only PropertyMap-level Structured writes because
+that is the implemented mutation route.
 ID3 uses combined `TRCK`/`TPOS`, MP4 uses native `trkn`/`disk`, and ID3 movement
 number/count uses combined `MVIN`; pair mutations preserve an omitted component.
 Track/disc integers begin at one, while `.remove` unsets a component. MP4

@@ -124,9 +124,9 @@ passed:
 | Check | Result |
 | --- | --- |
 | Strict clean build | Passed with Swift and C-family warnings as errors |
-| Unit tests | 79 passed |
-| Address Sanitizer | 79 passed, no findings |
-| Thread Sanitizer | 79 passed, no findings |
+| Unit tests | 94 passed |
+| Address Sanitizer | 94 passed, no findings |
+| Thread Sanitizer | 94 passed, no findings |
 | Facade consumer | Built using the facade product |
 | Low-level consumer | Built using the explicit product |
 | Dynamic audit | Namespaced install name, module map, bundle ID, licenses, and absence of generic install name verified |

@@ -38,6 +38,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Structured ID3v2 text and `TXXX` writes now preserve native ordered value
+  lists. `TXXX` descriptions remain frame identity rather than being duplicated
+  into `StructuredID3v2Frame.values`, and post-write verification compares value
+  cardinality, ordering, and contents instead of joined display strings.
+- Structured ID3v2 and ASF artwork now preserve valid picture type code `0`
+  (`Other`). Artwork verification checks container-supported MIME type, picture
+  type, description, and image data rather than image bytes alone.
+- TrueAudio/TTA now advertises PropertyMap-level Structured write support, which
+  matches its implemented mutation path; Structured reads continue to expose its
+  ID3v2 container.
 - Preserved rich metadata omitted from basic writes, including raw multi-values,
   structured entries, artwork MIME information, and four-state advisory data.
 - Preserved untouched standard multi-value fields during Basic writes without
