@@ -55,6 +55,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Canonicalized MP4 advisory writes across Basic and Patch APIs, and prevented
   ordinary Basic writes from introducing private AudioMator track/disc formatting
   atoms into standard-only files.
+- Synchronized existing AudioMator MP4 track/disc formatting provenance after
+  Basic numeric edits while keeping native `trkn`/`disk` authoritative and
+  preserving unchanged formatted text during unrelated edits.
 - Made `.remove` the explicit unset operation for track/disc pair components,
   rejected integer zero for those fields, and preserved omitted native ID3
   movement number/count components in `MVIN`.

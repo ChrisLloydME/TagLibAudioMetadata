@@ -120,7 +120,11 @@ Generic PropertyMap formats store number and total separately as
 `TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
 `TRCK`/`TPOS` text. Ordinary MP4 Patch or Basic writes do not create private
 `AUDIOMATOR_*_TEXT` atoms. If such a formatting atom already exists, it is
-updated while retaining its number padding.
+formatting provenance: native `trkn`/`disk` remains authoritative, and a Basic
+numeric edit synchronizes the private text while retaining its established
+number padding. An unrelated Basic edit preserves the existing formatted text
+unchanged. Use `writeTrackNumberText` when formatted number text itself is the
+intentional input.
 
 `BasicMetadata` remains a convenient normalized projection, but it is not a
 lossless editing document. Values read from a file retain a separate raw

@@ -113,7 +113,11 @@ public struct BasicMetadata: Sendable {
     public var trackTotal: Int
     public var disc: Int
     public var discTotal: Int
+    /// Display/formatting projection for track numbering. On MP4, native `trkn`
+    /// is authoritative for ordinary Basic writes.
     public var trackNumberText: String
+    /// Display/formatting projection for disc numbering. On MP4, native `disk`
+    /// is authoritative for ordinary Basic writes.
     public var discNumberText: String
     public var year: String
     public var albumArtist: String
