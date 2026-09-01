@@ -242,6 +242,7 @@ static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError 
 
     switch (metadata.explicitAdvisory) {
         case TagLibExplicitAdvisoryUnspecified:
+        case TagLibExplicitAdvisoryNotExplicit:
         case TagLibExplicitAdvisoryClean:
         case TagLibExplicitAdvisoryExplicit:
             break;
@@ -542,7 +543,7 @@ static const AudioMatorFormatCapabilityDescriptor kFormatCapabilityDescriptors[]
     { AudioMatorTagFileFormatMPC, "musepack", "Musepack", "Musepack", kMPCExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
     { AudioMatorTagFileFormatWAV, "wav", "WAV / RIFF", "WAV", kWAVExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2 and preserve existing RIFF INFO fields." },
     { AudioMatorTagFileFormatAIFF, "aiff", "AIFF", "AIFF", kAIFFExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2." },
-    { AudioMatorTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "container", true, true, false, nullptr, "TrueAudio uses ID3v2 for rich structured metadata." },
+    { AudioMatorTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "propertyMap", true, true, false, nullptr, "Structured reads expose the ID3v2 tag; structured writes are currently limited to PropertyMap values." },
     { AudioMatorTagFileFormatASF, "asf", "ASF / WMA", "WMA", kASFExtensions, "container", "container", true, true, false, nullptr, "ASF attributes are exposed for structured editing." },
     { AudioMatorTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
     { AudioMatorTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSDIFF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },

@@ -79,14 +79,31 @@ public struct MetadataFieldProvenance: Hashable, Sendable {
 public enum ExplicitAdvisory: String, Hashable, Sendable {
     /// No advisory field exists in the source metadata.
     case unspecified
-    /// The source explicitly marks the recording as clean/non-explicit.
+    /// The source contains an advisory field explicitly marked as not explicit.
+    case notExplicit
+    /// The source explicitly marks the recording as clean.
     case clean
     /// The source explicitly marks the recording as explicit.
     case explicit
 }
 
-/// Mirrors the metadata fields used in `AudioFile.swift`.
+/// A normalized editing and display projection of commonly used metadata.
+///
+/// Fields this model cannot express, including raw cardinality and supported
+/// container-specific entries, are preservation data rather than editable
+/// properties. Use `MetadataPatch`, Raw, or Structured APIs for precise edits.
 public struct BasicMetadata: Sendable {
+    /// Schema fields that this normalized projection can explicitly edit.
+    /// Fields outside this set are preservation-only during a Basic round trip.
+    nonisolated static let editableFieldKeys: Set<MetadataFieldKey> =
+        Set(MetadataFieldKey.allCases).subtracting([
+            .performer,
+            .involvedPeople,
+            .musicianCredits,
+            .trackerName,
+            .custom,
+        ])
+
     public var title: String
     public var artist: String
     public var album: String
@@ -98,7 +115,11 @@ public struct BasicMetadata: Sendable {
     public var trackTotal: Int
     public var disc: Int
     public var discTotal: Int
+    /// Display/formatting projection for track numbering. On MP4, native `trkn`
+    /// is authoritative for ordinary Basic writes.
     public var trackNumberText: String
+    /// Display/formatting projection for disc numbering. On MP4, native `disk`
+    /// is authoritative for ordinary Basic writes.
     public var discNumberText: String
     public var year: String
     public var albumArtist: String
@@ -162,7 +183,8 @@ public struct BasicMetadata: Sendable {
     public var bpm: Int
     public var isCompilation: Bool
     public var explicitAdvisory: ExplicitAdvisory
-    /// Compatibility convenience. Setting `false` records an explicit clean advisory.
+    /// Lossy compatibility convenience. Setting `false` records a clean advisory;
+    /// use `explicitAdvisory` to distinguish absence, not-explicit, and clean.
     public var isExplicit: Bool {
         get { explicitAdvisory == .explicit }
         set { explicitAdvisory = newValue ? .explicit : .clean }
@@ -180,9 +202,18 @@ public struct BasicMetadata: Sendable {
     public var customFields: [String: String]
     /// Original cardinality for custom fields read from a file.
     /// `customFields` remains the source-compatible, display-oriented projection.
-    public var customFieldValues: [String: [String]]
+    /// This read-only provenance is not caller-editable metadata.
+    public internal(set) var customFieldValues: [String: [String]]
     /// Exact projected values captured during read, used to detect intentional Basic edits.
-    public var originalCustomFieldProjection: [String: String]
+    /// This read-only provenance is not caller-editable metadata.
+    public internal(set) var originalCustomFieldProjection: [String: String]
+    /// Original raw cardinality for standard fields captured during read.
+    /// The scalar properties above remain the normalized display projection.
+    /// This read-only provenance is not caller-editable metadata.
+    public internal(set) var originalStandardFieldValues: [String: [String]]
+    /// Original scalar display values paired with `originalStandardFieldValues`.
+    /// This read-only provenance is not caller-editable metadata.
+    public internal(set) var originalStandardFieldProjection: [String: String]
     public var provenance: MetadataFieldProvenance
 
     public nonisolated static let empty = BasicMetadata(
@@ -272,6 +303,8 @@ public struct BasicMetadata: Sendable {
         customFields: [:],
         customFieldValues: [:],
         originalCustomFieldProjection: [:],
+        originalStandardFieldValues: [:],
+        originalStandardFieldProjection: [:],
         provenance: .unknown
     )
 }
@@ -546,4 +579,7 @@ public enum TagLibManagerError: Error, Sendable {
     case failedToRead
     case failedToReadWithUnderlying(String)
     case verificationFailed([String])
+    /// Atomic rename completed, but the parent-directory fsync failed.
+    /// The new file is already visible and callers must not treat this as a pre-commit failure.
+    case committedButDurabilityUncertain(String)
 }

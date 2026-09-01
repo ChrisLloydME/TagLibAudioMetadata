@@ -1,12 +1,12 @@
 # Correctness and TagLib 2.3.1 migration report
 
-Date: 2026-08-31
+Date: 2026-09-01
 
 ## Outcome
 
 The package now consumes a published, checksum-pinned, namespaced TagLib 2.3.1
-dynamic XCFramework. It also has a lossless editing path based on unified
-snapshots and explicit patches, one-copy atomic transactions, evidence-based
+dynamic XCFramework. It also has a comprehensive semantic editing path based on
+unified snapshots and explicit patches, one-copy atomic transactions, evidence-based
 format capabilities, a defined low-level product, synchronized schema tests,
 and expanded fixture and concurrency coverage.
 
@@ -38,12 +38,36 @@ risk documented in `ARCHITECTURE.md`.
 ## API and behavior changes
 
 - `MetadataSnapshot` returns basic, raw, and structured views from one parser
-  session and rejects concurrent file changes.
+  session and rejects concurrent file changes. It is not described as a lossless
+  native serialization because opaque or unsupported payloads may be summarized.
 - `MetadataPatch` changes only explicitly supplied fields, retains raw
-  multi-values, distinguishes artwork omission/replacement/removal, and preserves
-  the advisory states unspecified/clean/explicit.
-- `BasicMetadata` remains a normalized full-replacement model. Its untouched
-  rich raw/structured content is now preserved during facade writes, but callers
+  multi-values, validates typed and custom keys plus numeric constraints against
+  the field schema, distinguishes false from removal, distinguishes artwork
+  omission/replacement/removal, and preserves the advisory states
+  unspecified/not-explicit/explicit/clean. MP4 number pairs and advisory values mutate native
+  `trkn`/`disk`/`rtng` items; ID3 advisory uses its supported TXXX representation.
+  Generic PropertyMap formats keep separate number and total keys. MP4 patches
+  remove every recognized advisory alias and do not inject private AudioMator
+  number-formatting atoms unless such provenance already exists.
+- Basic and Patch MP4 advisory writes now share native `rtng` canonicalization;
+  ordinary Basic number writes also avoid creating private AudioMator formatting
+  atoms while retaining existing provenance.
+- MP4 advisory canonicalization distinguishes a missing atom from `rtng = 0` and
+  writes not-explicit/explicit/clean as `0`/`1`/`2`. Legacy `rtng = 4` remains
+  readable as explicit and is rewritten as canonical `1` by high-level writes.
+- Track/disc Patch integers begin at one and `.remove` is their explicit unset
+  operation. Native ID3 `MVIN` mutation preserves an omitted movement number or
+  count.
+- Typed Patch fields are preflighted against explicit reliable format allowlists;
+  Raw APIs remain permissive.
+- Patch text and arrays are trimmed once and verified against that normalized
+  form. Empty text, empty arrays, and empty array elements are rejected in favor
+  of explicit `.remove` deletion.
+- `BasicMetadata` remains a normalized editing model. Its explicitly represented
+  fields use replacement semantics, while untouched multi-value fields,
+  schema-known non-Basic fields, and custom fields are restored from its raw
+  baseline during facade writes. Removing a custom projection entry is not a
+  deletion request; callers
   needing precise multi-value or container edits should use snapshot/patch or
   the specialized APIs.
 - Semantic `Hashable`/`Equatable` behavior no longer changes because ephemeral
@@ -67,8 +91,11 @@ one sibling copy, mutates it in place through internal bridge entry points,
 verifies it, flushes it, checks the original identity, atomically renames it,
 and flushes the directory. Copy, flush, and rename are outside the TagLib mutex.
 
-The unified projection reader avoids separate basic/raw/structured parses, and
-the ineffective generic fallback parse was removed. These are structural
+The unified projection reader avoids separate basic/raw/structured parses and
+now skips unrequested projections. Basic editing and verification request only
+Basic+PropertyMap data, avoiding raw ID3 frame enumeration. Post-write Basic and
+PropertyMap verification is derived from one extraction instead of two, and the
+ineffective generic fallback parse was removed. These are structural
 improvements; no hardware-independent elapsed-time percentage is claimed.
 
 The bridge transaction coordinator moved into its own Objective-C++ translation
@@ -97,11 +124,11 @@ passed:
 | Check | Result |
 | --- | --- |
 | Strict clean build | Passed with Swift and C-family warnings as errors |
-| Unit and integration tests | 62 passed |
-| Address Sanitizer | 62 passed, no findings |
-| Thread Sanitizer | 62 passed, no findings |
-| Facade consumer | Built and ran; reported 37 readable extensions |
-| Low-level consumer | Built and ran using the explicit product |
+| Unit tests | 94 passed |
+| Address Sanitizer | 94 passed, no findings |
+| Thread Sanitizer | 94 passed, no findings |
+| Facade consumer | Built using the facade product |
+| Low-level consumer | Built using the explicit product |
 | Dynamic audit | Namespaced install name, module map, bundle ID, licenses, and absence of generic install name verified |
 | macOS | arm64 and x86_64 builds passed |
 | iOS device | arm64 build passed |

@@ -61,15 +61,20 @@ print(snapshot.raw.properties)
 print(snapshot.structured.artwork)
 ```
 
+`MetadataSnapshot` is a comprehensive semantic snapshot, not a lossless native
+serialization. Unsupported/opaque frames or atoms may be summarized rather than
+retained as reconstructable payload bytes.
+
 Apply only the requested changes while preserving everything else:
 
 ```swift
 let patch = MetadataPatch(
     fields: [
         .title: .text("New Title"),
-        .track: .text("01/12")
+        .track: .integer(1),
+        .trackTotal: .integer(12)
     ],
-    customFields: ["MOOD": .values(["Focused", "Calm"])],
+    customFields: ["APP_WORKFLOW": .values(["Focused", "Calm"])],
     explicitAdvisory: .clean,
     artwork: .unchanged
 )
@@ -81,12 +86,69 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
 )
 ```
 
+Typed patch values are checked against `MetadataFieldRegistry` before staging.
+Known keys and aliases are rejected in `customFields`; use `fields` (or a
+dedicated patch property) for schema-known metadata. Unknown custom keys remain
+available and are normalized before mutation. Track/disc numbers and totals
+accept `1...INT_MAX`; use `.remove` to unset those components. Numeric fields
+whose schema permits zero, such as BPM and movement numbering, accept
+`0...INT_MAX`. Invalid values fail before a staging copy is made. Formats with
+explicit field allowlists reject unsupported typed fields before mutation; Raw
+APIs remain permissive.
+
+Patch text and array elements are trimmed once before mutation, and verification
+uses those same normalized values. Empty text, empty arrays, and arrays containing
+empty elements are rejected; `.remove` is the only high-level deletion request.
+
+The bridge applies requested PropertyMap changes to the current map in one
+session; omitted keys are not rebuilt in Swift. For text-backed booleans,
+`.boolean(false)` writes `"0"`, while `.remove` removes the key.
+
+Track and disc numbers are container-aware. MP4/M4A patches update native
+`trkn`/`disk` pairs and preserve an omitted number or total. Advisory patches
+likewise update native MP4 `rtng` or the supported ID3 representation; they do
+not create a contradictory freeform advisory. MP4 cleanup is limited to the
+recognized aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and
+`EXPLICIT`.
+
+Advisory metadata has four semantic states: `.unspecified` means the field is
+absent, while `.notExplicit`, `.explicit`, and `.clean` mean a field is present.
+Canonical MP4/M4A storage is respectively absent, `rtng = 0`, `rtng = 1`, and
+`rtng = 2`, matching Apple/iTunes metadata. ID3 and generic PropertyMap formats
+retain their established container-specific `ITUNESADVISORY` representation
+using values `0`, `1`, and `2`. Legacy `4`, text `TRUE`/`YES`/`EXPLICIT`, and
+`FALSE`/`NO`/`NONE`/`-1` remain readable; a high-level rewrite emits canonical
+values. The compatibility Boolean `isExplicit` is intentionally lossy: use
+`explicitAdvisory` whenever absence, not-explicit, and clean must remain distinct.
+
+Basic MP4 advisory writes use the same canonical `rtng` helper and alias cleanup
+as Patch writes, so switching between the two high-level APIs cannot leave a
+contradictory recognized freeform advisory. ID3 movement number/count patches
+likewise preserve the omitted component of native `MVIN`.
+
+Generic PropertyMap formats store number and total separately as
+`TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
+`TRCK`/`TPOS` text. Ordinary MP4 Patch or Basic writes do not create private
+`AUDIOMATOR_*_TEXT` atoms. If such a formatting atom already exists, it is
+formatting provenance: native `trkn`/`disk` remains authoritative, and a Basic
+numeric edit synchronizes the private text while retaining its established
+number padding. An unrelated Basic edit preserves the existing formatted text
+unchanged. Use `writeTrackNumberText` when formatted number text itself is the
+intentional input.
+
 `BasicMetadata` remains a convenient normalized projection, but it is not a
-lossless editing document: it flattens some multi-value and container-specific
-data. For professional editors, read `MetadataSnapshot` and write
+lossless editing document. Values read from a file retain a separate raw
+cardinality/provenance baseline, so unrelated Basic edits preserve untouched
+standard multi-values, schema-known fields Basic cannot model, and custom fields
+without splitting display strings on semicolons. Removing a key from
+`BasicMetadata.customFields` is not a deletion tombstone; use
+`MetadataPatchValue.remove` for explicit deletion.
+
+For professional editors, read `MetadataSnapshot` and write
 `MetadataPatch`, raw multi-value maps, or structured metadata. A basic
-full-model write intentionally means replacement: empty strings and zero
-numeric values clear corresponding fields where the container allows it.
+write has replacement semantics for fields Basic explicitly models: empty
+strings and zero numeric values clear those fields where the container allows
+it. Internal preservation provenance is readable but not caller-mutable.
 
 Check capability evidence before enabling controls:
 
@@ -118,13 +180,17 @@ Every facade or public bridge mutation:
 A failure before rename leaves the original pathname and bytes unchanged and
 cleans up the temporary copy. The rename changes inode identity and does not
 retarget other hard links. If the final directory flush fails, the rename has
-already committed and the API reports that distinct durability error.
+already committed and the API throws
+`TagLibManagerError.committedButDurabilityUncertain`; retrying may repeat an
+already-committed operation.
 Sibling-copy creation also requires write access to the parent directory.
 Security-scoped URLs must already be accessed by the caller; App Sandbox and
 code-signing behavior are integration responsibilities.
 
 TagLib parser and mutation work is protected by a process-wide recursive mutex.
-Copying, flushing, and renaming occur outside that mutex. Calls on independent
+Objective-C projection objects copied directly from live TagLib values are also
+built under that lock; Swift model conversion, copying, flushing, and renaming
+occur outside it. Calls on independent
 files are safe, but callers must serialize mutations to the same canonical path
 when operation order matters.
 
@@ -163,10 +229,10 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The current acceptance matrix passes 62 tests, strict warnings-as-errors,
-Address Sanitizer, Thread Sanitizer, both facade and low-level consumer
-packages, a dynamic-link/bundle audit, and builds for macOS arm64/x86_64, iOS
-arm64, and iOS Simulator arm64/x86_64.
+The current local acceptance matrix passes 94 tests, strict warnings-as-errors,
+Address Sanitizer, Thread Sanitizer, and builds both facade and low-level
+consumer packages. The published binary's broader platform and dynamic-link
+matrix remains documented in the migration report.
 
 See [Architecture](docs/ARCHITECTURE.md), [Support](docs/SUPPORT.md),
 [Thread safety](docs/THREAD_SAFETY.md), and the

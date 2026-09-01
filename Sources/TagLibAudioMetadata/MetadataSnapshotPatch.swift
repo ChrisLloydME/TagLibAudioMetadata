@@ -1,10 +1,12 @@
 import Foundation
 import CTagLibBridge
 
-/// A comprehensive read result used as the source of truth for professional editing.
+/// A comprehensive semantic metadata snapshot for professional editing.
 ///
 /// `BasicMetadata` is a normalized convenience projection. The raw and structured
-/// representations retain value cardinality and container-specific entries.
+/// representations retain value cardinality and supported container-specific entries.
+/// Unsupported or opaque native frames/items may be summarized rather than copied as
+/// reconstructable payloads, so this is not a lossless native serialization.
 public struct MetadataSnapshot: Sendable {
     public var basic: BasicMetadata
     public var raw: RawMetadataDump
@@ -18,19 +20,107 @@ public struct MetadataSnapshot: Sendable {
 }
 
 public enum MetadataPatchValue: Hashable, Sendable {
+    /// Non-empty text. Leading and trailing whitespace is removed before mutation.
     case text(String)
+    /// A schema-constrained integer. Track/disc pair components begin at one;
+    /// use `.remove` to unset them. Other numeric fields retain their schema ranges.
     case integer(Int)
     case boolean(Bool)
+    /// One or more non-empty values. Each value is trimmed before mutation.
     case values([String])
+    /// Explicitly removes the field. Empty text and value arrays are not deletion aliases.
     case remove
+
+    nonisolated var kind: MetadataPatchValueKind? {
+        switch self {
+        case .text: .text
+        case .integer: .integer
+        case .boolean: .boolean
+        case .values: .values
+        case .remove: nil
+        }
+    }
 
     nonisolated var propertyMapValues: [String] {
         switch self {
         case .text(let value): [value]
         case .integer(let value): [String(value)]
-        case .boolean(let value): value ? ["1"] : []
+        case .boolean(let value): [value ? "1" : "0"]
         case .values(let values): values
         case .remove: []
+        }
+    }
+
+    nonisolated func normalized(location: String) throws -> MetadataPatchValue {
+        switch self {
+        case .text(let value):
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                throw MetadataPatchValidationError.emptyText(location: location)
+            }
+            return .text(trimmed)
+        case .values(let values):
+            guard !values.isEmpty else {
+                throw MetadataPatchValidationError.emptyValueList(location: location)
+            }
+            var normalizedValues: [String] = []
+            normalizedValues.reserveCapacity(values.count)
+            for (index, value) in values.enumerated() {
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else {
+                    throw MetadataPatchValidationError.emptyValue(location: location, index: index)
+                }
+                normalizedValues.append(trimmed)
+            }
+            return .values(normalizedValues)
+        case .integer, .boolean, .remove:
+            return self
+        }
+    }
+}
+
+public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedError {
+    case unsupportedField(MetadataFieldKey)
+    case unsupportedFieldForFormat(field: MetadataFieldKey, format: String)
+    case incompatibleValue(
+        field: MetadataFieldKey,
+        expected: Set<MetadataPatchValueKind>,
+        actual: MetadataPatchValueKind
+    )
+    case integerOutOfRange(field: MetadataFieldKey, minimum: Int, maximum: Int, actual: Int)
+    case knownFieldRequiresTypedAPI(customKey: String, field: MetadataFieldKey)
+    case conflictingFieldRepresentations(field: MetadataFieldKey, customKey: String)
+    case duplicateCustomField(normalizedKey: String)
+    case invalidCustomFieldKey(String)
+    case emptyText(location: String)
+    case emptyValueList(location: String)
+    case emptyValue(location: String, index: Int)
+
+    public var errorDescription: String? {
+        switch self {
+        case .unsupportedField(let field):
+            return "\(field.rawValue) uses a dedicated patch property or is not writable."
+        case .unsupportedFieldForFormat(let field, let format):
+            return "\(field.rawValue) is not writable for the \(format) format through MetadataPatch."
+        case .incompatibleValue(let field, let expected, let actual):
+            let expectedNames = expected.map(\.rawValue).sorted().joined(separator: " or ")
+            return "\(field.rawValue) requires \(expectedNames); received \(actual.rawValue)."
+        case .integerOutOfRange(let field, let minimum, let maximum, let actual):
+            return "\(field.rawValue) must be between \(minimum) and \(maximum); received \(actual)."
+        case .knownFieldRequiresTypedAPI(let customKey, let field):
+            return "Custom key \(customKey) is the known \(field.rawValue) field; use the typed MetadataPatch API."
+        case .conflictingFieldRepresentations(let field, let customKey):
+            return "\(field.rawValue) was specified through both typed fields and custom key \(customKey)."
+        case .duplicateCustomField(let normalizedKey):
+            return "Multiple custom field keys normalize to \(normalizedKey)."
+        case .invalidCustomFieldKey(let key):
+            return "Custom field key \(key.debugDescription) is empty after normalization."
+        case .emptyText(let location):
+            return "\(location) requires non-empty text; use .remove to delete the field."
+        case .emptyValueList(let location):
+            return "\(location) requires at least one value; use .remove to delete the field."
+        case .emptyValue(let location, let index):
+            return "\(location) contains an empty value at index \(index); use .remove to delete the field."
         }
     }
 }
@@ -41,7 +131,8 @@ public enum MetadataArtworkPatch: Hashable, Sendable {
     case removeAll
 }
 
-/// Only the fields present in a patch are changed. Everything else is preserved.
+/// Only explicitly supplied semantic fields are intentionally modified.
+/// Other supported metadata is preserved where the format and TagLib representation allow it.
 public struct MetadataPatch: Hashable, Sendable {
     public var fields: [MetadataFieldKey: MetadataPatchValue]
     public var customFields: [String: MetadataPatchValue]
@@ -66,6 +157,65 @@ public struct MetadataPatch: Hashable, Sendable {
 }
 
 extension TagLibMetadataManager {
+    private struct ValidatedMetadataPatch: Sendable {
+        var fields: [MetadataFieldKey: MetadataPatchValue]
+        var customFields: [String: MetadataPatchValue]
+    }
+
+    nonisolated private static func validate(_ patch: MetadataPatch) throws -> ValidatedMetadataPatch {
+        var normalizedFields: [MetadataFieldKey: MetadataPatchValue] = [:]
+        for (field, value) in patch.fields {
+            guard field != .artwork, field != .custom, field != .explicitContent,
+                  let schema = MetadataFieldRegistry.schema(for: field),
+                  !schema.propertyMapKeys.isEmpty,
+                  !schema.acceptedPatchValueKinds.isEmpty else {
+                throw MetadataPatchValidationError.unsupportedField(field)
+            }
+            if let kind = value.kind, !schema.acceptedPatchValueKinds.contains(kind) {
+                throw MetadataPatchValidationError.incompatibleValue(
+                    field: field,
+                    expected: schema.acceptedPatchValueKinds,
+                    actual: kind
+                )
+            }
+            if case .integer(let integer) = value, let constraint = schema.integerConstraint,
+               !(constraint.minimum...constraint.maximum).contains(integer) {
+                throw MetadataPatchValidationError.integerOutOfRange(
+                    field: field,
+                    minimum: constraint.minimum,
+                    maximum: constraint.maximum,
+                    actual: integer
+                )
+            }
+            normalizedFields[field] = try value.normalized(location: field.rawValue)
+        }
+
+        var normalizedCustomFields: [String: MetadataPatchValue] = [:]
+        for (key, value) in patch.customFields {
+            let normalizedKey = MetadataFieldRegistry.normalizePropertyMapKey(key)
+            guard !normalizedKey.isEmpty else {
+                throw MetadataPatchValidationError.invalidCustomFieldKey(key)
+            }
+            if let schema = MetadataFieldRegistry.schema(forHighLevelCustomKey: normalizedKey) {
+                if patch.fields[schema.key] != nil {
+                    throw MetadataPatchValidationError.conflictingFieldRepresentations(
+                        field: schema.key,
+                        customKey: key
+                    )
+                }
+                throw MetadataPatchValidationError.knownFieldRequiresTypedAPI(
+                    customKey: key,
+                    field: schema.key
+                )
+            }
+            guard normalizedCustomFields[normalizedKey] == nil else {
+                throw MetadataPatchValidationError.duplicateCustomField(normalizedKey: normalizedKey)
+            }
+            normalizedCustomFields[normalizedKey] = try value.normalized(location: key)
+        }
+        return ValidatedMetadataPatch(fields: normalizedFields, customFields: normalizedCustomFields)
+    }
+
     /// Reads all public metadata representations while rejecting concurrent file changes.
     public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
         let identity = regularFileIdentity(at: url)
@@ -89,59 +239,130 @@ extension TagLibMetadataManager {
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
+        let validatedPatch = try validate(patch)
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
+        if let capability = formatCapability(for: ext),
+           let writableFields = capability.writableFields {
+            let requestedFields = Set(validatedPatch.fields.keys)
+                .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])
+                .union(patch.artwork == .unchanged ? [] : [.artwork])
+            if let unsupported = requestedFields
+                .filter({ !writableFields.contains($0) })
+                .sorted(by: { $0.rawValue < $1.rawValue })
+                .first {
+                throw MetadataPatchValidationError.unsupportedFieldForFormat(
+                    field: unsupported,
+                    format: capability.identifier
+                )
+            }
+        }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
             var warnings: [String] = []
-            let before = try rawMetadataResult(from: mutationURL)
-            var propertyValues = before.properties.reduce(into: [String: [String]]()) { result, entry in
-                result[entry.key] = entry.values
+            var propertyValues: [String: [String]] = [:]
+            var keysToRemove: Set<String> = []
+            let numberPairFields: Set<MetadataFieldKey> = [
+                .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
+            ]
+            let patchesNumberPair = !numberPairFields.isDisjoint(with: validatedPatch.fields.keys)
+            var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
+
+            if patchesNumberPair {
+                let current = try readMetadataResult(from: mutationURL)
+                var track = current.track
+                var trackTotal = current.trackTotal
+                var disc = current.disc
+                var discTotal = current.discTotal
+                var movementNumber = current.movementNumber
+                var movementCount = current.movementCount
+
+                func patchedInteger(_ value: MetadataPatchValue, current: Int) -> Int {
+                    switch value {
+                    case .integer(let integer): integer
+                    case .remove: 0
+                    default: current
+                    }
+                }
+
+                if let value = validatedPatch.fields[.track] {
+                    track = patchedInteger(value, current: track)
+                    expectedNumberPairs[.track] = track
+                }
+                if let value = validatedPatch.fields[.trackTotal] {
+                    trackTotal = patchedInteger(value, current: trackTotal)
+                    expectedNumberPairs[.trackTotal] = trackTotal
+                }
+                if let value = validatedPatch.fields[.disc] {
+                    disc = patchedInteger(value, current: disc)
+                    expectedNumberPairs[.disc] = disc
+                }
+                if let value = validatedPatch.fields[.discTotal] {
+                    discTotal = patchedInteger(value, current: discTotal)
+                    expectedNumberPairs[.discTotal] = discTotal
+                }
+                if let value = validatedPatch.fields[.movementNumber] {
+                    movementNumber = patchedInteger(value, current: movementNumber)
+                    expectedNumberPairs[.movementNumber] = movementNumber
+                }
+                if let value = validatedPatch.fields[.movementCount] {
+                    movementCount = patchedInteger(value, current: movementCount)
+                    expectedNumberPairs[.movementCount] = movementCount
+                }
+
+                try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                    trackNumber: track,
+                    totalTracks: trackTotal,
+                    updateTrackPair: validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil,
+                    discNumber: disc,
+                    totalDiscs: discTotal,
+                    updateDiscPair: validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil,
+                    movementNumber: movementNumber,
+                    movementCount: movementCount,
+                    updateMovementPair: validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil,
+                    to: mutationURL
+                )
             }
 
-            for (field, value) in patch.fields {
-                guard field != .artwork, field != .custom, field != .explicitContent,
-                      let schema = MetadataFieldRegistry.schema(for: field),
+            for (field, value) in validatedPatch.fields where !numberPairFields.contains(field) {
+                guard let schema = MetadataFieldRegistry.schema(for: field),
                       let canonicalKey = schema.propertyMapKeys.first else {
-                    warnings.append("Patch field \(field.rawValue) requires its dedicated patch property or is not writable.")
                     continue
                 }
-                for alias in schema.propertyMapKeys {
-                    propertyValues.keys
-                        .filter { $0.caseInsensitiveCompare(alias) == .orderedSame }
-                        .forEach { propertyValues.removeValue(forKey: $0) }
-                }
+                keysToRemove.formUnion(schema.propertyMapKeys)
                 if !value.propertyMapValues.isEmpty {
                     propertyValues[canonicalKey] = value.propertyMapValues
                 }
             }
 
-            for (key, value) in patch.customFields {
-                propertyValues.keys
-                    .filter { $0.caseInsensitiveCompare(key) == .orderedSame }
-                    .forEach { propertyValues.removeValue(forKey: $0) }
+            for (key, value) in validatedPatch.customFields {
+                keysToRemove.insert(key)
                 if !value.propertyMapValues.isEmpty {
                     propertyValues[key] = value.propertyMapValues
                 }
             }
 
             if let advisory = patch.explicitAdvisory {
-                for key in ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", "RTNG"] {
-                    propertyValues.keys
-                        .filter { $0.caseInsensitiveCompare(key) == .orderedSame || $0.uppercased().hasSuffix(":ITUNESADVISORY") }
-                        .forEach { propertyValues.removeValue(forKey: $0) }
+                let bridgeAdvisory: TagLibExplicitAdvisory = switch advisory {
+                case .unspecified: .unspecified
+                case .notExplicit: .notExplicit
+                case .clean: .clean
+                case .explicit: .explicit
                 }
-                switch advisory {
-                case .unspecified: break
-                case .clean: propertyValues["ITUNESADVISORY"] = ["2"]
-                case .explicit: propertyValues["ITUNESADVISORY"] = ["1"]
-                }
+                try TagLibMetadataExtractor.writeExplicitAdvisoryInPlace(
+                    bridgeAdvisory,
+                    to: mutationURL
+                )
             }
 
-            if !patch.fields.isEmpty || !patch.customFields.isEmpty || patch.explicitAdvisory != nil {
-                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(propertyValues, to: mutationURL)
+            if !propertyValues.isEmpty || !keysToRemove.isEmpty {
+                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                    propertyValues,
+                    removingKeys: Array(keysToRemove),
+                    to: mutationURL
+                )
             }
 
             switch patch.artwork {
@@ -163,11 +384,44 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
-            let after = try readSnapshot(from: mutationURL)
-            for (field, value) in patch.fields {
+            let extractionOptions: MetadataExtractionOptions = switch patch.artwork {
+            case .unchanged: [.basic, .propertyMap]
+            case .replace, .removeAll: .all
+            }
+            let projections = try bridgeMetadataProjectionDictionary(
+                from: mutationURL,
+                options: extractionOptions
+            )
+            guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
+                  let bridgeRaw = projections["raw"] as? [String: NSObject] else {
+                throw TagLibManagerError.failedToReadWithUnderlying(
+                    "The bridge returned incomplete patch verification projections."
+                )
+            }
+            let afterRaw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
+            let afterBasic = basicMetadata(fromBridgeMetadata: bridgeBasic, rawDump: afterRaw)
+            let afterStructured = (projections["structured"] as? [String: NSObject]).map {
+                structuredMetadata(fromBridgeDictionary: $0)
+            } ?? StructuredMetadata()
+            for (field, value) in validatedPatch.fields {
+                if let expected = expectedNumberPairs[field] {
+                    let actual = switch field {
+                    case .track: afterBasic.track
+                    case .trackTotal: afterBasic.trackTotal
+                    case .disc: afterBasic.disc
+                    case .discTotal: afterBasic.discTotal
+                    case .movementNumber: afterBasic.movementNumber
+                    case .movementCount: afterBasic.movementCount
+                    default: expected
+                    }
+                    if actual != expected {
+                        warnings.append("Patched field \(field.rawValue) differs after save (expected \(expected), got \(actual)).")
+                    }
+                    continue
+                }
                 guard let schema = MetadataFieldRegistry.schema(for: field),
                       let key = schema.propertyMapKeys.first else { continue }
-                let actual = after.raw.properties.first { entry in
+                let actual = afterRaw.properties.first { entry in
                     schema.propertyMapKeys.contains { alias in
                         alias.caseInsensitiveCompare(entry.key) == .orderedSame
                     }
@@ -176,22 +430,22 @@ extension TagLibMetadataManager {
                     warnings.append("Patched field \(key) differs after save.")
                 }
             }
-            for (key, value) in patch.customFields {
-                let actual = after.raw.properties.first {
+            for (key, value) in validatedPatch.customFields {
+                let actual = afterRaw.properties.first {
                     $0.key.caseInsensitiveCompare(key) == .orderedSame
                 }?.values ?? []
                 if actual != value.propertyMapValues {
                     warnings.append("Patched custom field \(key) differs after save.")
                 }
             }
-            if let advisory = patch.explicitAdvisory, after.basic.explicitAdvisory != advisory {
+            if let advisory = patch.explicitAdvisory, afterBasic.explicitAdvisory != advisory {
                 warnings.append("Patched explicit advisory differs after save.")
             }
             switch patch.artwork {
             case .unchanged: break
-            case .replace(let expected) where expected != after.structured.artwork:
+            case .replace(let expected) where expected != afterStructured.artwork:
                 warnings.append("Patched artwork differs after save.")
-            case .removeAll where !after.structured.artwork.isEmpty:
+            case .removeAll where !afterStructured.artwork.isEmpty:
                 warnings.append("Patched artwork removal could not be confirmed.")
             default: break
             }

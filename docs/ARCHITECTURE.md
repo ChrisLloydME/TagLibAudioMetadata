@@ -28,8 +28,20 @@ check rejects a file changed during extraction.
 Legacy basic, raw, and structured entry points remain available. The unified
 snapshot eliminates three independent parses when an editor needs all views.
 `BasicMetadata` is normalized for convenience and is deliberately not a
-lossless round-trip representation; raw and structured projections retain
-multi-value and container-specific information.
+lossless round-trip representation. Raw and structured projections retain
+semantic multi-value and supported container-specific information, but unknown
+or opaque native payloads may be represented only by type/display summaries.
+`MetadataSnapshot` is therefore a comprehensive semantic snapshot, not a native
+byte-for-byte serialization.
+
+Selective extraction avoids building unrequested projections. Basic reads ask
+for Basic+PropertyMap because cardinality and provenance are needed for safe
+Basic round trips; they do not enumerate raw ID3 frame summaries. Raw reads ask
+for PropertyMap+raw frames, structured entry points return only structured
+metadata, and a full snapshot asks for every projection in one session. The
+current unified bridge still constructs its internal Basic carrier during a
+structured-only traversal; removing that remaining allocation requires a wider
+format-extractor split and is deferred.
 
 ## Write pipeline
 
@@ -40,10 +52,64 @@ renames atomically, and flushes the parent directory. Public bridge mutators use
 the same transaction principles when called directly.
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged,
-`.remove` clears a property, `explicitAdvisory` retains its three-state meaning,
-and artwork distinguishes unchanged, replacement, and removal. Full
-`BasicMetadata`, raw replacement maps, and structured replaceable collections
-retain their documented replacement semantics.
+`.remove` clears a property, `explicitAdvisory` retains all four advisory states,
+and artwork distinguishes unchanged, replacement, and removal. Typed fields are
+validated for kind and numeric range against `MetadataFieldRegistry` before
+staging. Schema-known keys are rejected from `customFields`, including aliases
+and case variants. Text-backed booleans encode false as `"0"`, while `.remove`
+makes the field absent. Most property changes are applied as a bridge delta to
+the current `PropertyMap`; MP4 track/disc pairs and advisory data use native
+`trkn`, `disk`, and `rtng` mutation, while ID3 advisory uses the supported TXXX
+representation. TagLib still saves the affected native tag, so the guarantee is
+semantic omission rather than byte-for-byte container preservation.
+
+Explicit format field allowlists, when present in `FormatCapability`, are also
+checked before staging. This preflight applies only to the typed Patch surface;
+Raw APIs remain container-permissive.
+
+Patch text and value arrays are normalized once before mutation. Leading and
+trailing whitespace is removed, empty text/lists/elements are rejected, and the
+same normalized representation drives verification. `.remove` is the sole
+high-level deletion marker.
+
+Generic PropertyMap number pairs use separate canonical number/total keys.
+
+Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered
+value cardinality. `TXXX` descriptions identify frames and are kept separate
+from their payload arrays. Structured verification compares those arrays
+element-by-element. Artwork verification compares the semantic fields supported
+by each container: bytes and MIME type everywhere, plus picture type and
+description for ID3v2/ASF. Valid ID3/ASF picture type `0` (`Other`) is distinct
+from an omitted type, which defaults to Front Cover. TTA exposes container-level
+Structured reads but advertises only PropertyMap-level Structured writes because
+that is the implemented mutation route.
+ID3 uses combined `TRCK`/`TPOS`, MP4 uses native `trkn`/`disk`, and ID3 movement
+number/count uses combined `MVIN`; pair mutations preserve an omitted component.
+Track/disc integers begin at one, while `.remove` unsets a component. MP4
+numeric Patch and Basic writes update an existing AudioMator formatting atom but
+do not introduce one into a standard-only file. Native `trkn`/`disk` pairs are
+authoritative for ordinary Basic writes: changing a numeric component rebuilds
+existing private text with its prior number-padding convention, while an
+unchanged pair preserves the private text exactly. Dedicated number-text APIs
+remain the explicit formatted-input path. MP4 advisory mutation from both
+high-level APIs removes exactly the recognized
+freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
+before making native `rtng` authoritative.
+
+The shared advisory model distinguishes field absence (`unspecified`) from a
+present not-explicit value, explicit, and clean. Canonical MP4/M4A native values
+are absent, `rtng = 0`, `rtng = 1`, and `rtng = 2`. ID3 and generic PropertyMap
+storage remains container-specific and uses the established `ITUNESADVISORY`
+representation. Readers accept documented legacy aliases, including MP4 value
+`4` as explicit, but all high-level writes use the canonical values. The Boolean
+`isExplicit` compatibility projection cannot express all four states.
+
+`BasicMetadata` has replacement semantics only for fields it explicitly
+models. Schema-known non-Basic fields and custom fields absent from its
+projection are restored from read provenance. Removing a custom dictionary key
+does not request deletion; callers use `MetadataPatchValue.remove`. Preservation
+bookkeeping is publicly readable for compatibility but writable only inside the
+module.
 
 Atomic rename provides a pathname-level all-or-nothing commit on one volume. It
 does not preserve inode identity or update sibling hard links. FileManager's
@@ -52,6 +118,11 @@ clients with strict ACL, extended-attribute, quarantine, immutable-flag, or
 security-scoped requirements must validate those properties in their deployment
 environment. The caller needs read access to the file and create/rename access
 in its parent directory.
+
+If rename succeeds but the final parent-directory `fsync` fails, the new file is
+already committed. The Swift facade throws
+`committedButDurabilityUncertain`; it does not attempt rollback, and blind retry
+may repeat the operation.
 
 ## Schema and capabilities
 
@@ -71,11 +142,20 @@ because aliases and container fields can have different evidence levels.
 The migration removes ineffective generic-read fallback parsing and avoids
 nested facade transactions. A facade edit uses one staging copy rather than the
 former nested two-copy path; a complete snapshot uses one parser session rather
-than three. No synthetic percentage speedup is claimed because file size,
-storage, container, and tag density dominate elapsed time.
+than three. Basic post-write verification now derives Basic and PropertyMap
+checks from one extraction instead of two, without enumerating raw ID3 frames.
+No synthetic percentage speedup is claimed because file size, storage,
+container, and tag density dominate elapsed time.
 
-A process-wide recursive mutex covers TagLib object lifetimes. Filesystem copy,
-flush, and rename work is outside the lock. See [THREAD_SAFETY.md](THREAD_SAFETY.md).
+A complex Patch can still open and save the staged file separately for number
+pairs, advisory, PropertyMap values, and artwork. Consolidating these into one
+container-aware bridge delta remains follow-up work; this pass keeps the proven
+transaction and mutation paths instead of expanding their risk surface.
+
+A process-wide recursive mutex covers TagLib object lifetimes and Objective-C
+objects populated while traversing them. Swift model conversion and filesystem
+copy, flush, and rename work are outside the lock. See
+[THREAD_SAFETY.md](THREAD_SAFETY.md).
 
 ## Source layout
 

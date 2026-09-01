@@ -16,6 +16,7 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
     TagLibExplicitAdvisoryUnspecified = 0,
     TagLibExplicitAdvisoryClean = 1,
     TagLibExplicitAdvisoryExplicit = 2,
+    TagLibExplicitAdvisoryNotExplicit = 3,
 };
 
 /// Comprehensive metadata container for audio tracks
@@ -143,6 +144,14 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
 
 @end
 
+typedef NS_OPTIONS(NSUInteger, TagLibMetadataExtractionOptions) {
+    TagLibMetadataExtractionOptionBasic = 1 << 0,
+    TagLibMetadataExtractionOptionRaw = 1 << 1,
+    TagLibMetadataExtractionOptionStructured = 1 << 2,
+    TagLibMetadataExtractionOptionPropertyMap = 1 << 3,
+    TagLibMetadataExtractionOptionRawFrames = 1 << 4,
+    TagLibMetadataExtractionOptionAll = NSUIntegerMax,
+};
 
 /// TagLib metadata extractor
 ///
@@ -164,6 +173,12 @@ NS_SWIFT_NAME(extractMetadata(from:));
 + (nullable NSDictionary<NSString *, NSObject *> *)metadataProjectionsForURL:(NSURL *)fileURL
                                                                        error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(metadataProjections(for:));
+
+/// Selectively derive projections from one extension-selected parser session.
++ (nullable NSDictionary<NSString *, NSObject *> *)metadataProjectionsForURL:(NSURL *)fileURL
+                                                                     options:(TagLibMetadataExtractionOptions)options
+                                                                       error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(metadataProjections(for:options:));
 
 /// Write metadata back to an audio file.
 + (BOOL)writeMetadata:(TagLibAudioMetadata *)metadata
@@ -264,6 +279,36 @@ NS_SWIFT_NAME(writeRawPropertyMapInPlace(_:to:));
                                   toURL:(NSURL *)fileURL
                                   error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(writeRawPropertyMapValuesInPlace(_:to:));
++ (BOOL)applyPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
+                         removingKeys:(NSArray<NSString *> *)keysToRemove
+                                toURL:(NSURL *)fileURL
+                                error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(applyPropertyMapValuesInPlace(_:removingKeys:to:));
++ (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
+                                   totalTracks:(NSInteger)totalTracks
+                               updateTrackPair:(BOOL)updateTrackPair
+                                     discNumber:(NSInteger)discNumber
+                                     totalDiscs:(NSInteger)totalDiscs
+                                updateDiscPair:(BOOL)updateDiscPair
+                                          toURL:(NSURL *)fileURL
+                                          error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeNumberPairsInPlace(trackNumber:totalTracks:updateTrackPair:discNumber:totalDiscs:updateDiscPair:to:));
++ (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
+                                   totalTracks:(NSInteger)totalTracks
+                               updateTrackPair:(BOOL)updateTrackPair
+                                    discNumber:(NSInteger)discNumber
+                                     totalDiscs:(NSInteger)totalDiscs
+                                updateDiscPair:(BOOL)updateDiscPair
+                                movementNumber:(NSInteger)movementNumber
+                                  movementCount:(NSInteger)movementCount
+                             updateMovementPair:(BOOL)updateMovementPair
+                                          toURL:(NSURL *)fileURL
+                                          error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeNumberPairsInPlace(trackNumber:totalTracks:updateTrackPair:discNumber:totalDiscs:updateDiscPair:movementNumber:movementCount:updateMovementPair:to:));
++ (BOOL)writeExplicitAdvisoryInPlace:(TagLibExplicitAdvisory)advisory
+                               toURL:(NSURL *)fileURL
+                               error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(writeExplicitAdvisoryInPlace(_:to:));
 + (BOOL)writeStructuredMetadataInPlace:(NSDictionary<NSString *, NSObject *> *)metadata
                                  toURL:(NSURL *)fileURL
                                  error:(NSError *_Nullable *_Nullable)error

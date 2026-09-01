@@ -1,5 +1,5 @@
 import XCTest
-import TagLibAudioMetadata
+@testable import TagLibAudioMetadata
 
 final class FixtureMetadataRoundTripTests: XCTestCase {
     private let writableFixtures = ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav"]
@@ -71,7 +71,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
-    func testExplicitAdvisoryPreservesAbsenceCleanAndExplicitStates() throws {
+    func testExplicitAdvisoryPreservesAllFourStates() throws {
         for ext in writableFixtures {
             let url = try copyAudioFixture(ext)
 
@@ -84,9 +84,15 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 "\(ext) should preserve advisory absence"
             )
 
-            metadata.explicitAdvisory = .clean
+            metadata.explicitAdvisory = .notExplicit
             try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
             var result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.explicitAdvisory, .notExplicit, "\(ext) should preserve not-explicit")
+            XCTAssertFalse(result.isExplicit, ext)
+
+            metadata.explicitAdvisory = .clean
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.explicitAdvisory, .clean, "\(ext) should preserve an explicit clean advisory")
             XCTAssertFalse(result.isExplicit, ext)
 
@@ -273,6 +279,65 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testBasicReadWritePreservesUnmodifiedStandardFieldCardinality() throws {
+        let originalValues: [String: [String]] = [
+            "ARTIST": ["Artist A", "Artist B"],
+            "COMPOSER": ["Composer A", "Composer B"],
+            "ALBUMARTIST": ["Album Artist A", "Album Artist B"],
+            "GENRE": ["Rock", "Alternative"],
+        ]
+
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                originalValues,
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.title = "Unrelated Basic title edit"
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            for (key, values) in originalValues {
+                XCTAssertEqual(
+                    raw.values(for: key),
+                    values,
+                    "\(ext) must preserve untouched \(key) cardinality during a Basic write"
+                )
+            }
+        }
+    }
+
+    func testBasicReadWritePreservesKnownFieldsOutsideBasicMetadata() throws {
+        let preservedValues: [String: [String]] = [
+            "PERFORMER": ["Guitar", "Piano"],
+            "INVOLVEDPEOPLE": ["Producer", "Engineer"],
+            "TRACKERNAME": ["Non-Basic single value"],
+            "UNREGISTERED_CUSTOM": ["Custom A", "Custom B"],
+        ]
+
+        for ext in ["flac", "ogg", "oga"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                preservedValues,
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.title = "Only Basic title changed"
+            basic.customFields.removeValue(forKey: "UNREGISTERED_CUSTOM")
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            for (key, values) in preservedValues {
+                XCTAssertEqual(raw.values(for: key), values, "\(ext) must preserve \(key)")
+            }
+        }
+    }
+
     func testStructuredWAVAdvisoriesDoNotFailVerifiedWrites() throws {
         let url = try copyAudioFixture("wav")
         let payload = StructuredMetadata(
@@ -394,6 +459,91 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let compilation = try XCTUnwrap(structured.mp4Atoms.first { $0.key == "cpil" })
         XCTAssertEqual(compilation.type, "bool")
         XCTAssertEqual(compilation.value, "1")
+    }
+
+    func testStructuredID3TextFramePreservesMultipleSemanticValues() throws {
+        let url = try copyAudioFixture("mp3")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["SUBTITLE": ["A", "B"]],
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let frame = try XCTUnwrap(before.id3v2Frames.first { $0.frameID == "TIT3" })
+        XCTAssertEqual(frame.type, "text")
+        XCTAssertEqual(frame.values, ["A", "B"])
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(id3v2Frames: [frame]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let roundTripped = try XCTUnwrap(after.id3v2Frames.first { $0.frameID == "TIT3" })
+        XCTAssertEqual(roundTripped.values, ["A", "B"])
+    }
+
+    func testStructuredID3UserTextPreservesDescriptionAndMultipleValues() throws {
+        let url = try copyAudioFixture("mp3")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["TEST": ["A", "B"]],
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let frame = try XCTUnwrap(before.id3v2Frames.first {
+            $0.frameID == "TXXX" && $0.description == "TEST"
+        })
+        XCTAssertEqual(frame.type, "userText")
+        XCTAssertEqual(frame.values, ["A", "B"])
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(id3v2Frames: [frame]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let roundTripped = try XCTUnwrap(after.id3v2Frames.first {
+            $0.frameID == "TXXX" && $0.description == "TEST"
+        })
+        XCTAssertEqual(roundTripped.description, "TEST")
+        XCTAssertEqual(roundTripped.values.count, 2)
+        XCTAssertEqual(roundTripped.values, ["A", "B"])
+        XCTAssertFalse(roundTripped.values.contains("TEST"))
+    }
+
+    func testStructuredID3VerificationDistinguishesValueCardinality() throws {
+        let url = try copyAudioFixture("mp3")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["SUBTITLE": ["A; B"]],
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let expected = StructuredMetadata(
+            id3v2Frames: [
+                .init(frameID: "TIT3", type: "text", values: ["A", "B"]),
+            ]
+        )
+        let verification = TagLibMetadataManager.structuredWriteVerification(
+            expected: expected,
+            replacingCollections: [],
+            for: url
+        )
+
+        XCTAssertEqual(verification.failures.count, 1)
+        XCTAssertThrowsError(try TagLibMetadataManager.applyVerificationFailurePolicy(
+            .throw,
+            warnings: verification.failures
+        )) { error in
+            guard case TagLibManagerError.verificationFailed = error else {
+                return XCTFail("Expected verificationFailed, got \(error)")
+            }
+        }
     }
 
     func testStructuredID3ChapterAndTableOfContentsRoundTrip() throws {
@@ -569,6 +719,67 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testStructuredID3ArtworkPreservesOtherAndFrontCoverTypes() throws {
+        let firstArtwork = try Data(contentsOf: artworkFixtureURL())
+        var secondArtwork = firstArtwork
+        secondArtwork.append(0)
+        let url = try copyAudioFixture("mp3")
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(artwork: [
+                .init(
+                    container: "id3v2",
+                    pictureType: "Other",
+                    pictureTypeCode: 0,
+                    mimeType: "image/jpeg",
+                    description: "Other image",
+                    data: firstArtwork
+                ),
+                .init(
+                    container: "id3v2",
+                    pictureType: "Front Cover",
+                    pictureTypeCode: 3,
+                    mimeType: "image/jpeg",
+                    description: "Cover image",
+                    data: secondArtwork
+                ),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let other = try XCTUnwrap(result.artwork.first { $0.data == firstArtwork })
+        XCTAssertEqual(other.pictureTypeCode, 0)
+        XCTAssertEqual(other.pictureType, "Other")
+        XCTAssertEqual(other.description, "Other image")
+        let cover = try XCTUnwrap(result.artwork.first { $0.data == secondArtwork })
+        XCTAssertEqual(cover.pictureTypeCode, 3)
+        XCTAssertEqual(cover.pictureType, "Front Cover")
+    }
+
+    func testStructuredArtworkVerificationDetectsTypeChangeWithSameBytes() {
+        let bytes = Data([1, 2, 3])
+        let expected = StructuredArtwork(
+            container: "id3v2",
+            pictureType: "Other",
+            pictureTypeCode: 0,
+            mimeType: "image/jpeg",
+            description: "Image",
+            data: bytes
+        )
+        let changed = StructuredArtwork(
+            container: "id3v2",
+            pictureType: "Front Cover",
+            pictureTypeCode: 3,
+            mimeType: "image/jpeg",
+            description: "Image",
+            data: bytes
+        )
+
+        XCTAssertFalse(TagLibMetadataManager.structuredArtworkMatches(expected, changed))
+    }
+
     func testBasicReadWritePreservesUnmodifiedAdditionalArtwork() throws {
         let firstArtwork = try Data(contentsOf: artworkFixtureURL())
         var secondArtwork = firstArtwork
@@ -643,6 +854,977 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             XCTAssertEqual(after.basic.title, "After", ext)
             XCTAssertEqual(after.raw.values(for: "CUSTOM_MULTI"), ["Three", "Four"], ext)
             XCTAssertEqual(after.structured.artwork.count, 2, ext)
+        }
+    }
+
+    func testM4AMetadataPatchPreservesAndUpdatesNativeTrackDiscPairs() throws {
+        struct Scenario {
+            let name: String
+            let fields: [MetadataFieldKey: MetadataPatchValue]
+            let expectedTrack: Int
+            let expectedTrackTotal: Int
+            let expectedDisc: Int
+            let expectedDiscTotal: Int
+        }
+
+        let scenarios = [
+            Scenario(name: "track only", fields: [.track: .integer(5)], expectedTrack: 5, expectedTrackTotal: 12, expectedDisc: 1, expectedDiscTotal: 2),
+            Scenario(name: "track total only", fields: [.trackTotal: .integer(20)], expectedTrack: 3, expectedTrackTotal: 20, expectedDisc: 1, expectedDiscTotal: 2),
+            Scenario(name: "track pair", fields: [.track: .integer(6), .trackTotal: .integer(24)], expectedTrack: 6, expectedTrackTotal: 24, expectedDisc: 1, expectedDiscTotal: 2),
+            Scenario(name: "disc only", fields: [.disc: .integer(2)], expectedTrack: 3, expectedTrackTotal: 12, expectedDisc: 2, expectedDiscTotal: 2),
+            Scenario(name: "disc total only", fields: [.discTotal: .integer(4)], expectedTrack: 3, expectedTrackTotal: 12, expectedDisc: 1, expectedDiscTotal: 4),
+            Scenario(name: "disc pair", fields: [.disc: .integer(3), .discTotal: .integer(5)], expectedTrack: 3, expectedTrackTotal: 12, expectedDisc: 3, expectedDiscTotal: 5),
+        ]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
+            baseline.track = 3
+            baseline.trackTotal = 12
+            baseline.trackNumberText = "3/12"
+            baseline.disc = 1
+            baseline.discTotal = 2
+            baseline.discNumberText = "1/2"
+            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: scenario.fields),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(result.trackTotal, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(result.disc, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(result.discTotal, scenario.expectedDiscTotal, scenario.name)
+
+            let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+            let trackAtom = try XCTUnwrap(atoms.first { $0.key == "trkn" }, scenario.name)
+            let discAtom = try XCTUnwrap(atoms.first { $0.key == "disk" }, scenario.name)
+            XCTAssertEqual(trackAtom.first, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(trackAtom.second, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(discAtom.first, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(discAtom.second, scenario.expectedDiscTotal, scenario.name)
+        }
+    }
+
+    func testGenericPropertyMapMetadataPatchUsesSeparateTrackDiscFields() throws {
+        for ext in ["flac", "ogg", "oga"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                [
+                    "TRACKNUMBER": ["3"],
+                    "TRACKTOTAL": ["12"],
+                    "DISCNUMBER": ["1"],
+                    "DISCTOTAL": ["2"],
+                ],
+                to: url,
+                verifyAfterWrite: false,
+                failurePolicy: .throw
+            )
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.track: .integer(5)]),
+                to: url,
+                failurePolicy: .throw
+            )
+            var raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "TRACKNUMBER"), ["5"], ext)
+            XCTAssertEqual(raw.values(for: "TRACKTOTAL"), ["12"], ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.trackTotal: .integer(20)]),
+                to: url,
+                failurePolicy: .throw
+            )
+            raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "TRACKNUMBER"), ["5"], ext)
+            XCTAssertEqual(raw.values(for: "TRACKTOTAL"), ["20"], ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.disc: .integer(2)]),
+                to: url,
+                failurePolicy: .throw
+            )
+            raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "DISCNUMBER"), ["2"], ext)
+            XCTAssertEqual(raw.values(for: "DISCTOTAL"), ["2"], ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.discTotal: .integer(4)]),
+                to: url,
+                failurePolicy: .throw
+            )
+            raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(raw.values(for: "DISCNUMBER"), ["2"], ext)
+            XCTAssertEqual(raw.values(for: "DISCTOTAL"), ["4"], ext)
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, 5, ext)
+            XCTAssertEqual(result.trackTotal, 20, ext)
+            XCTAssertEqual(result.disc, 2, ext)
+            XCTAssertEqual(result.discTotal, 4, ext)
+        }
+    }
+
+    func testM4AOrdinaryNumberPatchDoesNotInjectPrivateFormattingAtoms() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        var atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_") })
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_") })
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, 5)
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, 12)
+        XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, 1)
+        XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 4)
+    }
+
+    func testM4ANumberPatchUpdatesExistingPrivateFormattingAtoms() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+                .init(key: "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT", type: "stringList", values: ["03/12"]),
+                .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+            ["05/12"]
+        )
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+            ["01/4"]
+        )
+    }
+
+    func testM4ABasicTitleEditDoesNotCreatePrivateNumberFormattingAtoms() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(basic.trackNumberText, "3/12")
+        XCTAssertEqual(basic.discNumberText, "1/2")
+        basic.title = "Standard-only title edit"
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, 3)
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, 12)
+        XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, 1)
+        XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 2)
+    }
+
+    func testM4ABasicNumericEditUpdatesNativePairWithoutCreatingPrivateFormatting() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+        basic.track = 5
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+        let result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.track, 5)
+        XCTAssertEqual(result.trackTotal, 12)
+        XCTAssertEqual(result.trackNumberText, "5/12")
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, 5)
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, 12)
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
+    }
+
+    func testM4ABasicNumericEditsSynchronizeExistingPrivateFormatting() throws {
+        struct Scenario {
+            let name: String
+            let edit: (inout BasicMetadata) -> Void
+            let expectedTrack: Int
+            let expectedTrackTotal: Int
+            let expectedTrackText: String
+            let expectedDisc: Int
+            let expectedDiscTotal: Int
+            let expectedDiscText: String
+        }
+
+        let scenarios = [
+            Scenario(
+                name: "track number",
+                edit: { $0.track = 5 },
+                expectedTrack: 5, expectedTrackTotal: 12, expectedTrackText: "05/12",
+                expectedDisc: 1, expectedDiscTotal: 2, expectedDiscText: "01/02"
+            ),
+            Scenario(
+                name: "track total",
+                edit: { $0.trackTotal = 20 },
+                expectedTrack: 3, expectedTrackTotal: 20, expectedTrackText: "03/20",
+                expectedDisc: 1, expectedDiscTotal: 2, expectedDiscText: "01/02"
+            ),
+            Scenario(
+                name: "disc number",
+                edit: { $0.disc = 2 },
+                expectedTrack: 3, expectedTrackTotal: 12, expectedTrackText: "03/12",
+                expectedDisc: 2, expectedDiscTotal: 2, expectedDiscText: "02/2"
+            ),
+            Scenario(
+                name: "disc total",
+                edit: { $0.discTotal = 4 },
+                expectedTrack: 3, expectedTrackTotal: 12, expectedTrackText: "03/12",
+                expectedDisc: 1, expectedDiscTotal: 4, expectedDiscText: "01/4"
+            ),
+        ]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(mp4Atoms: [
+                    .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                    .init(key: "disk", type: "intPair", first: 1, second: 2),
+                    .init(key: "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT", type: "stringList", values: ["03/12"]),
+                    .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
+                ]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            scenario.edit(&basic)
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(result.trackTotal, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(result.trackNumberText, scenario.expectedTrackText, scenario.name)
+            XCTAssertEqual(result.disc, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(result.discTotal, scenario.expectedDiscTotal, scenario.name)
+            XCTAssertEqual(result.discNumberText, scenario.expectedDiscText, scenario.name)
+
+            let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+            XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, scenario.expectedDiscTotal, scenario.name)
+            XCTAssertEqual(
+                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+                [scenario.expectedTrackText],
+                scenario.name
+            )
+            XCTAssertEqual(
+                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+                [scenario.expectedDiscText],
+                scenario.name
+            )
+        }
+    }
+
+    func testM4ABasicTitleEditPreservesExistingPrivateNumberFormattingAtoms() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+                .init(key: "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT", type: "stringList", values: ["03/12"]),
+                .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+        basic.title = "Preserve provenance"
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+            ["03/12"]
+        )
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+            ["01/02"]
+        )
+    }
+
+    func testMetadataPatchBooleanFalseIsDistinctFromRemoval() throws {
+        let url = try copyAudioFixture("flac")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.compilation: .boolean(false)]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), ["0"])
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.compilation: .boolean(true)]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), ["1"])
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.compilation: .remove]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), [])
+    }
+
+    func testM4AMetadataPatchMutatesNativeExplicitAdvisoryWithoutContradictoryFreeformValue() throws {
+        struct Scenario {
+            let name: String
+            let initial: ExplicitAdvisory
+            let patched: ExplicitAdvisory
+            let expectedNativeValue: String?
+        }
+
+        let scenarios = [
+            Scenario(name: "explicit to clean", initial: .explicit, patched: .clean, expectedNativeValue: "2"),
+            Scenario(name: "clean to explicit", initial: .clean, patched: .explicit, expectedNativeValue: "1"),
+            Scenario(name: "clean to not explicit", initial: .clean, patched: .notExplicit, expectedNativeValue: "0"),
+            Scenario(name: "explicit to unspecified", initial: .explicit, patched: .unspecified, expectedNativeValue: nil),
+            Scenario(name: "absent to explicit", initial: .unspecified, patched: .explicit, expectedNativeValue: "1"),
+            Scenario(name: "absent to clean", initial: .unspecified, patched: .clean, expectedNativeValue: "2"),
+            Scenario(name: "absent to not explicit", initial: .unspecified, patched: .notExplicit, expectedNativeValue: "0"),
+        ]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
+            baseline.explicitAdvisory = scenario.initial
+            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: scenario.patched),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.basic.explicitAdvisory, scenario.patched, scenario.name)
+
+            let nativeRating = snapshot.structured.mp4Atoms.first { $0.key == "rtng" }
+            XCTAssertEqual(nativeRating?.value, scenario.expectedNativeValue, scenario.name)
+            XCTAssertFalse(
+                snapshot.structured.mp4Atoms.contains {
+                    $0.key.uppercased().contains("ITUNESADVISORY")
+                },
+                "\(scenario.name) must not leave a contradictory MP4 freeform advisory"
+            )
+        }
+    }
+
+    func testM4AMetadataPatchRemovesEveryRecognizedConflictingAdvisoryAlias() throws {
+        struct Scenario {
+            let name: String
+            let initial: ExplicitAdvisory
+            let freeformValue: String
+            let patched: ExplicitAdvisory
+            let expectedNativeValue: String?
+        }
+
+        let scenarios = [
+            Scenario(name: "native explicit with clean aliases", initial: .explicit, freeformValue: "2", patched: .clean, expectedNativeValue: "2"),
+            Scenario(name: "native clean with explicit aliases", initial: .clean, freeformValue: "1", patched: .explicit, expectedNativeValue: "1"),
+            Scenario(name: "remove native and aliases", initial: .explicit, freeformValue: "1", patched: .unspecified, expectedNativeValue: nil),
+        ]
+        let aliases = ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.explicitAdvisory = scenario.initial
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let conflictingAtoms = aliases.map {
+                StructuredMP4Atom(
+                    key: "----:com.apple.iTunes:\($0)",
+                    type: "stringList",
+                    values: [scenario.freeformValue]
+                )
+            }
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(mp4Atoms: conflictingAtoms),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: scenario.patched),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.basic.explicitAdvisory, scenario.patched, scenario.name)
+            XCTAssertEqual(
+                snapshot.structured.mp4Atoms.first { $0.key == "rtng" }?.value,
+                scenario.expectedNativeValue,
+                scenario.name
+            )
+            XCTAssertFalse(
+                snapshot.structured.mp4Atoms.contains { atom in
+                    aliases.contains { alias in
+                        atom.key.caseInsensitiveCompare("----:com.apple.iTunes:\(alias)") == .orderedSame
+                    }
+                },
+                scenario.name
+            )
+        }
+    }
+
+    func testM4ABasicAndPatchAdvisoryWritesConvergeOnCanonicalNativeState() throws {
+        let aliases = ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"]
+        func assertCanonical(
+            _ url: URL,
+            advisory: ExplicitAdvisory,
+            nativeValue: String?,
+            file: StaticString = #filePath,
+            line: UInt = #line
+        ) throws {
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.basic.explicitAdvisory, advisory, file: file, line: line)
+            XCTAssertEqual(
+                snapshot.structured.mp4Atoms.first { $0.key == "rtng" }?.value,
+                nativeValue,
+                file: file,
+                line: line
+            )
+            XCTAssertFalse(
+                snapshot.structured.mp4Atoms.contains { atom in
+                    aliases.contains { alias in
+                        atom.key.caseInsensitiveCompare("----:com.apple.iTunes:\(alias)") == .orderedSame
+                    }
+                },
+                file: file,
+                line: line
+            )
+        }
+
+        let states: [(ExplicitAdvisory, String?)] = [
+            (.unspecified, nil),
+            (.notExplicit, "0"),
+            (.explicit, "1"),
+            (.clean, "2"),
+        ]
+
+        for (advisory, nativeValue) in states {
+            let basicURL = try copyAudioFixture("m4a")
+            var basic = try TagLibMetadataManager.readMetadataResult(from: basicURL)
+            basic.explicitAdvisory = advisory
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicURL, failurePolicy: .throw)
+            try assertCanonical(basicURL, advisory: advisory, nativeValue: nativeValue)
+
+            let patchURL = try copyAudioFixture("m4a")
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: advisory),
+                to: patchURL,
+                failurePolicy: .throw
+            )
+            try assertCanonical(patchURL, advisory: advisory, nativeValue: nativeValue)
+        }
+
+        let basicRemoval = try copyAudioFixture("m4a")
+        var basic = try TagLibMetadataManager.readMetadataResult(from: basicRemoval)
+        basic.explicitAdvisory = .explicit
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicRemoval, failurePolicy: .throw)
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: aliases.map {
+                .init(key: "----:com.apple.iTunes:\($0)", type: "stringList", values: ["1"])
+            }),
+            to: basicRemoval,
+            failurePolicy: .throw
+        )
+        basic = try TagLibMetadataManager.readMetadataResult(from: basicRemoval)
+        basic.explicitAdvisory = .unspecified
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicRemoval, failurePolicy: .throw)
+        try assertCanonical(basicRemoval, advisory: .unspecified, nativeValue: nil)
+    }
+
+    func testM4AReadsNativeFourStateAdvisoryAndCanonicalizesLegacyExplicit() throws {
+        let nativeStates: [(Int, ExplicitAdvisory)] = [
+            (0, .notExplicit),
+            (1, .explicit),
+            (2, .clean),
+        ]
+
+        let absentURL = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .unspecified),
+            to: absentURL,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(
+            try TagLibMetadataManager.readMetadataResult(from: absentURL).explicitAdvisory,
+            .unspecified
+        )
+
+        for (nativeValue, advisory) in nativeStates {
+            let url = try copyAudioFixture("m4a")
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(mp4Atoms: [
+                    .init(key: "rtng", type: "int", value: String(nativeValue)),
+                ]),
+                to: url,
+                verifyAfterWrite: false,
+                failurePolicy: .throw
+            )
+            XCTAssertEqual(
+                try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
+                advisory,
+                "rtng=\(nativeValue)"
+            )
+        }
+
+        let legacyURL = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "rtng", type: "int", value: "4"),
+            ]),
+            to: legacyURL,
+            verifyAfterWrite: false,
+            failurePolicy: .throw
+        )
+        var legacy = try TagLibMetadataManager.readMetadataResult(from: legacyURL)
+        XCTAssertEqual(legacy.explicitAdvisory, .explicit)
+
+        legacy.title = "Canonical legacy rewrite"
+        try TagLibMetadataManager.writeMetadataWithVerification(legacy, to: legacyURL, failurePolicy: .throw)
+        let rewritten = try TagLibMetadataManager.readSnapshot(from: legacyURL)
+        XCTAssertEqual(rewritten.basic.explicitAdvisory, .explicit)
+        XCTAssertEqual(rewritten.structured.mp4Atoms.first { $0.key == "rtng" }?.value, "1")
+    }
+
+    func testMP3MetadataPatchUsesSingleID3AdvisoryRepresentation() throws {
+        let url = try copyAudioFixture("mp3")
+        var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
+        baseline.explicitAdvisory = .explicit
+        try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .clean),
+            to: url,
+            failurePolicy: .throw
+        )
+        var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .clean)
+        XCTAssertEqual(
+            snapshot.raw.id3v2Frames.filter {
+                $0.frameID == "TXXX" && $0.description?.uppercased() == "ITUNESADVISORY"
+            }.map(\.value),
+            ["[ITUNESADVISORY] 2"]
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .notExplicit),
+            to: url,
+            failurePolicy: .throw
+        )
+        snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .notExplicit)
+        XCTAssertEqual(
+            snapshot.raw.id3v2Frames.filter {
+                $0.frameID == "TXXX" && $0.description?.uppercased() == "ITUNESADVISORY"
+            }.map(\.value),
+            ["[ITUNESADVISORY] 0"]
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(explicitAdvisory: .unspecified),
+            to: url,
+            failurePolicy: .throw
+        )
+        snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .unspecified)
+        XCTAssertFalse(snapshot.raw.id3v2Frames.contains {
+            $0.frameID == "TXXX" && $0.description?.uppercased() == "ITUNESADVISORY"
+        })
+    }
+
+    func testGenericPropertyMapAdvisoryUsesCanonicalFourStateValues() throws {
+        let states: [(ExplicitAdvisory, String?)] = [
+            (.unspecified, nil),
+            (.notExplicit, "0"),
+            (.explicit, "1"),
+            (.clean, "2"),
+        ]
+
+        for (advisory, storedValue) in states {
+            let url = try copyAudioFixture("flac")
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: advisory),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.basic.explicitAdvisory, advisory)
+            XCTAssertEqual(
+                snapshot.raw.values(for: "ITUNESADVISORY"),
+                storedValue.map { [$0] } ?? []
+            )
+        }
+    }
+
+    func testLegacyAdvisoryTextValuesRemainReadable() throws {
+        let legacyValues: [(String, ExplicitAdvisory)] = [
+            ("4", .explicit),
+            ("-1", .notExplicit),
+            ("TRUE", .explicit),
+            ("FALSE", .notExplicit),
+            ("YES", .explicit),
+            ("NO", .notExplicit),
+            ("EXPLICIT", .explicit),
+            ("CLEAN", .clean),
+            ("NONE", .notExplicit),
+        ]
+
+        for (storedValue, expected) in legacyValues {
+            let url = try copyAudioFixture("flac")
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["ITUNESADVISORY": [storedValue]],
+                to: url,
+                failurePolicy: .throw
+            )
+            XCTAssertEqual(
+                try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
+                expected,
+                storedValue
+            )
+        }
+    }
+
+    func testMetadataPatchRejectsInvalidValueTypesBeforeMutation() throws {
+        let url = try copyAudioFixture("flac")
+        let originalBytes = try Data(contentsOf: url)
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.title: .integer(123)]),
+                to: url
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .incompatibleValue(field: .title, expected: [.text], actual: .integer)
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.bpm: .text("hello")]),
+                to: url
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .incompatibleValue(field: .bpm, expected: [.integer], actual: .text)
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+    }
+
+    func testMetadataPatchCustomFieldsCannotBypassTypedSchemaValidation() throws {
+        let url = try copyAudioFixture("flac")
+        let originalBytes = try Data(contentsOf: url)
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["TITLE": .integer(123)]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .knownFieldRequiresTypedAPI(customKey: "TITLE", field: .title)
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["album artist": .text("Alias")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .knownFieldRequiresTypedAPI(customKey: "album artist", field: .albumArtist)
+            )
+        }
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.title: .text("Typed")], customFields: ["title": .text("Custom")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .conflictingFieldRepresentations(field: .title, customKey: "title")
+            )
+        }
+
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["case_key": .text("One"), "CASE_KEY": .text("Two")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .duplicateCustomField(normalizedKey: "CASE_KEY")
+            )
+        }
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(customFields: ["truly_unknown": .values(["One", "Two"])]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(
+            try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "TRULY_UNKNOWN"),
+            ["One", "Two"]
+        )
+    }
+
+    func testMetadataPatchEnforcesSharedNumericConstraintsBeforeMutation() throws {
+        for (field, value, minimum) in [
+            (MetadataFieldKey.track, -1, 1),
+            (.disc, -1, 1),
+            (.bpm, -20, 0),
+        ] {
+            let url = try copyAudioFixture("flac")
+            let originalBytes = try Data(contentsOf: url)
+            XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [field: .integer(value)]),
+                to: url
+            )) { error in
+                XCTAssertEqual(
+                    error as? MetadataPatchValidationError,
+                    .integerOutOfRange(
+                        field: field,
+                        minimum: minimum,
+                        maximum: Int(Int32.max),
+                        actual: value
+                    )
+                )
+            }
+            XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+        }
+
+        for field in [MetadataFieldKey.track, .trackTotal, .disc, .discTotal] {
+            let zeroURL = try copyAudioFixture("flac")
+            let originalBytes = try Data(contentsOf: zeroURL)
+            XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [field: .integer(0)]),
+                to: zeroURL
+            )) { error in
+                XCTAssertEqual(
+                    error as? MetadataPatchValidationError,
+                    .integerOutOfRange(
+                        field: field,
+                        minimum: 1,
+                        maximum: Int(Int32.max),
+                        actual: 0
+                    )
+                )
+            }
+            XCTAssertEqual(try Data(contentsOf: zeroURL), originalBytes)
+        }
+
+        let zeroBPMURL = try copyAudioFixture("flac")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.bpm: .integer(0)]),
+            to: zeroBPMURL,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: zeroBPMURL).bpm, 0)
+
+        let removalURL = try copyAudioFixture("flac")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            [
+                "TRACKNUMBER": ["3"], "TRACKTOTAL": ["12"],
+                "DISCNUMBER": ["1"], "DISCTOTAL": ["2"],
+            ],
+            to: removalURL,
+            failurePolicy: .throw
+        )
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.track: .remove, .discTotal: .remove]),
+            to: removalURL,
+            failurePolicy: .throw
+        )
+        let removed = try TagLibMetadataManager.rawMetadataResult(from: removalURL)
+        XCTAssertEqual(removed.values(for: "TRACKNUMBER"), [])
+        XCTAssertEqual(removed.values(for: "TRACKTOTAL"), ["12"])
+        XCTAssertEqual(removed.values(for: "DISCNUMBER"), ["1"])
+        XCTAssertEqual(removed.values(for: "DISCTOTAL"), [])
+
+        let maximumURL = try copyAudioFixture("flac")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.bpm: .integer(Int(Int32.max))]),
+            to: maximumURL,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: maximumURL).bpm, Int(Int32.max))
+        let maximumBytes = try Data(contentsOf: maximumURL)
+
+        let aboveMaximum = Int(Int32.max) + 1
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.bpm: .integer(aboveMaximum)]),
+            to: maximumURL
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .integerOutOfRange(
+                    field: .bpm,
+                    minimum: 0,
+                    maximum: Int(Int32.max),
+                    actual: aboveMaximum
+                )
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: maximumURL), maximumBytes)
+    }
+
+    func testMP3MetadataPatchPreservesUntouchedMovementPairComponent() throws {
+        let numberURL = try copyAudioFixture("mp3")
+        var basic = try TagLibMetadataManager.readMetadataResult(from: numberURL)
+        basic.movementNumber = 2
+        basic.movementCount = 4
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: numberURL, failurePolicy: .throw)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.movementNumber: .integer(3)]),
+            to: numberURL,
+            failurePolicy: .throw
+        )
+        var result = try TagLibMetadataManager.readMetadataResult(from: numberURL)
+        XCTAssertEqual(result.movementNumber, 3)
+        XCTAssertEqual(result.movementCount, 4)
+        XCTAssertEqual(
+            try TagLibMetadataManager.readStructuredMetadataResult(from: numberURL)
+                .id3v2Frames.first { $0.frameID == "MVIN" }?.value,
+            "3/4"
+        )
+
+        let countURL = try copyAudioFixture("mp3")
+        basic = try TagLibMetadataManager.readMetadataResult(from: countURL)
+        basic.movementNumber = 2
+        basic.movementCount = 4
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: countURL, failurePolicy: .throw)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.movementCount: .integer(6)]),
+            to: countURL,
+            failurePolicy: .throw
+        )
+        result = try TagLibMetadataManager.readMetadataResult(from: countURL)
+        XCTAssertEqual(result.movementNumber, 2)
+        XCTAssertEqual(result.movementCount, 6)
+        XCTAssertEqual(
+            try TagLibMetadataManager.readStructuredMetadataResult(from: countURL)
+                .id3v2Frames.first { $0.frameID == "MVIN" }?.value,
+            "2/6"
+        )
+    }
+
+    func testMetadataPatchNormalizesOnceForMutationAndVerification() throws {
+        let url = try copyAudioFixture("flac")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                fields: [
+                    .title: .text("  Normalized Title\n"),
+                    .artist: .values([" Artist A ", "\tArtist B"]),
+                ],
+                customFields: [
+                    " custom_normalized ": .values([" One ", "Two\n"]),
+                ]
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.title, "Normalized Title")
+        XCTAssertEqual(snapshot.raw.values(for: "ARTIST"), ["Artist A", "Artist B"])
+        XCTAssertEqual(snapshot.raw.values(for: "CUSTOM_NORMALIZED"), ["One", "Two"])
+    }
+
+    func testMetadataPatchRejectsEmptyTextAndValueListsBeforeMutation() throws {
+        let url = try copyAudioFixture("flac")
+        let originalBytes = try Data(contentsOf: url)
+        let invalidPatches: [(MetadataPatch, MetadataPatchValidationError)] = [
+            (
+                MetadataPatch(fields: [.title: .text("")]),
+                .emptyText(location: "title")
+            ),
+            (
+                MetadataPatch(fields: [.title: .text(" \n\t")]),
+                .emptyText(location: "title")
+            ),
+            (
+                MetadataPatch(fields: [.artist: .values([])]),
+                .emptyValueList(location: "artist")
+            ),
+            (
+                MetadataPatch(fields: [.artist: .values(["Artist", " "])]),
+                .emptyValue(location: "artist", index: 1)
+            ),
+            (
+                MetadataPatch(customFields: ["CUSTOM_EMPTY": .text("")]),
+                .emptyText(location: "CUSTOM_EMPTY")
+            ),
+        ]
+
+        for (patch, expectedError) in invalidPatches {
+            XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(patch, to: url)) { error in
+                XCTAssertEqual(error as? MetadataPatchValidationError, expectedError)
+            }
+            XCTAssertEqual(
+                try Data(contentsOf: url),
+                originalBytes,
+                "Invalid empty values must fail before a staging mutation"
+            )
         }
     }
 
@@ -762,6 +1944,32 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testSelectiveProjectionExtractionReturnsOnlyRequestedRepresentations() throws {
+        let url = try copyAudioFixture("mp3")
+
+        let basicAndPropertyMap = try TagLibMetadataExtractor.metadataProjections(
+            for: url,
+            options: [.basic, .propertyMap]
+        )
+        XCTAssertNotNil(basicAndPropertyMap["basic"])
+        let preservationRaw = try XCTUnwrap(basicAndPropertyMap["raw"] as? [String: NSObject])
+        XCTAssertNotNil(preservationRaw["properties"])
+        XCTAssertEqual((preservationRaw["id3v2Frames"] as? NSArray)?.count, 0)
+        XCTAssertNil(basicAndPropertyMap["structured"])
+
+        let raw = try TagLibMetadataExtractor.metadataProjections(for: url, options: .raw)
+        let completeRaw = try XCTUnwrap(raw["raw"] as? [String: NSObject])
+        XCTAssertGreaterThan((completeRaw["id3v2Frames"] as? NSArray)?.count ?? 0, 0)
+
+        let structuredOnly = try TagLibMetadataExtractor.metadataProjections(
+            for: url,
+            options: .structured
+        )
+        XCTAssertNil(structuredOnly["basic"])
+        XCTAssertNil(structuredOnly["raw"])
+        XCTAssertNotNil(structuredOnly["structured"])
+    }
+
     func testXMSupportedFieldsRoundTripWithoutCorruptingModule() throws {
         let url = try copyAudioFixture("xm")
         let beforeBytes = try Data(contentsOf: url)
@@ -802,6 +2010,37 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
         XCTAssertEqual(snapshot.basic.title, "XM Round Trip")
         XCTAssertEqual(snapshot.raw.values(for: "TITLE"), ["XM Round Trip"])
+    }
+
+    func testMetadataPatchPreflightsReliableFormatFieldRestrictions() throws {
+        let url = try copyAudioFixture("xm")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.title: .text("Typed XM Title")]),
+            to: url,
+            failurePolicy: .throw
+        )
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Typed XM Title")
+
+        let beforeUnsupportedPatch = try Data(contentsOf: url)
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.album: .text("Unsupported Album")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .unsupportedFieldForFormat(field: .album, format: "xm")
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)
+
+        // Raw APIs remain permissive and continue to defer to TagLib/container behavior.
+        XCTAssertNoThrow(try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["ALBUM": ["Raw attempt"]],
+            to: url,
+            verifyAfterWrite: false,
+            failurePolicy: .warn
+        ))
     }
 
     private func copyAudioFixture(_ ext: String) throws -> URL {

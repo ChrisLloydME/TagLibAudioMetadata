@@ -32,6 +32,31 @@ extension TagLibMetadataManager {
         parseNumberPair(normalizedTrimmed(lhs)) == parseNumberPair(normalizedTrimmed(rhs))
     }
 
+    nonisolated static func numberTextPreservingFormatting(
+        _ existingText: String?,
+        number: Int,
+        total: Int
+    ) -> String {
+        guard number > 0 || total > 0 else { return "" }
+        let normalizedExistingText = normalizedTrimmed(existingText)
+        if parseNumberPair(normalizedExistingText) == (number, total) {
+            return normalizedExistingText
+        }
+        let left = normalizedExistingText
+            .split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
+            .first
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+        let padWidth = left.count > 1 && left.hasPrefix("0") ? left.count : 0
+        let numberText: String
+        if number > 0, padWidth > 0 {
+            numberText = String(repeating: "0", count: max(0, padWidth - String(number).count))
+                + String(number)
+        } else {
+            numberText = number > 0 ? String(number) : "0"
+        }
+        return total > 0 ? "\(numberText)/\(total)" : numberText
+    }
+
     nonisolated static func rawPropertiesLookup(_ dump: RawMetadataDump) -> [String: [String]] {
         dump.properties.reduce(into: [:]) { result, entry in
             let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -151,8 +176,18 @@ extension TagLibMetadataManager {
         guard hasVerificationExpectations(verification) else { return [] }
 
         var warnings: [String] = []
-        let afterWrite = readMetadata(from: url)
-        let rawDump = rawMetadata(from: url)
+        let projections = try? bridgeMetadataProjectionDictionary(
+            from: url,
+            options: [.basic, .propertyMap]
+        )
+        let rawDump = (projections?["raw"] as? [String: NSObject]).map {
+            rawMetadataDump(fromBridgeDictionary: $0)
+        }
+        let afterWrite: BasicMetadata? = {
+            guard let bridgeBasic = projections?["basic"] as? TagLibAudioMetadata,
+                  let rawDump else { return nil }
+            return basicMetadata(fromBridgeMetadata: bridgeBasic, rawDump: rawDump)
+        }()
 
         if afterWrite == nil {
             warnings.append("Could not verify metadata after save because the file could not be re-read.")

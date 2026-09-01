@@ -45,6 +45,23 @@ public enum MetadataFieldStorageKind: String, Hashable, Sendable {
     case pattern
 }
 
+public enum MetadataPatchValueKind: String, CaseIterable, Hashable, Sendable {
+    case text
+    case integer
+    case boolean
+    case values
+}
+
+public struct MetadataIntegerConstraint: Hashable, Sendable {
+    public var minimum: Int
+    public var maximum: Int
+
+    public init(minimum: Int, maximum: Int) {
+        self.minimum = minimum
+        self.maximum = maximum
+    }
+}
+
 public struct MetadataFormatMapping: Hashable, Sendable {
     public var format: MetadataFieldFormat
     public var storageKind: MetadataFieldStorageKind
@@ -157,6 +174,32 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     public var isPeopleField: Bool
     public var isRoleQualified: Bool
     public var isArtworkField: Bool
+
+    /// Value representations accepted by the high-level typed patch API.
+    public var acceptedPatchValueKinds: Set<MetadataPatchValueKind> {
+        switch key {
+        case .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount, .bpm:
+            [.integer]
+        case .compilation:
+            [.boolean]
+        case .artwork, .explicitContent, .custom:
+            []
+        default:
+            isMultiValue ? [.text, .values] : [.text]
+        }
+    }
+
+    /// Numeric limits shared with the Objective-C++ bridge's integer validation.
+    public var integerConstraint: MetadataIntegerConstraint? {
+        switch key {
+        case .track, .trackTotal, .disc, .discTotal:
+            MetadataIntegerConstraint(minimum: 1, maximum: Int(Int32.max))
+        case .movementNumber, .movementCount, .bpm:
+            MetadataIntegerConstraint(minimum: 0, maximum: Int(Int32.max))
+        default:
+            nil
+        }
+    }
 
     public init(
         key: MetadataFieldKey,
@@ -311,6 +354,16 @@ public enum MetadataFieldRegistry {
         return allSchemas.first { schema in
             schema.propertyMapKeys.map(normalizePropertyMapKey).contains(normalized)
         }
+    }
+
+
+    nonisolated static func schema(forHighLevelCustomKey key: String) -> MetadataFieldSchema? {
+        let normalized = normalizePropertyMapKey(key)
+        let prefixes = ["----:COM.APPLE.ITUNES:", "TXXX:"]
+        let candidate = prefixes.first(where: normalized.hasPrefix).map {
+            String(normalized.dropFirst($0.count))
+        } ?? normalized
+        return schema(forPropertyMapKey: candidate)
     }
 
     public nonisolated static func schemas(withMappingsFor format: MetadataFieldFormat) -> [MetadataFieldSchema] {

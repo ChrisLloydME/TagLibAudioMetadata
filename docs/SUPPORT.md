@@ -70,15 +70,40 @@ print(snapshot.raw.properties)
 print(snapshot.structured.mp4Atoms)
 ```
 
+This is a comprehensive semantic snapshot, not a lossless native serialization.
+Known raw cardinality and supported structured frames/items are retained, but
+unknown ID3v2 frames, CHAP embedded frames, private payloads, and unsupported MP4
+or ASF values may be represented only by display/type/count summaries. Leaving
+such content out of a patch preserves the on-disk entry; rebuilding a native tag
+from the snapshot alone is not guaranteed to reproduce opaque bytes.
+
 `MetadataPatch` distinguishes omission from removal. Fields absent from the
 patch remain unchanged; `.remove` clears an explicitly named property; artwork
 has separate unchanged, replace, and remove-all cases; and
-`explicitAdvisory` preserves unspecified, clean, and explicit states.
+`explicitAdvisory` preserves unspecified, not-explicit, explicit, and clean
+states. The compatibility Boolean `isExplicit` is a lossy projection; use the
+enum when the distinction matters.
+
+Known fields are validated against `MetadataFieldRegistry` before any staging
+copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
+integer. Track/disc numbers and totals accept `1...INT_MAX`, with `.remove` as
+their explicit unset operation. BPM and movement numbering retain their
+schema-defined `0...INT_MAX` range. Negative, zero where disallowed, and
+narrowing values fail before the staged file exists. High-level `customFields`
+accept only genuinely unknown keys: known keys, aliases, case variants, and
+typed/custom collisions are rejected with `MetadataPatchValidationError`.
+Permissive known-key editing remains available through the raw APIs.
+Text-backed Boolean patches encode `.boolean(true)` as `"1"` and
+`.boolean(false)` as `"0"`; `.remove` alone makes the field absent.
+Text and array elements are trimmed once before mutation, and verification uses
+that same normalized representation. `.text("")`, `.values([])`, and arrays
+containing empty or whitespace-only elements are validation errors. Use
+`.remove` when absence is intended.
 
 ```swift
 let patch = MetadataPatch(
     fields: [.title: .text("Edited")],
-    customFields: ["ARTISTS": .values(["One", "Two"])],
+    customFields: ["APP_EDITOR_STATE": .values(["One", "Two"])],
     artwork: .unchanged
 )
 
@@ -88,6 +113,45 @@ try TagLibMetadataManager.applyMetadataPatch(
     failurePolicy: .throw
 )
 ```
+
+Track and disc fields are semantic pairs even though the Patch API exposes
+their components separately. On MP4/M4A, changing only `.track` preserves the
+existing total in native `trkn`; changing only `.trackTotal` preserves the
+number. `disc`/`discTotal` behave the same through `disk`. ID3 and
+PropertyMap-backed formats receive their corresponding native/text pair. Generic
+PropertyMap formats use separate `TRACKNUMBER`/`TRACKTOTAL` and
+`DISCNUMBER`/`DISCTOTAL` values, so the total is not duplicated inside the
+number field. ID3 retains its combined `TRCK`/`TPOS` representation. ID3
+movement number/count uses native `MVIN`; patching either component preserves
+the other.
+
+An ordinary MP4 number Patch or Basic read-modify-write writes standard
+`trkn`/`disk` metadata. It does not introduce `AUDIOMATOR_TRACKNUMBER_TEXT` or
+`AUDIOMATOR_DISCNUMBER_TEXT`. If either private formatting atom was already
+present, it is formatting provenance rather than the numeric authority. A Basic
+numeric edit synchronizes it from `trkn`/`disk` values while retaining its
+number-padding convention; an unrelated edit preserves its text unchanged.
+Use `writeTrackNumberText` for an intentional formatted-text write.
+
+`explicitAdvisory` is also container-aware in both Basic and Patch writes:
+MP4/M4A uses native `rtng`, ID3 uses the supported `ITUNESADVISORY` TXXX
+representation, and generic PropertyMap formats retain their corresponding
+`ITUNESADVISORY` key. For MP4/M4A, atom absence means unspecified, while native
+values `0`, `1`, and `2` mean not-explicit, explicit, and clean. High-level writes
+emit only that canonical mapping. Legacy MP4 value `4` is read as explicit and
+canonicalized to `1` on rewrite. The textual compatibility reader also accepts
+`TRUE`, `YES`, and `EXPLICIT` as explicit; `CLEAN` as clean; and `FALSE`, `NO`,
+`NONE`, and `-1` as not-explicit. Unspecified removes the container's supported
+representation. The high-level MP4 writer removes the explicitly recognized
+freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
+instead of leaving stale native and freeform values together. Unrelated
+freeform metadata is not removed by fuzzy name matching.
+
+When a capability descriptor supplies an explicit writable-field allowlist,
+`MetadataPatch` rejects unsupported typed fields before creating a staging copy.
+Formats without reliable field-level restrictions continue to rely on their
+schema mappings and TagLib behavior. Raw APIs are not restricted by this
+high-level preflight.
 
 ## Format Support
 
@@ -139,9 +203,21 @@ values, artwork as `Data?`, and unknown custom fields as `[String: String]`.
 
 It is a normalized projection, not a lossless document. It can flatten
 multi-value properties and cannot represent every frame, atom, attribute,
-comment, lyric, or artwork record. A full basic write preserves rich metadata
-that was not modified, but precise editing should use a snapshot/patch, raw
-multi-value map, or structured payload.
+comment, lyric, or artwork record. Reads retain the original raw arrays and the
+corresponding normalized scalar projections for known multi-value fields such as
+`ARTIST`, `COMPOSER`, `ALBUMARTIST`, and `GENRE`. An unrelated Basic edit restores
+those untouched arrays exactly; it never guesses cardinality by splitting a
+semicolon-bearing display string. The same schema-driven preservation retains
+known fields Basic cannot express (for example `PERFORMER`, `INVOLVEDPEOPLE`,
+and `TRACKERNAME`) and unknown custom fields.
+
+Removing an entry from `BasicMetadata.customFields` does not delete it on disk;
+absence means the normalized Basic projection is not making a deletion request.
+Use `MetadataPatch(customFields: [key: .remove])` or a raw API for deletion.
+Changing an existing custom value still writes the new value. Cardinality and
+original-projection bookkeeping is exposed read-only and cannot be mutated by
+callers to corrupt preservation decisions. Precise editing should use a
+snapshot/patch, raw multi-value map, or structured payload.
 
 Use `BasicMetadata.empty` when you want to build a value from scratch:
 
@@ -468,6 +544,14 @@ let structured = TagLibMetadataManager.readStructuredMetadata(from: url)
 and modifies these frames and the `PCST` podcast marker, validates their
 unsigned numeric fields, and verifies their typed values after save.
 
+For ordinary ID3v2 text frames, `values` is the ordered native TagLib string
+list. Structured writes pass that list to the native text-frame API without
+joining it into a display string. For `TXXX`, `description` is the user-text
+frame identifier and `values` contains only the semantic payload values; the
+description is not duplicated into the array. Verified writes compare frame ID,
+type, description where applicable, value count, ordering, and each value, so
+`["A", "B"]` is not equivalent to `["A; B"]`.
+
 ### Writing Structured Metadata
 
 ```swift
@@ -551,6 +635,17 @@ containers, including multiple images. FLAC/Xiph structured writes are limited
 to PropertyMap values; use `BasicMetadata.artworkData` for artwork changes in
 those formats.
 
+Picture type code `0` is valid and means `Other`; it is preserved rather than
+treated as a missing type. When no picture type is supplied, the ID3v2/ASF
+structured writer defaults to Front Cover (`3`). Verification compares image
+data and MIME type for every supported artwork container, plus picture type and
+description for ID3v2/ASF. MP4 `covr` does not serialize those latter fields, so
+they are not part of MP4 post-write verification.
+
+TrueAudio/TTA Structured reads expose its ID3v2 metadata, but its current
+Structured mutation route is limited to PropertyMap values. Accordingly,
+`structuredWriteSupport` reports `.propertyMap`, not `.container`.
+
 `RIFFMetadataWritePolicy` applies to WAV/AIFF-style containers:
 
 - `.id3v2Only`: write structured ID3v2 data only.
@@ -620,6 +715,35 @@ try TagLibMetadataManager.writeMetadataWithVerification(
 
 Use `.throw` for tests, batch processing, and workflows where a read-back
 verification difference would be data loss.
+
+Basic verification requests Basic+PropertyMap together and derives both checks
+from one TagLib extraction without enumerating raw ID3 frame summaries. Patch
+verification uses the same one-session approach and requests structured
+projection work only when artwork verification needs it. Raw inspectors still
+request PropertyMap and raw-frame extraction; full snapshots request every
+projection in one parser session.
+
+Structured-only calls return only the structured projection, although the
+current unified Objective-C++ traversal still constructs an internal Basic
+carrier. A complex Patch may also perform separate staged-file open/save cycles
+for number pairs, advisory, PropertyMap values, and artwork. Both are documented
+performance follow-ups rather than semantic limitations.
+
+## Transaction Outcomes
+
+Facade writes validate the original, create one same-directory staging copy,
+mutate and verify that copy, flush it, recheck destination identity, atomically
+rename it, and then `fsync` the parent directory. Failures before rename leave
+the original pathname unchanged.
+
+If the final directory `fsync` fails, rename has already committed. The facade
+throws `TagLibManagerError.committedButDurabilityUncertain(String)`. Inspect the
+file before retrying because retry may repeat an already-committed operation;
+the package does not attempt a fake post-rename rollback.
+
+TagLib access and Objective-C projection construction from live native objects
+are serialized by a process-wide recursive mutex. Swift model conversion and
+filesystem copy, flush, and rename operations occur outside that lock.
 
 ## Field Registry
 
