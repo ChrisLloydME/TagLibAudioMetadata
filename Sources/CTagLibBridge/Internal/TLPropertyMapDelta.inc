@@ -30,6 +30,20 @@ static void RemoveRecognizedMP4AdvisoryFreeformItems(TagLib::MP4::Tag *tag)
     }
 }
 
+static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
+                                      TagLibExplicitAdvisory advisory)
+{
+    if (!tag) return;
+    RemoveRecognizedMP4AdvisoryFreeformItems(tag);
+    if (advisory == TagLibExplicitAdvisoryExplicit) {
+        tag->setItem("rtng", TagLib::MP4::Item(4));
+    } else if (advisory == TagLibExplicitAdvisoryClean) {
+        tag->setItem("rtng", TagLib::MP4::Item(2));
+    } else {
+        tag->removeItem("rtng");
+    }
+}
+
 + (BOOL)applyPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
                          removingKeys:(NSArray<NSString *> *)keysToRemove
                                 toURL:(NSURL *)fileURL
@@ -272,14 +286,7 @@ static void RemoveRecognizedMP4AdvisoryFreeformItems(TagLib::MP4::Tag *tag)
             return NO;
         }
         TagLib::MP4::Tag *tag = file.tag();
-        RemoveRecognizedMP4AdvisoryFreeformItems(tag);
-        if (advisory == TagLibExplicitAdvisoryExplicit) {
-            tag->setItem("rtng", TagLib::MP4::Item(4));
-        } else if (advisory == TagLibExplicitAdvisoryClean) {
-            tag->setItem("rtng", TagLib::MP4::Item(2));
-        } else {
-            tag->removeItem("rtng");
-        }
+        ApplyCanonicalMP4Advisory(tag, advisory);
         if (!file.save()) {
             if (error) *error = PropertyMapDeltaError(9273, @"TagLib could not save native MP4/M4A advisory metadata");
             return NO;
