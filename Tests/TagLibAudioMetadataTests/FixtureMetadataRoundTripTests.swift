@@ -1,5 +1,5 @@
 import XCTest
-import TagLibAudioMetadata
+@testable import TagLibAudioMetadata
 
 final class FixtureMetadataRoundTripTests: XCTestCase {
     private let writableFixtures = ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav"]
@@ -461,6 +461,77 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(compilation.value, "1")
     }
 
+    func testStructuredID3TextFramePreservesMultipleSemanticValues() throws {
+        let url = try copyAudioFixture("mp3")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["SUBTITLE": ["A", "B"]],
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let frame = try XCTUnwrap(before.id3v2Frames.first { $0.frameID == "TIT3" })
+        XCTAssertEqual(frame.type, "text")
+        XCTAssertEqual(frame.values, ["A", "B"])
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(id3v2Frames: [frame]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let roundTripped = try XCTUnwrap(after.id3v2Frames.first { $0.frameID == "TIT3" })
+        XCTAssertEqual(roundTripped.values, ["A", "B"])
+    }
+
+    func testStructuredID3UserTextPreservesDescriptionAndMultipleValues() throws {
+        let url = try copyAudioFixture("mp3")
+        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+            ["TEST": ["A", "B"]],
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let frame = try XCTUnwrap(before.id3v2Frames.first {
+            $0.frameID == "TXXX" && $0.description == "TEST"
+        })
+        XCTAssertEqual(frame.type, "userText")
+        XCTAssertEqual(frame.values, ["A", "B"])
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(id3v2Frames: [frame]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let roundTripped = try XCTUnwrap(after.id3v2Frames.first {
+            $0.frameID == "TXXX" && $0.description == "TEST"
+        })
+        XCTAssertEqual(roundTripped.description, "TEST")
+        XCTAssertEqual(roundTripped.values.count, 2)
+        XCTAssertEqual(roundTripped.values, ["A", "B"])
+        XCTAssertFalse(roundTripped.values.contains("TEST"))
+    }
+
+    func testStructuredID3VerificationDistinguishesValueCardinality() {
+        let expected = StructuredID3v2Frame(
+            frameID: "TIT3",
+            type: "text",
+            values: ["A", "B"]
+        )
+        let flattened = StructuredID3v2Frame(
+            frameID: "TIT3",
+            type: "text",
+            value: "A; B",
+            values: ["A; B"]
+        )
+
+        XCTAssertFalse(TagLibMetadataManager.structuredID3v2FrameMatches(expected, flattened))
+    }
+
     func testStructuredID3ChapterAndTableOfContentsRoundTrip() throws {
         let url = try copyAudioFixture("mp3")
         let payload = StructuredMetadata(
@@ -632,6 +703,67 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
             XCTAssertTrue(result.artwork.isEmpty, ext)
         }
+    }
+
+    func testStructuredID3ArtworkPreservesOtherAndFrontCoverTypes() throws {
+        let firstArtwork = try Data(contentsOf: artworkFixtureURL())
+        var secondArtwork = firstArtwork
+        secondArtwork.append(0)
+        let url = try copyAudioFixture("mp3")
+
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(artwork: [
+                .init(
+                    container: "id3v2",
+                    pictureType: "Other",
+                    pictureTypeCode: 0,
+                    mimeType: "image/jpeg",
+                    description: "Other image",
+                    data: firstArtwork
+                ),
+                .init(
+                    container: "id3v2",
+                    pictureType: "Front Cover",
+                    pictureTypeCode: 3,
+                    mimeType: "image/jpeg",
+                    description: "Cover image",
+                    data: secondArtwork
+                ),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        let other = try XCTUnwrap(result.artwork.first { $0.data == firstArtwork })
+        XCTAssertEqual(other.pictureTypeCode, 0)
+        XCTAssertEqual(other.pictureType, "Other")
+        XCTAssertEqual(other.description, "Other image")
+        let cover = try XCTUnwrap(result.artwork.first { $0.data == secondArtwork })
+        XCTAssertEqual(cover.pictureTypeCode, 3)
+        XCTAssertEqual(cover.pictureType, "Front Cover")
+    }
+
+    func testStructuredArtworkVerificationDetectsTypeChangeWithSameBytes() {
+        let bytes = Data([1, 2, 3])
+        let expected = StructuredArtwork(
+            container: "id3v2",
+            pictureType: "Other",
+            pictureTypeCode: 0,
+            mimeType: "image/jpeg",
+            description: "Image",
+            data: bytes
+        )
+        let changed = StructuredArtwork(
+            container: "id3v2",
+            pictureType: "Front Cover",
+            pictureTypeCode: 3,
+            mimeType: "image/jpeg",
+            description: "Image",
+            data: bytes
+        )
+
+        XCTAssertFalse(TagLibMetadataManager.structuredArtworkMatches(expected, changed))
     }
 
     func testBasicReadWritePreservesUnmodifiedAdditionalArtwork() throws {

@@ -57,6 +57,17 @@ static BOOL StructuredOptionalValueFitsInt(NSDictionary *entry, NSString *key)
         number >= std::numeric_limits<int>::min() && number <= std::numeric_limits<int>::max();
 }
 
+static NSInteger IntegerValueFromObject(NSObject *value);
+
+static BOOL StructuredOptionalPictureTypeCodeIsValid(NSDictionary *entry, NSString *key)
+{
+    if (!entry[key]) return YES;
+    if (!StructuredOptionalValueFitsInt(entry, key)) return NO;
+    const NSInteger value = IntegerValueFromObject(entry[key]);
+    return value >= TagLib::ID3v2::AttachedPictureFrame::Other &&
+        value <= TagLib::ID3v2::AttachedPictureFrame::PublisherLogo;
+}
+
 static BOOL StructuredOptionalValueFitsUInt32(NSDictionary *entry, NSString *key)
 {
     NSObject *value = entry[key];
@@ -285,7 +296,7 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             !StructuredOptionalValueHasClass(entry, @"mimeType", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"pictureType", [NSString class]) ||
             !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
-            !StructuredOptionalValueFitsInt(entry, @"pictureTypeCode")) {
+            !StructuredOptionalPictureTypeCodeIsValid(entry, @"pictureTypeCode")) {
             return SetStructuredPayloadValidationError(error, @"Artwork entries require NSData and string/number metadata fields");
         }
     }
@@ -341,6 +352,82 @@ static NSData *DataValueFromObject(NSObject *value)
     return nil;
 }
 
+static TagLib::StringList StructuredID3v2TextValues(NSDictionary<NSString *, NSObject *> *entry)
+{
+    TagLib::StringList values;
+    NSArray<NSString *> *suppliedValues = [entry[@"values"] isKindOfClass:[NSArray class]]
+        ? (NSArray<NSString *> *)entry[@"values"]
+        : nil;
+    if (suppliedValues.count > 0) {
+        for (NSString *value in suppliedValues) {
+            values.append(NSStringToTagString(value));
+        }
+    } else if ([entry[@"value"] isKindOfClass:[NSString class]] && ((NSString *)entry[@"value"]).length > 0) {
+        values.append(NSStringToTagString((NSString *)entry[@"value"]));
+    }
+    return values;
+}
+
+template <typename Picture>
+static typename Picture::Type StructuredPictureType(NSDictionary<NSString *, NSObject *> *entry)
+{
+    if (entry[@"pictureTypeCode"]) {
+        return static_cast<typename Picture::Type>(IntegerValueFromObject(entry[@"pictureTypeCode"]));
+    }
+    NSString *name = TrimmedStringOrNil((NSString *)entry[@"pictureType"]);
+    if (name) {
+        const typename Picture::Type parsed = Picture::typeFromString(NSStringToTagString(name));
+        NSString *canonical = TagStringToNSString(Picture::typeToString(parsed));
+        if ([canonical caseInsensitiveCompare:name] == NSOrderedSame) return parsed;
+    }
+    return Picture::FrontCover;
+}
+
+static void SetStructuredID3v2TextFrame(TagLib::ID3v2::Tag *tag,
+                                        NSString *frameID,
+                                        const TagLib::StringList &values)
+{
+    const char *frameIDBytes = frameID.UTF8String;
+    if (!tag || !frameIDBytes || std::strlen(frameIDBytes) != 4) return;
+
+    TagLib::ID3v2::FrameList frames = tag->frameList(frameIDBytes);
+    if (values.isEmpty()) {
+        for (auto it = frames.begin(); it != frames.end(); ++it) tag->removeFrame(*it);
+        return;
+    }
+
+    auto *textFrame = frames.isEmpty()
+        ? nullptr
+        : dynamic_cast<TagLib::ID3v2::TextIdentificationFrame *>(frames.front());
+    if (!textFrame) {
+        textFrame = new TagLib::ID3v2::TextIdentificationFrame(
+            TagLib::ByteVector(frameIDBytes, 4),
+            TagLib::String::UTF8
+        );
+        tag->addFrame(textFrame);
+    }
+    textFrame->setText(values);
+}
+
+static void SetStructuredID3v2UserTextFrame(TagLib::ID3v2::Tag *tag,
+                                            NSString *description,
+                                            const TagLib::StringList &values)
+{
+    if (!tag || !description) return;
+    const TagLib::String tagDescription = NSStringToTagString(description);
+    auto *userFrame = TagLib::ID3v2::UserTextIdentificationFrame::find(tag, tagDescription);
+    if (values.isEmpty()) {
+        if (userFrame) tag->removeFrame(userFrame);
+        return;
+    }
+    if (!userFrame) {
+        userFrame = new TagLib::ID3v2::UserTextIdentificationFrame(TagLib::String::UTF8);
+        userFrame->setDescription(tagDescription);
+        tag->addFrame(userFrame);
+    }
+    userFrame->setText(values);
+}
+
 static void ReplaceID3v2Comments(TagLib::ID3v2::Tag *tag, NSArray<NSDictionary<NSString *, NSObject *> *> *comments)
 {
     if (!tag || !comments) return;
@@ -393,14 +480,7 @@ static void ReplaceID3v2Artwork(TagLib::ID3v2::Tag *tag, NSArray<NSDictionary<NS
         auto *frame = new TagLib::ID3v2::AttachedPictureFrame();
         frame->setMimeType(NSStringToTagString((NSString *)entry[@"mimeType"] ?: @"image/jpeg"));
         frame->setDescription(NSStringToTagString((NSString *)entry[@"description"]));
-        NSInteger typeCode = IntegerValueFromObject(entry[@"pictureTypeCode"]);
-        if (typeCode <= 0 && [entry[@"pictureType"] isKindOfClass:[NSString class]]) {
-            typeCode = TagLib::ID3v2::AttachedPictureFrame::typeFromString(
-                NSStringToTagString((NSString *)entry[@"pictureType"])
-            );
-        }
-        if (typeCode <= 0) typeCode = TagLib::ID3v2::AttachedPictureFrame::FrontCover;
-        frame->setType((TagLib::ID3v2::AttachedPictureFrame::Type)typeCode);
+        frame->setType(StructuredPictureType<TagLib::ID3v2::AttachedPictureFrame>(entry));
         frame->setPicture(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
         tag->addFrame(frame);
     }
@@ -420,7 +500,14 @@ static TagLib::List<TagLib::VariantMap> StructuredPictureComplexProperties(
             "mimeType",
             NSStringToTagString(NormalizedArtworkMimeType((NSString *)entry[@"mimeType"], data))
         );
-        NSString *pictureType = TrimmedStringOrNil((NSString *)entry[@"pictureType"]) ?: @"Front Cover";
+        NSString *pictureType = TrimmedStringOrNil((NSString *)entry[@"pictureType"]);
+        if (!pictureType && entry[@"pictureTypeCode"]) {
+            const auto type = static_cast<TagLib::ID3v2::AttachedPictureFrame::Type>(
+                IntegerValueFromObject(entry[@"pictureTypeCode"])
+            );
+            pictureType = TagStringToNSString(TagLib::ID3v2::AttachedPictureFrame::typeToString(type));
+        }
+        if (!pictureType) pictureType = @"Front Cover";
         picture.insert("pictureType", NSStringToTagString(pictureType));
         NSString *description = TrimmedStringOrNil((NSString *)entry[@"description"]);
         if (description) {
@@ -482,13 +569,13 @@ static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
                 tag->addFrame(frame);
             }
         } else if ([type isEqualToString:@"text"]) {
-            NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
-            NSString *joined = values.count ? [values componentsJoinedByString:@"; "] : (NSString *)entry[@"value"];
-            SetID3v2TextFrame(tag, frameID.UTF8String, joined);
+            SetStructuredID3v2TextFrame(tag, frameID, StructuredID3v2TextValues(entry));
         } else if ([type isEqualToString:@"userText"]) {
-            NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
-            NSString *joined = values.count ? [values componentsJoinedByString:@"; "] : (NSString *)entry[@"value"];
-            SetID3v2UserTextFrame(tag, ((NSString *)entry[@"description"]).UTF8String, joined);
+            SetStructuredID3v2UserTextFrame(
+                tag,
+                (NSString *)entry[@"description"] ?: @"",
+                StructuredID3v2TextValues(entry)
+            );
         } else if ([type isEqualToString:@"chapter"]) {
             NSString *elementID = TrimmedStringOrNil((NSString *)entry[@"elementID"]);
             TagLib::ByteVector elementIDBytes(elementID.UTF8String, (unsigned int)strlen(elementID.UTF8String));
@@ -586,12 +673,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             TagLib::ASF::Picture picture;
             picture.setMimeType(NSStringToTagString((NSString *)entry[@"mimeType"] ?: @"image/jpeg"));
             picture.setDescription(NSStringToTagString((NSString *)entry[@"description"]));
-            NSInteger typeCode = IntegerValueFromObject(entry[@"pictureTypeCode"]);
-            if (typeCode <= 0 && [entry[@"pictureType"] isKindOfClass:[NSString class]]) {
-                typeCode = TagLib::ASF::Picture::typeFromString(NSStringToTagString((NSString *)entry[@"pictureType"]));
-            }
-            if (typeCode <= 0) typeCode = TagLib::ASF::Picture::FrontCover;
-            picture.setType((TagLib::ASF::Picture::Type)typeCode);
+            picture.setType(StructuredPictureType<TagLib::ASF::Picture>(entry));
             picture.setPicture(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
             attribute = TagLib::ASF::Attribute(picture);
         } else if ([type isEqualToString:@"string"]) {
