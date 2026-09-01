@@ -42,6 +42,7 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "mp3")).structuredReadSupport, .container)
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a")).structuredWriteSupport, .container)
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "flac")).structuredWriteSupport, .propertyMap)
+        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "tta")).structuredWriteSupport, .propertyMap)
     }
 
     func testVerificationLevelsDistinguishFixturesUpstreamAndExperimentalFormats() throws {
