@@ -229,7 +229,7 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The current local acceptance matrix passes 79 tests, strict warnings-as-errors,
+The current local acceptance matrix passes 94 tests, strict warnings-as-errors,
 Address Sanitizer, Thread Sanitizer, and builds both facade and low-level
 consumer packages. The published binary's broader platform and dynamic-link
 matrix remains documented in the migration report.
