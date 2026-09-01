@@ -177,10 +177,12 @@ extension TagLibMetadataManager {
     ) -> Bool {
         guard expected.frameID == actual.frameID, expected.type == actual.type else { return false }
 
-        let expectedText = normalizedTrimmed(
-            expected.values.isEmpty ? expected.value : expected.values.joined(separator: "; ")
-        )
-        let actualText = normalizedTrimmed(actual.value)
+        let expectedValues = expected.values.isEmpty && !expected.value.isEmpty
+            ? [expected.value]
+            : expected.values
+        let actualValues = actual.values.isEmpty && !actual.value.isEmpty
+            ? [actual.value]
+            : actual.values
 
         switch expected.type {
         case "ufid":
@@ -189,15 +191,10 @@ extension TagLibMetadataManager {
             return expected.url == actual.url &&
                 (expected.frameID != "WXXX" || expected.description == actual.description)
         case "userText":
-            let actualValues = actual.values.dropFirst(
-                actual.values.first == actual.description ? 1 : 0
-            )
-            let actualJoined = normalizedTrimmed(actualValues.joined(separator: "; "))
             return expected.description == actual.description &&
-                (expectedText == actualText || expectedText == actualJoined)
+                expectedValues == actualValues
         case "text":
-            let actualJoined = normalizedTrimmed(actual.values.joined(separator: "; "))
-            return expectedText == actualText || expectedText == actualJoined
+            return expectedValues == actualValues
         case "chapter":
             return expected.elementID == actual.elementID &&
                 expected.startTimeMilliseconds == actual.startTimeMilliseconds &&
@@ -210,8 +207,30 @@ extension TagLibMetadataManager {
                 expected.isOrdered == actual.isOrdered &&
                 expected.children == actual.children
         default:
-            return expectedText.isEmpty || expectedText == actualText
+            return expectedValues.isEmpty || expectedValues == actualValues
         }
+    }
+
+    nonisolated static func structuredArtworkMatches(
+        _ expected: StructuredArtwork,
+        _ actual: StructuredArtwork
+    ) -> Bool {
+        guard (expected.container.isEmpty || expected.container == actual.container),
+              expected.mimeType == actual.mimeType,
+              expected.data == actual.data else {
+            return false
+        }
+
+        // MP4 `covr` items do not serialize ID3/ASF picture type or description fields.
+        if actual.container == "mp4" { return true }
+        let pictureTypeMatches: Bool
+        if let expectedCode = expected.pictureTypeCode, let actualCode = actual.pictureTypeCode {
+            pictureTypeMatches = expectedCode == actualCode
+        } else {
+            pictureTypeMatches = (expected.pictureType ?? "Front Cover") ==
+                (actual.pictureType ?? "Front Cover")
+        }
+        return pictureTypeMatches && expected.description == actual.description
     }
 
     nonisolated static func structuredASFAttributeMatches(
@@ -270,7 +289,7 @@ extension TagLibMetadataManager {
 
         let artworkWasWritten = !expected.artwork.isEmpty || replacingCollections.contains(.artwork)
         if artworkWasWritten, !unorderedCollectionMatches(expected.artwork, after.artwork, matching: {
-            $0.data == $1.data
+            structuredArtworkMatches($0, $1)
         }) {
             warnings.append("Not all artwork entries could be confirmed after save.")
         }

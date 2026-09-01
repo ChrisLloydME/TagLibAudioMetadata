@@ -416,7 +416,9 @@ static NSDictionary<NSString *, NSObject *> *StructuredASFAttribute(NSString *ke
     if ([key isEqualToString:@"WM/Picture"]) {
         TagLib::ASF::Picture picture = attribute.toPicture();
         if (picture.isValid()) {
+            item[@"container"] = @"asf";
             item[@"pictureType"] = ASFPictureTypeName(picture.type());
+            item[@"pictureTypeCode"] = @((int)picture.type());
             item[@"mimeType"] = TagStringToNSString(picture.mimeType()) ?: @"";
             item[@"description"] = TagStringToNSString(picture.description()) ?: @"";
             item[@"data"] = DataFromByteVector(picture.picture());
@@ -474,6 +476,7 @@ static void AppendStructuredID3v2(TagLib::ID3v2::Tag *tag,
             [lyricsOut addObject:item];
         } else if (auto *pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(frame)) {
             item[@"type"] = @"artwork";
+            item[@"container"] = @"id3v2";
             item[@"pictureType"] = TagStringToNSString(TagLib::ID3v2::AttachedPictureFrame::typeToString(pic->type())) ?: @"";
             item[@"pictureTypeCode"] = @((int)pic->type());
             item[@"mimeType"] = TagStringToNSString(pic->mimeType()) ?: @"";
@@ -510,6 +513,10 @@ static void AppendStructuredID3v2(TagLib::ID3v2::Tag *tag,
             TagLib::StringList fields = userText->fieldList();
             for (auto it = fields.begin(); it != fields.end(); ++it) {
                 [values addObject:TagStringToNSString(*it) ?: @""];
+            }
+            NSString *description = (NSString *)item[@"description"];
+            if (values.count > 0 && [values.firstObject isEqualToString:description]) {
+                [values removeObjectAtIndex:0];
             }
             item[@"values"] = values;
         } else if (auto *text = dynamic_cast<TagLib::ID3v2::TextIdentificationFrame *>(frame)) {
