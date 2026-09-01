@@ -900,6 +900,115 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 2)
     }
 
+    func testM4ABasicNumericEditUpdatesNativePairWithoutCreatingPrivateFormatting() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                .init(key: "disk", type: "intPair", first: 1, second: 2),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+        basic.track = 5
+        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+        let result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.track, 5)
+        XCTAssertEqual(result.trackTotal, 12)
+        XCTAssertEqual(result.trackNumberText, "5/12")
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, 5)
+        XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, 12)
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
+    }
+
+    func testM4ABasicNumericEditsSynchronizeExistingPrivateFormatting() throws {
+        struct Scenario {
+            let name: String
+            let edit: (inout BasicMetadata) -> Void
+            let expectedTrack: Int
+            let expectedTrackTotal: Int
+            let expectedTrackText: String
+            let expectedDisc: Int
+            let expectedDiscTotal: Int
+            let expectedDiscText: String
+        }
+
+        let scenarios = [
+            Scenario(
+                name: "track number",
+                edit: { $0.track = 5 },
+                expectedTrack: 5, expectedTrackTotal: 12, expectedTrackText: "05/12",
+                expectedDisc: 1, expectedDiscTotal: 2, expectedDiscText: "01/02"
+            ),
+            Scenario(
+                name: "track total",
+                edit: { $0.trackTotal = 20 },
+                expectedTrack: 3, expectedTrackTotal: 20, expectedTrackText: "03/20",
+                expectedDisc: 1, expectedDiscTotal: 2, expectedDiscText: "01/02"
+            ),
+            Scenario(
+                name: "disc number",
+                edit: { $0.disc = 2 },
+                expectedTrack: 3, expectedTrackTotal: 12, expectedTrackText: "03/12",
+                expectedDisc: 2, expectedDiscTotal: 2, expectedDiscText: "02/2"
+            ),
+            Scenario(
+                name: "disc total",
+                edit: { $0.discTotal = 4 },
+                expectedTrack: 3, expectedTrackTotal: 12, expectedTrackText: "03/12",
+                expectedDisc: 1, expectedDiscTotal: 4, expectedDiscText: "01/4"
+            ),
+        ]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(mp4Atoms: [
+                    .init(key: "trkn", type: "intPair", first: 3, second: 12),
+                    .init(key: "disk", type: "intPair", first: 1, second: 2),
+                    .init(key: "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT", type: "stringList", values: ["03/12"]),
+                    .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
+                ]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            scenario.edit(&basic)
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(result.trackTotal, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(result.trackNumberText, scenario.expectedTrackText, scenario.name)
+            XCTAssertEqual(result.disc, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(result.discTotal, scenario.expectedDiscTotal, scenario.name)
+            XCTAssertEqual(result.discNumberText, scenario.expectedDiscText, scenario.name)
+
+            let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+            XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, scenario.expectedTrack, scenario.name)
+            XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, scenario.expectedTrackTotal, scenario.name)
+            XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, scenario.expectedDisc, scenario.name)
+            XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, scenario.expectedDiscTotal, scenario.name)
+            XCTAssertEqual(
+                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+                [scenario.expectedTrackText],
+                scenario.name
+            )
+            XCTAssertEqual(
+                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+                [scenario.expectedDiscText],
+                scenario.name
+            )
+        }
+    }
+
     func testM4ABasicTitleEditPreservesExistingPrivateNumberFormattingAtoms() throws {
         let url = try copyAudioFixture("m4a")
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(

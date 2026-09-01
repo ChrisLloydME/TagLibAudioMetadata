@@ -32,6 +32,31 @@ extension TagLibMetadataManager {
         parseNumberPair(normalizedTrimmed(lhs)) == parseNumberPair(normalizedTrimmed(rhs))
     }
 
+    nonisolated static func numberTextPreservingFormatting(
+        _ existingText: String?,
+        number: Int,
+        total: Int
+    ) -> String {
+        guard number > 0 || total > 0 else { return "" }
+        let normalizedExistingText = normalizedTrimmed(existingText)
+        if parseNumberPair(normalizedExistingText) == (number, total) {
+            return normalizedExistingText
+        }
+        let left = normalizedExistingText
+            .split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
+            .first
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+        let padWidth = left.count > 1 && left.hasPrefix("0") ? left.count : 0
+        let numberText: String
+        if number > 0, padWidth > 0 {
+            numberText = String(repeating: "0", count: max(0, padWidth - String(number).count))
+                + String(number)
+        } else {
+            numberText = number > 0 ? String(number) : "0"
+        }
+        return total > 0 ? "\(numberText)/\(total)" : numberText
+    }
+
     nonisolated static func rawPropertiesLookup(_ dump: RawMetadataDump) -> [String: [String]] {
         dump.properties.reduce(into: [:]) { result, entry in
             let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

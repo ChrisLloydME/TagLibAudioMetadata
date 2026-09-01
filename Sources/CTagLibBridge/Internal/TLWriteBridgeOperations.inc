@@ -211,6 +211,12 @@
             tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey);
         const bool hadDiscNumberFormatting =
             tag->itemMap().contains(kAudioMatorMP4DiscNumberTextKey);
+        NSString *existingTrackNumberFormatting = hadTrackNumberFormatting
+            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4TrackNumberTextKey)
+            : nil;
+        NSString *existingDiscNumberFormatting = hadDiscNumberFormatting
+            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4DiscNumberTextKey)
+            : nil;
 
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
         tag->setTitle(NSStringToTagString(metadata.title));
@@ -237,10 +243,26 @@
         SetMP4TextItem(tag, "\xA9" "lyr", metadata.lyrics);
 
         if (hadTrackNumberFormatting) {
-            SetMP4TextItem(tag, kAudioMatorMP4TrackNumberTextKey, metadata.trackNumberText);
+            SetMP4TextItem(
+                tag,
+                kAudioMatorMP4TrackNumberTextKey,
+                BuildSynchronizedNumberTextPreservingFormatting(
+                    existingTrackNumberFormatting,
+                    metadata.trackNumber,
+                    metadata.totalTracks
+                )
+            );
         }
         if (hadDiscNumberFormatting) {
-            SetMP4TextItem(tag, kAudioMatorMP4DiscNumberTextKey, metadata.discNumberText);
+            SetMP4TextItem(
+                tag,
+                kAudioMatorMP4DiscNumberTextKey,
+                BuildSynchronizedNumberTextPreservingFormatting(
+                    existingDiscNumberFormatting,
+                    metadata.discNumber,
+                    metadata.totalDiscs
+                )
+            );
         }
 
         SetMP4IntPairItem(tag, "trkn", metadata.trackNumber, metadata.totalTracks);
