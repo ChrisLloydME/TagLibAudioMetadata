@@ -46,6 +46,12 @@ risk documented in `ARCHITECTURE.md`.
   omission/replacement/removal, and preserves the advisory states
   unspecified/clean/explicit. MP4 number pairs and advisory values mutate native
   `trkn`/`disk`/`rtng` items; ID3 advisory uses its supported TXXX representation.
+  Generic PropertyMap formats keep separate number and total keys. MP4 patches
+  remove every recognized advisory alias and do not inject private AudioMator
+  number-formatting atoms unless such provenance already exists.
+- Patch text and arrays are trimmed once and verified against that normalized
+  form. Empty text, empty arrays, and empty array elements are rejected in favor
+  of explicit `.remove` deletion.
 - `BasicMetadata` remains a normalized editing model. Its explicitly represented
   fields use replacement semantics, while untouched multi-value fields,
   schema-known non-Basic fields, and custom fields are restored from its raw
@@ -107,9 +113,9 @@ passed:
 | Check | Result |
 | --- | --- |
 | Strict clean build | Passed with Swift and C-family warnings as errors |
-| Unit tests | 74 passed |
-| Address Sanitizer | 74 passed, no findings |
-| Thread Sanitizer | 74 passed, no findings |
+| Unit tests | 79 passed |
+| Address Sanitizer | 79 passed, no findings |
+| Thread Sanitizer | 79 passed, no findings |
 | Facade consumer | Built using the facade product |
 | Low-level consumer | Built using the explicit product |
 | Dynamic audit | Namespaced install name, module map, bundle ID, licenses, and absence of generic install name verified |

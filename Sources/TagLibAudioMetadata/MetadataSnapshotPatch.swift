@@ -20,10 +20,13 @@ public struct MetadataSnapshot: Sendable {
 }
 
 public enum MetadataPatchValue: Hashable, Sendable {
+    /// Non-empty text. Leading and trailing whitespace is removed before mutation.
     case text(String)
     case integer(Int)
     case boolean(Bool)
+    /// One or more non-empty values. Each value is trimmed before mutation.
     case values([String])
+    /// Explicitly removes the field. Empty text and value arrays are not deletion aliases.
     case remove
 
     nonisolated var kind: MetadataPatchValueKind? {
@@ -112,7 +115,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
         case .emptyValueList(let location):
             return "\(location) requires at least one value; use .remove to delete the field."
         case .emptyValue(let location, let index):
-            return "\(location) contains an empty value at index \(index)."
+            return "\(location) contains an empty value at index \(index); use .remove to delete the field."
         }
     }
 }

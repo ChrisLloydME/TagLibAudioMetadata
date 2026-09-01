@@ -37,8 +37,11 @@ byte-for-byte serialization.
 Selective extraction avoids building unrequested projections. Basic reads ask
 for Basic+PropertyMap because cardinality and provenance are needed for safe
 Basic round trips; they do not enumerate raw ID3 frame summaries. Raw reads ask
-for PropertyMap+raw frames, structured reads ask only for structured metadata,
-and a full snapshot asks for every projection in one session.
+for PropertyMap+raw frames, structured entry points return only structured
+metadata, and a full snapshot asks for every projection in one session. The
+current unified bridge still constructs its internal Basic carrier during a
+structured-only traversal; removing that remaining allocation requires a wider
+format-extractor split and is deferred.
 
 ## Write pipeline
 
@@ -59,6 +62,18 @@ the current `PropertyMap`; MP4 track/disc pairs and advisory data use native
 `trkn`, `disk`, and `rtng` mutation, while ID3 advisory uses the supported TXXX
 representation. TagLib still saves the affected native tag, so the guarantee is
 semantic omission rather than byte-for-byte container preservation.
+
+Patch text and value arrays are normalized once before mutation. Leading and
+trailing whitespace is removed, empty text/lists/elements are rejected, and the
+same normalized representation drives verification. `.remove` is the sole
+high-level deletion marker.
+
+Generic PropertyMap number pairs use separate canonical number/total keys.
+ID3 uses combined `TRCK`/`TPOS`, and MP4 uses native `trkn`/`disk`. MP4 numeric
+patches update an existing AudioMator formatting atom but do not introduce one
+into a standard-only file. MP4 advisory mutation removes exactly the recognized
+freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
+before making native `rtng` authoritative.
 
 `BasicMetadata` has replacement semantics only for fields it explicitly
 models. Schema-known non-Basic fields and custom fields absent from its
@@ -102,6 +117,11 @@ than three. Basic post-write verification now derives Basic and PropertyMap
 checks from one extraction instead of two, without enumerating raw ID3 frames.
 No synthetic percentage speedup is claimed because file size, storage,
 container, and tag density dominate elapsed time.
+
+A complex Patch can still open and save the staged file separately for number
+pairs, advisory, PropertyMap values, and artwork. Consolidating these into one
+container-aware bridge delta remains follow-up work; this pass keeps the proven
+transaction and mutation paths instead of expanding their risk surface.
 
 A process-wide recursive mutex covers TagLib object lifetimes and Objective-C
 objects populated while traversing them. Swift model conversion and filesystem

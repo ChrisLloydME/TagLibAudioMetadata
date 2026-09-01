@@ -93,6 +93,10 @@ available and are normalized before mutation. Integer patch fields accept
 values from zero through `INT_MAX`; invalid values fail before a staging copy is
 made.
 
+Patch text and array elements are trimmed once before mutation, and verification
+uses those same normalized values. Empty text, empty arrays, and arrays containing
+empty elements are rejected; `.remove` is the only high-level deletion request.
+
 The bridge applies requested PropertyMap changes to the current map in one
 session; omitted keys are not rebuilt in Swift. For text-backed booleans,
 `.boolean(false)` writes `"0"`, while `.remove` removes the key.
@@ -100,7 +104,15 @@ session; omitted keys are not rebuilt in Swift. For text-backed booleans,
 Track and disc numbers are container-aware. MP4/M4A patches update native
 `trkn`/`disk` pairs and preserve an omitted number or total. Advisory patches
 likewise update native MP4 `rtng` or the supported ID3 representation; they do
-not create a contradictory freeform advisory.
+not create a contradictory freeform advisory. MP4 cleanup is limited to the
+recognized aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and
+`EXPLICIT`.
+
+Generic PropertyMap formats store number and total separately as
+`TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
+`TRCK`/`TPOS` text. Ordinary MP4 numeric patches do not create private
+`AUDIOMATOR_*_TEXT` atoms. If such a formatting atom already exists, it is
+updated while retaining its number padding.
 
 `BasicMetadata` remains a convenient normalized projection, but it is not a
 lossless editing document. Values read from a file retain a separate raw
@@ -195,7 +207,7 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The current local acceptance matrix passes 74 tests, strict warnings-as-errors,
+The current local acceptance matrix passes 79 tests, strict warnings-as-errors,
 Address Sanitizer, Thread Sanitizer, and builds both facade and low-level
 consumer packages. The published binary's broader platform and dynamic-link
 matrix remains documented in the migration report.
