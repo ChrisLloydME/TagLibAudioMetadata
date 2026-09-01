@@ -941,6 +941,65 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testM4AMetadataPatchRemovesEveryRecognizedConflictingAdvisoryAlias() throws {
+        struct Scenario {
+            let name: String
+            let initial: ExplicitAdvisory
+            let freeformValue: String
+            let patched: ExplicitAdvisory
+            let expectedNativeValue: String?
+        }
+
+        let scenarios = [
+            Scenario(name: "native explicit with clean aliases", initial: .explicit, freeformValue: "2", patched: .clean, expectedNativeValue: "2"),
+            Scenario(name: "native clean with explicit aliases", initial: .clean, freeformValue: "1", patched: .explicit, expectedNativeValue: "4"),
+            Scenario(name: "remove native and aliases", initial: .explicit, freeformValue: "1", patched: .unspecified, expectedNativeValue: nil),
+        ]
+        let aliases = ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"]
+
+        for scenario in scenarios {
+            let url = try copyAudioFixture("m4a")
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.explicitAdvisory = scenario.initial
+            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+
+            let conflictingAtoms = aliases.map {
+                StructuredMP4Atom(
+                    key: "----:com.apple.iTunes:\($0)",
+                    type: "stringList",
+                    values: [scenario.freeformValue]
+                )
+            }
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(mp4Atoms: conflictingAtoms),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(explicitAdvisory: scenario.patched),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.basic.explicitAdvisory, scenario.patched, scenario.name)
+            XCTAssertEqual(
+                snapshot.structured.mp4Atoms.first { $0.key == "rtng" }?.value,
+                scenario.expectedNativeValue,
+                scenario.name
+            )
+            XCTAssertFalse(
+                snapshot.structured.mp4Atoms.contains { atom in
+                    aliases.contains { alias in
+                        atom.key.caseInsensitiveCompare("----:com.apple.iTunes:\(alias)") == .orderedSame
+                    }
+                },
+                scenario.name
+            )
+        }
+    }
+
     func testMP3MetadataPatchUsesSingleID3AdvisoryRepresentation() throws {
         let url = try copyAudioFixture("mp3")
         var baseline = try TagLibMetadataManager.readMetadataResult(from: url)

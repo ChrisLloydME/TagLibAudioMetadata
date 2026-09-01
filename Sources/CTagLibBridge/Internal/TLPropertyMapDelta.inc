@@ -5,6 +5,31 @@ static NSError *PropertyMapDeltaError(NSInteger code, NSString *description)
                            userInfo:@{ NSLocalizedDescriptionKey : description }];
 }
 
+static void RemoveRecognizedMP4AdvisoryFreeformItems(TagLib::MP4::Tag *tag)
+{
+    if (!tag) return;
+    const std::initializer_list<const char *> recognizedKeys = {
+        "----:COM.APPLE.ITUNES:ITUNESADVISORY",
+        "----:COM.APPLE.ITUNES:ADVISORY",
+        "----:COM.APPLE.ITUNES:EXPLICITCONTENT",
+        "----:COM.APPLE.ITUNES:EXPLICIT",
+    };
+    TagLib::StringList keysToRemove;
+    const TagLib::MP4::ItemMap &items = tag->itemMap();
+    for (auto iterator = items.begin(); iterator != items.end(); ++iterator) {
+        TagLib::String upperKey = iterator->first.upper();
+        for (const char *recognizedKey : recognizedKeys) {
+            if (upperKey == TagLib::String(recognizedKey, TagLib::String::UTF8)) {
+                keysToRemove.append(iterator->first);
+                break;
+            }
+        }
+    }
+    for (const TagLib::String &key : keysToRemove) {
+        tag->removeItem(key);
+    }
+}
+
 + (BOOL)applyPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
                          removingKeys:(NSArray<NSString *> *)keysToRemove
                                 toURL:(NSURL *)fileURL
@@ -247,7 +272,7 @@ static NSError *PropertyMapDeltaError(NSInteger code, NSString *description)
             return NO;
         }
         TagLib::MP4::Tag *tag = file.tag();
-        tag->removeItem("----:com.apple.iTunes:ITUNESADVISORY");
+        RemoveRecognizedMP4AdvisoryFreeformItems(tag);
         if (advisory == TagLibExplicitAdvisoryExplicit) {
             tag->setItem("rtng", TagLib::MP4::Item(4));
         } else if (advisory == TagLibExplicitAdvisoryClean) {
