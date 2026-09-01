@@ -20,7 +20,7 @@ Xiph, APE, FLAC, and RIFF metadata.
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.4.5"
+        from: "0.5.0"
     )
 ]
 ```
