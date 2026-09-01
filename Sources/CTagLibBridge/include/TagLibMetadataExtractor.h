@@ -16,6 +16,7 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
     TagLibExplicitAdvisoryUnspecified = 0,
     TagLibExplicitAdvisoryClean = 1,
     TagLibExplicitAdvisoryExplicit = 2,
+    TagLibExplicitAdvisoryNotExplicit = 3,
 };
 
 /// Comprehensive metadata container for audio tracks

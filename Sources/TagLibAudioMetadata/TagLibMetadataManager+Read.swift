@@ -260,6 +260,7 @@ extension TagLibMetadataManager {
         )
         let artworkSource: MetadataValueSource = (meta.artworkData as Data?) == nil ? .none : .nativeTag
         let explicitAdvisory: ExplicitAdvisory = switch meta.explicitAdvisory {
+        case .notExplicit: .notExplicit
         case .clean: .clean
         case .explicit: .explicit
         default: .unspecified
