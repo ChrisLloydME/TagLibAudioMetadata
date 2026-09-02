@@ -264,6 +264,35 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
+    if (format == AudioMatorTagFileFormatWAV) {
+        TagLib::RIFF::WAV::File file(filePath);
+        if (!file.isValid()) {
+            if (error) *error = PropertyMapDeltaError(9268, @"Unable to open WAV file for native number-pair mutation");
+            return NO;
+        }
+        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
+        if (updateTrackPair) {
+            TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
+            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
+            SetID3v2TextFrame(tag, "TRCK", trackText);
+        }
+        if (updateDiscPair) {
+            TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
+            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
+            SetID3v2TextFrame(tag, "TPOS", discText);
+        }
+        if (updateMovementPair) {
+            TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
+            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
+            SetID3v2TextFrame(tag, "MVIN", movementText);
+        }
+        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            if (error) *error = PropertyMapDeltaError(9269, @"TagLib could not save native WAV number pairs");
+            return NO;
+        }
+        return YES;
+    }
+
     TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Fast);
     TagLib::File *file = fileRef.file();
     if (fileRef.isNull() || !file || !file->isValid()) {
@@ -273,25 +302,25 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     TagLib::PropertyMap properties = file->properties();
     if (updateTrackPair) {
         NSString *existingTrackNumber = FirstStringFromProperty(properties, {"TRACKNUMBER", "TRACK"});
+        properties.erase("TRACK");
+        properties.erase("TOTALTRACKS");
         SetPropertyMapDynamicString(
             properties,
             @"TRACKNUMBER",
             BuildPropertyMapNumberTextPreservingFormatting(existingTrackNumber, trackNumber)
         );
         SetPropertyMapDynamicString(properties, @"TRACKTOTAL", totalTracks > 0 ? [NSString stringWithFormat:@"%ld", (long)totalTracks] : nil);
-        properties.erase("TRACK");
-        properties.erase("TOTALTRACKS");
     }
     if (updateDiscPair) {
         NSString *existingDiscNumber = FirstStringFromProperty(properties, {"DISCNUMBER", "DISC"});
+        properties.erase("DISC");
+        properties.erase("TOTALDISCS");
         SetPropertyMapDynamicString(
             properties,
             @"DISCNUMBER",
             BuildPropertyMapNumberTextPreservingFormatting(existingDiscNumber, discNumber)
         );
         SetPropertyMapDynamicString(properties, @"DISCTOTAL", totalDiscs > 0 ? [NSString stringWithFormat:@"%ld", (long)totalDiscs] : nil);
-        properties.erase("DISC");
-        properties.erase("TOTALDISCS");
     }
     if (updateMovementPair) {
         SetPropertyMapDynamicString(

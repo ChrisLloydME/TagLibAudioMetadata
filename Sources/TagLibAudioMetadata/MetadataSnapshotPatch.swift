@@ -289,39 +289,49 @@ extension TagLibMetadataManager {
 
                 if let value = validatedPatch.fields[.track] {
                     track = patchedInteger(value, current: track)
-                    expectedNumberPairs[.track] = track
                 }
                 if let value = validatedPatch.fields[.trackTotal] {
                     trackTotal = patchedInteger(value, current: trackTotal)
-                    expectedNumberPairs[.trackTotal] = trackTotal
                 }
                 if let value = validatedPatch.fields[.disc] {
                     disc = patchedInteger(value, current: disc)
-                    expectedNumberPairs[.disc] = disc
                 }
                 if let value = validatedPatch.fields[.discTotal] {
                     discTotal = patchedInteger(value, current: discTotal)
-                    expectedNumberPairs[.discTotal] = discTotal
                 }
                 if let value = validatedPatch.fields[.movementNumber] {
                     movementNumber = patchedInteger(value, current: movementNumber)
-                    expectedNumberPairs[.movementNumber] = movementNumber
                 }
                 if let value = validatedPatch.fields[.movementCount] {
                     movementCount = patchedInteger(value, current: movementCount)
+                }
+
+                let updatesTrackPair = validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil
+                let updatesDiscPair = validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil
+                let updatesMovementPair = validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil
+                if updatesTrackPair {
+                    expectedNumberPairs[.track] = track
+                    expectedNumberPairs[.trackTotal] = trackTotal
+                }
+                if updatesDiscPair {
+                    expectedNumberPairs[.disc] = disc
+                    expectedNumberPairs[.discTotal] = discTotal
+                }
+                if updatesMovementPair {
+                    expectedNumberPairs[.movementNumber] = movementNumber
                     expectedNumberPairs[.movementCount] = movementCount
                 }
 
                 try TagLibMetadataExtractor.writeNumberPairsInPlace(
                     trackNumber: track,
                     totalTracks: trackTotal,
-                    updateTrackPair: validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil,
+                    updateTrackPair: updatesTrackPair,
                     discNumber: disc,
                     totalDiscs: discTotal,
-                    updateDiscPair: validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil,
+                    updateDiscPair: updatesDiscPair,
                     movementNumber: movementNumber,
                     movementCount: movementCount,
-                    updateMovementPair: validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil,
+                    updateMovementPair: updatesMovementPair,
                     to: mutationURL
                 )
             }
@@ -403,22 +413,21 @@ extension TagLibMetadataManager {
             let afterStructured = (projections["structured"] as? [String: NSObject]).map {
                 structuredMetadata(fromBridgeDictionary: $0)
             } ?? StructuredMetadata()
-            for (field, value) in validatedPatch.fields {
-                if let expected = expectedNumberPairs[field] {
-                    let actual = switch field {
-                    case .track: afterBasic.track
-                    case .trackTotal: afterBasic.trackTotal
-                    case .disc: afterBasic.disc
-                    case .discTotal: afterBasic.discTotal
-                    case .movementNumber: afterBasic.movementNumber
-                    case .movementCount: afterBasic.movementCount
-                    default: expected
-                    }
-                    if actual != expected {
-                        warnings.append("Patched field \(field.rawValue) differs after save (expected \(expected), got \(actual)).")
-                    }
-                    continue
+            for (field, expected) in expectedNumberPairs {
+                let actual = switch field {
+                case .track: afterBasic.track
+                case .trackTotal: afterBasic.trackTotal
+                case .disc: afterBasic.disc
+                case .discTotal: afterBasic.discTotal
+                case .movementNumber: afterBasic.movementNumber
+                case .movementCount: afterBasic.movementCount
+                default: expected
                 }
+                if actual != expected {
+                    warnings.append("Patched field \(field.rawValue) differs after save (expected \(expected), got \(actual)).")
+                }
+            }
+            for (field, value) in validatedPatch.fields where expectedNumberPairs[field] == nil {
                 guard let schema = MetadataFieldRegistry.schema(for: field),
                       let key = schema.propertyMapKeys.first else { continue }
                 let actual = afterRaw.properties.first { entry in
