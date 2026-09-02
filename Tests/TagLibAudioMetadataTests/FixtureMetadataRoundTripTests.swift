@@ -968,6 +968,34 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testMetadataPatchPreservesUntouchedNumberPairComponentsAcrossGenericFormats() throws {
+        for ext in ["flac", "ogg", "oga", "wav"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [
+                    .track: .integer(3),
+                    .trackTotal: .integer(12),
+                    .disc: .integer(1),
+                    .discTotal: .integer(2),
+                ]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.track: .integer(5), .disc: .integer(2)]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, 5, ext)
+            XCTAssertEqual(result.trackTotal, 12, ext)
+            XCTAssertEqual(result.disc, 2, ext)
+            XCTAssertEqual(result.discTotal, 2, ext)
+        }
+    }
+
     func testM4AOrdinaryNumberPatchDoesNotInjectPrivateFormattingAtoms() throws {
         let url = try copyAudioFixture("m4a")
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
