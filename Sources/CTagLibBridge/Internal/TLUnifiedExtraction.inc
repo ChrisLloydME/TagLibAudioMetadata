@@ -57,7 +57,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     }
 
     NSString *extension = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(extension);
+    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
     if (format == AudioMatorTagFileFormatUnknown) {
         if (error) *error = UnifiedExtractionError(9201, @"Unsupported audio format");
         return nil;
@@ -72,7 +72,11 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     TAGLIB_BRIDGE_SERIAL_GUARD();
     TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Accurate);
     TagLib::File *baseFile = fileRef.file();
-    if (fileRef.isNull() || !baseFile || !baseFile->isValid()) {
+    const bool isDetectedOgg = format == AudioMatorTagFileFormatOggVorbis ||
+        format == AudioMatorTagFileFormatOggOpus ||
+        format == AudioMatorTagFileFormatOggFlac ||
+        format == AudioMatorTagFileFormatOggSpeex;
+    if (!isDetectedOgg && (fileRef.isNull() || !baseFile || !baseFile->isValid())) {
         if (error) *error = UnifiedExtractionError(9203, @"Unable to open audio file with its extension-selected parser");
         return nil;
     }
@@ -139,7 +143,9 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             if (wantsStructured) AppendStructuredComplexPictures(file, @"flac", artworkOut);
         }
     } else if (format == AudioMatorTagFileFormatOggVorbis) {
-        if (auto *file = dynamic_cast<TagLib::Ogg::Vorbis::File *>(baseFile)) {
+        TagLib::Ogg::Vorbis::File detectedFile(filePath);
+        if (detectedFile.isValid()) {
+            auto *file = &detectedFile;
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"Vorbis";
@@ -150,7 +156,9 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             }
         }
     } else if (format == AudioMatorTagFileFormatOggOpus) {
-        if (auto *file = dynamic_cast<TagLib::Ogg::Opus::File *>(baseFile)) {
+        TagLib::Ogg::Opus::File detectedFile(filePath);
+        if (detectedFile.isValid()) {
+            auto *file = &detectedFile;
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"Opus";
@@ -161,7 +169,9 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             }
         }
     } else if (format == AudioMatorTagFileFormatOggFlac) {
-        if (auto *file = dynamic_cast<TagLib::Ogg::FLAC::File *>(baseFile)) {
+        TagLib::Ogg::FLAC::File detectedFile(filePath);
+        if (detectedFile.isValid()) {
+            auto *file = &detectedFile;
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"OGG FLAC";
@@ -172,7 +182,9 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             }
         }
     } else if (format == AudioMatorTagFileFormatOggSpeex) {
-        if (auto *file = dynamic_cast<TagLib::Ogg::Speex::File *>(baseFile)) {
+        TagLib::Ogg::Speex::File detectedFile(filePath);
+        if (detectedFile.isValid()) {
+            auto *file = &detectedFile;
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"Speex";

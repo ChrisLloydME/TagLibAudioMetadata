@@ -162,7 +162,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
+    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
     NSString *trackText = BuildTRCKString(trackNumber, totalTracks, 0);
     NSString *discText = BuildTRCKString(discNumber, totalDiscs, 0);
     NSString *movementText = BuildTRCKString(movementNumber, movementCount, 0);
@@ -365,7 +365,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
+    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
     NSString *serialized = nil;
     switch (advisory) {
         case TagLibExplicitAdvisoryNotExplicit: serialized = @"0"; break;

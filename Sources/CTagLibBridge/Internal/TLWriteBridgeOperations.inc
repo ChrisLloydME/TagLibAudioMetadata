@@ -29,7 +29,7 @@
     }
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
     AudioMatorMetadataContainerMask containers = ContainerMaskForFormat(format);
     bool isMPEG = format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC;
     bool isAAC = format == AudioMatorTagFileFormatMPEGAAC;
@@ -854,7 +854,7 @@
     }
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
     // Metadata wipe has a full implementation for MP3, where we can strip all supported tag types.
