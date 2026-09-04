@@ -174,6 +174,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             return NO;
         }
         TagLib::MP4::Tag *tag = file.tag();
+        RemoveRecognizedMP4NumberPairFreeformItems(tag, updateTrackPair, updateDiscPair);
         if (updateTrackPair) {
             NSString *existingFormatting = nil;
             if (tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey)) {

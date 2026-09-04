@@ -637,6 +637,12 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
             return NO;
         }
 
+        RemoveRecognizedMP4NumberPairFreeformItems(
+            mp4Tag,
+            YES,
+            discNumberText != nil
+        );
+
         NSString *trimmedTrackText = TrimmedStringOrNil(trackNumberText);
         if (trimmedTrackText) {
             NSInteger trackNumber = 0;

@@ -131,7 +131,9 @@ An ordinary MP4 number Patch or Basic read-modify-write writes standard
 present, it is formatting provenance rather than the numeric authority. A Basic
 numeric edit synchronizes it from `trkn`/`disk` values while retaining its
 number-padding convention; an unrelated edit preserves its text unchanged.
-Use `writeTrackNumberText` for an intentional formatted-text write.
+Use `writeTrackNumberText` for an intentional formatted-text write. When native
+`trkn`/`disk` pairs coexist with legacy freeform number or total aliases, native
+pairs are authoritative; number writes remove those conflicting aliases.
 
 `explicitAdvisory` is also container-aware in both Basic and Patch writes:
 MP4/M4A uses native `rtng`, ID3 uses the supported `ITUNESADVISORY` TXXX

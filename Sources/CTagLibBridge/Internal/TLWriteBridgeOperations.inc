@@ -217,6 +217,7 @@
         NSString *existingDiscNumberFormatting = hadDiscNumberFormatting
             ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4DiscNumberTextKey)
             : nil;
+        RemoveRecognizedMP4NumberPairFreeformItems(tag, true, true);
 
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
         tag->setTitle(NSStringToTagString(metadata.title));
