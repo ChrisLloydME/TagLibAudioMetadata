@@ -76,6 +76,48 @@ static void SetMP4FreeformTextItem(TagLib::MP4::Tag *tag,
     SetMP4TextItem(tag, key.c_str(), value);
 }
 
+static bool IsMP4TrackNumberPairAlias(NSString * _Nullable description)
+{
+    NSString *normalized = UppercaseTrimmedString(description);
+    return normalized && (
+        [normalized isEqualToString:@"TRACKNUMBER"] ||
+        [normalized isEqualToString:@"TRACK"] ||
+        [normalized isEqualToString:@"TRACKTOTAL"] ||
+        [normalized isEqualToString:@"TOTALTRACKS"]
+    );
+}
+
+static bool IsMP4DiscNumberPairAlias(NSString * _Nullable description)
+{
+    NSString *normalized = UppercaseTrimmedString(description);
+    return normalized && (
+        [normalized isEqualToString:@"DISCNUMBER"] ||
+        [normalized isEqualToString:@"DISC"] ||
+        [normalized isEqualToString:@"DISCTOTAL"] ||
+        [normalized isEqualToString:@"TOTALDISCS"]
+    );
+}
+
+static void RemoveRecognizedMP4NumberPairFreeformItems(TagLib::MP4::Tag *tag,
+                                                        bool removeTrackAliases,
+                                                        bool removeDiscAliases)
+{
+    if (!tag || (!removeTrackAliases && !removeDiscAliases)) return;
+
+    TagLib::StringList keysToRemove;
+    const TagLib::MP4::ItemMap &items = tag->itemMap();
+    for (auto iterator = items.begin(); iterator != items.end(); ++iterator) {
+        NSString *description = MP4FreeformDescriptionForItemKey(iterator->first);
+        if ((removeTrackAliases && IsMP4TrackNumberPairAlias(description)) ||
+            (removeDiscAliases && IsMP4DiscNumberPairAlias(description))) {
+            keysToRemove.append(iterator->first);
+        }
+    }
+    for (const TagLib::String &key : keysToRemove) {
+        tag->removeItem(key);
+    }
+}
+
 static void SetPropertyMapString(TagLib::PropertyMap &properties,
                                  const char *key,
                                  NSString * _Nullable value)

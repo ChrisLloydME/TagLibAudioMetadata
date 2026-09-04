@@ -408,6 +408,11 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
             continue;
         }
 
+        if ((items.contains("trkn") && IsMP4TrackNumberPairAlias(description)) ||
+            (items.contains("disk") && IsMP4DiscNumberPairAlias(description))) {
+            continue;
+        }
+
         NSString *itemValueString = TrimmedStringOrNil(
             TagStringToNSString(itemValue.toStringList().toString(", "))
         );

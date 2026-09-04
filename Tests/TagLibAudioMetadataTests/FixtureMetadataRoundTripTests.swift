@@ -909,6 +909,60 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testM4AFormattedNumberTextWriteUpdatesNativePairs() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [
+                .track: .integer(3),
+                .trackTotal: .integer(12),
+                .disc: .integer(1),
+                .discTotal: .integer(2),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(
+                    key: "----:com.apple.iTunes:TRACKTOTAL",
+                    type: "stringList",
+                    values: ["99"]
+                ),
+                .init(
+                    key: "----:com.apple.iTunes:DISCTOTAL",
+                    type: "stringList",
+                    values: ["88"]
+                ),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+        var result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.trackTotal, 12, "Native trkn must override a conflicting freeform total.")
+        XCTAssertEqual(result.discTotal, 2, "Native disk must override a conflicting freeform total.")
+
+        try TagLibMetadataManager.writeTrackNumberText(
+            "02/09",
+            discNumberText: "03/04",
+            to: url,
+            failurePolicy: .throw
+        )
+
+        result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.track, 2)
+        XCTAssertEqual(result.trackTotal, 9)
+        XCTAssertEqual(result.disc, 3)
+        XCTAssertEqual(result.discTotal, 4)
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        let trackAtom = try XCTUnwrap(atoms.first { $0.key == "trkn" })
+        let discAtom = try XCTUnwrap(atoms.first { $0.key == "disk" })
+        XCTAssertEqual(trackAtom.first, 2)
+        XCTAssertEqual(trackAtom.second, 9)
+        XCTAssertEqual(discAtom.first, 3)
+        XCTAssertEqual(discAtom.second, 4)
+    }
+
     func testGenericPropertyMapMetadataPatchUsesSeparateTrackDiscFields() throws {
         for ext in ["flac", "ogg", "oga"] {
             let url = try copyAudioFixture(ext)
