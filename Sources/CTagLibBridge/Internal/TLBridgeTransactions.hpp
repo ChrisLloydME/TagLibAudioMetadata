@@ -53,4 +53,9 @@ BOOL PerformAtomicTagLibMutation(NSURL * _Nullable fileURL,
                                  NSString *operation,
                                  TagLibAtomicMutationBlock _Nullable mutation);
 
+BOOL CoordinateTagLibFileMutation(NSURL * _Nullable fileURL,
+                                  NSError * _Nullable * _Nullable error,
+                                  NSString *operation,
+                                  TagLibFileMutationCoordinationBlock _Nullable mutation);
+
 NS_ASSUME_NONNULL_END

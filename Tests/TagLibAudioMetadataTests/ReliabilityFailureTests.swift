@@ -215,22 +215,35 @@ final class ReliabilityFailureTests: XCTestCase {
         XCTAssertEqual(try aclEntries(at: url), originalACL)
     }
 
-    func testAtomicReplacementChangesInodeAndDoesNotRetargetHardLinks() throws {
+    func testAtomicMutationRejectsHardLinksWithoutChangingEitherPath() throws {
         let url = try copyFixture("mp3")
         let linkedURL = url.deletingLastPathComponent().appendingPathComponent("linked.mp3")
         try FileManager.default.linkItem(at: url, to: linkedURL)
         let originalInode = try inode(at: url)
         XCTAssertEqual(try inode(at: linkedURL), originalInode)
-        let linkedTitleBeforeWrite = try TagLibMetadataManager.readMetadataResult(from: linkedURL).title
+        let originalBytes = try Data(contentsOf: url)
+        let originalTitle = try TagLibMetadataManager.readMetadataResult(from: url).title
 
         var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-        metadata.title = "Replacement inode"
-        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+        metadata.title = "Must not split hard link"
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+        ) { error in
+            XCTAssertTrue(error.localizedDescription.contains("hard-linked"))
+        }
 
-        XCTAssertNotEqual(try inode(at: url), originalInode)
+        let bridgeMetadata = TagLibAudioMetadata()
+        bridgeMetadata.title = "Bridge must not split hard link"
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeMetadata(bridgeMetadata, to: linkedURL)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("hard-linked"))
+        }
+
+        XCTAssertEqual(try inode(at: url), originalInode)
         XCTAssertEqual(try inode(at: linkedURL), originalInode)
-        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: linkedURL).title, linkedTitleBeforeWrite)
-        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Replacement inode")
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+        XCTAssertEqual(try Data(contentsOf: linkedURL), originalBytes)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, originalTitle)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: linkedURL).title, originalTitle)
     }
 #endif
 

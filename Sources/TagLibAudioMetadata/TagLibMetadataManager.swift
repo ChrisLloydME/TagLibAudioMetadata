@@ -15,6 +15,7 @@ public struct TagLibMetadataManager {
         var device: dev_t
         var inode: ino_t
         var size: off_t
+        var linkCount: nlink_t
         var modificationTime: timespec
         var statusChangeTime: timespec
 
@@ -22,6 +23,7 @@ public struct TagLibMetadataManager {
             lhs.device == rhs.device &&
                 lhs.inode == rhs.inode &&
                 lhs.size == rhs.size &&
+                lhs.linkCount == rhs.linkCount &&
                 lhs.modificationTime.tv_sec == rhs.modificationTime.tv_sec &&
                 lhs.modificationTime.tv_nsec == rhs.modificationTime.tv_nsec &&
                 lhs.statusChangeTime.tv_sec == rhs.statusChangeTime.tv_sec &&
@@ -40,6 +42,7 @@ public struct TagLibMetadataManager {
             device: information.st_dev,
             inode: information.st_ino,
             size: information.st_size,
+            linkCount: information.st_nlink,
             modificationTime: information.st_mtimespec,
             statusChangeTime: information.st_ctimespec
         )
@@ -59,11 +62,46 @@ public struct TagLibMetadataManager {
 
     /// Runs the complete mutation and verification sequence on a sibling copy.
     /// The destination is replaced with a same-volume atomic rename only after
-    /// every pre-commit step succeeds. The file and parent directory are synced
-    /// on either side of the rename for stronger directory-entry durability.
+    /// every pre-commit step succeeds. The file is synced before rename and the
+    /// parent directory is synced afterward for stronger durability.
     nonisolated static func withAtomicFileMutation<Result>(
         at url: URL,
-        directorySync: (Int32) -> Int32 = Darwin.fsync,
+        directorySync: @escaping (Int32) -> Int32 = Darwin.fsync,
+        _ operation: @escaping (URL) throws -> Result
+    ) throws -> Result {
+        var result: Result?
+        var operationError: Error?
+        do {
+            try TagLibMetadataExtractor.coordinateMutation(at: url) { errorPointer in
+                do {
+                    result = try performAtomicFileMutation(
+                        at: url,
+                        directorySync: directorySync,
+                        operation
+                    )
+                    return true
+                } catch {
+                    operationError = error
+                    errorPointer?.pointee = error as NSError
+                    return false
+                }
+            }
+        } catch {
+            throw operationError ?? error
+        }
+
+        guard let result else {
+            throw operationError ?? mutationError(
+                code: 1010,
+                description: "Metadata transaction coordination failed."
+            )
+        }
+        return result
+    }
+
+    nonisolated private static func performAtomicFileMutation<Result>(
+        at url: URL,
+        directorySync: (Int32) -> Int32,
         _ operation: (URL) throws -> Result
     ) throws -> Result {
         guard url.isFileURL else {
@@ -74,6 +112,12 @@ public struct TagLibMetadataManager {
             throw mutationError(
                 code: 1003,
                 description: "Metadata mutations require an existing regular file and do not follow symbolic links."
+            )
+        }
+        guard originalIdentity.linkCount == 1 else {
+            throw mutationError(
+                code: 1007,
+                description: "Metadata mutation was refused because atomic replacement would split a hard-linked file."
             )
         }
 
