@@ -721,7 +721,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     }
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
     if (!IsWritableTagFileFormat(format)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

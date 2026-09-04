@@ -593,6 +593,85 @@ static AudioMatorTagFileFormat DetectTagFileFormat(NSString * _Nullable ext)
     return descriptor ? descriptor->format : AudioMatorTagFileFormatUnknown;
 }
 
+static bool OggPacketStartsWith(const unsigned char *packet,
+                                size_t packetLength,
+                                const unsigned char *signature,
+                                size_t signatureLength)
+{
+    return packetLength >= signatureLength &&
+        std::memcmp(packet, signature, signatureLength) == 0;
+}
+
+static AudioMatorTagFileFormat DetectOggCodecAtURL(NSURL * _Nullable fileURL)
+{
+    if (!fileURL || !fileURL.isFileURL) {
+        return AudioMatorTagFileFormatUnknown;
+    }
+
+    int descriptor = open(fileURL.path.fileSystemRepresentation, O_RDONLY);
+    if (descriptor < 0) {
+        return AudioMatorTagFileFormatUnknown;
+    }
+
+    unsigned char bytes[65536] = {};
+    ssize_t byteCount = read(descriptor, bytes, sizeof(bytes));
+    close(descriptor);
+    if (byteCount < 27 || std::memcmp(bytes, "OggS", 4) != 0) {
+        return AudioMatorTagFileFormatUnknown;
+    }
+
+    size_t segmentCount = bytes[26];
+    size_t packetOffset = 27 + segmentCount;
+    if (packetOffset > static_cast<size_t>(byteCount)) {
+        return AudioMatorTagFileFormatUnknown;
+    }
+
+    size_t packetLength = 0;
+    bool packetComplete = false;
+    for (size_t index = 0; index < segmentCount; ++index) {
+        unsigned char lace = bytes[27 + index];
+        packetLength += lace;
+        if (lace < 255) {
+            packetComplete = true;
+            break;
+        }
+    }
+    if (!packetComplete || packetOffset + packetLength > static_cast<size_t>(byteCount)) {
+        return AudioMatorTagFileFormatUnknown;
+    }
+
+    const unsigned char *packet = bytes + packetOffset;
+    static const unsigned char vorbisSignature[] = { 0x01, 'v', 'o', 'r', 'b', 'i', 's' };
+    static const unsigned char opusSignature[] = { 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd' };
+    static const unsigned char speexSignature[] = { 'S', 'p', 'e', 'e', 'x', ' ', ' ', ' ' };
+    static const unsigned char oggFlacSignature[] = { 0x7f, 'F', 'L', 'A', 'C' };
+    static const unsigned char nativeFlacSignature[] = { 'f', 'L', 'a', 'C' };
+
+    if (OggPacketStartsWith(packet, packetLength, vorbisSignature, sizeof(vorbisSignature))) {
+        return AudioMatorTagFileFormatOggVorbis;
+    }
+    if (OggPacketStartsWith(packet, packetLength, opusSignature, sizeof(opusSignature))) {
+        return AudioMatorTagFileFormatOggOpus;
+    }
+    if (OggPacketStartsWith(packet, packetLength, speexSignature, sizeof(speexSignature))) {
+        return AudioMatorTagFileFormatOggSpeex;
+    }
+    if (OggPacketStartsWith(packet, packetLength, oggFlacSignature, sizeof(oggFlacSignature)) ||
+        OggPacketStartsWith(packet, packetLength, nativeFlacSignature, sizeof(nativeFlacSignature))) {
+        return AudioMatorTagFileFormatOggFlac;
+    }
+    return AudioMatorTagFileFormatUnknown;
+}
+
+static AudioMatorTagFileFormat DetectTagFileFormat(NSURL * _Nullable fileURL)
+{
+    AudioMatorTagFileFormat oggFormat = DetectOggCodecAtURL(fileURL);
+    if (oggFormat != AudioMatorTagFileFormatUnknown) {
+        return oggFormat;
+    }
+    return DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
+}
+
 static AudioMatorMetadataContainerMask ContainerMaskForFormat(AudioMatorTagFileFormat format)
 {
     switch (format) {

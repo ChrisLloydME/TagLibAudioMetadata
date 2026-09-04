@@ -36,7 +36,7 @@
     AppendLine(out, [NSString stringWithFormat:@"Path: %@", NonNil(fileURL.path)]);
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
     TagLib::FileRef fileRef(filePath);
 
     // 1) Unified properties (as TagLib sees them)
@@ -61,6 +61,42 @@
             AppendPropertyMap(out, pm);
         } else {
             AppendLine(out, @"(unable to open as MP4)");
+        }
+    } else if (format == AudioMatorTagFileFormatOggVorbis) {
+        TagLib::Ogg::Vorbis::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as Ogg Vorbis)");
+        }
+    } else if (format == AudioMatorTagFileFormatOggOpus) {
+        TagLib::Ogg::Opus::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as Ogg Opus)");
+        }
+    } else if (format == AudioMatorTagFileFormatOggFlac) {
+        TagLib::Ogg::FLAC::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as Ogg FLAC)");
+        }
+    } else if (format == AudioMatorTagFileFormatOggSpeex) {
+        TagLib::Ogg::Speex::File f(filePath);
+        if (f.isValid()) {
+            TagLib::PropertyMap pm = f.properties();
+            anyProperties = !pm.isEmpty();
+            AppendPropertyMap(out, pm);
+        } else {
+            AppendLine(out, @"(unable to open as Ogg Speex)");
         }
     } else if (format == AudioMatorTagFileFormatShorten) {
         TagLib::Shorten::File f(filePath);
