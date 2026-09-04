@@ -153,6 +153,8 @@ typedef NS_OPTIONS(NSUInteger, TagLibMetadataExtractionOptions) {
     TagLibMetadataExtractionOptionAll = NSUIntegerMax,
 };
 
+typedef BOOL (^TagLibFileMutationCoordinationBlock)(NSError *_Nullable *_Nullable error);
+
 /// TagLib metadata extractor
 ///
 /// All selectors that enter TagLib are serialized internally. They are safe to
@@ -365,6 +367,19 @@ NS_SWIFT_NAME(knownMetadataPropertyKeys());
 /// Return the bridge's canonical property, ID3v2, and MP4 field mappings.
 + (NSArray<NSDictionary<NSString *, NSObject *> *> *)metadataFieldMappings
 NS_SWIFT_NAME(metadataFieldMappings());
+
+@end
+
+@interface TagLibMetadataExtractor (TransactionCoordination)
+
+/// Package implementation detail. Serializes the complete transaction for one
+/// regular file across both the Swift facade and direct bridge entry points.
+/// Coordination is process-local; external writers are detected separately by
+/// the transaction's file-identity check.
++ (BOOL)coordinateMutationAtURL:(NSURL *)fileURL
+                          error:(NSError *_Nullable *_Nullable)error
+                       mutation:(TagLibFileMutationCoordinationBlock)mutation
+NS_SWIFT_NAME(coordinateMutation(at:_:));
 
 @end
 
