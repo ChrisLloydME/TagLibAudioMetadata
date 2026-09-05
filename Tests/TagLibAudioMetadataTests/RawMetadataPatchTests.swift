@@ -21,6 +21,9 @@ final class RawMetadataPatchTests: XCTestCase {
         try TagLibMetadataManager.applyRawMetadataPatch(RawMetadataPatch(removingKeys: ["LYRICS"]), to: url)
         expected.removeValue(forKey: "LYRICS")
         XCTAssertEqual(try flacComments(url), expected)
+        try TagLibMetadataManager.applyMetadataPatch(MetadataPatch(fields: [.title: .text("Inspector edit")]), to: url)
+        expected["TITLE"] = ["Inspector edit"]
+        XCTAssertEqual(try flacComments(url), expected)
     }
 
     func testEmptyValueThatTagLibDropsFailsBeforeCommit() throws {
