@@ -362,11 +362,11 @@ static NSArray<NSString *> *ContainerNamesForMask(AudioMatorMetadataContainerMas
 static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDescriptor &descriptor,
                                             NSString *extension)
 {
-    static NSSet<NSString *> *verifiedExtensions = [NSSet setWithArray:@[
+    static NSSet<NSString *> *fixtureCoveredExtensions = [NSSet setWithArray:@[
         @"mp3", @"m4a", @"flac", @"ogg", @"oga", @"wav", @"aac", @"xm"
     ]];
-    if ([verifiedExtensions containsObject:extension.lowercaseString]) {
-        return "verified";
+    if ([fixtureCoveredExtensions containsObject:extension.lowercaseString]) {
+        return "fixtureCovered";
     }
     if (descriptor.format == AudioMatorTagFileFormatShorten ||
         descriptor.format == AudioMatorTagFileFormatMOD) {
