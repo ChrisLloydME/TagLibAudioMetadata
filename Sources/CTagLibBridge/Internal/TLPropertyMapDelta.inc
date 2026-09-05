@@ -89,7 +89,16 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         if (trimmedKey) properties.erase(NSStringToTagString(trimmedKey));
     }
 
-    TagLib::PropertyMap replacements = BuildRawPropertyMapValues(valuesToSet ?: @{});
+    // Delta callers specify actual value arrays, not a display projection.
+    // Preserve whitespace, empty strings, duplicates, and value boundaries.
+    TagLib::PropertyMap replacements;
+    for (NSString *key in valuesToSet ?: @{}) {
+        TagLib::StringList values;
+        for (NSString *value in valuesToSet[key]) {
+            values.append(NSStringToTagString(value));
+        }
+        replacements.replace(NSStringToTagString(key), values);
+    }
     for (auto iterator = replacements.begin(); iterator != replacements.end(); ++iterator) {
         properties.replace(iterator->first, iterator->second);
     }
