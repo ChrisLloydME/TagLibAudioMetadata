@@ -358,7 +358,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         )
     }
 
-    func testVerificationFailurePolicyRollsBackOrCommitsAsRequested() throws {
+    func testVerificationFailureNeverCommitsEvenWithLegacyWarningPolicy() throws {
         let rollbackURL = try copyAudioFixture("mp3")
         let rollbackBytes = try Data(contentsOf: rollbackURL)
         let metadata = TagLibAudioMetadata()
@@ -391,14 +391,18 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: rollbackURL), rollbackBytes)
 
         let warningURL = try copyAudioFixture("mp3")
-        let result = try TagLibMetadataManager.writeTagMetadata(
+        let warningBytes = try Data(contentsOf: warningURL)
+        XCTAssertThrowsError(try TagLibMetadataManager.writeTagMetadata(
             metadata,
             to: warningURL,
             verification: mismatchedVerification,
             failurePolicy: .warn
-        )
-        XCTAssertFalse(result.warnings.isEmpty)
-        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: warningURL).title, "Written title")
+        )) { error in
+            guard case TagLibManagerError.verificationFailed = error else {
+                return XCTFail("Expected verificationFailed, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: warningURL), warningBytes)
     }
 
     func testStructuredMetadataWritesPropertiesAndContainerDataTogether() throws {

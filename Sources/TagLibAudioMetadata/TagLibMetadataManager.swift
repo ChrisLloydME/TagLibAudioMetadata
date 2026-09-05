@@ -337,6 +337,7 @@ public struct TagLibMetadataManager {
     }
 
     public enum VerificationFailurePolicy: Sendable {
+        @available(*, deprecated, message: "Verification mismatches now always throw before commit; use .throw.")
         case warn
         case `throw`
     }
