@@ -295,6 +295,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let before = try readSnapshot(from: mutationURL)
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
@@ -305,7 +306,7 @@ extension TagLibMetadataManager {
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
 
             if patchesNumberPair {
-                let current = try readMetadataResult(from: mutationURL)
+                let current = before.basic
                 var track = current.track
                 var trackTotal = current.trackTotal
                 var disc = current.disc
@@ -428,13 +429,9 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
-            let extractionOptions: MetadataExtractionOptions = switch patch.artwork {
-            case .unchanged: [.basic, .propertyMap]
-            case .replace, .removeAll: .all
-            }
             let projections = try bridgeMetadataProjectionDictionary(
                 from: mutationURL,
-                options: extractionOptions
+                options: .all
             )
             guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
                   let bridgeRaw = projections["raw"] as? [String: NSObject] else {
@@ -447,6 +444,27 @@ extension TagLibMetadataManager {
             let afterStructured = (projections["structured"] as? [String: NSObject]).map {
                 structuredMetadata(fromBridgeDictionary: $0)
             } ?? StructuredMetadata()
+            var intentionallyChangedKeys = keysToRemove
+            for field in expectedNumberPairs.keys {
+                intentionallyChangedKeys.formUnion(MetadataFieldRegistry.schema(for: field)?.propertyMapKeys ?? [])
+            }
+            if patch.explicitAdvisory != nil {
+                intentionallyChangedKeys.formUnion(["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", "RTNG"])
+            }
+            let beforeValues = exactPropertyValues(before.raw)
+            let afterValues = exactPropertyValues(afterRaw)
+            for key in Set(beforeValues.keys).union(afterValues.keys) {
+                // MP4 may expose a known field through its freeform alias.
+                let unqualified = key.hasPrefix("----:COM.APPLE.ITUNES:")
+                    ? String(key.dropFirst("----:COM.APPLE.ITUNES:".count)) : key
+                guard !intentionallyChangedKeys.contains(unqualified) else { continue }
+                if beforeValues[key] != afterValues[key] {
+                    warnings.append("Unedited PropertyMap field \(key) changed during the patch.")
+                }
+            }
+            if patch.artwork == .unchanged, before.structured.artwork != afterStructured.artwork {
+                warnings.append("Unedited artwork changed during the patch.")
+            }
             for (field, expected) in expectedNumberPairs {
                 let actual = switch field {
                 case .track: afterBasic.track
