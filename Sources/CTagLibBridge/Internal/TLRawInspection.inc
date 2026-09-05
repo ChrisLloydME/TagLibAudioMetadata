@@ -145,7 +145,7 @@
         }
     } else {
         if (!fileRef.isNull() && fileRef.file()) {
-            TagLib::PropertyMap pm = fileRef.file()->properties();
+            TagLib::PropertyMap pm = VisibleMetadataProperties(fileRef.file());
             anyProperties = !pm.isEmpty();
             AppendPropertyMap(out, pm);
         } else {

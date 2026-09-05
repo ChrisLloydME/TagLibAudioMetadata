@@ -1,3 +1,31 @@
+// WAV has independent RIFF INFO and ID3v2 surfaces. TagLib's File::properties()
+// switches wholesale to ID3v2 once a tag exists, hiding unrelated INFO fields.
+// Present their union, with explicit ID3v2 values taking precedence per key.
+static TagLib::PropertyMap VisibleMetadataProperties(TagLib::File *file)
+{
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
+        TagLib::PropertyMap properties;
+        if (wav->hasInfoTag()) properties = wav->InfoTag()->properties();
+        if (wav->hasID3v2Tag()) {
+            const TagLib::PropertyMap id3 = wav->ID3v2Tag()->properties();
+            for (auto iterator = id3.begin(); iterator != id3.end(); ++iterator) {
+                properties.replace(iterator->first, iterator->second);
+            }
+        }
+        return properties;
+    }
+    return file->properties();
+}
+
+static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
+{
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
+        // WAV's default save may strip INFO while writing ID3v2.
+        return wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
+    }
+    return file->save();
+}
+
 static NSString* _Nullable TagStringToNSString(const TagLib::String& str) {
     if (str.isEmpty()) {
         return nil;
