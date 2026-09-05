@@ -28,3 +28,10 @@ third-party recording. Generated using FFmpeg's `sine` source at 48 kHz and
 `df6216e78674e2c98206a744abbdd34c39aadf29425a4b92a7d8bcc8e9cbf3cd`.
 It covers identification and title/custom-property preservation when renamed to
 `.ogg`, `.oga`, and `.spx`; it is not a general Opus conformance corpus.
+
+`info-only.wav` is a locally generated 0.1-second 440 Hz tone at 8 kHz,
+encoded as PCM s16le by FFmpeg. It starts with RIFF INFO encoder metadata and
+no ID3v2 tag. SHA-256:
+`73d5b6b95bf833e72711907be6d5d1d0d5bb80ed420396348af6d6bf4ae2109b`.
+It protects against INFO fields becoming invisible after adding ID3v2, and
+against targeted text writes stripping unrelated INFO chunks.

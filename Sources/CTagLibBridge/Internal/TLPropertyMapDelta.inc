@@ -104,7 +104,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     file->setProperties(properties);
-    if (!file->save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9253
@@ -345,7 +345,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         );
     }
     file->setProperties(properties);
-    if (!file->save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9267, @"TagLib could not save number-pair changes");
         return NO;
     }
@@ -439,7 +439,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
     SetPropertyMapDynamicString(properties, @"ITUNESADVISORY", serialized);
     file->setProperties(properties);
-    if (!file->save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9277, @"TagLib could not save advisory metadata");
         return NO;
     }

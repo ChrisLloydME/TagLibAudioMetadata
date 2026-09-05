@@ -104,9 +104,10 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     bool openedExpectedType = false;
     auto applyCommon = [&](TagLib::File *file) {
         ApplyBasicTagMetadata(file->tag(), basic);
-        ApplyGenericPropertyMapMetadata(file->properties(), basic);
+        const TagLib::PropertyMap properties = VisibleMetadataProperties(file);
+        ApplyGenericPropertyMapMetadata(properties, basic);
         ApplyAudioPropertiesMetadata(file->audioProperties(), basic);
-        if (wantsPropertyMap) AppendRawPropertyEntries(propertiesOut, file->properties());
+        if (wantsPropertyMap) AppendRawPropertyEntries(propertiesOut, properties);
     };
 
     if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {

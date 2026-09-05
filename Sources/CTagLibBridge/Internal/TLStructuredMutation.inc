@@ -802,7 +802,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
         ReplaceID3v2Artwork(tag, artwork);
-        if (!file.save()) {
+        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured WAV metadata" }];
             return NO;
         }
