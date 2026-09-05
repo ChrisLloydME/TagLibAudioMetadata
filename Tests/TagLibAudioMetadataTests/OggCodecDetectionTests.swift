@@ -3,6 +3,27 @@ import XCTest
 @testable import TagLibAudioMetadata
 
 final class OggCodecDetectionTests: XCTestCase {
+    func testOpusWithOtherOggExtensionsUsesIdentificationPacket() throws {
+        for ext in ["ogg", "oga", "spx"] {
+            try assertMisleadingExtensionRoundTrip(
+                sourceExtension: "opus", misleadingExtension: ext,
+                expectedCodec: "Opus", identificationSignature: Data("OpusHead".utf8)
+            )
+        }
+    }
+
+    func testNonBOSPageCannotMasqueradeAsIdentificationHeader() throws {
+        let url = try temporaryDirectory().appendingPathComponent("invalid.ogg")
+        var bytes = try Data(contentsOf: fixtureURL("ogg"))
+        bytes[5] = 0 // no BOS flag
+        try bytes.write(to: url)
+        XCTAssertThrowsError(try TagLibMetadataManager.readSnapshot(from: url))
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.title: .text("Must not commit")]), to: url
+        ))
+        XCTAssertEqual(try Data(contentsOf: url), bytes)
+    }
+
     func testVorbisWithOgaExtensionUsesVorbisHandlerAndPreservesUnrelatedValues() throws {
         try assertMisleadingExtensionRoundTrip(
             sourceExtension: "ogg",
@@ -83,9 +104,10 @@ final class OggCodecDetectionTests: XCTestCase {
     }
 
     private func fixtureURL(_ ext: String) throws -> URL {
-        try XCTUnwrap(
-            Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
-                ?? Bundle.module.url(forResource: "testAudioFile", withExtension: ext)
+        let name = ext == "opus" ? "synthetic" : "testAudioFile"
+        return try XCTUnwrap(
+            Bundle.module.url(forResource: name, withExtension: ext, subdirectory: "Audio")
+                ?? Bundle.module.url(forResource: name, withExtension: ext)
         )
     }
 

@@ -602,8 +602,9 @@ static bool OggPacketStartsWith(const unsigned char *packet,
         std::memcmp(packet, signature, signatureLength) == 0;
 }
 
-static AudioMatorTagFileFormat DetectOggCodecAtURL(NSURL * _Nullable fileURL)
+static AudioMatorTagFileFormat DetectOggCodecAtURL(NSURL * _Nullable fileURL, bool &isOgg)
 {
+    isOgg = false;
     if (!fileURL || !fileURL.isFileURL) {
         return AudioMatorTagFileFormatUnknown;
     }
@@ -613,10 +614,21 @@ static AudioMatorTagFileFormat DetectOggCodecAtURL(NSURL * _Nullable fileURL)
         return AudioMatorTagFileFormatUnknown;
     }
 
-    unsigned char bytes[65536] = {};
-    ssize_t byteCount = read(descriptor, bytes, sizeof(bytes));
+    // The page header and lacing table occupy at most 282 bytes. Codec
+    // signatures fit in the next eight; do not read 64 KiB for every parser.
+    unsigned char bytes[290] = {};
+    ssize_t byteCount;
+    do {
+        byteCount = read(descriptor, bytes, sizeof(bytes));
+    } while (byteCount < 0 && errno == EINTR);
     close(descriptor);
-    if (byteCount < 27 || std::memcmp(bytes, "OggS", 4) != 0) {
+    if (byteCount < 4 || std::memcmp(bytes, "OggS", 4) != 0) {
+        return AudioMatorTagFileFormatUnknown;
+    }
+    isOgg = true;
+    // Accept only a version-zero beginning-of-stream identification page,
+    // not a continued data packet that happens to contain a codec signature.
+    if (byteCount < 27 || bytes[4] != 0 || (bytes[5] & 0x03) != 0x02) {
         return AudioMatorTagFileFormatUnknown;
     }
 
@@ -636,9 +648,10 @@ static AudioMatorTagFileFormat DetectOggCodecAtURL(NSURL * _Nullable fileURL)
             break;
         }
     }
-    if (!packetComplete || packetOffset + packetLength > static_cast<size_t>(byteCount)) {
+    if (!packetComplete || packetLength == 0 || packetOffset >= static_cast<size_t>(byteCount)) {
         return AudioMatorTagFileFormatUnknown;
     }
+    packetLength = std::min(packetLength, static_cast<size_t>(byteCount) - packetOffset);
 
     const unsigned char *packet = bytes + packetOffset;
     static const unsigned char vorbisSignature[] = { 0x01, 'v', 'o', 'r', 'b', 'i', 's' };
@@ -665,8 +678,9 @@ static AudioMatorTagFileFormat DetectOggCodecAtURL(NSURL * _Nullable fileURL)
 
 static AudioMatorTagFileFormat DetectTagFileFormat(NSURL * _Nullable fileURL)
 {
-    AudioMatorTagFileFormat oggFormat = DetectOggCodecAtURL(fileURL);
-    if (oggFormat != AudioMatorTagFileFormatUnknown) {
+    bool isOgg = false;
+    AudioMatorTagFileFormat oggFormat = DetectOggCodecAtURL(fileURL, isOgg);
+    if (isOgg) {
         return oggFormat;
     }
     return DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
