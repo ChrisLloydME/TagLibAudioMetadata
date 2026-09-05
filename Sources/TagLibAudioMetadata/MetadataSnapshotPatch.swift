@@ -1,6 +1,31 @@
 import Foundation
 import CTagLibBridge
 
+/// An opaque local-file version, for optimistic edits based on a snapshot.
+/// This detects observed filesystem changes; it is not a cross-process lock or
+/// a content digest. Uncooperative external writers can still race a commit.
+public struct MetadataFileVersion: Hashable, Sendable {
+    private let device: Int64
+    private let inode: UInt64
+    private let size: Int64
+    private let links: UInt64
+    private let modifiedSeconds: Int64
+    private let modifiedNanoseconds: Int64
+    private let changedSeconds: Int64
+    private let changedNanoseconds: Int64
+
+    nonisolated init(_ identity: TagLibMetadataManager.FileIdentity) {
+        device = Int64(identity.device)
+        inode = UInt64(identity.inode)
+        size = Int64(identity.size)
+        links = UInt64(identity.linkCount)
+        modifiedSeconds = Int64(identity.modificationTime.tv_sec)
+        modifiedNanoseconds = Int64(identity.modificationTime.tv_nsec)
+        changedSeconds = Int64(identity.statusChangeTime.tv_sec)
+        changedNanoseconds = Int64(identity.statusChangeTime.tv_nsec)
+    }
+}
+
 /// A comprehensive semantic metadata snapshot for professional editing.
 ///
 /// `BasicMetadata` is a normalized convenience projection. The raw and structured
@@ -11,11 +36,13 @@ public struct MetadataSnapshot: Sendable {
     public var basic: BasicMetadata
     public var raw: RawMetadataDump
     public var structured: StructuredMetadata
+    public let fileVersion: MetadataFileVersion?
 
-    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata) {
+    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil) {
         self.basic = basic
         self.raw = raw
         self.structured = structured
+        self.fileVersion = fileVersion
     }
 }
 
@@ -157,6 +184,14 @@ public struct MetadataPatch: Hashable, Sendable {
 }
 
 extension TagLibMetadataManager {
+    /// Captures a regular-file version without following a final symbolic link.
+    public nonisolated static func fileVersion(at url: URL) throws -> MetadataFileVersion {
+        guard url.isFileURL, let identity = regularFileIdentity(at: url) else {
+            throw TagLibManagerError.invalidFile
+        }
+        return MetadataFileVersion(identity)
+    }
+
     private struct ValidatedMetadataPatch: Sendable {
         var fields: [MetadataFieldKey: MetadataPatchValue]
         var customFields: [String: MetadataPatchValue]
@@ -218,17 +253,15 @@ extension TagLibMetadataManager {
 
     /// Reads all public metadata representations while rejecting concurrent file changes.
     public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
-        let identity = regularFileIdentity(at: url)
+        let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjections(from: url)
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
         let basic = basicMetadata(fromBridgeMetadata: projections.basic, rawDump: raw)
         let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
-        guard identity == regularFileIdentity(at: url) else {
-            throw TagLibManagerError.failedToReadWithUnderlying(
-                "The audio file changed while its metadata snapshot was being read."
-            )
+        guard version == (try? fileVersion(at: url)) else {
+            throw TagLibManagerError.fileChanged
         }
-        return MetadataSnapshot(basic: basic, raw: raw, structured: structured)
+        return MetadataSnapshot(basic: basic, raw: raw, structured: structured, fileVersion: version)
     }
 
     /// Applies only explicitly requested changes through the transactional coordinator.
@@ -236,6 +269,7 @@ extension TagLibMetadataManager {
     public nonisolated static func applyMetadataPatch(
         _ patch: MetadataPatch,
         to url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
@@ -260,7 +294,7 @@ extension TagLibMetadataManager {
             }
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []

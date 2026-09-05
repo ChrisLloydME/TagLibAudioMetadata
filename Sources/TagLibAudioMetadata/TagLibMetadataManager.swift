@@ -66,6 +66,7 @@ public struct TagLibMetadataManager {
     /// parent directory is synced afterward for stronger durability.
     nonisolated static func withAtomicFileMutation<Result>(
         at url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
         directorySync: @escaping (Int32) -> Int32 = Darwin.fsync,
         _ operation: @escaping (URL) throws -> Result
     ) throws -> Result {
@@ -76,6 +77,7 @@ public struct TagLibMetadataManager {
                 do {
                     result = try performAtomicFileMutation(
                         at: url,
+                        expectedVersion: expectedVersion,
                         directorySync: directorySync,
                         operation
                     )
@@ -101,6 +103,7 @@ public struct TagLibMetadataManager {
 
     nonisolated private static func performAtomicFileMutation<Result>(
         at url: URL,
+        expectedVersion: MetadataFileVersion?,
         directorySync: (Int32) -> Int32,
         _ operation: (URL) throws -> Result
     ) throws -> Result {
@@ -115,10 +118,10 @@ public struct TagLibMetadataManager {
             )
         }
         guard originalIdentity.linkCount == 1 else {
-            throw mutationError(
-                code: 1007,
-                description: "Metadata mutation was refused because atomic replacement would split a hard-linked file."
-            )
+            throw TagLibManagerError.hardLinkedFile
+        }
+        if let expectedVersion, expectedVersion != MetadataFileVersion(originalIdentity) {
+            throw TagLibManagerError.fileChanged
         }
 
         let values: URLResourceValues
@@ -207,10 +210,7 @@ public struct TagLibMetadataManager {
         Darwin.close(temporaryDescriptor)
 
         guard regularFileIdentity(at: url) == originalIdentity else {
-            throw mutationError(
-                code: 1005,
-                description: "The metadata destination changed before the transaction could commit."
-            )
+            throw TagLibManagerError.fileChanged
         }
 
         let directoryDescriptor = directory.path.withCString { directoryPath in

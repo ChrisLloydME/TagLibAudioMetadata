@@ -573,7 +573,10 @@ public struct StructuredMetadata: Hashable, Sendable {
     }
 }
 
-public enum TagLibManagerError: Error, Sendable {
+public enum TagLibManagerError: Error, Sendable, LocalizedError {
+    case invalidFile
+    case fileChanged
+    case hardLinkedFile
     case unsupportedFormat
     @available(*, deprecated, message: "Use failedToReadWithUnderlying(_:) for throwing read failures.")
     case failedToRead
@@ -582,4 +585,17 @@ public enum TagLibManagerError: Error, Sendable {
     /// Atomic rename completed, but the parent-directory fsync failed.
     /// The new file is already visible and callers must not treat this as a pre-commit failure.
     case committedButDurabilityUncertain(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidFile: "Metadata operations require an existing regular file and do not follow symbolic links."
+        case .fileChanged: "The file changed since it was read. No metadata was committed by this operation; reload before editing."
+        case .hardLinkedFile: "Atomic metadata replacement would split a hard-linked file. No metadata was committed."
+        case .unsupportedFormat: "This audio format does not support the requested operation."
+        case .failedToRead: "The audio metadata could not be read."
+        case .failedToReadWithUnderlying(let detail): "The audio metadata could not be read: \(detail)"
+        case .verificationFailed(let details): "Metadata verification failed before commit: \(details.joined(separator: "; "))"
+        case .committedButDurabilityUncertain(let detail): "Metadata was committed, but durability is uncertain: \(detail)"
+        }
+    }
 }
