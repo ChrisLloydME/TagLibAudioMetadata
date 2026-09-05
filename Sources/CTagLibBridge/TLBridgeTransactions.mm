@@ -85,13 +85,22 @@ static std::map<std::string, std::weak_ptr<std::recursive_mutex>> &TagLibMutatio
 
 static std::string TagLibMutationLockKey(NSURL *fileURL)
 {
-    struct stat identity = {};
-    NSString *path = fileURL.URLByStandardizingPath.path;
-    if (lstat(path.fileSystemRepresentation, &identity) == 0) {
-        return "inode:" + std::to_string(static_cast<unsigned long long>(identity.st_dev)) +
-            ":" + std::to_string(static_cast<unsigned long long>(identity.st_ino));
+    // Lock the directory entry, not the file inode: rename replaces the inode
+    // while existing waiters still hold the old lock. Parent identity also
+    // converges paths through symlinked directories. Hard-linked files are
+    // rejected by the transaction before mutation; they need no alias lock.
+    NSURL *target = fileURL.URLByStandardizingPath;
+    NSURL *parent = target.URLByDeletingLastPathComponent;
+    struct stat directory = {};
+    if (stat(parent.path.fileSystemRepresentation, &directory) == 0) {
+        // Conservative folding can serialize distinct names on case-sensitive
+        // volumes, but never weakens exclusion on case-insensitive volumes.
+        NSString *name = target.lastPathComponent.precomposedStringWithCanonicalMapping.lowercaseString;
+        return "entry:" + std::to_string(static_cast<unsigned long long>(directory.st_dev)) +
+            ":" + std::to_string(static_cast<unsigned long long>(directory.st_ino)) +
+            ":" + std::string(name.UTF8String ?: "");
     }
-    return "path:" + std::string(path.fileSystemRepresentation ?: "");
+    return "path:" + std::string(target.path.fileSystemRepresentation ?: "");
 }
 
 static std::shared_ptr<std::recursive_mutex> TagLibMutationLockForURL(NSURL *fileURL)
