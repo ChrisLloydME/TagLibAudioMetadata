@@ -504,8 +504,11 @@ extension TagLibMetadataManager {
             }
             switch patch.artwork {
             case .unchanged: break
-            case .replace(let expected) where expected != afterStructured.artwork:
-                warnings.append("Patched artwork differs after save.")
+            case .replace(let expected):
+                if expected.count != afterStructured.artwork.count ||
+                    !zip(expected, afterStructured.artwork).allSatisfy({ structuredArtworkMatches($0, $1) }) {
+                    warnings.append("Patched artwork differs after save.")
+                }
             case .removeAll where !afterStructured.artwork.isEmpty:
                 warnings.append("Patched artwork removal could not be confirmed.")
             default: break

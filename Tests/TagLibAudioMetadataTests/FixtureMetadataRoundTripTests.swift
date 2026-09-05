@@ -4,6 +4,20 @@ import XCTest
 final class FixtureMetadataRoundTripTests: XCTestCase {
     private let writableFixtures = ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav"]
 
+    func testArtworkPatchInfersContainerWithoutWeakeningPayloadVerification() throws {
+        let data = try Data(contentsOf: artworkFixtureURL())
+        for ext in ["mp3", "m4a", "flac"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(artwork: .replace([StructuredArtwork(mimeType: "image/jpeg", data: data)])), to: url
+            )
+            let artwork = try TagLibMetadataManager.readSnapshot(from: url).structured.artwork
+            XCTAssertEqual(artwork.count, 1, ext)
+            XCTAssertEqual(artwork.first?.data, data, ext)
+            XCTAssertEqual(artwork.first?.mimeType, "image/jpeg", ext)
+        }
+    }
+
     func testBasicMetadataWritesAndClearsAcrossFixtures() throws {
         for ext in writableFixtures {
             let url = try copyAudioFixture(ext)

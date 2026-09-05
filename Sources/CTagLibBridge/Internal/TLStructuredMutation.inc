@@ -872,7 +872,25 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         return YES;
     }
 
-    if (propertyValues) {
+    if (format == AudioMatorTagFileFormatFLAC ||
+        format == AudioMatorTagFileFormatOggVorbis || format == AudioMatorTagFileFormatOggOpus ||
+        format == AudioMatorTagFileFormatOggFlac || format == AudioMatorTagFileFormatOggSpeex) {
+        if (frames || mp4Atoms || asfAttributes || lyrics || comments) {
+            return SetStructuredPayloadValidationError(error, @"This format supports structured properties and artwork, not ID3/MP4/ASF collections");
+        }
+        TagLib::FileRef reference(filePath, true, TagLib::AudioProperties::Fast);
+        TagLib::File *file = reference.file();
+        if (!file || !file->isValid()) {
+            return SetStructuredPayloadValidationError(error, @"Unable to open audio file for structured artwork editing");
+        }
+        if (propertyValues) file->setProperties(BuildRawPropertyMapValues(propertyValues));
+        if (!ReplaceStructuredComplexArtwork(file, artwork) || !file->save()) {
+            return SetStructuredPayloadValidationError(error, @"TagLib could not save structured artwork");
+        }
+        return YES;
+    }
+
+    if (propertyValues && !frames && !mp4Atoms && !asfAttributes && !artwork && !lyrics && !comments) {
         return [self writeRawPropertyMapValues:propertyValues toURL:fileURL error:error];
     }
 
