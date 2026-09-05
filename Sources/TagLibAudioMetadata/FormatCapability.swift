@@ -11,9 +11,12 @@ public enum StructuredMetadataSupport: String, Hashable, Sendable {
     case container
 }
 
-/// Describes how confidently this package can promise support for a format.
+/// Configured implementation/fixture coverage, not a runtime or release verdict.
 public enum FormatSupportLevel: String, Hashable, Sendable {
-    /// Covered by package fixtures and read/write regression tests.
+    /// The repository includes a fixture and regression tests for this extension.
+    /// This does not assert that all metadata surfaces or files are verified.
+    case fixtureCovered
+    @available(*, deprecated, message: "Use fixtureCovered. A configured support label is not empirical verification.")
     case verified
     /// Available for evaluation, but container-specific field behavior is incomplete.
     case experimental

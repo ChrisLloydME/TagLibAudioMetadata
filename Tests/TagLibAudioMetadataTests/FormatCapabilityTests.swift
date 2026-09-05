@@ -45,9 +45,9 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "tta")).structuredWriteSupport, .propertyMap)
     }
 
-    func testVerificationLevelsDistinguishFixturesUpstreamAndExperimentalFormats() throws {
+    func testConfiguredCoverageDistinguishesFixturesUpstreamAndExperimentalFormats() throws {
         for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav", "aac", "xm"] {
-            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .verified, ext)
+            XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .fixtureCovered, ext)
         }
         for ext in ["mp2", "mp4", "ape", "wma", "dsf"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .upstreamSupported, ext)
@@ -60,16 +60,16 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "not-a-format"), .unsupported)
 
         let mp4Family = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
-        XCTAssertEqual(mp4Family.supportLevel, .verified)
-        XCTAssertEqual(mp4Family.supportLevel(forExtension: "m4a"), .verified)
+        XCTAssertEqual(mp4Family.supportLevel, .fixtureCovered)
+        XCTAssertEqual(mp4Family.supportLevel(forExtension: "m4a"), .fixtureCovered)
         XCTAssertEqual(mp4Family.supportLevel(forExtension: "mp4"), .upstreamSupported)
     }
 
     func testFieldLevelSupportReflectsMappingsArtworkAndWriteAvailability() throws {
         let xm = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "xm"))
-        XCTAssertEqual(xm.readSupport(for: .title), .verified)
-        XCTAssertEqual(xm.writeSupport(for: .title), .verified)
-        XCTAssertEqual(xm.writeSupport(for: .trackerName), .verified)
+        XCTAssertEqual(xm.readSupport(for: .title), .fixtureCovered)
+        XCTAssertEqual(xm.writeSupport(for: .title), .fixtureCovered)
+        XCTAssertEqual(xm.writeSupport(for: .trackerName), .fixtureCovered)
         XCTAssertEqual(xm.writeSupport(for: .album), .unsupported)
         XCTAssertEqual(xm.writeSupport(for: .artwork), .unsupported)
 
