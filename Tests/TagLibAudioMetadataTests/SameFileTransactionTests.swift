@@ -4,6 +4,58 @@ import XCTest
 @testable import TagLibAudioMetadata
 
 final class SameFileTransactionTests: XCTestCase {
+    func testReplacementDoesNotChangeCoordinationLockThroughDirectoryAlias() throws {
+        let url = try copyFixture("flac")
+        let alias = url.deletingLastPathComponent().appendingPathComponent("directory-alias")
+        try FileManager.default.createSymbolicLink(
+            at: alias, withDestinationURL: url.deletingLastPathComponent()
+        )
+        let aliasedURL = alias.appendingPathComponent(url.lastPathComponent)
+        let committed = DispatchSemaphore(value: 0)
+        let releaseCommit = DispatchSemaphore(value: 0)
+        let nextEntered = DispatchSemaphore(value: 0)
+        let group = DispatchGroup()
+        let errors = LockedTransactionErrors()
+        let queue = DispatchQueue(label: "TagLibAudioMetadata.after-rename", attributes: .concurrent)
+
+        group.enter()
+        queue.async {
+            defer { group.leave() }
+            do {
+                try TagLibMetadataManager.withAtomicFileMutation(at: url, directorySync: { _ in
+                    // The destination inode has already changed, but the
+                    // transaction still owns the entry through durability work.
+                    committed.signal()
+                    return releaseCommit.wait(timeout: .now() + 5) == .success ? 0 : -1
+                }) { temporary in
+                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                        ["TITLE": ["Before replacement"]], removingKeys: ["TITLE"], to: temporary
+                    )
+                }
+            } catch { errors.append(error) }
+        }
+        XCTAssertEqual(committed.wait(timeout: .now() + 5), .success)
+        group.enter()
+        queue.async {
+            defer { group.leave() }
+            do {
+                try TagLibMetadataManager.withAtomicFileMutation(at: aliasedURL) { temporary in
+                    nextEntered.signal()
+                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                        ["COMMENT": ["After replacement"]], removingKeys: ["COMMENT"], to: temporary
+                    )
+                }
+            } catch { errors.append(error) }
+        }
+        XCTAssertEqual(nextEntered.wait(timeout: .now() + 0.5), .timedOut)
+        releaseCommit.signal()
+        XCTAssertEqual(group.wait(timeout: .now() + 5), .success)
+        XCTAssertTrue(errors.values.isEmpty, "Unexpected errors: \(errors.values)")
+        let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+        XCTAssertEqual(values(for: "TITLE", in: raw), ["Before replacement"])
+        XCTAssertEqual(values(for: "COMMENT", in: raw), ["After replacement"])
+    }
+
     func testSameFileTransactionsSerializeTheWholeMutation() throws {
         let url = try copyFixture("flac")
         let firstEntered = DispatchSemaphore(value: 0)
