@@ -106,7 +106,9 @@ extension TagLibMetadataManager {
         _ policy: VerificationFailurePolicy,
         warnings: [String]
     ) throws {
-        guard policy == .throw, !warnings.isEmpty else { return }
+        // A mismatch is never permission to replace an original user file.
+        // Retain the parameter for source compatibility, not weaker semantics.
+        guard !warnings.isEmpty else { return }
         throw TagLibManagerError.verificationFailed(warnings)
     }
 
@@ -229,10 +231,6 @@ extension TagLibMetadataManager {
                 warnings.append(
                     "Track number text differs after save (expected \(expectedTrack), got \(afterWrite.trackNumberText))."
                 )
-            } else if normalizedTrimmed(expectedTrack) != normalizedTrimmed(afterWrite.trackNumberText) {
-                warnings.append(
-                    "Track number formatting was normalized by the container (\(expectedTrack) -> \(afterWrite.trackNumberText))."
-                )
             }
         }
 
@@ -261,10 +259,6 @@ extension TagLibMetadataManager {
             if !numberPairEquivalent(expectedDisc, afterWrite.discNumberText) && !pairStoredAcrossFields {
                 warnings.append(
                     "Disc number text differs after save (expected \(expectedDisc), got \(afterWrite.discNumberText))."
-                )
-            } else if normalizedTrimmed(expectedDisc) != normalizedTrimmed(afterWrite.discNumberText) {
-                warnings.append(
-                    "Disc number formatting was normalized by the container (\(expectedDisc) -> \(afterWrite.discNumberText))."
                 )
             }
         }

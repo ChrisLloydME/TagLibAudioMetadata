@@ -33,7 +33,7 @@ extension TagLibMetadataManager {
         _ metadata: TagLibAudioMetadata,
         to url: URL,
         verification: MetadataWriteVerificationContext = .none,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -56,7 +56,7 @@ extension TagLibMetadataManager {
         discNumberText: String?,
         to url: URL,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -102,7 +102,7 @@ extension TagLibMetadataManager {
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -131,7 +131,7 @@ extension TagLibMetadataManager {
         _ properties: [String: [String]],
         to url: URL,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -214,7 +214,7 @@ extension TagLibMetadataManager {
     @discardableResult
     public nonisolated static func eraseAllMetadataWithVerification(
         from url: URL,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -329,7 +329,7 @@ extension TagLibMetadataManager {
     public nonisolated static func writeMetadataWithVerification(
         _ meta: BasicMetadata,
         to url: URL,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -587,10 +587,7 @@ extension TagLibMetadataManager {
     /// - `publisher` is mapped to TagLib's `label` field.
     @discardableResult
     public nonisolated static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool {
-        let result = try writeMetadataWithVerification(meta, to: url)
-        if !result.warnings.isEmpty {
-            print("[AudioMator] Metadata write warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
-        }
+        _ = try writeMetadataWithVerification(meta, to: url)
         return true
     }
 
@@ -605,10 +602,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        let result = try writeRawMetadataPropertyMapWithVerification(properties, to: url, mode: mode)
-        if !result.warnings.isEmpty {
-            print("[AudioMator] Raw metadata write warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
-        }
+        _ = try writeRawMetadataPropertyMapWithVerification(properties, to: url, mode: mode)
         return true
     }
 
@@ -618,10 +612,7 @@ extension TagLibMetadataManager {
     /// This should clear the common tag fields and reset numeric fields to 0.
     @discardableResult
     public nonisolated static func eraseAllMetadata(from url: URL) throws -> Bool {
-        let result = try eraseAllMetadataWithVerification(from: url)
-        if !result.warnings.isEmpty {
-            print("[AudioMator] Erase warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
-        }
+        _ = try eraseAllMetadataWithVerification(from: url)
         return true
     }
 
