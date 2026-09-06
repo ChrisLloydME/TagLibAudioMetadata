@@ -68,6 +68,7 @@ public struct TagLibMetadataManager {
         at url: URL,
         expectedVersion: MetadataFileVersion? = nil,
         directorySync: @escaping (Int32) -> Int32 = Darwin.fsync,
+        afterFinalValidation: @escaping () throws -> Void = {},
         _ operation: @escaping (URL) throws -> Result
     ) throws -> Result {
         var result: Result?
@@ -79,6 +80,7 @@ public struct TagLibMetadataManager {
                         at: url,
                         expectedVersion: expectedVersion,
                         directorySync: directorySync,
+                        afterFinalValidation: afterFinalValidation,
                         operation
                     )
                     return true
@@ -105,6 +107,7 @@ public struct TagLibMetadataManager {
         at url: URL,
         expectedVersion: MetadataFileVersion?,
         directorySync: (Int32) -> Int32,
+        afterFinalValidation: () throws -> Void,
         _ operation: (URL) throws -> Result
     ) throws -> Result {
         guard url.isFileURL else {
@@ -212,6 +215,10 @@ public struct TagLibMetadataManager {
         guard regularFileIdentity(at: url) == originalIdentity else {
             throw TagLibManagerError.fileChanged
         }
+
+        // Internal test seam for the check/rename interval. Production callers
+        // never supply work here; same-entry coordination still owns the lock.
+        try afterFinalValidation()
 
         let directoryDescriptor = directory.path.withCString { directoryPath in
             Darwin.open(directoryPath, O_RDONLY | O_DIRECTORY)

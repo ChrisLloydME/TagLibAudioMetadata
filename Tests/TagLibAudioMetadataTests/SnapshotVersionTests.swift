@@ -19,6 +19,11 @@ final class SnapshotVersionTests: XCTestCase {
             }
         }
         XCTAssertEqual(try Data(contentsOf: url), newerBytes)
+        XCTAssertThrowsError(try TagLibMetadataManager.applyRawMetadataPatch(
+            RawMetadataPatch(valuesToSet: ["LYRICS": ["Stale lyrics"]]), to: url, expectedVersion: version
+        ))
+        XCTAssertThrowsError(try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, expectedVersion: version))
+        XCTAssertEqual(try Data(contentsOf: url), newerBytes)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path), [url.lastPathComponent])
     }
 

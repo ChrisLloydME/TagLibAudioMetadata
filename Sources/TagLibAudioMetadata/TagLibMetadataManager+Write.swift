@@ -214,6 +214,7 @@ extension TagLibMetadataManager {
     @discardableResult
     public nonisolated static func eraseAllMetadataWithVerification(
         from url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
@@ -221,7 +222,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try eraseAllMetadataInPlaceWithVerification(
                 from: mutationURL,
                 failurePolicy: failurePolicy
