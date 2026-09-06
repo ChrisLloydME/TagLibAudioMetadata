@@ -70,11 +70,12 @@ final class SameFileTransactionTests: XCTestCase {
         queue.async {
             defer { group.leave() }
             do {
-                try TagLibMetadataManager.withAtomicFileMutation(at: url) { mutationURL in
+                try TagLibMetadataManager.withAtomicFileMutation(at: url, afterFinalValidation: {
                     firstEntered.signal()
                     guard allowFirstToFinish.wait(timeout: .now() + 5) == .success else {
                         throw TestTransactionError.timedOut
                     }
+                }) { mutationURL in
                     try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
                         ["TITLE": ["First transaction"]],
                         removingKeys: ["TITLE"],
@@ -110,7 +111,7 @@ final class SameFileTransactionTests: XCTestCase {
         XCTAssertEqual(
             secondEntered.wait(timeout: .now() + 0.25),
             .timedOut,
-            "A second same-file transaction must not enter its copy/mutate/verify sequence while the first is active."
+            "A second transaction must not enter while the first is paused after final identity validation and before rename."
         )
 
         allowFirstToFinish.signal()
