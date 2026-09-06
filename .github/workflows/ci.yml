@@ -65,6 +65,16 @@ jobs:
       - name: Address Sanitizer
         run: swift test --disable-keychain --disable-netrc --sanitize=address
 
+  release-build-and-test:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Record preview toolchain
+        run: xcodebuild -version
+      - name: Release tests against real fixtures
+        run: swift test --disable-keychain --disable-netrc -c release
+
   thread-sanitizer:
     runs-on: macos-26
     steps:
