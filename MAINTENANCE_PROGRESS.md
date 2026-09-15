@@ -11,7 +11,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Work begins on branch `codex/wav-number-pair-stability`, tracking `origin/wavNumberPairStability`; the working tree was clean before this journal was added.
 - The package already exposes `MetadataSnapshot`, `MetadataPatch`, `RawMetadataPatch`, `MetadataFileVersion`, and `expectedVersion` APIs with regression tests.
 - The high-level product still source-reexports `CTagLibBridge` through `LegacyBridgeReexport.swift`, while `Package.swift` also defines a separate low-level product.
-- Swift transaction identity includes link count. The Objective-C++ transaction path has an independent version comparator and requires detailed review for commit-time link-count policy.
+- Swift transaction identity includes link count. The Objective-C++ transaction path had an independent version comparator that omitted link count, allowing transaction behavior to drift.
 - Package implementation and tests still reference legacy `AUDIOMATOR_*` exact-number metadata keys.
 - The legacy Objective-C model retains a Boolean `explicitContent` compatibility property that maps `false` to `clean`; the typed `explicitAdvisory` model itself has four states.
 
@@ -20,10 +20,12 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Public API boundary: confirmed that the high-level module currently reexports the bridge.
 - Product-neutral metadata: confirmed that AudioMator-branded keys remain in externally observable read/write logic; migration behavior still needs exact characterization.
 - Duplicate transaction machinery: confirmed structurally; behavioral drift and consolidation scope remain under investigation.
+- Hard-link identity drift: confirmed. The Objective-C++ final version comparison omitted `st_nlink`; the comparator and commit-time policy now require the link count to remain exactly one.
 
 ## Pending verification
 
 - Inspect both transaction coordinators in full, including hard-link creation during commit and fault injection.
+- Determine the longer-term consolidation plan for the two transaction coordinators.
 - Audit schema ownership collisions and mapping consistency tests.
 - Verify exact-number namespace write behavior and lazy legacy migration.
 - Review WAV mixed INFO/ID3v2 fixtures across typed, exact-text, and raw APIs.
@@ -40,12 +42,14 @@ This journal tracks package-side work for the coordinated metadata correctness a
 
 - Established repository/branch baseline.
 - Created this durable journal before substantive refactoring.
+- Aligned the Objective-C++ transaction identity check with Swift link-count semantics and added a Swift coordinator regression test for a hard link created during mutation.
 
 ## Tests and validation
 
-- Not yet run for this maintenance series.
+- Passed: `swift test --filter SameFileTransactionTests` (3 tests) using installed stable Xcode 27 / Swift 6.4.
+- Environment note: `/Applications/Xcode-beta.app` is not installed, so the required beta toolchain could not be used; `/Applications/Xcode.app` is the active developer directory.
+- Pending: full `swift test` after the remaining package changes.
 
 ## Commits
 
-- Pending.
-
+- `85596ad` — `docs: start metadata maintenance journal`

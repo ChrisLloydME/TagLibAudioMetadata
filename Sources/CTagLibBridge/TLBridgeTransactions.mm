@@ -161,6 +161,7 @@ static bool SameTagLibFileVersion(const struct stat &lhs, const struct stat &rhs
     return lhs.st_dev == rhs.st_dev &&
         lhs.st_ino == rhs.st_ino &&
         lhs.st_size == rhs.st_size &&
+        lhs.st_nlink == rhs.st_nlink &&
         lhs.st_mtimespec.tv_sec == rhs.st_mtimespec.tv_sec &&
         lhs.st_mtimespec.tv_nsec == rhs.st_mtimespec.tv_nsec &&
         lhs.st_ctimespec.tv_sec == rhs.st_ctimespec.tv_sec &&
@@ -326,6 +327,7 @@ static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
     struct stat currentIdentity = {};
     if (lstat(targetURL.path.fileSystemRepresentation, &currentIdentity) != 0 ||
         !S_ISREG(currentIdentity.st_mode) ||
+        currentIdentity.st_nlink != 1 ||
         !SameTagLibFileVersion(currentIdentity, originalIdentity)) {
         [fileManager removeItemAtURL:temporaryURL error:nil];
         if (error) {

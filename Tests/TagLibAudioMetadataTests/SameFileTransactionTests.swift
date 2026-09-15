@@ -4,6 +4,30 @@ import XCTest
 @testable import TagLibAudioMetadata
 
 final class SameFileTransactionTests: XCTestCase {
+    func testHardLinkCreatedDuringMutationPreventsCommit() throws {
+        let url = try copyFixture("flac")
+        let linkedURL = url.deletingLastPathComponent().appendingPathComponent("linked.flac")
+        let originalBytes = try Data(contentsOf: url)
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.withAtomicFileMutation(at: url) { mutationURL in
+                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                    ["TITLE": ["Must not commit"]],
+                    removingKeys: ["TITLE"],
+                    to: mutationURL
+                )
+                try FileManager.default.linkItem(at: url, to: linkedURL)
+            }
+        ) { error in
+            guard case TagLibManagerError.fileChanged = error else {
+                return XCTFail("Expected fileChanged, got \(error)")
+            }
+        }
+
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+        XCTAssertEqual(try Data(contentsOf: linkedURL), originalBytes)
+    }
+
     func testReplacementDoesNotChangeCoordinationLockThroughDirectoryAlias() throws {
         let url = try copyFixture("flac")
         let alias = url.deletingLastPathComponent().appendingPathComponent("directory-alias")
