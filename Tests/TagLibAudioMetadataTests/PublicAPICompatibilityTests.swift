@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import TagLibAudioMetadata
+import CTagLibBridge
 
 final class PublicAPICompatibilityTests: XCTestCase {
     func testObjectiveCBridgeClassSelectorsRemainAvailable() {

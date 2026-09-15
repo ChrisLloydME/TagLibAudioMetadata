@@ -342,6 +342,28 @@ public enum MetadataFieldRegistry {
     public nonisolated static let peoplePropertyMapKeys: Set<String> =
         Set(allSchemas.filter(\.isPeopleField).flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
 
+    /// Property-map keys with intentionally composite semantic ownership.
+    /// `DATE` is both the public date/year projection and the full release-date
+    /// projection because several containers expose both through one native field.
+    public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [
+        "DATE": [.date, .releaseDate],
+    ]
+
+    /// The explicit owner used by scalar lookup when a storage key is shared.
+    public nonisolated static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey] = [
+        "DATE": .date,
+    ]
+
+    public nonisolated static let propertyMapKeyOwners: [String: Set<MetadataFieldKey>] = {
+        var result: [String: Set<MetadataFieldKey>] = [:]
+        for schema in allSchemas {
+            for key in schema.propertyMapKeys {
+                result[normalizePropertyMapKey(key), default: []].insert(schema.key)
+            }
+        }
+        return result
+    }()
+
     public nonisolated static func schema(for key: MetadataFieldKey) -> MetadataFieldSchema? {
         schemasByKey[key]
     }
@@ -351,9 +373,9 @@ public enum MetadataFieldRegistry {
         if normalized.hasPrefix("PERFORMER:") {
             return schemasByKey[.performer]
         }
-        return allSchemas.first { schema in
-            schema.propertyMapKeys.map(normalizePropertyMapKey).contains(normalized)
-        }
+        guard let owners = propertyMapKeyOwners[normalized] else { return nil }
+        let owner = owners.count == 1 ? owners.first : preferredSharedPropertyMapKeyOwner[normalized]
+        return owner.flatMap { schemasByKey[$0] }
     }
 
 

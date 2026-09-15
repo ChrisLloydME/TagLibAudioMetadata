@@ -220,14 +220,20 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
     ApplyGenericPropertyMapMetadata(tag->properties(), metadata);
 
     const TagLib::MP4::ItemMap& items = tag->itemMap();
-    metadata.trackNumberText = PreferredNumberText(
-        metadata.trackNumberText,
-        MP4TextItemValue(items, kAudioMatorMP4TrackNumberTextKey)
+    NSString *storedTrackNumberText = MP4TextItemValue(
+        items,
+        items.contains(kTagLibAudioMetadataMP4TrackNumberTextKey)
+            ? kTagLibAudioMetadataMP4TrackNumberTextKey
+            : kLegacyAudioMatorMP4TrackNumberTextKey
     );
-    metadata.discNumberText = PreferredNumberText(
-        metadata.discNumberText,
-        MP4TextItemValue(items, kAudioMatorMP4DiscNumberTextKey)
+    NSString *storedDiscNumberText = MP4TextItemValue(
+        items,
+        items.contains(kTagLibAudioMetadataMP4DiscNumberTextKey)
+            ? kTagLibAudioMetadataMP4DiscNumberTextKey
+            : kLegacyAudioMatorMP4DiscNumberTextKey
     );
+    metadata.trackNumberText = PreferredNumberText(metadata.trackNumberText, storedTrackNumberText);
+    metadata.discNumberText = PreferredNumberText(metadata.discNumberText, storedDiscNumberText);
 
     // Track number
     if (items.contains("trkn")) {

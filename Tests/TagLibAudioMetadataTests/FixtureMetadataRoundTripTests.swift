@@ -1,5 +1,6 @@
 import XCTest
 @testable import TagLibAudioMetadata
+import CTagLibBridge
 
 final class FixtureMetadataRoundTripTests: XCTestCase {
     private let writableFixtures = ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav"]
@@ -979,6 +980,16 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(trackAtom.second, 9)
         XCTAssertEqual(discAtom.first, 3)
         XCTAssertEqual(discAtom.second, 4)
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" }?.values,
+            ["02/09"]
+        )
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }?.values,
+            ["03/04"]
+        )
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
     }
 
     func testGenericPropertyMapMetadataPatchUsesSeparateTrackDiscFields() throws {
@@ -1096,7 +1107,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 4)
     }
 
-    func testM4ANumberPatchUpdatesExistingPrivateFormattingAtoms() throws {
+    func testM4ANumberPatchMigratesLegacyPrivateFormattingAtoms() throws {
         let url = try copyAudioFixture("m4a")
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(mp4Atoms: [
@@ -1117,13 +1128,15 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
         let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
         XCTAssertEqual(
-            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" }?.values,
             ["05/12"]
         )
         XCTAssertEqual(
-            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }?.values,
             ["01/4"]
         )
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
     }
 
     func testM4ABasicTitleEditDoesNotCreatePrivateNumberFormattingAtoms() throws {
@@ -1248,16 +1261,45 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, scenario.expectedTrackTotal, scenario.name)
             XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, scenario.expectedDisc, scenario.name)
             XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, scenario.expectedDiscTotal, scenario.name)
-            XCTAssertEqual(
-                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
-                [scenario.expectedTrackText],
-                scenario.name
-            )
-            XCTAssertEqual(
-                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
-                [scenario.expectedDiscText],
-                scenario.name
-            )
+            if scenario.name.hasPrefix("track") {
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" }?.values,
+                    [scenario.expectedTrackText],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") },
+                    scenario.name
+                )
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+                    ["01/02"],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT") },
+                    scenario.name
+                )
+            } else {
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }?.values,
+                    [scenario.expectedDiscText],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") },
+                    scenario.name
+                )
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+                    ["03/12"],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT") },
+                    scenario.name
+                )
+            }
         }
     }
 
@@ -1287,6 +1329,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
             ["01/02"]
         )
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("TAGLIBAUDIOMETADATA_") })
     }
 
     func testMetadataPatchBooleanFalseIsDistinctFromRemoval() throws {

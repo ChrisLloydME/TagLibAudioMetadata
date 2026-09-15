@@ -26,10 +26,9 @@ Most apps should import the Swift facade:
 import TagLibAudioMetadata
 ```
 
-The Swift module temporarily re-exports `CTagLibBridge`, so existing callers can
-still reach `TagLibMetadataExtractor` and `TagLibAudioMetadata`. New direct
-bridge integrations should depend on `TagLibAudioMetadataLowLevel` and
-`import CTagLibBridge`; the re-export may be removed in a future major release.
+Starting in 0.5, the Swift module no longer re-exports `CTagLibBridge`. Direct
+bridge integrations must depend on `TagLibAudioMetadataLowLevel` and
+`import CTagLibBridge` explicitly.
 
 Requirements:
 
@@ -126,12 +125,13 @@ movement number/count uses native `MVIN`; patching either component preserves
 the other.
 
 An ordinary MP4 number Patch or Basic read-modify-write writes standard
-`trkn`/`disk` metadata. It does not introduce `AUDIOMATOR_TRACKNUMBER_TEXT` or
-`AUDIOMATOR_DISCNUMBER_TEXT`. If either private formatting atom was already
-present, it is formatting provenance rather than the numeric authority. A Basic
-numeric edit synchronizes it from `trkn`/`disk` values while retaining its
-number-padding convention; an unrelated edit preserves its text unchanged.
-Use `writeTrackNumberText` for an intentional formatted-text write. When native
+`trkn`/`disk` metadata and does not introduce private formatting atoms into a
+standard-only file. Legacy `AUDIOMATOR_*_TEXT` atoms remain readable formatting
+provenance rather than numeric authority. Editing the corresponding pair lazily
+migrates that provenance to package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` while
+retaining its padding; unrelated edits leave the legacy atom unchanged. Use
+`writeTrackNumberText` for intentional formatted text; new writes use the
+package-neutral namespace. When native
 `trkn`/`disk` pairs coexist with legacy freeform number or total aliases, native
 pairs are authoritative; number writes remove those conflicting aliases.
 
@@ -172,8 +172,8 @@ let capability = TagLibMetadataManager.formatCapability(for: ext)
 
 Use `formatCapability(for:)` for UI decisions. It reports the format family,
 all extension aliases, metadata containers, artwork support, multi-value support,
-structured support, read-only caveats, and evidence level. `verified` is backed
-by a repository fixture and round-trip tests; `experimental` exposes incomplete
+structured support, read-only caveats, and evidence level. `fixtureCovered` is
+backed by a repository fixture and round-trip tests; `experimental` exposes incomplete
 container behavior; `upstreamSupported` is an unverified upstream parser path;
 `readOnly` has no supported save route; and `unsupported` has no package route.
 
@@ -901,8 +901,8 @@ Declare the `TagLibAudioMetadataLowLevel` product and import its module:
 import CTagLibBridge
 ```
 
-Existing facade clients may still see these declarations through the temporary
-re-export. Do not rely on that for a new low-level integration.
+Facade clients migrating direct bridge calls must add the low-level product and
+explicit module import.
 
 `TagLibAudioMetadata` is an Objective-C class with nullable properties. It maps
 closely to the bridge writer. It is a full replacement model, so first read the

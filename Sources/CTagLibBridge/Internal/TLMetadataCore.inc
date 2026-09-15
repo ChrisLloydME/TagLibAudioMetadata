@@ -311,6 +311,7 @@ static NSSet<NSString *> *KnownMetadataFieldKeys()
         @"TITLE", @"ARTIST", @"ARTISTS", @"ALBUM", @"COMMENT", @"GENRE", @"COMPOSER", @"ALBUMARTIST",
         @"DATE", @"YEAR", @"RELEASEDATE", @"ORIGINALDATE", @"ORIGINAL YEAR",
         @"TRACKNUMBER", @"TRACK", @"TRACKTOTAL", @"TOTALTRACKS", @"DISCNUMBER", @"DISC", @"DISCTOTAL", @"TOTALDISCS",
+        @"TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT", @"TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
         @"AUDIOMATOR_TRACKNUMBER_TEXT", @"AUDIOMATOR_DISCNUMBER_TEXT",
         @"COPYRIGHT", @"LYRICS", @"LABEL", @"ISRC", @"ENCODEDBY", @"ENCODING", @"ENCODERSETTINGS",
         @"TITLESORT", @"ARTISTSORT", @"ALBUMSORT", @"ALBUMARTISTSORT", @"COMPOSERSORT",
@@ -384,8 +385,12 @@ static NSString * _Nullable PreferredNumberText(NSString * _Nullable currentValu
 
 // Internal-only MP4 freeform atoms used to preserve the user's exact track/disc text
 // (for example "01/10") across formats that otherwise normalize numeric pairs.
-static constexpr const char *kAudioMatorMP4TrackNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT";
-static constexpr const char *kAudioMatorMP4DiscNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT";
+// Legacy AudioMator keys remain readable and are migrated only when the relevant
+// number pair is modified.
+static constexpr const char *kTagLibAudioMetadataMP4TrackNumberTextKey = "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT";
+static constexpr const char *kTagLibAudioMetadataMP4DiscNumberTextKey = "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT";
+static constexpr const char *kLegacyAudioMatorMP4TrackNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT";
+static constexpr const char *kLegacyAudioMatorMP4DiscNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT";
 
 static bool IsMP4LikeExtension(NSString * _Nullable ext);
 
@@ -797,6 +802,10 @@ static bool IsWritableTagFileFormat(AudioMatorTagFileFormat format)
 static NSSet<NSString *> *HiddenInternalMetadataFieldKeys()
 {
     static NSSet<NSString *> *keys = [NSSet setWithArray:@[
+        @"TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+        @"TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
+        @"----:COM.APPLE.ITUNES:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+        @"----:COM.APPLE.ITUNES:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
         @"AUDIOMATOR_TRACKNUMBER_TEXT",
         @"AUDIOMATOR_DISCNUMBER_TEXT",
         @"----:COM.APPLE.ITUNES:AUDIOMATOR_TRACKNUMBER_TEXT",
@@ -858,11 +867,11 @@ static NSDictionary<NSString *, NSString *> *NormalizedRawPropertiesForWrite(NSD
         NSString *discText = RawPropertyValueForCandidateKeys(normalizedProperties, @[ @"DISCNUMBER", @"DISC" ]);
 
         if (trackText) {
-            normalizedProperties[@"AUDIOMATOR_TRACKNUMBER_TEXT"] = trackText;
+            normalizedProperties[@"TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT"] = trackText;
         }
 
         if (discText) {
-            normalizedProperties[@"AUDIOMATOR_DISCNUMBER_TEXT"] = discText;
+            normalizedProperties[@"TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT"] = discText;
         }
     }
 

@@ -1,5 +1,6 @@
 import XCTest
 import TagLibAudioMetadata
+import CTagLibBridge
 
 final class FormatCapabilityTests: XCTestCase {
     func testReadableExtensionsComeFromCapabilities() {
@@ -149,12 +150,28 @@ final class FormatCapabilityTests: XCTestCase {
 
     func testBridgeKnownPropertyKeysMatchSwiftSchemaAliases() {
         let internalKeys: Set<String> = [
+            "TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+            "TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
             "AUDIOMATOR_TRACKNUMBER_TEXT",
             "AUDIOMATOR_DISCNUMBER_TEXT",
         ]
         let bridgeKeys = Set(TagLibMetadataExtractor.knownMetadataPropertyKeys()).subtracting(internalKeys)
 
         XCTAssertEqual(bridgeKeys, MetadataFieldRegistry.canonicalPropertyMapKeys)
+    }
+
+    func testPropertyMapKeysHaveOneOwnerUnlessExplicitlyShared() {
+        let collisions = MetadataFieldRegistry.propertyMapKeyOwners.filter { $0.value.count > 1 }
+
+        XCTAssertEqual(collisions, MetadataFieldRegistry.sharedPropertyMapKeyOwners)
+        XCTAssertEqual(
+            Set(MetadataFieldRegistry.preferredSharedPropertyMapKeyOwner.keys),
+            Set(MetadataFieldRegistry.sharedPropertyMapKeyOwners.keys)
+        )
+        for (key, preferredOwner) in MetadataFieldRegistry.preferredSharedPropertyMapKeyOwner {
+            XCTAssertTrue(MetadataFieldRegistry.sharedPropertyMapKeyOwners[key]?.contains(preferredOwner) == true)
+            XCTAssertEqual(MetadataFieldRegistry.schema(forPropertyMapKey: key)?.key, preferredOwner)
+        }
     }
 
     func testBridgeContainerMappingsAgreeWithSwiftSchema() throws {

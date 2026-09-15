@@ -183,16 +183,20 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             return NO;
         }
         TagLib::MP4::Tag *tag = file.tag();
-        RemoveRecognizedMP4NumberPairFreeformItems(tag, updateTrackPair, updateDiscPair);
         if (updateTrackPair) {
             NSString *existingFormatting = nil;
-            if (tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey)) {
+            const char *existingFormattingKey = tag->itemMap().contains(kTagLibAudioMetadataMP4TrackNumberTextKey)
+                ? kTagLibAudioMetadataMP4TrackNumberTextKey
+                : kLegacyAudioMatorMP4TrackNumberTextKey;
+            if (tag->itemMap().contains(existingFormattingKey)) {
                 existingFormatting = TagStringToNSString(
-                    tag->itemMap()[kAudioMatorMP4TrackNumberTextKey].toStringList().toString()
+                    tag->itemMap()[existingFormattingKey].toStringList().toString()
                 );
             }
+            RemoveRecognizedMP4NumberPairFreeformItems(tag, true, false);
             tag->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
             SetMP4IntPairItem(tag, "trkn", trackNumber, totalTracks);
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
             if (existingFormatting) {
                 NSInteger ignoredNumber = 0;
                 NSInteger ignoredTotal = 0;
@@ -200,19 +204,24 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                 ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
                 SetMP4TextItem(
                     tag,
-                    kAudioMatorMP4TrackNumberTextKey,
+                    kTagLibAudioMetadataMP4TrackNumberTextKey,
                     BuildTRCKString(trackNumber, totalTracks, padWidth)
                 );
             }
         }
         if (updateDiscPair) {
             NSString *existingFormatting = nil;
-            if (tag->itemMap().contains(kAudioMatorMP4DiscNumberTextKey)) {
+            const char *existingFormattingKey = tag->itemMap().contains(kTagLibAudioMetadataMP4DiscNumberTextKey)
+                ? kTagLibAudioMetadataMP4DiscNumberTextKey
+                : kLegacyAudioMatorMP4DiscNumberTextKey;
+            if (tag->itemMap().contains(existingFormattingKey)) {
                 existingFormatting = TagStringToNSString(
-                    tag->itemMap()[kAudioMatorMP4DiscNumberTextKey].toStringList().toString()
+                    tag->itemMap()[existingFormattingKey].toStringList().toString()
                 );
             }
+            RemoveRecognizedMP4NumberPairFreeformItems(tag, false, true);
             SetMP4IntPairItem(tag, "disk", discNumber, totalDiscs);
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
             if (existingFormatting) {
                 NSInteger ignoredNumber = 0;
                 NSInteger ignoredTotal = 0;
@@ -220,7 +229,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                 ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
                 SetMP4TextItem(
                     tag,
-                    kAudioMatorMP4DiscNumberTextKey,
+                    kTagLibAudioMetadataMP4DiscNumberTextKey,
                     BuildTRCKString(discNumber, totalDiscs, padWidth)
                 );
             }

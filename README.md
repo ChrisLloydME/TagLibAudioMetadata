@@ -37,9 +37,9 @@ Most targets need only the facade product:
 ```
 
 Advanced clients that intentionally use the Objective-C bridge should depend
-on `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`. The facade still
-re-exports the bridge for source compatibility, but that is a migration aid,
-not the preferred dependency boundary.
+on `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`. Starting in 0.5,
+the facade no longer re-exports the bridge; add the low-level product explicitly
+when migrating code that directly names bridge types.
 
 The binary is fetched from the public
 [`taglib-binary-2.3.1-r2`](https://github.com/ChrisLloydME/TagLibAudioMetadata/releases/tag/taglib-binary-2.3.1-r2)
@@ -129,12 +129,12 @@ likewise preserve the omitted component of native `MVIN`.
 Generic PropertyMap formats store number and total separately as
 `TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
 `TRCK`/`TPOS` text. Ordinary MP4 Patch or Basic writes do not create private
-`AUDIOMATOR_*_TEXT` atoms. If such a formatting atom already exists, it is
-formatting provenance: native `trkn`/`disk` remains authoritative, and a Basic
-numeric edit synchronizes the private text while retaining its established
-number padding. An unrelated Basic edit preserves the existing formatted text
-unchanged. Use `writeTrackNumberText` when formatted number text itself is the
-intentional input.
+formatting atoms. Legacy `AUDIOMATOR_*_TEXT` atoms remain readable. When the
+corresponding number pair is edited, the package lazily migrates that formatting
+provenance to a package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` atom while retaining
+its number padding. An unrelated edit preserves legacy provenance unchanged.
+Use `writeTrackNumberText` when formatted number text itself is the intentional
+input; new exact-text writes use the package-neutral namespace.
 
 `BasicMetadata` remains a convenient normalized projection, but it is not a
 lossless editing document. Values read from a file retain a separate raw

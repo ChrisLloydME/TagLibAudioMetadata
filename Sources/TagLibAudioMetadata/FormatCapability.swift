@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CTagLibBridge
 
 public enum StructuredMetadataSupport: String, Hashable, Sendable {
     case none
