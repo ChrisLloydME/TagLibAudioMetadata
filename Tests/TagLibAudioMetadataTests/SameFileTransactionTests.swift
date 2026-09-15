@@ -2,6 +2,7 @@ import Dispatch
 import Foundation
 import XCTest
 @testable import TagLibAudioMetadata
+import CTagLibBridge
 
 final class SameFileTransactionTests: XCTestCase {
     func testHardLinkCreatedDuringMutationPreventsCommit() throws {

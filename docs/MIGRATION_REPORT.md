@@ -10,9 +10,9 @@ unified snapshots and explicit patches, one-copy atomic transactions, evidence-b
 format capabilities, a defined low-level product, synchronized schema tests,
 and expanded fixture and concurrency coverage.
 
-The previous public facade remains source-compatible. Compatibility wrappers
-and the bridge re-export remain available, while new integrations have clearer
-products and semantics.
+The semantic Swift facade remains source-compatible. Direct bridge access now
+requires the explicit low-level product and module import; the former facade
+re-export is intentionally removed in 0.5.
 
 ## Dependency and ABI migration
 
@@ -47,11 +47,12 @@ risk documented in `ARCHITECTURE.md`.
   unspecified/not-explicit/explicit/clean. MP4 number pairs and advisory values mutate native
   `trkn`/`disk`/`rtng` items; ID3 advisory uses its supported TXXX representation.
   Generic PropertyMap formats keep separate number and total keys. MP4 patches
-  remove every recognized advisory alias and do not inject private AudioMator
-  number-formatting atoms unless such provenance already exists.
+  remove every recognized advisory alias and do not inject private number-formatting
+  atoms unless such provenance already exists. Relevant edits lazily migrate
+  legacy AudioMator formatting keys to a package-neutral namespace.
 - Basic and Patch MP4 advisory writes now share native `rtng` canonicalization;
-  ordinary Basic number writes also avoid creating private AudioMator formatting
-  atoms while retaining existing provenance.
+  ordinary Basic number writes avoid creating private formatting atoms while
+  retaining or lazily migrating existing provenance.
 - MP4 advisory canonicalization distinguishes a missing atom from `rtng = 0` and
   writes not-explicit/explicit/clean as `0`/`1`/`2`. Legacy `rtng = 4` remains
   readable as explicit and is rewritten as canonical `1` by high-level writes.
@@ -74,10 +75,10 @@ risk documented in `ARCHITECTURE.md`.
   UI identifiers were regenerated.
 - Numeric parsing and structured write boundaries reject overflow instead of
   truncating or crossing signed/unsigned domains.
-- `FormatSupportLevel` separates verified, experimental, upstream-supported,
+- `FormatSupportLevel` separates fixture-covered, experimental, upstream-supported,
   read-only, and unsupported behavior at family and extension level.
 - `TagLibAudioMetadataLowLevel` is the explicit product for direct
-  `CTagLibBridge` use. The facade re-export is retained as a compatibility shim.
+  `CTagLibBridge` use. Starting in 0.5, the facade no longer re-exports it.
 
 No public C++ type is exposed. Existing Objective-C error domains and selectors
 remain available. The facade adds a distinct transaction error when rename has
@@ -105,7 +106,7 @@ implementation without changing public headers.
 
 ## Format evidence
 
-Fixture-backed verified extensions now include `mp3`, `m4a`, `flac`, `ogg`,
+Fixture-covered extensions now include `mp3`, `m4a`, `flac`, `ogg`,
 `oga`, `wav`, `aac`, and `xm`. S3M and IT are experimental; MOD-family files and
 Shorten are advertised read-only; all remaining parser routes are marked
 upstream-supported until licensed fixtures prove package round trips.
@@ -156,4 +157,6 @@ the public asset as recorded above.
   single schema source yet.
 - Fully isolating alternate TagLib C++ versions requires a stronger binary ABI
   boundary than framework namespacing.
-- Removal of the compatibility bridge re-export is deferred to a major release.
+- Facade-only dependencies no longer expose unsafe bridge operations; clients
+  with intentional bridge usage must add the low-level product when migrating
+  to 0.5.

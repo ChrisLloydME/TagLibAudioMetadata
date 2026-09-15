@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import TagLibAudioMetadata
+import CTagLibBridge
 
 final class ExternalCorpusPreservationTests: XCTestCase {
     func testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus() throws {

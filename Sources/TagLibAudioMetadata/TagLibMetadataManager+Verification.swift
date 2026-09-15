@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CTagLibBridge
 
 extension TagLibMetadataManager {
     nonisolated static func isHiddenInternalRawFieldKey(_ key: String) -> Bool {

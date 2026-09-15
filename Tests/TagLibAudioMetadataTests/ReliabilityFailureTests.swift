@@ -1,5 +1,6 @@
 import XCTest
 @testable import TagLibAudioMetadata
+import CTagLibBridge
 #if os(macOS)
 import Darwin
 #endif

@@ -207,16 +207,42 @@
             return NO;
         }
 
-        const bool hadTrackNumberFormatting =
-            tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey);
-        const bool hadDiscNumberFormatting =
-            tag->itemMap().contains(kAudioMatorMP4DiscNumberTextKey);
+        const bool hadNeutralTrackNumberFormatting =
+            tag->itemMap().contains(kTagLibAudioMetadataMP4TrackNumberTextKey);
+        const bool hadLegacyTrackNumberFormatting =
+            tag->itemMap().contains(kLegacyAudioMatorMP4TrackNumberTextKey);
+        const bool hadNeutralDiscNumberFormatting =
+            tag->itemMap().contains(kTagLibAudioMetadataMP4DiscNumberTextKey);
+        const bool hadLegacyDiscNumberFormatting =
+            tag->itemMap().contains(kLegacyAudioMatorMP4DiscNumberTextKey);
+        const bool hadTrackNumberFormatting = hadNeutralTrackNumberFormatting || hadLegacyTrackNumberFormatting;
+        const bool hadDiscNumberFormatting = hadNeutralDiscNumberFormatting || hadLegacyDiscNumberFormatting;
         NSString *existingTrackNumberFormatting = hadTrackNumberFormatting
-            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4TrackNumberTextKey)
+            ? MP4TextItemValue(
+                tag->itemMap(),
+                hadNeutralTrackNumberFormatting
+                    ? kTagLibAudioMetadataMP4TrackNumberTextKey
+                    : kLegacyAudioMatorMP4TrackNumberTextKey
+            )
             : nil;
         NSString *existingDiscNumberFormatting = hadDiscNumberFormatting
-            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4DiscNumberTextKey)
+            ? MP4TextItemValue(
+                tag->itemMap(),
+                hadNeutralDiscNumberFormatting
+                    ? kTagLibAudioMetadataMP4DiscNumberTextKey
+                    : kLegacyAudioMatorMP4DiscNumberTextKey
+            )
             : nil;
+        const TagLib::MP4::Item::IntPair originalTrackPair = tag->itemMap().contains("trkn")
+            ? tag->itemMap()["trkn"].toIntPair()
+            : TagLib::MP4::Item::IntPair(0, 0);
+        const TagLib::MP4::Item::IntPair originalDiscPair = tag->itemMap().contains("disk")
+            ? tag->itemMap()["disk"].toIntPair()
+            : TagLib::MP4::Item::IntPair(0, 0);
+        const bool trackPairChanged = originalTrackPair.first != metadata.trackNumber ||
+            originalTrackPair.second != metadata.totalTracks;
+        const bool discPairChanged = originalDiscPair.first != metadata.discNumber ||
+            originalDiscPair.second != metadata.totalDiscs;
         RemoveRecognizedMP4NumberPairFreeformItems(tag, true, true);
 
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
@@ -243,10 +269,11 @@
         ApplyWritableTextMappingsToMP4Tag(tag, metadata);
         SetMP4TextItem(tag, "\xA9" "lyr", metadata.lyrics);
 
-        if (hadTrackNumberFormatting) {
+        if (hadTrackNumberFormatting && trackPairChanged) {
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
             SetMP4TextItem(
                 tag,
-                kAudioMatorMP4TrackNumberTextKey,
+                kTagLibAudioMetadataMP4TrackNumberTextKey,
                 BuildSynchronizedNumberTextPreservingFormatting(
                     existingTrackNumberFormatting,
                     metadata.trackNumber,
@@ -254,10 +281,11 @@
                 )
             );
         }
-        if (hadDiscNumberFormatting) {
+        if (hadDiscNumberFormatting && discPairChanged) {
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
             SetMP4TextItem(
                 tag,
-                kAudioMatorMP4DiscNumberTextKey,
+                kTagLibAudioMetadataMP4DiscNumberTextKey,
                 BuildSynchronizedNumberTextPreservingFormatting(
                     existingDiscNumberFormatting,
                     metadata.discNumber,

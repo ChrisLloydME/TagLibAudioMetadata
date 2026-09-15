@@ -23,8 +23,8 @@ Advanced targets that directly use `TagLibMetadataExtractor` or
 .product(name: "TagLibAudioMetadataLowLevel", package: "TagLibAudioMetadata")
 ```
 
-Then use `import CTagLibBridge`. The facade's bridge re-export is retained only
-for compatibility and may be removed in a future major version.
+Then use `import CTagLibBridge`. Starting in 0.5, importing the facade alone no
+longer exposes bridge declarations.
 
 ## Binary identity
 
