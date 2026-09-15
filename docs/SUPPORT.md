@@ -80,8 +80,10 @@ from the snapshot alone is not guaranteed to reproduce opaque bytes.
 patch remain unchanged; `.remove` clears an explicitly named property; artwork
 has separate unchanged, replace, and remove-all cases; and
 `explicitAdvisory` preserves unspecified, not-explicit, explicit, and clean
-states. The compatibility Boolean `isExplicit` is a lossy projection; use the
-enum when the distinction matters.
+states. `numberText` carries an intentional formatted track/disc pair in the
+same transaction as other patch fields. A patch cannot mix that exact-text form
+with typed track/disc components. The compatibility Boolean `isExplicit` is a
+lossy projection; use the enum when the distinction matters.
 
 Known fields are validated against `MetadataFieldRegistry` before any staging
 copy or mutation. For example, `.title` accepts text while `.bpm` accepts an

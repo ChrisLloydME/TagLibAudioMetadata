@@ -76,7 +76,8 @@ let patch = MetadataPatch(
     ],
     customFields: ["APP_WORKFLOW": .values(["Focused", "Calm"])],
     explicitAdvisory: .clean,
-    artwork: .unchanged
+    artwork: .unchanged,
+    numberText: .init(trackNumberText: "01/12", discNumberText: "01/02")
 )
 
 let result = try TagLibMetadataManager.applyMetadataPatch(
@@ -89,7 +90,9 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
 Known keys and aliases are rejected in `customFields`; use `fields` (or a
 dedicated patch property) for schema-known metadata. Unknown custom keys remain
-available and are normalized before mutation. Track/disc numbers and totals
+available and are normalized before mutation. Use either typed track/disc fields
+or `numberText` in one patch; the formatted form makes exact text authoritative
+and commits it in the same transaction as the other semantic changes. Track/disc numbers and totals
 accept `1...INT_MAX`; use `.remove` to unset those components. Numeric fields
 whose schema permits zero, such as BPM and movement numbering, accept
 `0...INT_MAX`. Invalid values fail before a staging copy is made. Formats with

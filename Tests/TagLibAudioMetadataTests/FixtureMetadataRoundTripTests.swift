@@ -992,6 +992,53 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
     }
 
+    func testMetadataPatchCommitsFormattedNumbersAdvisoryAndFieldsTogether() throws {
+        let url = try copyAudioFixture("m4a")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                fields: [.title: .text("Atomic patch")],
+                explicitAdvisory: .notExplicit,
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "02/09",
+                    discNumberText: "03/04"
+                )
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.title, "Atomic patch")
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .notExplicit)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "02/09")
+        XCTAssertEqual(snapshot.basic.discNumberText, "03/04")
+        XCTAssertEqual(snapshot.basic.track, 2)
+        XCTAssertEqual(snapshot.basic.trackTotal, 9)
+        XCTAssertEqual(snapshot.basic.disc, 3)
+        XCTAssertEqual(snapshot.basic.discTotal, 4)
+    }
+
+    func testMetadataPatchRejectsCompetingFormattedAndTypedNumbersBeforeMutation() throws {
+        let url = try copyAudioFixture("m4a")
+        let originalBytes = try Data(contentsOf: url)
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(
+                    fields: [.track: .integer(2)],
+                    numberText: MetadataNumberTextPatch(trackNumberText: "02/09")
+                ),
+                to: url
+            )
+        ) { error in
+            guard case MetadataPatchValidationError.conflictingNumberRepresentations = error else {
+                return XCTFail("Expected conflictingNumberRepresentations, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+    }
+
     func testGenericPropertyMapMetadataPatchUsesSeparateTrackDiscFields() throws {
         for ext in ["flac", "ogg", "oga"] {
             let url = try copyAudioFixture(ext)
