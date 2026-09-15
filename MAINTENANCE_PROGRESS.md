@@ -47,6 +47,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Added package-neutral MP4 exact-number provenance keys with backward reads and lazy, pair-specific migration of legacy AudioMator keys.
 - Made the `DATE` shared-owner exception explicit and added an undeclared-collision regression test.
 - Removed the high-level bridge reexport and updated package tests and migration documentation for the explicit low-level product.
+- Extended `MetadataPatch` with an intentional formatted track/disc payload so exact number text, advisory, artwork, and ordinary semantic fields can share one transaction.
 
 ## Tests and validation
 
@@ -55,6 +56,8 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Passed: `swift test --filter FormatCapabilityTests` (15 tests).
 - Environment note: `/Applications/Xcode-beta.app` is not installed, so the required beta toolchain could not be used; `/Applications/Xcode.app` is the active developer directory.
 - Passed: full `swift test` (113 tests, 2 opt-in tests skipped, 0 failures).
+- Passed: focused formatted-number `MetadataPatch` tests, including rejection of competing typed and exact representations before mutation.
+- Passed after formatted-number patch API: full `swift test` (115 tests, 2 opt-in tests skipped, 0 failures).
 
 ## Commits
 

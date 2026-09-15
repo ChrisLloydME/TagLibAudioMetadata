@@ -122,6 +122,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case emptyText(location: String)
     case emptyValueList(location: String)
     case emptyValue(location: String, index: Int)
+    case conflictingNumberRepresentations
 
     public var errorDescription: String? {
         switch self {
@@ -148,6 +149,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(location) requires at least one value; use .remove to delete the field."
         case .emptyValue(let location, let index):
             return "\(location) contains an empty value at index \(index); use .remove to delete the field."
+        case .conflictingNumberRepresentations:
+            return "Use either formatted number text or typed track/disc fields in one patch, not both."
         }
     }
 }
@@ -158,6 +161,20 @@ public enum MetadataArtworkPatch: Hashable, Sendable {
     case removeAll
 }
 
+/// An intentional formatted track/disc edit. The track text is required because
+/// the underlying cross-container operation always establishes the track pair;
+/// `discNumberText == nil` leaves the disc pair unchanged, while an empty string
+/// removes it.
+public struct MetadataNumberTextPatch: Hashable, Sendable {
+    public var trackNumberText: String
+    public var discNumberText: String?
+
+    public init(trackNumberText: String, discNumberText: String? = nil) {
+        self.trackNumberText = trackNumberText
+        self.discNumberText = discNumberText
+    }
+}
+
 /// Only explicitly supplied semantic fields are intentionally modified.
 /// Other supported metadata is preserved where the format and TagLib representation allow it.
 public struct MetadataPatch: Hashable, Sendable {
@@ -165,21 +182,24 @@ public struct MetadataPatch: Hashable, Sendable {
     public var customFields: [String: MetadataPatchValue]
     public var explicitAdvisory: ExplicitAdvisory?
     public var artwork: MetadataArtworkPatch
+    public var numberText: MetadataNumberTextPatch?
 
     public init(
         fields: [MetadataFieldKey: MetadataPatchValue] = [:],
         customFields: [String: MetadataPatchValue] = [:],
         explicitAdvisory: ExplicitAdvisory? = nil,
-        artwork: MetadataArtworkPatch = .unchanged
+        artwork: MetadataArtworkPatch = .unchanged,
+        numberText: MetadataNumberTextPatch? = nil
     ) {
         self.fields = fields
         self.customFields = customFields
         self.explicitAdvisory = explicitAdvisory
         self.artwork = artwork
+        self.numberText = numberText
     }
 
     public var isEmpty: Bool {
-        fields.isEmpty && customFields.isEmpty && explicitAdvisory == nil && artwork == .unchanged
+        fields.isEmpty && customFields.isEmpty && explicitAdvisory == nil && artwork == .unchanged && numberText == nil
     }
 }
 
@@ -274,6 +294,10 @@ extension TagLibMetadataManager {
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
         let validatedPatch = try validate(patch)
+        let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
+        if patch.numberText != nil, !numberPairFields.isDisjoint(with: validatedPatch.fields.keys) {
+            throw MetadataPatchValidationError.conflictingNumberRepresentations
+        }
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -283,6 +307,8 @@ extension TagLibMetadataManager {
             let requestedFields = Set(validatedPatch.fields.keys)
                 .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])
                 .union(patch.artwork == .unchanged ? [] : [.artwork])
+                .union(patch.numberText == nil ? [] : [.track, .trackTotal])
+                .union(patch.numberText?.discNumberText == nil ? [] : [.disc, .discTotal])
             if let unsupported = requestedFields
                 .filter({ !writableFields.contains($0) })
                 .sorted(by: { $0.rawValue < $1.rawValue })
@@ -299,10 +325,10 @@ extension TagLibMetadataManager {
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
-            let numberPairFields: Set<MetadataFieldKey> = [
+            let structuredNumberPairFields: Set<MetadataFieldKey> = [
                 .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
             ]
-            let patchesNumberPair = !numberPairFields.isDisjoint(with: validatedPatch.fields.keys)
+            let patchesNumberPair = !structuredNumberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
 
             if patchesNumberPair {
@@ -371,7 +397,23 @@ extension TagLibMetadataManager {
                 )
             }
 
-            for (field, value) in validatedPatch.fields where !numberPairFields.contains(field) {
+            if let numberText = patch.numberText {
+                try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
+                    numberText.trackNumberText,
+                    discNumberText: numberText.discNumberText,
+                    to: mutationURL
+                )
+                let trackPair = parseNumberPair(numberText.trackNumberText)
+                expectedNumberPairs[.track] = trackPair.number
+                expectedNumberPairs[.trackTotal] = trackPair.total
+                if let discNumberText = numberText.discNumberText {
+                    let discPair = parseNumberPair(discNumberText)
+                    expectedNumberPairs[.disc] = discPair.number
+                    expectedNumberPairs[.discTotal] = discPair.total
+                }
+            }
+
+            for (field, value) in validatedPatch.fields where !structuredNumberPairFields.contains(field) {
                 guard let schema = MetadataFieldRegistry.schema(for: field),
                       let canonicalKey = schema.propertyMapKeys.first else {
                     continue
@@ -501,6 +543,15 @@ extension TagLibMetadataManager {
             }
             if let advisory = patch.explicitAdvisory, afterBasic.explicitAdvisory != advisory {
                 warnings.append("Patched explicit advisory differs after save.")
+            }
+            if let numberText = patch.numberText {
+                if afterBasic.trackNumberText != numberText.trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    warnings.append("Patched track number text differs after save.")
+                }
+                if let discNumberText = numberText.discNumberText,
+                   afterBasic.discNumberText != discNumberText.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    warnings.append("Patched disc number text differs after save.")
+                }
             }
             switch patch.artwork {
             case .unchanged: break
