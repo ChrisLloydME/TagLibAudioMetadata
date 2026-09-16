@@ -106,18 +106,12 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
                     if (metadata.year.length == 0 && dateValue.length >= 4) {
                         metadata.year = [dateValue substringToIndex:4];
                     }
-                    if (metadata.releaseDate.length == 0) {
-                        metadata.releaseDate = dateValue;
-                    }
                 }
             }
             else if (frameIDStr == "TYER") {
                 NSString *yearValue = TagStringToNSString(value);
                 if (yearValue.length > 0) {
                     metadata.year = yearValue;
-                    if (metadata.releaseDate.length == 0) {
-                        metadata.releaseDate = yearValue;
-                    }
                 }
             }
             else if (frameIDStr == "TDOR") {

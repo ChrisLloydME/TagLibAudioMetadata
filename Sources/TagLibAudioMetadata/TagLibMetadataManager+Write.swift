@@ -7,6 +7,24 @@ import Foundation
 import CTagLibBridge
 
 extension TagLibMetadataManager {
+    nonisolated private static func validateDateStorageCompatibility(
+        year: String?,
+        releaseDate: String?,
+        for url: URL
+    ) throws {
+        guard formatCapability(for: url.pathExtension)?.metadataFieldFormats.contains(.mp4) == true else {
+            return
+        }
+
+        let normalizedYear = normalizedTrimmed(year)
+        guard !normalizedYear.isEmpty else { return }
+        let normalizedReleaseDate = normalizedTrimmed(releaseDate)
+        let projectedReleaseYear = String(normalizedReleaseDate.prefix(4))
+        guard !normalizedReleaseDate.isEmpty, normalizedYear == projectedReleaseYear else {
+            throw MetadataPatchValidationError.unsupportedFieldForFormat(field: .date, format: "mp4")
+        }
+    }
+
     nonisolated private static func basicProjectionValue(
         for field: MetadataFieldKey,
         metadata: BasicMetadata
@@ -39,6 +57,11 @@ extension TagLibMetadataManager {
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
+        try validateDateStorageCompatibility(
+            year: metadata.year,
+            releaseDate: metadata.releaseDate,
+            for: url
+        )
 
         return try withAtomicFileMutation(at: url) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
@@ -340,6 +363,11 @@ extension TagLibMetadataManager {
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
+        try validateDateStorageCompatibility(
+            year: meta.year,
+            releaseDate: meta.releaseDate,
+            for: url
+        )
 
         let m = TagLibAudioMetadata()
 

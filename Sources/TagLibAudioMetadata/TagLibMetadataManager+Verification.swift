@@ -189,7 +189,11 @@ extension TagLibMetadataManager {
         let afterWrite: BasicMetadata? = {
             guard let bridgeBasic = projections?["basic"] as? TagLibAudioMetadata,
                   let rawDump else { return nil }
-            return basicMetadata(fromBridgeMetadata: bridgeBasic, rawDump: rawDump)
+            return basicMetadata(
+                fromBridgeMetadata: bridgeBasic,
+                rawDump: rawDump,
+                fileExtension: url.pathExtension
+            )
         }()
 
         if afterWrite == nil {

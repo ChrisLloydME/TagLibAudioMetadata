@@ -150,11 +150,7 @@
                 );
                 SetID3v2TextFrame(id3v2Tag, "TPOS", discString);
 
-                NSString *releaseDate = metadata.releaseDate.length > 0 ? metadata.releaseDate : metadata.year;
-                NSString *id3v2Year = metadata.year.length > 0
-                    ? metadata.year
-                    : (releaseDate.length >= 4 ? [releaseDate substringToIndex:4] : nil);
-                SetID3v2TextFrame(id3v2Tag, "TYER", id3v2Year);
+                SetID3v2TextFrame(id3v2Tag, "TYER", metadata.year);
 
                 // Explicit advisory (absent = unspecified, 1 = explicit, 2 = clean).
                 SetID3v2UserTextFrame(id3v2Tag, "ITUNESADVISORY", SerializedExplicitAdvisory(metadata));

@@ -21,7 +21,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Product-neutral metadata: confirmed that AudioMator-branded keys remain in externally observable read/write logic; migration behavior still needs exact characterization.
 - Duplicate transaction machinery: confirmed structurally. The safe Swift facade now has one authoritative Swift coordinator; the separately named low-level bridge product retains its own coordinator for direct Objective-C callers. Consolidating those across the product/language boundary would be a separate breaking redesign, so this maintenance pass instead aligns and regression-tests their identity and hard-link invariants.
 - Hard-link identity drift: confirmed. The Objective-C++ final version comparison omitted `st_nlink`; the comparator and commit-time policy now require the link count to remain exactly one.
-- Schema ownership: only `DATE` is shared, intentionally, because date/year and release-date projections map to one native field in several containers. Shared ownership and preferred scalar lookup are now explicit and tested.
+- Date ownership diagnosis: confirmed and materially revised. `DATE`, `YEAR`, and `RELEASEDATE` had been aggregated even for ID3/Xiph families that can represent recording date and release date independently; declaring the `DATE` collision did not make that behavior correct.
 - High-level bridge exposure: confirmed and fixed for the upcoming 0.5 line. Direct bridge users must add `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`.
 
 ## Pending verification
@@ -35,6 +35,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Keep semantic API, transaction coordination, and container codecs as distinct layers.
 - Make one transaction coordinator authoritative where practical; otherwise enforce identical version and hard-link invariants with tests.
 - Preserve read compatibility for legacy AudioMator keys, write only package-neutral keys, and migrate only when the relevant number metadata changes.
+- Treat `.date` as recording date/year (`TDRC`, legacy `TYER`, `DATE`/`YEAR`) and `.releaseDate` as release date (`TDRL`, `RELEASEDATE`). MP4's sole standard `©day` slot is owned by `.releaseDate`; independent `.date` writes to MP4 are explicitly unsupported.
 
 ## Completed tasks
 
@@ -51,6 +52,9 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Added `expectedVersion` to direct formatted-number writes so inspector saves, erases, raw patches, and track renumbering can all reject a stale edit-session snapshot at the transaction boundary.
 - Defined the compatibility distinction between direct formatted-number writes and semantic patches: a direct number-only write preserves an existing total, while a `MetadataNumberTextPatch` replaces the owned pair and therefore clears an omitted total.
 - Allowed patch verification to accept containers that store number and total in separate native fields while retaining exact combined text on containers that support it.
+- Split recording-date and release-date ownership throughout the Swift schema and Objective-C++ bridge. ID3 and Xiph-style PropertyMaps now read/write `DATE` and `RELEASEDATE` independently instead of copying one value into both semantics.
+- Added a format-aware semantic write plan: MP4 release-date patches target the PropertyMap `DATE` key that actually owns `©day`, MP4 recording-date patches fail before mutation, and verification checks the exact key chosen by the plan rather than the first overlapping alias.
+- Kept `BasicMetadata.year` as a compatibility projection. For MP4 it is derived from `©day`; a conflicting independent Basic year write is rejected rather than silently overwriting or being ignored.
 
 ## Tests and validation
 
@@ -63,6 +67,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Passed after formatted-number patch API: full `swift test` (115 tests, 2 opt-in tests skipped, 0 failures).
 - Passed after the WAV exact-number correction: full `swift test` (116 tests, 2 opt-in tests skipped, 0 failures).
 - Passed after versioned direct-number writes and replacement-pair semantics: full `swift test` (119 tests, 2 opt-in tests skipped, 0 failures).
+- Passed after the date semantic split: full `swift test` baseline plus focused ID3/FLAC/MP4 date ownership, removal, unsupported-format, and capability tests.
 
 ## Commits
 

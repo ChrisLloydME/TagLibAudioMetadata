@@ -88,6 +88,15 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(shorten.writeSupport(for: .title), .unsupported)
     }
 
+    func testMP4DateCapabilitiesExposeSingleReleaseDateOwner() throws {
+        let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
+
+        XCTAssertEqual(capability.readSupport(for: .date), .unsupported)
+        XCTAssertEqual(capability.writeSupport(for: .date), .unsupported)
+        XCTAssertNotEqual(capability.readSupport(for: .releaseDate), .unsupported)
+        XCTAssertNotEqual(capability.writeSupport(for: .releaseDate), .unsupported)
+    }
+
     func testFieldSchemasCanBeFilteredByCapability() throws {
         let mp4 = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
         let mp4Schemas = MetadataFieldRegistry.schemas(storableIn: mp4)
