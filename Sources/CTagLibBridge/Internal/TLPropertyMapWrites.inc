@@ -283,7 +283,7 @@ static void SetID3v2LyricsFrame(TagLib::ID3v2::Tag *tag,
     tag->addFrame(lyricsFrame);
 }
 
-typedef NSString * _Nullable (*AudioMatorMetadataStringGetter)(TagLibAudioMetadata *metadata);
+typedef NSString * _Nullable (*TLMetadataStringGetter)(TagLibAudioMetadata *metadata);
 
 static NSString * _Nullable StringFromIntegerField(NSInteger value) {
     return value > 0 ? [NSString stringWithFormat:@"%ld", (long)value] : nil;
@@ -311,7 +311,8 @@ static NSString * _Nullable GetMood(TagLibAudioMetadata *m) { return m.mood; }
 static NSString * _Nullable GetMediaType(TagLibAudioMetadata *m) { return m.mediaType; }
 static NSString * _Nullable GetMovement(TagLibAudioMetadata *m) { return m.movement; }
 static NSString * _Nullable GetCompilation(TagLibAudioMetadata *m) { return m.compilation ? @"1" : nil; }
-static NSString * _Nullable GetReleaseDate(TagLibAudioMetadata *m) { return m.releaseDate.length > 0 ? m.releaseDate : m.year; }
+static NSString * _Nullable GetDate(TagLibAudioMetadata *m) { return m.year; }
+static NSString * _Nullable GetReleaseDate(TagLibAudioMetadata *m) { return m.releaseDate; }
 static NSString * _Nullable GetOriginalReleaseDate(TagLibAudioMetadata *m) { return m.originalReleaseDate; }
 static NSString * _Nullable GetLabel(TagLibAudioMetadata *m) { return m.label; }
 static NSString * _Nullable GetReleaseType(TagLibAudioMetadata *m) { return m.releaseType; }
@@ -363,10 +364,10 @@ typedef struct {
     const char *id3v2UserTextDescription;
     const char *mp4Atom;
     const char *mp4FreeformDescription;
-    AudioMatorMetadataStringGetter getter;
-} AudioMatorWritableTextMapping;
+    TLMetadataStringGetter getter;
+} TLWritableTextMapping;
 
-static const AudioMatorWritableTextMapping kAudioMatorWritableTextMappings[] = {
+static const TLWritableTextMapping kWritableTextMappings[] = {
     { "TPE2", nullptr, "aART", nullptr, GetAlbumArtist },
     { "TCOM", nullptr, "\xA9" "wrt", nullptr, GetComposer },
     { "TBPM", nullptr, nullptr, nullptr, GetBPM },
@@ -394,7 +395,7 @@ static const AudioMatorWritableTextMapping kAudioMatorWritableTextMappings[] = {
     { nullptr, nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
     { "TCMP", nullptr, nullptr, nullptr, GetCompilation },
     { "TDRL", nullptr, "\xA9" "day", nullptr, GetReleaseDate },
-    { "TDRC", nullptr, nullptr, nullptr, GetReleaseDate },
+    { "TDRC", nullptr, nullptr, nullptr, GetDate },
     { "TDOR", nullptr, nullptr, "ORIGINAL YEAR", GetOriginalReleaseDate },
     { "TPUB", nullptr, nullptr, "LABEL", GetLabel },
     { nullptr, "RELEASETYPE", nullptr, "RELEASETYPE", GetReleaseType },
@@ -439,7 +440,7 @@ static void ApplyWritableTextMappingsToID3v2Tag(TagLib::ID3v2::Tag *tag,
         return;
     }
 
-    for (const auto &mapping : kAudioMatorWritableTextMappings) {
+    for (const auto &mapping : kWritableTextMappings) {
         NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
         if (mapping.id3v2TextFrame) {
             SetID3v2TextFrame(tag, mapping.id3v2TextFrame, value);
@@ -457,7 +458,7 @@ static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,
         return;
     }
 
-    for (const auto &mapping : kAudioMatorWritableTextMappings) {
+    for (const auto &mapping : kWritableTextMappings) {
         NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
         if (mapping.mp4Atom) {
             SetMP4TextItem(tag, mapping.mp4Atom, value);
@@ -554,12 +555,14 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     metadata.composer = FirstStringFromProperty(properties, {"COMPOSER"}, true) ?: metadata.composer;
     metadata.albumArtist = FirstStringFromProperty(properties, {"ALBUMARTIST"}, true) ?: metadata.albumArtist;
 
-    NSString *dateValue = FirstStringFromProperty(properties, {"RELEASEDATE", "DATE", "YEAR"});
-    if (dateValue.length > 0) {
-        metadata.releaseDate = dateValue;
-        if (metadata.year.length == 0 && dateValue.length >= 4) {
-            metadata.year = [dateValue substringToIndex:4];
-        }
+    NSString *dateValue = FirstStringFromProperty(properties, {"DATE", "YEAR"});
+    if (dateValue.length > 0 && metadata.year.length == 0) {
+        metadata.year = dateValue.length >= 4 ? [dateValue substringToIndex:4] : dateValue;
+    }
+
+    NSString *releaseDateValue = FirstStringFromProperty(properties, {"RELEASEDATE"});
+    if (releaseDateValue.length > 0) {
+        metadata.releaseDate = releaseDateValue;
     }
 
     NSString *originalDate = FirstStringFromProperty(properties, {"ORIGINALDATE"});

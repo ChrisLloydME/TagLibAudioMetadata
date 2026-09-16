@@ -21,3 +21,17 @@ The AAC, FLAC, M4A, MP3, Ogg Vorbis, and WAV fixtures are locally generated
 | `testAudioFile.mp3` | `9db9e5033b1c6d4fea48dc2b13e606f0b70625f86391bcbf0b9044f72f2012dc` |
 | `testAudioFile.ogg` | `9901df8170531d790f421c69a864e57b53cfc921cf760cc267c46de25bcca6ad` |
 | `testAudioFile.wav` | `fce6f158bdc9bdd9a0f9e2092da3c5d4686540076177d20227b5059e9b2cf218` |
+
+`synthetic.opus` is a locally generated 0.1-second 440 Hz tone, with no
+third-party recording. Generated using FFmpeg's `sine` source at 48 kHz and
+`libopus`, with title `Synthetic Opus fixture`. SHA-256:
+`df6216e78674e2c98206a744abbdd34c39aadf29425a4b92a7d8bcc8e9cbf3cd`.
+It covers identification and title/custom-property preservation when renamed to
+`.ogg`, `.oga`, and `.spx`; it is not a general Opus conformance corpus.
+
+`info-only.wav` is a locally generated 0.1-second 440 Hz tone at 8 kHz,
+encoded as PCM s16le by FFmpeg. It starts with RIFF INFO encoder metadata and
+no ID3v2 tag. SHA-256:
+`73d5b6b95bf833e72711907be6d5d1d0d5bb80ed420396348af6d6bf4ae2109b`.
+It protects against INFO fields becoming invisible after adding ID3v2, and
+against targeted text writes stripping unrelated INFO chunks.

@@ -15,6 +15,7 @@ public struct TagLibMetadataManager {
         var device: dev_t
         var inode: ino_t
         var size: off_t
+        var linkCount: nlink_t
         var modificationTime: timespec
         var statusChangeTime: timespec
 
@@ -22,6 +23,7 @@ public struct TagLibMetadataManager {
             lhs.device == rhs.device &&
                 lhs.inode == rhs.inode &&
                 lhs.size == rhs.size &&
+                lhs.linkCount == rhs.linkCount &&
                 lhs.modificationTime.tv_sec == rhs.modificationTime.tv_sec &&
                 lhs.modificationTime.tv_nsec == rhs.modificationTime.tv_nsec &&
                 lhs.statusChangeTime.tv_sec == rhs.statusChangeTime.tv_sec &&
@@ -40,6 +42,7 @@ public struct TagLibMetadataManager {
             device: information.st_dev,
             inode: information.st_ino,
             size: information.st_size,
+            linkCount: information.st_nlink,
             modificationTime: information.st_mtimespec,
             statusChangeTime: information.st_ctimespec
         )
@@ -59,11 +62,52 @@ public struct TagLibMetadataManager {
 
     /// Runs the complete mutation and verification sequence on a sibling copy.
     /// The destination is replaced with a same-volume atomic rename only after
-    /// every pre-commit step succeeds. The file and parent directory are synced
-    /// on either side of the rename for stronger directory-entry durability.
+    /// every pre-commit step succeeds. The file is synced before rename and the
+    /// parent directory is synced afterward for stronger durability.
     nonisolated static func withAtomicFileMutation<Result>(
         at url: URL,
-        directorySync: (Int32) -> Int32 = Darwin.fsync,
+        expectedVersion: MetadataFileVersion? = nil,
+        directorySync: @escaping (Int32) -> Int32 = Darwin.fsync,
+        afterFinalValidation: @escaping () throws -> Void = {},
+        _ operation: @escaping (URL) throws -> Result
+    ) throws -> Result {
+        var result: Result?
+        var operationError: Error?
+        do {
+            try TagLibMetadataExtractor.coordinateMutation(at: url) { errorPointer in
+                do {
+                    result = try performAtomicFileMutation(
+                        at: url,
+                        expectedVersion: expectedVersion,
+                        directorySync: directorySync,
+                        afterFinalValidation: afterFinalValidation,
+                        operation
+                    )
+                    return true
+                } catch {
+                    operationError = error
+                    errorPointer?.pointee = error as NSError
+                    return false
+                }
+            }
+        } catch {
+            throw operationError ?? error
+        }
+
+        guard let result else {
+            throw operationError ?? mutationError(
+                code: 1010,
+                description: "Metadata transaction coordination failed."
+            )
+        }
+        return result
+    }
+
+    nonisolated private static func performAtomicFileMutation<Result>(
+        at url: URL,
+        expectedVersion: MetadataFileVersion?,
+        directorySync: (Int32) -> Int32,
+        afterFinalValidation: () throws -> Void,
         _ operation: (URL) throws -> Result
     ) throws -> Result {
         guard url.isFileURL else {
@@ -75,6 +119,12 @@ public struct TagLibMetadataManager {
                 code: 1003,
                 description: "Metadata mutations require an existing regular file and do not follow symbolic links."
             )
+        }
+        guard originalIdentity.linkCount == 1 else {
+            throw TagLibManagerError.hardLinkedFile
+        }
+        if let expectedVersion, expectedVersion != MetadataFileVersion(originalIdentity) {
+            throw TagLibManagerError.fileChanged
         }
 
         let values: URLResourceValues
@@ -163,11 +213,12 @@ public struct TagLibMetadataManager {
         Darwin.close(temporaryDescriptor)
 
         guard regularFileIdentity(at: url) == originalIdentity else {
-            throw mutationError(
-                code: 1005,
-                description: "The metadata destination changed before the transaction could commit."
-            )
+            throw TagLibManagerError.fileChanged
         }
+
+        // Internal test seam for the check/rename interval. Production callers
+        // never supply work here; same-entry coordination still owns the lock.
+        try afterFinalValidation()
 
         let directoryDescriptor = directory.path.withCString { directoryPath in
             Darwin.open(directoryPath, O_RDONLY | O_DIRECTORY)
@@ -209,6 +260,10 @@ public struct TagLibMetadataManager {
     }
 
     nonisolated static let hiddenInternalRawFieldKeys: Set<String> = [
+        "TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+        "TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
+        "----:COM.APPLE.ITUNES:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+        "----:COM.APPLE.ITUNES:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
         "AUDIOMATOR_TRACKNUMBER_TEXT",
         "AUDIOMATOR_DISCNUMBER_TEXT",
         "----:COM.APPLE.ITUNES:AUDIOMATOR_TRACKNUMBER_TEXT",
@@ -293,6 +348,7 @@ public struct TagLibMetadataManager {
     }
 
     public enum VerificationFailurePolicy: Sendable {
+        @available(*, deprecated, message: "Verification mismatches now always throw before commit; use .throw.")
         case warn
         case `throw`
     }

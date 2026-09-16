@@ -449,7 +449,7 @@ extension TagLibMetadataManager {
         includeProperties: Bool = false,
         replacingCollections: Set<StructuredMetadataReplaceableCollection> = [],
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {

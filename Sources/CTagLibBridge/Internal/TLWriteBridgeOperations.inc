@@ -29,17 +29,17 @@
     }
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
-    AudioMatorMetadataContainerMask containers = ContainerMaskForFormat(format);
-    bool isMPEG = format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC;
-    bool isAAC = format == AudioMatorTagFileFormatMPEGAAC;
-    bool isMP4Like = format == AudioMatorTagFileFormatMP4;
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
+    TLMetadataContainerMask containers = ContainerMaskForFormat(format);
+    bool isMPEG = format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC;
+    bool isAAC = format == TLTagFileFormatMPEGAAC;
+    bool isMP4Like = format == TLTagFileFormatMP4;
 
-    if (!IsWritableTagFileFormat(format) || containers == AudioMatorMetadataContainerNone) {
+    if (!IsWritableTagFileFormat(format) || containers == TLMetadataContainerNone) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:11
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing metadata is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support metadata writes." }];
         }
         TLog(@"Write skipped for '%@' (extension '%@' not supported for writing)", fileURL.lastPathComponent, ext);
         return NO;
@@ -150,11 +150,7 @@
                 );
                 SetID3v2TextFrame(id3v2Tag, "TPOS", discString);
 
-                NSString *releaseDate = metadata.releaseDate.length > 0 ? metadata.releaseDate : metadata.year;
-                NSString *id3v2Year = metadata.year.length > 0
-                    ? metadata.year
-                    : (releaseDate.length >= 4 ? [releaseDate substringToIndex:4] : nil);
-                SetID3v2TextFrame(id3v2Tag, "TYER", id3v2Year);
+                SetID3v2TextFrame(id3v2Tag, "TYER", metadata.year);
 
                 // Explicit advisory (absent = unspecified, 1 = explicit, 2 = clean).
                 SetID3v2UserTextFrame(id3v2Tag, "ITUNESADVISORY", SerializedExplicitAdvisory(metadata));
@@ -207,16 +203,43 @@
             return NO;
         }
 
-        const bool hadTrackNumberFormatting =
-            tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey);
-        const bool hadDiscNumberFormatting =
-            tag->itemMap().contains(kAudioMatorMP4DiscNumberTextKey);
+        const bool hadNeutralTrackNumberFormatting =
+            tag->itemMap().contains(kTagLibAudioMetadataMP4TrackNumberTextKey);
+        const bool hadLegacyTrackNumberFormatting =
+            tag->itemMap().contains(kLegacyAudioMatorMP4TrackNumberTextKey);
+        const bool hadNeutralDiscNumberFormatting =
+            tag->itemMap().contains(kTagLibAudioMetadataMP4DiscNumberTextKey);
+        const bool hadLegacyDiscNumberFormatting =
+            tag->itemMap().contains(kLegacyAudioMatorMP4DiscNumberTextKey);
+        const bool hadTrackNumberFormatting = hadNeutralTrackNumberFormatting || hadLegacyTrackNumberFormatting;
+        const bool hadDiscNumberFormatting = hadNeutralDiscNumberFormatting || hadLegacyDiscNumberFormatting;
         NSString *existingTrackNumberFormatting = hadTrackNumberFormatting
-            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4TrackNumberTextKey)
+            ? MP4TextItemValue(
+                tag->itemMap(),
+                hadNeutralTrackNumberFormatting
+                    ? kTagLibAudioMetadataMP4TrackNumberTextKey
+                    : kLegacyAudioMatorMP4TrackNumberTextKey
+            )
             : nil;
         NSString *existingDiscNumberFormatting = hadDiscNumberFormatting
-            ? MP4TextItemValue(tag->itemMap(), kAudioMatorMP4DiscNumberTextKey)
+            ? MP4TextItemValue(
+                tag->itemMap(),
+                hadNeutralDiscNumberFormatting
+                    ? kTagLibAudioMetadataMP4DiscNumberTextKey
+                    : kLegacyAudioMatorMP4DiscNumberTextKey
+            )
             : nil;
+        const TagLib::MP4::Item::IntPair originalTrackPair = tag->itemMap().contains("trkn")
+            ? tag->itemMap()["trkn"].toIntPair()
+            : TagLib::MP4::Item::IntPair(0, 0);
+        const TagLib::MP4::Item::IntPair originalDiscPair = tag->itemMap().contains("disk")
+            ? tag->itemMap()["disk"].toIntPair()
+            : TagLib::MP4::Item::IntPair(0, 0);
+        const bool trackPairChanged = originalTrackPair.first != metadata.trackNumber ||
+            originalTrackPair.second != metadata.totalTracks;
+        const bool discPairChanged = originalDiscPair.first != metadata.discNumber ||
+            originalDiscPair.second != metadata.totalDiscs;
+        RemoveRecognizedMP4NumberPairFreeformItems(tag, true, true);
 
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
         tag->setTitle(NSStringToTagString(metadata.title));
@@ -242,10 +265,11 @@
         ApplyWritableTextMappingsToMP4Tag(tag, metadata);
         SetMP4TextItem(tag, "\xA9" "lyr", metadata.lyrics);
 
-        if (hadTrackNumberFormatting) {
+        if (hadTrackNumberFormatting && trackPairChanged) {
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
             SetMP4TextItem(
                 tag,
-                kAudioMatorMP4TrackNumberTextKey,
+                kTagLibAudioMetadataMP4TrackNumberTextKey,
                 BuildSynchronizedNumberTextPreservingFormatting(
                     existingTrackNumberFormatting,
                     metadata.trackNumber,
@@ -253,10 +277,11 @@
                 )
             );
         }
-        if (hadDiscNumberFormatting) {
+        if (hadDiscNumberFormatting && discPairChanged) {
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
             SetMP4TextItem(
                 tag,
-                kAudioMatorMP4DiscNumberTextKey,
+                kTagLibAudioMetadataMP4DiscNumberTextKey,
                 BuildSynchronizedNumberTextPreservingFormatting(
                     existingDiscNumberFormatting,
                     metadata.discNumber,
@@ -303,7 +328,7 @@
             TLog(@"TagLib save() failed for MP4 '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatFLAC) {
+    } else if (format == TLTagFileFormatFLAC) {
         TagLib::FLAC::File flacFile(filePath);
 
         if (!flacFile.isValid()) {
@@ -337,7 +362,7 @@
             TLog(@"TagLib save() failed for FLAC '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatOggVorbis) {
+    } else if (format == TLTagFileFormatOggVorbis) {
         TagLib::Ogg::Vorbis::File vorbisFile(filePath);
 
         if (!vorbisFile.isValid()) {
@@ -371,7 +396,7 @@
             TLog(@"TagLib save() failed for Ogg Vorbis '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatOggOpus) {
+    } else if (format == TLTagFileFormatOggOpus) {
         TagLib::Ogg::Opus::File opusFile(filePath);
 
         if (!opusFile.isValid()) {
@@ -405,7 +430,7 @@
             TLog(@"TagLib save() failed for Opus '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatOggFlac) {
+    } else if (format == TLTagFileFormatOggFlac) {
         TagLib::Ogg::FLAC::File oggFlacFile(filePath);
 
         if (!oggFlacFile.isValid()) {
@@ -439,7 +464,7 @@
             TLog(@"TagLib save() failed for Ogg FLAC '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatOggSpeex) {
+    } else if (format == TLTagFileFormatOggSpeex) {
         TagLib::Ogg::Speex::File speexFile(filePath);
 
         if (!speexFile.isValid()) {
@@ -473,7 +498,7 @@
             TLog(@"TagLib save() failed for Speex '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatAPE) {
+    } else if (format == TLTagFileFormatAPE) {
         TagLib::APE::File apeFile(filePath);
 
         if (!apeFile.isValid()) {
@@ -507,7 +532,7 @@
             TLog(@"TagLib save() failed for APE '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatWavPack) {
+    } else if (format == TLTagFileFormatWavPack) {
         TagLib::WavPack::File wavPackFile(filePath);
 
         if (!wavPackFile.isValid()) {
@@ -541,7 +566,7 @@
             TLog(@"TagLib save() failed for WavPack '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatMPC) {
+    } else if (format == TLTagFileFormatMPC) {
         TagLib::MPC::File mpcFile(filePath);
 
         if (!mpcFile.isValid()) {
@@ -575,7 +600,7 @@
             TLog(@"TagLib save() failed for Musepack '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatWAV) {
+    } else if (format == TLTagFileFormatWAV) {
         TagLib::RIFF::WAV::File wavFile(filePath);
 
         if (!wavFile.isValid()) {
@@ -609,7 +634,7 @@
             TLog(@"TagLib save() failed for WAV '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatAIFF) {
+    } else if (format == TLTagFileFormatAIFF) {
         TagLib::RIFF::AIFF::File aiffFile(filePath);
 
         if (!aiffFile.isValid()) {
@@ -643,7 +668,7 @@
             TLog(@"TagLib save() failed for AIFF '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatTTA) {
+    } else if (format == TLTagFileFormatTTA) {
         TagLib::TrueAudio::File ttaFile(filePath);
 
         if (!ttaFile.isValid()) {
@@ -677,7 +702,7 @@
             TLog(@"TagLib save() failed for TrueAudio '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatASF) {
+    } else if (format == TLTagFileFormatASF) {
         TagLib::ASF::File asfFile(filePath);
 
         if (!asfFile.isValid()) {
@@ -711,7 +736,7 @@
             TLog(@"TagLib save() failed for ASF/WMA '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatDSF) {
+    } else if (format == TLTagFileFormatDSF) {
         TagLib::DSF::File dsfFile(filePath);
 
         if (!dsfFile.isValid()) {
@@ -745,7 +770,7 @@
             TLog(@"TagLib save() failed for DSF '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatDSDIFF) {
+    } else if (format == TLTagFileFormatDSDIFF) {
         TagLib::DSDIFF::File dsdiffFile(filePath);
 
         if (!dsdiffFile.isValid()) {
@@ -779,28 +804,28 @@
             TLog(@"TagLib save() failed for DSDIFF '%@'", fileURL.lastPathComponent);
             return NO;
         }
-    } else if (format == AudioMatorTagFileFormatMOD) {
+    } else if (format == TLTagFileFormatMOD) {
         return WriteGenericPropertyMapOnlyFile<TagLib::Mod::File>(
             filePath, metadata, error,
             222, @"Unable to open MOD file for writing metadata",
             223, @"TagLib failed to save metadata to MOD file",
             [NSString stringWithFormat:@"MOD '%@'", fileURL.lastPathComponent]
         );
-    } else if (format == AudioMatorTagFileFormatS3M) {
+    } else if (format == TLTagFileFormatS3M) {
         return WriteGenericPropertyMapOnlyFile<TagLib::S3M::File>(
             filePath, metadata, error,
             224, @"Unable to open S3M file for writing metadata",
             225, @"TagLib failed to save metadata to S3M file",
             [NSString stringWithFormat:@"S3M '%@'", fileURL.lastPathComponent]
         );
-    } else if (format == AudioMatorTagFileFormatIT) {
+    } else if (format == TLTagFileFormatIT) {
         return WriteGenericPropertyMapOnlyFile<TagLib::IT::File>(
             filePath, metadata, error,
             226, @"Unable to open IT file for writing metadata",
             227, @"TagLib failed to save metadata to IT file",
             [NSString stringWithFormat:@"IT '%@'", fileURL.lastPathComponent]
         );
-    } else if (format == AudioMatorTagFileFormatXM) {
+    } else if (format == TLTagFileFormatXM) {
         return WriteGenericPropertyMapOnlyFile<TagLib::XM::File>(
             filePath, metadata, error,
             228, @"Unable to open XM file for writing metadata",
@@ -811,7 +836,7 @@
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:11
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing metadata is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support metadata writes." }];
         }
         return NO;
     }
@@ -853,11 +878,11 @@
     }
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
     // Metadata wipe has a full implementation for MP3, where we can strip all supported tag types.
-    if (format == AudioMatorTagFileFormatMPEGID3) {
+    if (format == TLTagFileFormatMPEGID3) {
         TagLib::MPEG::File mpegFile(filePath);
         if (!mpegFile.isValid()) {
             if (error) {
@@ -887,7 +912,7 @@
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatMP4) {
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File mp4File(filePath);
         if (!mp4File.isValid()) {
             if (error) {
@@ -913,7 +938,7 @@
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatFLAC) {
+    if (format == TLTagFileFormatFLAC) {
         TagLib::FLAC::File flacFile(filePath);
         return StripAllTagsAndSave(flacFile,
                                    error,
@@ -924,7 +949,7 @@
                                    [NSString stringWithFormat:@"FLAC '%@'", fileURL.lastPathComponent]);
     }
 
-    if (format == AudioMatorTagFileFormatAPE) {
+    if (format == TLTagFileFormatAPE) {
         TagLib::APE::File apeFile(filePath);
         return StripAllTagsAndSave(apeFile,
                                    error,
@@ -935,7 +960,7 @@
                                    [NSString stringWithFormat:@"APE '%@'", fileURL.lastPathComponent]);
     }
 
-    if (format == AudioMatorTagFileFormatWavPack) {
+    if (format == TLTagFileFormatWavPack) {
         TagLib::WavPack::File wavPackFile(filePath);
         return StripAllTagsAndSave(wavPackFile,
                                    error,
@@ -946,7 +971,7 @@
                                    [NSString stringWithFormat:@"WavPack '%@'", fileURL.lastPathComponent]);
     }
 
-    if (format == AudioMatorTagFileFormatMPC) {
+    if (format == TLTagFileFormatMPC) {
         TagLib::MPC::File mpcFile(filePath);
         return StripAllTagsAndSave(mpcFile,
                                    error,
@@ -957,7 +982,7 @@
                                    [NSString stringWithFormat:@"Musepack '%@'", fileURL.lastPathComponent]);
     }
 
-    if (format == AudioMatorTagFileFormatWAV) {
+    if (format == TLTagFileFormatWAV) {
         TagLib::RIFF::WAV::File wavFile(filePath);
         return StripAllTagsAndSave(wavFile,
                                    error,
@@ -968,7 +993,7 @@
                                    [NSString stringWithFormat:@"WAV '%@'", fileURL.lastPathComponent]);
     }
 
-    if (format == AudioMatorTagFileFormatTTA) {
+    if (format == TLTagFileFormatTTA) {
         TagLib::TrueAudio::File ttaFile(filePath);
         return StripAllTagsAndSave(ttaFile,
                                    error,
@@ -979,7 +1004,7 @@
                                    [NSString stringWithFormat:@"TrueAudio '%@'", fileURL.lastPathComponent]);
     }
 
-    if (format == AudioMatorTagFileFormatDSDIFF) {
+    if (format == TLTagFileFormatDSDIFF) {
         TagLib::DSDIFF::File dsdiffFile(filePath);
         return StripAllTagsAndSave(dsdiffFile,
                                    error,

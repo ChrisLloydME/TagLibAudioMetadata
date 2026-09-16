@@ -1,8 +1,23 @@
 import XCTest
 @testable import TagLibAudioMetadata
+import CTagLibBridge
 
 final class FixtureMetadataRoundTripTests: XCTestCase {
     private let writableFixtures = ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav"]
+
+    func testArtworkPatchInfersContainerWithoutWeakeningPayloadVerification() throws {
+        let data = try Data(contentsOf: artworkFixtureURL())
+        for ext in ["mp3", "m4a", "flac"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(artwork: .replace([StructuredArtwork(mimeType: "image/jpeg", data: data)])), to: url
+            )
+            let artwork = try TagLibMetadataManager.readSnapshot(from: url).structured.artwork
+            XCTAssertEqual(artwork.count, 1, ext)
+            XCTAssertEqual(artwork.first?.data, data, ext)
+            XCTAssertEqual(artwork.first?.mimeType, "image/jpeg", ext)
+        }
+    }
 
     func testBasicMetadataWritesAndClearsAcrossFixtures() throws {
         for ext in writableFixtures {
@@ -358,7 +373,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         )
     }
 
-    func testVerificationFailurePolicyRollsBackOrCommitsAsRequested() throws {
+    func testVerificationFailureNeverCommitsEvenWithLegacyWarningPolicy() throws {
         let rollbackURL = try copyAudioFixture("mp3")
         let rollbackBytes = try Data(contentsOf: rollbackURL)
         let metadata = TagLibAudioMetadata()
@@ -391,14 +406,18 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: rollbackURL), rollbackBytes)
 
         let warningURL = try copyAudioFixture("mp3")
-        let result = try TagLibMetadataManager.writeTagMetadata(
+        let warningBytes = try Data(contentsOf: warningURL)
+        XCTAssertThrowsError(try TagLibMetadataManager.writeTagMetadata(
             metadata,
             to: warningURL,
             verification: mismatchedVerification,
             failurePolicy: .warn
-        )
-        XCTAssertFalse(result.warnings.isEmpty)
-        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: warningURL).title, "Written title")
+        )) { error in
+            guard case TagLibManagerError.verificationFailed = error else {
+                return XCTFail("Expected verificationFailed, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: warningURL), warningBytes)
     }
 
     func testStructuredMetadataWritesPropertiesAndContainerDataTogether() throws {
@@ -652,6 +671,93 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let result = try TagLibMetadataManager.readMetadataResult(from: url)
         XCTAssertEqual(result.releaseDate, "")
         XCTAssertEqual(result.originalReleaseDate, metadata.originalReleaseDate)
+    }
+
+    func testRecordingAndReleaseDatesRemainIndependentWhereRepresentable() throws {
+        for ext in ["mp3", "flac"] {
+            let url = try copyAudioFixture(ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [
+                    .date: .text("2020"),
+                    .releaseDate: .text("2020-05-31"),
+                ]),
+                to: url
+            )
+
+            var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2020"], ext)
+            XCTAssertEqual(snapshot.raw.values(for: "RELEASEDATE"), ["2020-05-31"], ext)
+            XCTAssertEqual(snapshot.basic.year, "2020", ext)
+            XCTAssertEqual(snapshot.basic.releaseDate, "2020-05-31", ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.date: .text("2021")]),
+                to: url
+            )
+            snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2021"], ext)
+            XCTAssertEqual(snapshot.raw.values(for: "RELEASEDATE"), ["2020-05-31"], ext)
+            XCTAssertEqual(snapshot.basic.year, "2021", ext)
+            XCTAssertEqual(snapshot.basic.releaseDate, "2020-05-31", ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.releaseDate: .remove]),
+                to: url
+            )
+            snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2021"], ext)
+            XCTAssertTrue(snapshot.raw.values(for: "RELEASEDATE").isEmpty, ext)
+            XCTAssertEqual(snapshot.basic.year, "2021", ext)
+            XCTAssertEqual(snapshot.basic.releaseDate, "", ext)
+        }
+    }
+
+    func testMP4ReleaseDateOwnsDayAtomAndRecordingDateIsExplicitlyUnsupported() throws {
+        let url = try copyAudioFixture("m4a")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.releaseDate: .text("2020-05-31")]),
+            to: url
+        )
+        var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2020-05-31"])
+        XCTAssertTrue(snapshot.raw.values(for: "RELEASEDATE").isEmpty)
+        XCTAssertEqual(snapshot.basic.releaseDate, "2020-05-31")
+        XCTAssertEqual(snapshot.basic.year, "2020", "Year remains a compatibility projection of MP4 ©day.")
+
+        let beforeUnsupportedPatch = try Data(contentsOf: url)
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.date: .text("2021")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .unsupportedFieldForFormat(field: .date, format: "mp4")
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)
+
+        var conflictingBasic = BasicMetadata.empty
+        conflictingBasic.year = "2021"
+        XCTAssertThrowsError(try TagLibMetadataManager.writeMetadataWithVerification(
+            conflictingBasic,
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .unsupportedFieldForFormat(field: .date, format: "mp4")
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.releaseDate: .remove]),
+            to: url
+        )
+        snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertTrue(snapshot.raw.values(for: "DATE").isEmpty)
+        XCTAssertEqual(snapshot.basic.releaseDate, "")
     }
 
     func testStructuredCollectionsCanRemoveTheirLastEntry() throws {
@@ -909,6 +1015,191 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testM4AFormattedNumberTextWriteUpdatesNativePairs() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [
+                .track: .integer(3),
+                .trackTotal: .integer(12),
+                .disc: .integer(1),
+                .discTotal: .integer(2),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(
+                    key: "----:com.apple.iTunes:TRACKTOTAL",
+                    type: "stringList",
+                    values: ["99"]
+                ),
+                .init(
+                    key: "----:com.apple.iTunes:DISCTOTAL",
+                    type: "stringList",
+                    values: ["88"]
+                ),
+            ]),
+            to: url,
+            failurePolicy: .throw
+        )
+        var result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.trackTotal, 12, "Native trkn must override a conflicting freeform total.")
+        XCTAssertEqual(result.discTotal, 2, "Native disk must override a conflicting freeform total.")
+
+        try TagLibMetadataManager.writeTrackNumberText(
+            "02/09",
+            discNumberText: "03/04",
+            to: url,
+            failurePolicy: .throw
+        )
+
+        result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.track, 2)
+        XCTAssertEqual(result.trackTotal, 9)
+        XCTAssertEqual(result.disc, 3)
+        XCTAssertEqual(result.discTotal, 4)
+
+        let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
+        let trackAtom = try XCTUnwrap(atoms.first { $0.key == "trkn" })
+        let discAtom = try XCTUnwrap(atoms.first { $0.key == "disk" })
+        XCTAssertEqual(trackAtom.first, 2)
+        XCTAssertEqual(trackAtom.second, 9)
+        XCTAssertEqual(discAtom.first, 3)
+        XCTAssertEqual(discAtom.second, 4)
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" }?.values,
+            ["02/09"]
+        )
+        XCTAssertEqual(
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }?.values,
+            ["03/04"]
+        )
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
+    }
+
+    func testMetadataPatchCommitsFormattedNumbersAdvisoryAndFieldsTogether() throws {
+        let url = try copyAudioFixture("m4a")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                fields: [.title: .text("Atomic patch")],
+                explicitAdvisory: .notExplicit,
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "02/09",
+                    discNumberText: "03/04"
+                )
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.title, "Atomic patch")
+        XCTAssertEqual(snapshot.basic.explicitAdvisory, .notExplicit)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "02/09")
+        XCTAssertEqual(snapshot.basic.discNumberText, "03/04")
+        XCTAssertEqual(snapshot.basic.track, 2)
+        XCTAssertEqual(snapshot.basic.trackTotal, 9)
+        XCTAssertEqual(snapshot.basic.disc, 3)
+        XCTAssertEqual(snapshot.basic.discTotal, 4)
+    }
+
+    func testMetadataPatchFormattedNumberWithoutTotalClearsExistingTotal() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.writeTrackNumberText(
+            "07/12",
+            discNumberText: "02/03",
+            to: url,
+            failurePolicy: .throw
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "7",
+                    discNumberText: "2"
+                )
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "7")
+        XCTAssertEqual(snapshot.basic.track, 7)
+        XCTAssertEqual(snapshot.basic.trackTotal, 0)
+        XCTAssertEqual(snapshot.basic.discNumberText, "2")
+        XCTAssertEqual(snapshot.basic.disc, 2)
+        XCTAssertEqual(snapshot.basic.discTotal, 0)
+    }
+
+    func testMetadataPatchAcceptsContainersThatStoreNumberAndTotalSeparately() throws {
+        let url = try copyAudioFixture("flac")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "07/12",
+                    discNumberText: "02/03"
+                )
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "07")
+        XCTAssertEqual(snapshot.basic.track, 7)
+        XCTAssertEqual(snapshot.basic.trackTotal, 12)
+        XCTAssertEqual(snapshot.basic.discNumberText, "02")
+        XCTAssertEqual(snapshot.basic.disc, 2)
+        XCTAssertEqual(snapshot.basic.discTotal, 3)
+    }
+
+    func testDirectFormattedNumberWriteAcceptsPreservedExistingTotal() throws {
+        let url = try copyAudioFixture("mp3")
+        try TagLibMetadataManager.writeTrackNumberText(
+            "01/12",
+            discNumberText: nil,
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let result = try TagLibMetadataManager.writeTrackNumberText(
+            "07",
+            discNumberText: nil,
+            to: url,
+            failurePolicy: .throw
+        )
+
+        XCTAssertTrue(result.warnings.isEmpty)
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.track, 7)
+        XCTAssertEqual(snapshot.basic.trackTotal, 12)
+    }
+
+    func testMetadataPatchRejectsCompetingFormattedAndTypedNumbersBeforeMutation() throws {
+        let url = try copyAudioFixture("m4a")
+        let originalBytes = try Data(contentsOf: url)
+
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(
+                    fields: [.track: .integer(2)],
+                    numberText: MetadataNumberTextPatch(trackNumberText: "02/09")
+                ),
+                to: url
+            )
+        ) { error in
+            guard case MetadataPatchValidationError.conflictingNumberRepresentations = error else {
+                return XCTFail("Expected conflictingNumberRepresentations, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+    }
+
     func testGenericPropertyMapMetadataPatchUsesSeparateTrackDiscFields() throws {
         for ext in ["flac", "ogg", "oga"] {
             let url = try copyAudioFixture(ext)
@@ -968,6 +1259,34 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testMetadataPatchPreservesUntouchedNumberPairComponentsAcrossGenericFormats() throws {
+        for ext in ["flac", "ogg", "oga", "wav"] {
+            let url = try copyAudioFixture(ext)
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [
+                    .track: .integer(3),
+                    .trackTotal: .integer(12),
+                    .disc: .integer(1),
+                    .discTotal: .integer(2),
+                ]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.track: .integer(5), .disc: .integer(2)]),
+                to: url,
+                failurePolicy: .throw
+            )
+
+            let result = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(result.track, 5, ext)
+            XCTAssertEqual(result.trackTotal, 12, ext)
+            XCTAssertEqual(result.disc, 2, ext)
+            XCTAssertEqual(result.discTotal, 2, ext)
+        }
+    }
+
     func testM4AOrdinaryNumberPatchDoesNotInjectPrivateFormattingAtoms() throws {
         let url = try copyAudioFixture("m4a")
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
@@ -996,7 +1315,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 4)
     }
 
-    func testM4ANumberPatchUpdatesExistingPrivateFormattingAtoms() throws {
+    func testM4ANumberPatchMigratesLegacyPrivateFormattingAtoms() throws {
         let url = try copyAudioFixture("m4a")
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(mp4Atoms: [
@@ -1017,13 +1336,15 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
         let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
         XCTAssertEqual(
-            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" }?.values,
             ["05/12"]
         )
         XCTAssertEqual(
-            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+            atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }?.values,
             ["01/4"]
         )
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
     }
 
     func testM4ABasicTitleEditDoesNotCreatePrivateNumberFormattingAtoms() throws {
@@ -1148,16 +1469,45 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, scenario.expectedTrackTotal, scenario.name)
             XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, scenario.expectedDisc, scenario.name)
             XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, scenario.expectedDiscTotal, scenario.name)
-            XCTAssertEqual(
-                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
-                [scenario.expectedTrackText],
-                scenario.name
-            )
-            XCTAssertEqual(
-                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
-                [scenario.expectedDiscText],
-                scenario.name
-            )
+            if scenario.name.hasPrefix("track") {
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" }?.values,
+                    [scenario.expectedTrackText],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") },
+                    scenario.name
+                )
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+                    ["01/02"],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT") },
+                    scenario.name
+                )
+            } else {
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }?.values,
+                    [scenario.expectedDiscText],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") },
+                    scenario.name
+                )
+                XCTAssertEqual(
+                    atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+                    ["03/12"],
+                    scenario.name
+                )
+                XCTAssertFalse(
+                    atoms.contains { $0.key.uppercased().contains("TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT") },
+                    scenario.name
+                )
+            }
         }
     }
 
@@ -1187,6 +1537,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
             ["01/02"]
         )
+        XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("TAGLIBAUDIOMETADATA_") })
     }
 
     func testMetadataPatchBooleanFalseIsDistinctFromRemoval() throws {

@@ -1,6 +1,31 @@
 import Foundation
 import CTagLibBridge
 
+/// An opaque local-file version, for optimistic edits based on a snapshot.
+/// This detects observed filesystem changes; it is not a cross-process lock or
+/// a content digest. Uncooperative external writers can still race a commit.
+public struct MetadataFileVersion: Hashable, Sendable {
+    private let device: Int64
+    private let inode: UInt64
+    private let size: Int64
+    private let links: UInt64
+    private let modifiedSeconds: Int64
+    private let modifiedNanoseconds: Int64
+    private let changedSeconds: Int64
+    private let changedNanoseconds: Int64
+
+    nonisolated init(_ identity: TagLibMetadataManager.FileIdentity) {
+        device = Int64(identity.device)
+        inode = UInt64(identity.inode)
+        size = Int64(identity.size)
+        links = UInt64(identity.linkCount)
+        modifiedSeconds = Int64(identity.modificationTime.tv_sec)
+        modifiedNanoseconds = Int64(identity.modificationTime.tv_nsec)
+        changedSeconds = Int64(identity.statusChangeTime.tv_sec)
+        changedNanoseconds = Int64(identity.statusChangeTime.tv_nsec)
+    }
+}
+
 /// A comprehensive semantic metadata snapshot for professional editing.
 ///
 /// `BasicMetadata` is a normalized convenience projection. The raw and structured
@@ -11,11 +36,13 @@ public struct MetadataSnapshot: Sendable {
     public var basic: BasicMetadata
     public var raw: RawMetadataDump
     public var structured: StructuredMetadata
+    public let fileVersion: MetadataFileVersion?
 
-    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata) {
+    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil) {
         self.basic = basic
         self.raw = raw
         self.structured = structured
+        self.fileVersion = fileVersion
     }
 }
 
@@ -95,6 +122,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case emptyText(location: String)
     case emptyValueList(location: String)
     case emptyValue(location: String, index: Int)
+    case conflictingNumberRepresentations
 
     public var errorDescription: String? {
         switch self {
@@ -121,6 +149,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(location) requires at least one value; use .remove to delete the field."
         case .emptyValue(let location, let index):
             return "\(location) contains an empty value at index \(index); use .remove to delete the field."
+        case .conflictingNumberRepresentations:
+            return "Use either formatted number text or typed track/disc fields in one patch, not both."
         }
     }
 }
@@ -131,6 +161,20 @@ public enum MetadataArtworkPatch: Hashable, Sendable {
     case removeAll
 }
 
+/// An intentional formatted track/disc edit. The track text is required because
+/// the underlying cross-container operation always establishes the track pair;
+/// `discNumberText == nil` leaves the disc pair unchanged, while an empty string
+/// removes it.
+public struct MetadataNumberTextPatch: Hashable, Sendable {
+    public var trackNumberText: String
+    public var discNumberText: String?
+
+    public init(trackNumberText: String, discNumberText: String? = nil) {
+        self.trackNumberText = trackNumberText
+        self.discNumberText = discNumberText
+    }
+}
+
 /// Only explicitly supplied semantic fields are intentionally modified.
 /// Other supported metadata is preserved where the format and TagLib representation allow it.
 public struct MetadataPatch: Hashable, Sendable {
@@ -138,28 +182,77 @@ public struct MetadataPatch: Hashable, Sendable {
     public var customFields: [String: MetadataPatchValue]
     public var explicitAdvisory: ExplicitAdvisory?
     public var artwork: MetadataArtworkPatch
+    public var numberText: MetadataNumberTextPatch?
 
     public init(
         fields: [MetadataFieldKey: MetadataPatchValue] = [:],
         customFields: [String: MetadataPatchValue] = [:],
         explicitAdvisory: ExplicitAdvisory? = nil,
-        artwork: MetadataArtworkPatch = .unchanged
+        artwork: MetadataArtworkPatch = .unchanged,
+        numberText: MetadataNumberTextPatch? = nil
     ) {
         self.fields = fields
         self.customFields = customFields
         self.explicitAdvisory = explicitAdvisory
         self.artwork = artwork
+        self.numberText = numberText
     }
 
     public var isEmpty: Bool {
-        fields.isEmpty && customFields.isEmpty && explicitAdvisory == nil && artwork == .unchanged
+        fields.isEmpty && customFields.isEmpty && explicitAdvisory == nil && artwork == .unchanged && numberText == nil
     }
 }
 
 extension TagLibMetadataManager {
+    /// Captures a regular-file version without following a final symbolic link.
+    public nonisolated static func fileVersion(at url: URL) throws -> MetadataFileVersion {
+        guard url.isFileURL, let identity = regularFileIdentity(at: url) else {
+            throw TagLibManagerError.invalidFile
+        }
+        return MetadataFileVersion(identity)
+    }
+
     private struct ValidatedMetadataPatch: Sendable {
         var fields: [MetadataFieldKey: MetadataPatchValue]
         var customFields: [String: MetadataPatchValue]
+    }
+
+    private struct SemanticPropertyStorage: Sendable {
+        var writeKey: String
+        var keysToRemove: Set<String>
+    }
+
+    nonisolated private static func propertyStorage(
+        for field: MetadataFieldKey,
+        fileExtension: String
+    ) throws -> SemanticPropertyStorage {
+        guard let schema = MetadataFieldRegistry.schema(for: field),
+              let canonicalKey = schema.propertyMapKeys.first else {
+            throw MetadataPatchValidationError.unsupportedField(field)
+        }
+
+        let capability = formatCapability(for: fileExtension)
+        let isMP4 = capability?.metadataFieldFormats.contains(.mp4) == true
+        if field == .date, isMP4 {
+            throw MetadataPatchValidationError.unsupportedFieldForFormat(
+                field: field,
+                format: capability?.identifier ?? fileExtension
+            )
+        }
+
+        if field == .releaseDate, isMP4 {
+            // TagLib exposes the native MP4 ©day atom through PropertyMap's DATE key.
+            // RELEASEDATE would create a freeform field instead of updating ©day.
+            return SemanticPropertyStorage(
+                writeKey: "DATE",
+                keysToRemove: ["DATE", "RELEASEDATE"]
+            )
+        }
+
+        return SemanticPropertyStorage(
+            writeKey: canonicalKey,
+            keysToRemove: Set(schema.propertyMapKeys)
+        )
     }
 
     nonisolated private static func validate(_ patch: MetadataPatch) throws -> ValidatedMetadataPatch {
@@ -218,17 +311,19 @@ extension TagLibMetadataManager {
 
     /// Reads all public metadata representations while rejecting concurrent file changes.
     public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
-        let identity = regularFileIdentity(at: url)
+        let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjections(from: url)
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
-        let basic = basicMetadata(fromBridgeMetadata: projections.basic, rawDump: raw)
+        let basic = basicMetadata(
+            fromBridgeMetadata: projections.basic,
+            rawDump: raw,
+            fileExtension: url.pathExtension
+        )
         let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
-        guard identity == regularFileIdentity(at: url) else {
-            throw TagLibManagerError.failedToReadWithUnderlying(
-                "The audio file changed while its metadata snapshot was being read."
-            )
+        guard version == (try? fileVersion(at: url)) else {
+            throw TagLibManagerError.fileChanged
         }
-        return MetadataSnapshot(basic: basic, raw: raw, structured: structured)
+        return MetadataSnapshot(basic: basic, raw: raw, structured: structured, fileVersion: version)
     }
 
     /// Applies only explicitly requested changes through the transactional coordinator.
@@ -236,10 +331,15 @@ extension TagLibMetadataManager {
     public nonisolated static func applyMetadataPatch(
         _ patch: MetadataPatch,
         to url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
         let validatedPatch = try validate(patch)
+        let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
+        if patch.numberText != nil, !numberPairFields.isDisjoint(with: validatedPatch.fields.keys) {
+            throw MetadataPatchValidationError.conflictingNumberRepresentations
+        }
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -249,6 +349,8 @@ extension TagLibMetadataManager {
             let requestedFields = Set(validatedPatch.fields.keys)
                 .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])
                 .union(patch.artwork == .unchanged ? [] : [.artwork])
+                .union(patch.numberText == nil ? [] : [.track, .trackTotal])
+                .union(patch.numberText?.discNumberText == nil ? [] : [.disc, .discTotal])
             if let unsupported = requestedFields
                 .filter({ !writableFields.contains($0) })
                 .sorted(by: { $0.rawValue < $1.rawValue })
@@ -260,18 +362,25 @@ extension TagLibMetadataManager {
             }
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        let structuredNumberPairFields: Set<MetadataFieldKey> = [
+            .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
+        ]
+        let fieldStorage = try validatedPatch.fields.reduce(into: [MetadataFieldKey: SemanticPropertyStorage]()) {
+            result, entry in
+            guard !structuredNumberPairFields.contains(entry.key) else { return }
+            result[entry.key] = try propertyStorage(for: entry.key, fileExtension: ext)
+        }
+
+        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let before = try readSnapshot(from: mutationURL)
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
-            let numberPairFields: Set<MetadataFieldKey> = [
-                .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
-            ]
-            let patchesNumberPair = !numberPairFields.isDisjoint(with: validatedPatch.fields.keys)
+            let patchesNumberPair = !structuredNumberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
 
             if patchesNumberPair {
-                let current = try readMetadataResult(from: mutationURL)
+                let current = before.basic
                 var track = current.track
                 var trackTotal = current.trackTotal
                 var disc = current.disc
@@ -289,51 +398,86 @@ extension TagLibMetadataManager {
 
                 if let value = validatedPatch.fields[.track] {
                     track = patchedInteger(value, current: track)
-                    expectedNumberPairs[.track] = track
                 }
                 if let value = validatedPatch.fields[.trackTotal] {
                     trackTotal = patchedInteger(value, current: trackTotal)
-                    expectedNumberPairs[.trackTotal] = trackTotal
                 }
                 if let value = validatedPatch.fields[.disc] {
                     disc = patchedInteger(value, current: disc)
-                    expectedNumberPairs[.disc] = disc
                 }
                 if let value = validatedPatch.fields[.discTotal] {
                     discTotal = patchedInteger(value, current: discTotal)
-                    expectedNumberPairs[.discTotal] = discTotal
                 }
                 if let value = validatedPatch.fields[.movementNumber] {
                     movementNumber = patchedInteger(value, current: movementNumber)
-                    expectedNumberPairs[.movementNumber] = movementNumber
                 }
                 if let value = validatedPatch.fields[.movementCount] {
                     movementCount = patchedInteger(value, current: movementCount)
+                }
+
+                let updatesTrackPair = validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil
+                let updatesDiscPair = validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil
+                let updatesMovementPair = validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil
+                if updatesTrackPair {
+                    expectedNumberPairs[.track] = track
+                    expectedNumberPairs[.trackTotal] = trackTotal
+                }
+                if updatesDiscPair {
+                    expectedNumberPairs[.disc] = disc
+                    expectedNumberPairs[.discTotal] = discTotal
+                }
+                if updatesMovementPair {
+                    expectedNumberPairs[.movementNumber] = movementNumber
                     expectedNumberPairs[.movementCount] = movementCount
                 }
 
                 try TagLibMetadataExtractor.writeNumberPairsInPlace(
                     trackNumber: track,
                     totalTracks: trackTotal,
-                    updateTrackPair: validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil,
+                    updateTrackPair: updatesTrackPair,
                     discNumber: disc,
                     totalDiscs: discTotal,
-                    updateDiscPair: validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil,
+                    updateDiscPair: updatesDiscPair,
                     movementNumber: movementNumber,
                     movementCount: movementCount,
-                    updateMovementPair: validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil,
+                    updateMovementPair: updatesMovementPair,
                     to: mutationURL
                 )
             }
 
-            for (field, value) in validatedPatch.fields where !numberPairFields.contains(field) {
-                guard let schema = MetadataFieldRegistry.schema(for: field),
-                      let canonicalKey = schema.propertyMapKeys.first else {
-                    continue
+            if let numberText = patch.numberText {
+                let trackPair = parseNumberPair(numberText.trackNumberText)
+                let discPair = numberText.discNumberText.map(parseNumberPair)
+                try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                    trackNumber: trackPair.number,
+                    totalTracks: trackPair.total,
+                    updateTrackPair: true,
+                    discNumber: discPair?.number ?? 0,
+                    totalDiscs: discPair?.total ?? 0,
+                    updateDiscPair: discPair != nil,
+                    movementNumber: 0,
+                    movementCount: 0,
+                    updateMovementPair: false,
+                    to: mutationURL
+                )
+                try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
+                    numberText.trackNumberText,
+                    discNumberText: numberText.discNumberText,
+                    to: mutationURL
+                )
+                expectedNumberPairs[.track] = trackPair.number
+                expectedNumberPairs[.trackTotal] = trackPair.total
+                if let discPair {
+                    expectedNumberPairs[.disc] = discPair.number
+                    expectedNumberPairs[.discTotal] = discPair.total
                 }
-                keysToRemove.formUnion(schema.propertyMapKeys)
+            }
+
+            for (field, value) in validatedPatch.fields where !structuredNumberPairFields.contains(field) {
+                guard let storage = fieldStorage[field] else { continue }
+                keysToRemove.formUnion(storage.keysToRemove)
                 if !value.propertyMapValues.isEmpty {
-                    propertyValues[canonicalKey] = value.propertyMapValues
+                    propertyValues[storage.writeKey] = value.propertyMapValues
                 }
             }
 
@@ -384,13 +528,9 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
-            let extractionOptions: MetadataExtractionOptions = switch patch.artwork {
-            case .unchanged: [.basic, .propertyMap]
-            case .replace, .removeAll: .all
-            }
             let projections = try bridgeMetadataProjectionDictionary(
                 from: mutationURL,
-                options: extractionOptions
+                options: .all
             )
             guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
                   let bridgeRaw = projections["raw"] as? [String: NSObject] else {
@@ -399,35 +539,56 @@ extension TagLibMetadataManager {
                 )
             }
             let afterRaw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
-            let afterBasic = basicMetadata(fromBridgeMetadata: bridgeBasic, rawDump: afterRaw)
+            let afterBasic = basicMetadata(
+                fromBridgeMetadata: bridgeBasic,
+                rawDump: afterRaw,
+                fileExtension: mutationURL.pathExtension
+            )
             let afterStructured = (projections["structured"] as? [String: NSObject]).map {
                 structuredMetadata(fromBridgeDictionary: $0)
             } ?? StructuredMetadata()
-            for (field, value) in validatedPatch.fields {
-                if let expected = expectedNumberPairs[field] {
-                    let actual = switch field {
-                    case .track: afterBasic.track
-                    case .trackTotal: afterBasic.trackTotal
-                    case .disc: afterBasic.disc
-                    case .discTotal: afterBasic.discTotal
-                    case .movementNumber: afterBasic.movementNumber
-                    case .movementCount: afterBasic.movementCount
-                    default: expected
-                    }
-                    if actual != expected {
-                        warnings.append("Patched field \(field.rawValue) differs after save (expected \(expected), got \(actual)).")
-                    }
-                    continue
+            var intentionallyChangedKeys = keysToRemove
+            for field in expectedNumberPairs.keys {
+                intentionallyChangedKeys.formUnion(MetadataFieldRegistry.schema(for: field)?.propertyMapKeys ?? [])
+            }
+            if patch.explicitAdvisory != nil {
+                intentionallyChangedKeys.formUnion(["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", "RTNG"])
+            }
+            let beforeValues = exactPropertyValues(before.raw)
+            let afterValues = exactPropertyValues(afterRaw)
+            for key in Set(beforeValues.keys).union(afterValues.keys) {
+                // MP4 may expose a known field through its freeform alias.
+                let unqualified = key.hasPrefix("----:COM.APPLE.ITUNES:")
+                    ? String(key.dropFirst("----:COM.APPLE.ITUNES:".count)) : key
+                guard !intentionallyChangedKeys.contains(unqualified) else { continue }
+                if beforeValues[key] != afterValues[key] {
+                    warnings.append("Unedited PropertyMap field \(key) changed during the patch.")
                 }
-                guard let schema = MetadataFieldRegistry.schema(for: field),
-                      let key = schema.propertyMapKeys.first else { continue }
-                let actual = afterRaw.properties.first { entry in
-                    schema.propertyMapKeys.contains { alias in
-                        alias.caseInsensitiveCompare(entry.key) == .orderedSame
-                    }
+            }
+            if patch.artwork == .unchanged, before.structured.artwork != afterStructured.artwork {
+                warnings.append("Unedited artwork changed during the patch.")
+            }
+            for (field, expected) in expectedNumberPairs {
+                let actual = switch field {
+                case .track: afterBasic.track
+                case .trackTotal: afterBasic.trackTotal
+                case .disc: afterBasic.disc
+                case .discTotal: afterBasic.discTotal
+                case .movementNumber: afterBasic.movementNumber
+                case .movementCount: afterBasic.movementCount
+                default: expected
+                }
+                if actual != expected {
+                    warnings.append("Patched field \(field.rawValue) differs after save (expected \(expected), got \(actual)).")
+                }
+            }
+            for (field, value) in validatedPatch.fields where expectedNumberPairs[field] == nil {
+                guard let storage = fieldStorage[field] else { continue }
+                let actual = afterRaw.properties.first {
+                    storage.writeKey.caseInsensitiveCompare($0.key) == .orderedSame
                 }?.values ?? []
                 if actual != value.propertyMapValues {
-                    warnings.append("Patched field \(key) differs after save.")
+                    warnings.append("Patched field \(storage.writeKey) differs after save.")
                 }
             }
             for (key, value) in validatedPatch.customFields {
@@ -441,10 +602,31 @@ extension TagLibMetadataManager {
             if let advisory = patch.explicitAdvisory, afterBasic.explicitAdvisory != advisory {
                 warnings.append("Patched explicit advisory differs after save.")
             }
+            if let numberText = patch.numberText {
+                let expectedTrackText = numberText.trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let expectedTrackPair = parseNumberPair(expectedTrackText)
+                let trackPairStoredAcrossFields = afterBasic.track == expectedTrackPair.number &&
+                    afterBasic.trackTotal == expectedTrackPair.total
+                if afterBasic.trackNumberText != expectedTrackText && !trackPairStoredAcrossFields {
+                    warnings.append("Patched track number text differs after save.")
+                }
+                if let discNumberText = numberText.discNumberText {
+                    let expectedDiscText = discNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let expectedDiscPair = parseNumberPair(expectedDiscText)
+                    let discPairStoredAcrossFields = afterBasic.disc == expectedDiscPair.number &&
+                        afterBasic.discTotal == expectedDiscPair.total
+                    if afterBasic.discNumberText != expectedDiscText && !discPairStoredAcrossFields {
+                        warnings.append("Patched disc number text differs after save.")
+                    }
+                }
+            }
             switch patch.artwork {
             case .unchanged: break
-            case .replace(let expected) where expected != afterStructured.artwork:
-                warnings.append("Patched artwork differs after save.")
+            case .replace(let expected):
+                if expected.count != afterStructured.artwork.count ||
+                    !zip(expected, afterStructured.artwork).allSatisfy({ structuredArtworkMatches($0, $1) }) {
+                    warnings.append("Patched artwork differs after save.")
+                }
             case .removeAll where !afterStructured.artwork.isEmpty:
                 warnings.append("Patched artwork removal could not be confirmed.")
             default: break

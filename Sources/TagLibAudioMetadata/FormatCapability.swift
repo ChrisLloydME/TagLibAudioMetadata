@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CTagLibBridge
 
 public enum StructuredMetadataSupport: String, Hashable, Sendable {
     case none
@@ -11,9 +12,12 @@ public enum StructuredMetadataSupport: String, Hashable, Sendable {
     case container
 }
 
-/// Describes how confidently this package can promise support for a format.
+/// Configured implementation/fixture coverage, not a runtime or release verdict.
 public enum FormatSupportLevel: String, Hashable, Sendable {
-    /// Covered by package fixtures and read/write regression tests.
+    /// The repository includes a fixture and regression tests for this extension.
+    /// This does not assert that all metadata surfaces or files are verified.
+    case fixtureCovered
+    @available(*, deprecated, message: "Use fixtureCovered. A configured support label is not empirical verification.")
     case verified
     /// Available for evaluation, but container-specific field behavior is incomplete.
     case experimental
@@ -70,6 +74,7 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
 
     public func readSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
         guard isReadable,
+              !(field == .date && metadataFieldFormats.contains(.mp4)),
               let schema = MetadataFieldRegistry.schema(for: field),
               readableFields?.contains(field) != false,
               schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),
@@ -80,6 +85,7 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
 
     public func writeSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
         guard isWritable,
+              !(field == .date && metadataFieldFormats.contains(.mp4)),
               let schema = MetadataFieldRegistry.schema(for: field),
               writableFields?.contains(field) != false,
               schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),

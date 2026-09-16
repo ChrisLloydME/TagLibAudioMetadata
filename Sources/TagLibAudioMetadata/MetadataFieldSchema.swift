@@ -230,8 +230,8 @@ public enum MetadataFieldRegistry {
         schema(.artist, "Artist", .people, ["ARTIST", "ARTISTS"], id3: ["TPE1"], mp4: ["\u{00A9}ART"], multi: true, people: true),
         schema(.album, "Album", .basic, ["ALBUM"], id3: ["TALB"], mp4: ["\u{00A9}alb"]),
         schema(.albumArtist, "Album Artist", .people, ["ALBUMARTIST", "ALBUM ARTIST"], id3: ["TPE2"], mp4: ["aART"], multi: true, people: true),
-        schema(.date, "Date", .dates, ["DATE", "YEAR"], id3: ["TDRC", "TYER"], mp4: ["\u{00A9}day"]),
-        schema(.releaseDate, "Release Date", .dates, ["RELEASEDATE", "DATE"], id3: ["TDRC", "TDRL"], mp4: ["\u{00A9}day"]),
+        schema(.date, "Recording Date", .dates, ["DATE", "YEAR"], id3: ["TDRC", "TYER"]),
+        schema(.releaseDate, "Release Date", .dates, ["RELEASEDATE"], id3: ["TDRL"], mp4: ["\u{00A9}day"]),
         schema(.originalReleaseDate, "Original Release Date", .dates, ["ORIGINALDATE", "ORIGINAL YEAR"], id3: ["TDOR"], mp4Freeform: ["ORIGINAL YEAR"]),
         schema(.track, "Track Number", .numbering, ["TRACKNUMBER", "TRACK"], id3: ["TRCK"], mp4: ["trkn"]),
         schema(.trackTotal, "Track Total", .numbering, ["TRACKTOTAL", "TOTALTRACKS"], id3: ["TRCK"], mp4: ["trkn"]),
@@ -342,6 +342,22 @@ public enum MetadataFieldRegistry {
     public nonisolated static let peoplePropertyMapKeys: Set<String> =
         Set(allSchemas.filter(\.isPeopleField).flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
 
+    /// Property-map keys with intentionally composite semantic ownership.
+    public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [:]
+
+    /// The explicit owner used by scalar lookup when a storage key is shared.
+    public nonisolated static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey] = [:]
+
+    public nonisolated static let propertyMapKeyOwners: [String: Set<MetadataFieldKey>] = {
+        var result: [String: Set<MetadataFieldKey>] = [:]
+        for schema in allSchemas {
+            for key in schema.propertyMapKeys {
+                result[normalizePropertyMapKey(key), default: []].insert(schema.key)
+            }
+        }
+        return result
+    }()
+
     public nonisolated static func schema(for key: MetadataFieldKey) -> MetadataFieldSchema? {
         schemasByKey[key]
     }
@@ -351,9 +367,9 @@ public enum MetadataFieldRegistry {
         if normalized.hasPrefix("PERFORMER:") {
             return schemasByKey[.performer]
         }
-        return allSchemas.first { schema in
-            schema.propertyMapKeys.map(normalizePropertyMapKey).contains(normalized)
-        }
+        guard let owners = propertyMapKeyOwners[normalized] else { return nil }
+        let owner = owners.count == 1 ? owners.first : preferredSharedPropertyMapKeyOwner[normalized]
+        return owner.flatMap { schemasByKey[$0] }
     }
 
 

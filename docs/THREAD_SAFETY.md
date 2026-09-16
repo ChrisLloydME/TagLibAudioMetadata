@@ -41,8 +41,8 @@ swift test --sanitize=address
 swift test --sanitize=thread
 ```
 
-The current 94-test suite passes both commands and includes concurrent
-cross-format reads and writes plus repeated M4A stress. These commands instrument
-the Swift and Objective-C++ targets. The distributed Release XCFramework is
-precompiled and is not internally sanitizer-instrumented; fully instrumented
-upstream diagnosis requires a separate diagnostic TagLib build.
+The sanitizer matrix includes concurrent cross-format reads and writes plus
+repeated M4A stress. These commands instrument the Swift and Objective-C++
+targets. The distributed Release XCFramework is precompiled and is not
+internally sanitizer-instrumented; fully instrumented upstream diagnosis
+requires a separate diagnostic TagLib build.

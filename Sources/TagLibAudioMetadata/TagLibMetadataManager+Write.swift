@@ -7,6 +7,24 @@ import Foundation
 import CTagLibBridge
 
 extension TagLibMetadataManager {
+    nonisolated private static func validateDateStorageCompatibility(
+        year: String?,
+        releaseDate: String?,
+        for url: URL
+    ) throws {
+        guard formatCapability(for: url.pathExtension)?.metadataFieldFormats.contains(.mp4) == true else {
+            return
+        }
+
+        let normalizedYear = normalizedTrimmed(year)
+        guard !normalizedYear.isEmpty else { return }
+        let normalizedReleaseDate = normalizedTrimmed(releaseDate)
+        let projectedReleaseYear = String(normalizedReleaseDate.prefix(4))
+        guard !normalizedReleaseDate.isEmpty, normalizedYear == projectedReleaseYear else {
+            throw MetadataPatchValidationError.unsupportedFieldForFormat(field: .date, format: "mp4")
+        }
+    }
+
     nonisolated private static func basicProjectionValue(
         for field: MetadataFieldKey,
         metadata: BasicMetadata
@@ -33,12 +51,17 @@ extension TagLibMetadataManager {
         _ metadata: TagLibAudioMetadata,
         to url: URL,
         verification: MetadataWriteVerificationContext = .none,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
+        try validateDateStorageCompatibility(
+            year: metadata.year,
+            releaseDate: metadata.releaseDate,
+            for: url
+        )
 
         return try withAtomicFileMutation(at: url) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
@@ -56,14 +79,16 @@ extension TagLibMetadataManager {
         discNumberText: String?,
         to url: URL,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw,
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let beforeWrite = verifyAfterWrite ? try readMetadataResult(from: mutationURL) : nil
             try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
                 discNumberText: discNumberText,
@@ -76,16 +101,18 @@ extension TagLibMetadataManager {
 
             let expectedTrackPair = parseNumberPair(trackNumberText)
             let expectedDiscPair = parseNumberPair(normalizedTrimmed(discNumberText))
+            let verifiesExactTrackText = expectedTrackPair.total > 0 || (beforeWrite?.trackTotal ?? 0) == 0
+            let verifiesExactDiscText = expectedDiscPair.total > 0 || (beforeWrite?.discTotal ?? 0) == 0
 
             let warnings = metadataWriteWarnings(
                 for: mutationURL,
                 verification: MetadataWriteVerificationContext(
                     expectedTrackNumber: expectedTrackPair.number > 0 ? expectedTrackPair.number : nil,
                     expectedTrackTotal: expectedTrackPair.total > 0 ? expectedTrackPair.total : nil,
-                    expectedTrackNumberText: trackNumberText,
+                    expectedTrackNumberText: verifiesExactTrackText ? trackNumberText : nil,
                     expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
                     expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
-                    expectedDiscNumberText: discNumberText,
+                    expectedDiscNumberText: verifiesExactDiscText ? discNumberText : nil,
                     expectedExplicitContent: nil,
                     artworkExpectation: .unchanged,
                     customFieldKeys: []
@@ -102,7 +129,7 @@ extension TagLibMetadataManager {
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -131,7 +158,7 @@ extension TagLibMetadataManager {
         _ properties: [String: [String]],
         to url: URL,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -214,14 +241,15 @@ extension TagLibMetadataManager {
     @discardableResult
     public nonisolated static func eraseAllMetadataWithVerification(
         from url: URL,
-        failurePolicy: VerificationFailurePolicy = .warn
+        expectedVersion: MetadataFileVersion? = nil,
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try eraseAllMetadataInPlaceWithVerification(
                 from: mutationURL,
                 failurePolicy: failurePolicy
@@ -329,12 +357,17 @@ extension TagLibMetadataManager {
     public nonisolated static func writeMetadataWithVerification(
         _ meta: BasicMetadata,
         to url: URL,
-        failurePolicy: VerificationFailurePolicy = .warn
+        failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
+        try validateDateStorageCompatibility(
+            year: meta.year,
+            releaseDate: meta.releaseDate,
+            for: url
+        )
 
         let m = TagLibAudioMetadata()
 
@@ -587,10 +620,7 @@ extension TagLibMetadataManager {
     /// - `publisher` is mapped to TagLib's `label` field.
     @discardableResult
     public nonisolated static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool {
-        let result = try writeMetadataWithVerification(meta, to: url)
-        if !result.warnings.isEmpty {
-            print("[AudioMator] Metadata write warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
-        }
+        _ = try writeMetadataWithVerification(meta, to: url)
         return true
     }
 
@@ -605,10 +635,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        let result = try writeRawMetadataPropertyMapWithVerification(properties, to: url, mode: mode)
-        if !result.warnings.isEmpty {
-            print("[AudioMator] Raw metadata write warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
-        }
+        _ = try writeRawMetadataPropertyMapWithVerification(properties, to: url, mode: mode)
         return true
     }
 
@@ -618,10 +645,7 @@ extension TagLibMetadataManager {
     /// This should clear the common tag fields and reset numeric fields to 0.
     @discardableResult
     public nonisolated static func eraseAllMetadata(from url: URL) throws -> Bool {
-        let result = try eraseAllMetadataWithVerification(from: url)
-        if !result.warnings.isEmpty {
-            print("[AudioMator] Erase warnings for \(url.lastPathComponent): \(result.warnings.joined(separator: " | "))")
-        }
+        _ = try eraseAllMetadataWithVerification(from: url)
         return true
     }
 

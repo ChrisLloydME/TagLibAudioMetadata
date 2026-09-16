@@ -1,3 +1,31 @@
+// WAV has independent RIFF INFO and ID3v2 surfaces. TagLib's File::properties()
+// switches wholesale to ID3v2 once a tag exists, hiding unrelated INFO fields.
+// Present their union, with explicit ID3v2 values taking precedence per key.
+static TagLib::PropertyMap VisibleMetadataProperties(TagLib::File *file)
+{
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
+        TagLib::PropertyMap properties;
+        if (wav->hasInfoTag()) properties = wav->InfoTag()->properties();
+        if (wav->hasID3v2Tag()) {
+            const TagLib::PropertyMap id3 = wav->ID3v2Tag()->properties();
+            for (auto iterator = id3.begin(); iterator != id3.end(); ++iterator) {
+                properties.replace(iterator->first, iterator->second);
+            }
+        }
+        return properties;
+    }
+    return file->properties();
+}
+
+static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
+{
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
+        // WAV's default save may strip INFO while writing ID3v2.
+        return wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
+    }
+    return file->save();
+}
+
 static NSString* _Nullable TagStringToNSString(const TagLib::String& str) {
     if (str.isEmpty()) {
         return nil;
@@ -269,7 +297,7 @@ static NSSet<NSString *> *KnownMetadataFieldKeys()
 {
     static NSSet<NSString *> *keys = [] {
         NSMutableSet<NSString *> *mappedKeys = [NSMutableSet set];
-        for (const auto &mapping : kAudioMatorMetadataFieldMappings) {
+        for (const auto &mapping : kMetadataFieldMappings) {
             if (mapping.canonicalPropertyKey) {
                 [mappedKeys addObject:@(mapping.canonicalPropertyKey)];
             }
@@ -283,6 +311,7 @@ static NSSet<NSString *> *KnownMetadataFieldKeys()
         @"TITLE", @"ARTIST", @"ARTISTS", @"ALBUM", @"COMMENT", @"GENRE", @"COMPOSER", @"ALBUMARTIST",
         @"DATE", @"YEAR", @"RELEASEDATE", @"ORIGINALDATE", @"ORIGINAL YEAR",
         @"TRACKNUMBER", @"TRACK", @"TRACKTOTAL", @"TOTALTRACKS", @"DISCNUMBER", @"DISC", @"DISCTOTAL", @"TOTALDISCS",
+        @"TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT", @"TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
         @"AUDIOMATOR_TRACKNUMBER_TEXT", @"AUDIOMATOR_DISCNUMBER_TEXT",
         @"COPYRIGHT", @"LYRICS", @"LABEL", @"ISRC", @"ENCODEDBY", @"ENCODING", @"ENCODERSETTINGS",
         @"TITLESORT", @"ARTISTSORT", @"ALBUMSORT", @"ALBUMARTISTSORT", @"COMPOSERSORT",
@@ -356,8 +385,12 @@ static NSString * _Nullable PreferredNumberText(NSString * _Nullable currentValu
 
 // Internal-only MP4 freeform atoms used to preserve the user's exact track/disc text
 // (for example "01/10") across formats that otherwise normalize numeric pairs.
-static constexpr const char *kAudioMatorMP4TrackNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT";
-static constexpr const char *kAudioMatorMP4DiscNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT";
+// Legacy AudioMator keys remain readable and are migrated only when the relevant
+// number pair is modified.
+static constexpr const char *kTagLibAudioMetadataMP4TrackNumberTextKey = "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT";
+static constexpr const char *kTagLibAudioMetadataMP4DiscNumberTextKey = "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT";
+static constexpr const char *kLegacyAudioMatorMP4TrackNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT";
+static constexpr const char *kLegacyAudioMatorMP4DiscNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT";
 
 static bool IsMP4LikeExtension(NSString * _Nullable ext);
 
@@ -371,14 +404,15 @@ typedef struct {
     bool multiValue;
     bool peopleField;
     bool roleQualified;
-} AudioMatorMetadataFieldMapping;
+} TLMetadataFieldMapping;
 
-static const AudioMatorMetadataFieldMapping kAudioMatorMetadataFieldMappings[] = {
+static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "TITLE", { nullptr }, "TIT2", nullptr, "\xA9" "nam", nullptr, false, false, false },
     { "ARTIST", { "ARTISTS", nullptr }, "TPE1", nullptr, "\xA9" "ART", nullptr, true, true, false },
     { "ALBUM", { nullptr }, "TALB", nullptr, "\xA9" "alb", nullptr, false, false, false },
     { "ALBUMARTIST", { "ALBUM ARTIST", nullptr }, "TPE2", nullptr, "aART", nullptr, true, true, false },
-    { "DATE", { "YEAR", "RELEASEDATE", nullptr }, "TDRC", nullptr, "\xA9" "day", nullptr, false, false, false },
+    { "DATE", { "YEAR", nullptr }, "TDRC", nullptr, nullptr, nullptr, false, false, false },
+    { "RELEASEDATE", { nullptr }, "TDRL", nullptr, "\xA9" "day", nullptr, false, false, false },
     { "ORIGINALDATE", { "ORIGINAL YEAR", nullptr }, "TDOR", nullptr, nullptr, "ORIGINAL YEAR", false, false, false },
     { "TRACKNUMBER", { "TRACK", nullptr }, "TRCK", nullptr, "trkn", nullptr, false, false, false },
     { "TRACKTOTAL", { "TOTALTRACKS", nullptr }, "TRCK", nullptr, "trkn", nullptr, false, false, false },
@@ -452,43 +486,43 @@ static const AudioMatorMetadataFieldMapping kAudioMatorMetadataFieldMappings[] =
     { "ORIGINALARTIST", { nullptr }, "TOPE", nullptr, nullptr, "ORIGINALARTIST", true, true, false },
 };
 
-typedef NS_ENUM(NSInteger, AudioMatorTagFileFormat) {
-    AudioMatorTagFileFormatUnknown = 0,
-    AudioMatorTagFileFormatMPEGID3,
-    AudioMatorTagFileFormatMPEGAAC,
-    AudioMatorTagFileFormatMP4,
-    AudioMatorTagFileFormatFLAC,
-    AudioMatorTagFileFormatOggVorbis,
-    AudioMatorTagFileFormatOggOpus,
-    AudioMatorTagFileFormatOggFlac,
-    AudioMatorTagFileFormatOggSpeex,
-    AudioMatorTagFileFormatAPE,
-    AudioMatorTagFileFormatWavPack,
-    AudioMatorTagFileFormatMPC,
-    AudioMatorTagFileFormatWAV,
-    AudioMatorTagFileFormatAIFF,
-    AudioMatorTagFileFormatTTA,
-    AudioMatorTagFileFormatASF,
-    AudioMatorTagFileFormatDSF,
-    AudioMatorTagFileFormatDSDIFF,
-    AudioMatorTagFileFormatShorten,
-    AudioMatorTagFileFormatMOD,
-    AudioMatorTagFileFormatS3M,
-    AudioMatorTagFileFormatIT,
-    AudioMatorTagFileFormatXM,
+typedef NS_ENUM(NSInteger, TLTagFileFormat) {
+    TLTagFileFormatUnknown = 0,
+    TLTagFileFormatMPEGID3,
+    TLTagFileFormatMPEGAAC,
+    TLTagFileFormatMP4,
+    TLTagFileFormatFLAC,
+    TLTagFileFormatOggVorbis,
+    TLTagFileFormatOggOpus,
+    TLTagFileFormatOggFlac,
+    TLTagFileFormatOggSpeex,
+    TLTagFileFormatAPE,
+    TLTagFileFormatWavPack,
+    TLTagFileFormatMPC,
+    TLTagFileFormatWAV,
+    TLTagFileFormatAIFF,
+    TLTagFileFormatTTA,
+    TLTagFileFormatASF,
+    TLTagFileFormatDSF,
+    TLTagFileFormatDSDIFF,
+    TLTagFileFormatShorten,
+    TLTagFileFormatMOD,
+    TLTagFileFormatS3M,
+    TLTagFileFormatIT,
+    TLTagFileFormatXM,
 };
 
-typedef NS_OPTIONS(NSUInteger, AudioMatorMetadataContainerMask) {
-    AudioMatorMetadataContainerNone = 0,
-    AudioMatorMetadataContainerTag = 1 << 0,
-    AudioMatorMetadataContainerPropertyMap = 1 << 1,
-    AudioMatorMetadataContainerID3v1 = 1 << 2,
-    AudioMatorMetadataContainerID3v2 = 1 << 3,
-    AudioMatorMetadataContainerAPE = 1 << 4,
-    AudioMatorMetadataContainerMP4ItemMap = 1 << 5,
-    AudioMatorMetadataContainerXiph = 1 << 6,
-    AudioMatorMetadataContainerASF = 1 << 7,
-    AudioMatorMetadataContainerRIFFInfo = 1 << 8,
+typedef NS_OPTIONS(NSUInteger, TLMetadataContainerMask) {
+    TLMetadataContainerNone = 0,
+    TLMetadataContainerTag = 1 << 0,
+    TLMetadataContainerPropertyMap = 1 << 1,
+    TLMetadataContainerID3v1 = 1 << 2,
+    TLMetadataContainerID3v2 = 1 << 3,
+    TLMetadataContainerAPE = 1 << 4,
+    TLMetadataContainerMP4ItemMap = 1 << 5,
+    TLMetadataContainerXiph = 1 << 6,
+    TLMetadataContainerASF = 1 << 7,
+    TLMetadataContainerRIFFInfo = 1 << 8,
 };
 
 static const char *kMPEGID3Extensions[] = { "mp3", "mp2", nullptr };
@@ -514,8 +548,8 @@ static const char *kS3MExtensions[] = { "s3m", nullptr };
 static const char *kITExtensions[] = { "it", nullptr };
 static const char *kXMExtensions[] = { "xm", nullptr };
 
-struct AudioMatorFormatCapabilityDescriptor {
-    AudioMatorTagFileFormat format;
+struct TLFormatCapabilityDescriptor {
+    TLTagFileFormat format;
     const char *identifier;
     const char *displayName;
     const char *codecName;
@@ -529,32 +563,32 @@ struct AudioMatorFormatCapabilityDescriptor {
     const char *notes;
 };
 
-static const AudioMatorFormatCapabilityDescriptor kFormatCapabilityDescriptors[] = {
-    { AudioMatorTagFileFormatMPEGID3, "mpeg-id3", "MPEG Audio / ID3", "MP3/MP2", kMPEGID3Extensions, "container", "container", true, true, false, nullptr, "ID3v2 is the preferred rich metadata container; ID3v1 is treated as a low-fidelity fallback." },
-    { AudioMatorTagFileFormatMPEGAAC, "mpeg-aac", "Raw AAC", "AAC", kMPEGAACExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "Raw AAC uses the generic TagLib PropertyMap path for textual metadata." },
-    { AudioMatorTagFileFormatMP4, "mp4", "MP4 / MPEG-4 Audio", "AAC/MP4", kMP4Extensions, "container", "container", true, true, false, nullptr, "MP4 atoms and iTunes freeform atoms are exposed for structured editing." },
-    { AudioMatorTagFileFormatFLAC, "flac", "FLAC", "FLAC", kFLACExtensions, "container", "propertyMap", true, true, true, nullptr, "Structured reads expose FLAC pictures; structured writes fall back to PropertyMap values unless artwork is written through the basic API." },
-    { AudioMatorTagFileFormatOggVorbis, "ogg-vorbis", "Ogg Vorbis", "Vorbis", kOggVorbisExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
-    { AudioMatorTagFileFormatOggOpus, "ogg-opus", "Ogg Opus", "Opus", kOggOpusExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
-    { AudioMatorTagFileFormatOggFlac, "ogg-flac", "Ogg FLAC", "Ogg FLAC", kOggFlacExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
-    { AudioMatorTagFileFormatOggSpeex, "ogg-speex", "Ogg Speex", "Speex", kOggSpeexExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
-    { AudioMatorTagFileFormatAPE, "ape", "Monkey's Audio", "APE", kAPEExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
-    { AudioMatorTagFileFormatWavPack, "wavpack", "WavPack", "WavPack", kWavPackExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
-    { AudioMatorTagFileFormatMPC, "musepack", "Musepack", "Musepack", kMPCExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
-    { AudioMatorTagFileFormatWAV, "wav", "WAV / RIFF", "WAV", kWAVExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2 and preserve existing RIFF INFO fields." },
-    { AudioMatorTagFileFormatAIFF, "aiff", "AIFF", "AIFF", kAIFFExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2." },
-    { AudioMatorTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "propertyMap", true, true, false, nullptr, "Structured reads expose the ID3v2 tag; structured writes are currently limited to PropertyMap values." },
-    { AudioMatorTagFileFormatASF, "asf", "ASF / WMA", "WMA", kASFExtensions, "container", "container", true, true, false, nullptr, "ASF attributes are exposed for structured editing." },
-    { AudioMatorTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
-    { AudioMatorTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSDIFF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
-    { AudioMatorTagFileFormatShorten, "shorten", "Shorten", "Shorten", kShortenExtensions, "propertyMap", "none", false, false, true, "TagLib 2.3.1 exposes Shorten metadata for reading but does not support saving it.", "Read-only format." },
-    { AudioMatorTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "none", false, false, false, "TagLib exposes MOD metadata for reading but does not support saving it.", "MOD metadata is limited to title, comment, and a format-derived tracker name." },
-    { AudioMatorTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
-    { AudioMatorTagFileFormatIT, "it", "Impulse Tracker Module", "IT", kITExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
-    { AudioMatorTagFileFormatXM, "xm", "FastTracker Module", "XM", kXMExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title, comment, and tracker name; fixed-width instrument/sample fields normalize comment text and may pad the tracker name." },
+static const TLFormatCapabilityDescriptor kFormatCapabilityDescriptors[] = {
+    { TLTagFileFormatMPEGID3, "mpeg-id3", "MPEG Audio / ID3", "MP3/MP2", kMPEGID3Extensions, "container", "container", true, true, false, nullptr, "ID3v2 is the preferred rich metadata container; ID3v1 is treated as a low-fidelity fallback." },
+    { TLTagFileFormatMPEGAAC, "mpeg-aac", "Raw AAC", "AAC", kMPEGAACExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "Raw AAC uses the generic TagLib PropertyMap path for textual metadata." },
+    { TLTagFileFormatMP4, "mp4", "MP4 / MPEG-4 Audio", "AAC/MP4", kMP4Extensions, "container", "container", true, true, false, nullptr, "MP4 atoms and iTunes freeform atoms are exposed for structured editing." },
+    { TLTagFileFormatFLAC, "flac", "FLAC", "FLAC", kFLACExtensions, "container", "propertyMap", true, true, true, nullptr, "Structured reads expose FLAC pictures; structured writes fall back to PropertyMap values unless artwork is written through the basic API." },
+    { TLTagFileFormatOggVorbis, "ogg-vorbis", "Ogg Vorbis", "Vorbis", kOggVorbisExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { TLTagFileFormatOggOpus, "ogg-opus", "Ogg Opus", "Opus", kOggOpusExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { TLTagFileFormatOggFlac, "ogg-flac", "Ogg FLAC", "Ogg FLAC", kOggFlacExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { TLTagFileFormatOggSpeex, "ogg-speex", "Ogg Speex", "Speex", kOggSpeexExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
+    { TLTagFileFormatAPE, "ape", "Monkey's Audio", "APE", kAPEExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
+    { TLTagFileFormatWavPack, "wavpack", "WavPack", "WavPack", kWavPackExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
+    { TLTagFileFormatMPC, "musepack", "Musepack", "Musepack", kMPCExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
+    { TLTagFileFormatWAV, "wav", "WAV / RIFF", "WAV", kWAVExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2 and preserve existing RIFF INFO fields." },
+    { TLTagFileFormatAIFF, "aiff", "AIFF", "AIFF", kAIFFExtensions, "container", "container", true, true, false, nullptr, "Structured writes use ID3v2." },
+    { TLTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "propertyMap", true, true, false, nullptr, "Structured reads expose the ID3v2 tag; structured writes are currently limited to PropertyMap values." },
+    { TLTagFileFormatASF, "asf", "ASF / WMA", "WMA", kASFExtensions, "container", "container", true, true, false, nullptr, "ASF attributes are exposed for structured editing." },
+    { TLTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
+    { TLTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, false, nullptr, "DSDIFF uses ID3v2 tags internally, but structured editing is currently limited to PropertyMap values." },
+    { TLTagFileFormatShorten, "shorten", "Shorten", "Shorten", kShortenExtensions, "propertyMap", "none", false, false, true, "TagLib 2.3.1 exposes Shorten metadata for reading but does not support saving it.", "Read-only format." },
+    { TLTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "none", false, false, false, "TagLib exposes MOD metadata for reading but does not support saving it.", "MOD metadata is limited to title, comment, and a format-derived tracker name." },
+    { TLTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
+    { TLTagFileFormatIT, "it", "Impulse Tracker Module", "IT", kITExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
+    { TLTagFileFormatXM, "xm", "FastTracker Module", "XM", kXMExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title, comment, and tracker name; fixed-width instrument/sample fields normalize comment text and may pad the tracker name." },
 };
 
-static bool DescriptorContainsExtension(const AudioMatorFormatCapabilityDescriptor &descriptor,
+static bool DescriptorContainsExtension(const TLFormatCapabilityDescriptor &descriptor,
                                         NSString *lowerExtension)
 {
     for (const char * const *extension = descriptor.extensions; *extension; ++extension) {
@@ -565,7 +599,7 @@ static bool DescriptorContainsExtension(const AudioMatorFormatCapabilityDescript
     return false;
 }
 
-static const AudioMatorFormatCapabilityDescriptor *DescriptorForFormat(AudioMatorTagFileFormat format)
+static const TLFormatCapabilityDescriptor *DescriptorForFormat(TLTagFileFormat format)
 {
     for (const auto &descriptor : kFormatCapabilityDescriptors) {
         if (descriptor.format == format) {
@@ -575,7 +609,7 @@ static const AudioMatorFormatCapabilityDescriptor *DescriptorForFormat(AudioMato
     return nullptr;
 }
 
-static const AudioMatorFormatCapabilityDescriptor *DescriptorForExtension(NSString * _Nullable ext)
+static const TLFormatCapabilityDescriptor *DescriptorForExtension(NSString * _Nullable ext)
 {
     if (!ext) return nullptr;
     NSString *lower = ext.lowercaseString;
@@ -587,86 +621,179 @@ static const AudioMatorFormatCapabilityDescriptor *DescriptorForExtension(NSStri
     return nullptr;
 }
 
-static AudioMatorTagFileFormat DetectTagFileFormat(NSString * _Nullable ext)
+static TLTagFileFormat DetectTagFileFormat(NSString * _Nullable ext)
 {
-    const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(ext);
-    return descriptor ? descriptor->format : AudioMatorTagFileFormatUnknown;
+    const TLFormatCapabilityDescriptor *descriptor = DescriptorForExtension(ext);
+    return descriptor ? descriptor->format : TLTagFileFormatUnknown;
 }
 
-static AudioMatorMetadataContainerMask ContainerMaskForFormat(AudioMatorTagFileFormat format)
+static bool OggPacketStartsWith(const unsigned char *packet,
+                                size_t packetLength,
+                                const unsigned char *signature,
+                                size_t signatureLength)
+{
+    return packetLength >= signatureLength &&
+        std::memcmp(packet, signature, signatureLength) == 0;
+}
+
+static TLTagFileFormat DetectOggCodecAtURL(NSURL * _Nullable fileURL, bool &isOgg)
+{
+    isOgg = false;
+    if (!fileURL || !fileURL.isFileURL) {
+        return TLTagFileFormatUnknown;
+    }
+
+    int descriptor = open(fileURL.path.fileSystemRepresentation, O_RDONLY);
+    if (descriptor < 0) {
+        return TLTagFileFormatUnknown;
+    }
+
+    // The page header and lacing table occupy at most 282 bytes. Codec
+    // signatures fit in the next eight; do not read 64 KiB for every parser.
+    unsigned char bytes[290] = {};
+    ssize_t byteCount;
+    do {
+        byteCount = read(descriptor, bytes, sizeof(bytes));
+    } while (byteCount < 0 && errno == EINTR);
+    close(descriptor);
+    if (byteCount < 4 || std::memcmp(bytes, "OggS", 4) != 0) {
+        return TLTagFileFormatUnknown;
+    }
+    isOgg = true;
+    // Accept only a version-zero beginning-of-stream identification page,
+    // not a continued data packet that happens to contain a codec signature.
+    if (byteCount < 27 || bytes[4] != 0 || (bytes[5] & 0x03) != 0x02) {
+        return TLTagFileFormatUnknown;
+    }
+
+    size_t segmentCount = bytes[26];
+    size_t packetOffset = 27 + segmentCount;
+    if (packetOffset > static_cast<size_t>(byteCount)) {
+        return TLTagFileFormatUnknown;
+    }
+
+    size_t packetLength = 0;
+    bool packetComplete = false;
+    for (size_t index = 0; index < segmentCount; ++index) {
+        unsigned char lace = bytes[27 + index];
+        packetLength += lace;
+        if (lace < 255) {
+            packetComplete = true;
+            break;
+        }
+    }
+    if (!packetComplete || packetLength == 0 || packetOffset >= static_cast<size_t>(byteCount)) {
+        return TLTagFileFormatUnknown;
+    }
+    packetLength = std::min(packetLength, static_cast<size_t>(byteCount) - packetOffset);
+
+    const unsigned char *packet = bytes + packetOffset;
+    static const unsigned char vorbisSignature[] = { 0x01, 'v', 'o', 'r', 'b', 'i', 's' };
+    static const unsigned char opusSignature[] = { 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd' };
+    static const unsigned char speexSignature[] = { 'S', 'p', 'e', 'e', 'x', ' ', ' ', ' ' };
+    static const unsigned char oggFlacSignature[] = { 0x7f, 'F', 'L', 'A', 'C' };
+    static const unsigned char nativeFlacSignature[] = { 'f', 'L', 'a', 'C' };
+
+    if (OggPacketStartsWith(packet, packetLength, vorbisSignature, sizeof(vorbisSignature))) {
+        return TLTagFileFormatOggVorbis;
+    }
+    if (OggPacketStartsWith(packet, packetLength, opusSignature, sizeof(opusSignature))) {
+        return TLTagFileFormatOggOpus;
+    }
+    if (OggPacketStartsWith(packet, packetLength, speexSignature, sizeof(speexSignature))) {
+        return TLTagFileFormatOggSpeex;
+    }
+    if (OggPacketStartsWith(packet, packetLength, oggFlacSignature, sizeof(oggFlacSignature)) ||
+        OggPacketStartsWith(packet, packetLength, nativeFlacSignature, sizeof(nativeFlacSignature))) {
+        return TLTagFileFormatOggFlac;
+    }
+    return TLTagFileFormatUnknown;
+}
+
+static TLTagFileFormat DetectTagFileFormat(NSURL * _Nullable fileURL)
+{
+    bool isOgg = false;
+    TLTagFileFormat oggFormat = DetectOggCodecAtURL(fileURL, isOgg);
+    if (isOgg) {
+        return oggFormat;
+    }
+    return DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
+}
+
+static TLMetadataContainerMask ContainerMaskForFormat(TLTagFileFormat format)
 {
     switch (format) {
-        case AudioMatorTagFileFormatMPEGID3:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerID3v1
-                 | AudioMatorMetadataContainerID3v2
-                 | AudioMatorMetadataContainerAPE;
-        case AudioMatorTagFileFormatMPEGAAC:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap;
-        case AudioMatorTagFileFormatMP4:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerMP4ItemMap;
-        case AudioMatorTagFileFormatFLAC:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerXiph
-                 | AudioMatorMetadataContainerID3v1
-                 | AudioMatorMetadataContainerID3v2;
-        case AudioMatorTagFileFormatOggVorbis:
-        case AudioMatorTagFileFormatOggOpus:
-        case AudioMatorTagFileFormatOggFlac:
-        case AudioMatorTagFileFormatOggSpeex:
-            return AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerXiph;
-        case AudioMatorTagFileFormatAPE:
-        case AudioMatorTagFileFormatWavPack:
-        case AudioMatorTagFileFormatMPC:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerAPE;
-        case AudioMatorTagFileFormatWAV:
-        case AudioMatorTagFileFormatAIFF:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerID3v2
-                 | AudioMatorMetadataContainerRIFFInfo;
-        case AudioMatorTagFileFormatTTA:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerID3v1
-                 | AudioMatorMetadataContainerID3v2;
-        case AudioMatorTagFileFormatASF:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerASF;
-        case AudioMatorTagFileFormatDSF:
-        case AudioMatorTagFileFormatDSDIFF:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap
-                 | AudioMatorMetadataContainerID3v2;
-        case AudioMatorTagFileFormatShorten:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap;
-        case AudioMatorTagFileFormatMOD:
-        case AudioMatorTagFileFormatS3M:
-        case AudioMatorTagFileFormatIT:
-        case AudioMatorTagFileFormatXM:
-            return AudioMatorMetadataContainerTag
-                 | AudioMatorMetadataContainerPropertyMap;
-        case AudioMatorTagFileFormatUnknown:
-            return AudioMatorMetadataContainerNone;
+        case TLTagFileFormatMPEGID3:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerID3v1
+                 | TLMetadataContainerID3v2
+                 | TLMetadataContainerAPE;
+        case TLTagFileFormatMPEGAAC:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap;
+        case TLTagFileFormatMP4:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerMP4ItemMap;
+        case TLTagFileFormatFLAC:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerXiph
+                 | TLMetadataContainerID3v1
+                 | TLMetadataContainerID3v2;
+        case TLTagFileFormatOggVorbis:
+        case TLTagFileFormatOggOpus:
+        case TLTagFileFormatOggFlac:
+        case TLTagFileFormatOggSpeex:
+            return TLMetadataContainerPropertyMap
+                 | TLMetadataContainerXiph;
+        case TLTagFileFormatAPE:
+        case TLTagFileFormatWavPack:
+        case TLTagFileFormatMPC:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerAPE;
+        case TLTagFileFormatWAV:
+        case TLTagFileFormatAIFF:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerID3v2
+                 | TLMetadataContainerRIFFInfo;
+        case TLTagFileFormatTTA:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerID3v1
+                 | TLMetadataContainerID3v2;
+        case TLTagFileFormatASF:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerASF;
+        case TLTagFileFormatDSF:
+        case TLTagFileFormatDSDIFF:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerID3v2;
+        case TLTagFileFormatShorten:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap;
+        case TLTagFileFormatMOD:
+        case TLTagFileFormatS3M:
+        case TLTagFileFormatIT:
+        case TLTagFileFormatXM:
+            return TLMetadataContainerTag
+                 | TLMetadataContainerPropertyMap;
+        case TLTagFileFormatUnknown:
+            return TLMetadataContainerNone;
     }
 }
 
-static bool IsWritableTagFileFormat(AudioMatorTagFileFormat format)
+static bool IsWritableTagFileFormat(TLTagFileFormat format)
 {
     switch (format) {
-        case AudioMatorTagFileFormatUnknown:
-        case AudioMatorTagFileFormatShorten:
-        case AudioMatorTagFileFormatMOD:
+        case TLTagFileFormatUnknown:
+        case TLTagFileFormatShorten:
+        case TLTagFileFormatMOD:
             return false;
         default:
             return true;
@@ -676,6 +803,10 @@ static bool IsWritableTagFileFormat(AudioMatorTagFileFormat format)
 static NSSet<NSString *> *HiddenInternalMetadataFieldKeys()
 {
     static NSSet<NSString *> *keys = [NSSet setWithArray:@[
+        @"TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+        @"TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
+        @"----:COM.APPLE.ITUNES:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+        @"----:COM.APPLE.ITUNES:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT",
         @"AUDIOMATOR_TRACKNUMBER_TEXT",
         @"AUDIOMATOR_DISCNUMBER_TEXT",
         @"----:COM.APPLE.ITUNES:AUDIOMATOR_TRACKNUMBER_TEXT",
@@ -737,11 +868,11 @@ static NSDictionary<NSString *, NSString *> *NormalizedRawPropertiesForWrite(NSD
         NSString *discText = RawPropertyValueForCandidateKeys(normalizedProperties, @[ @"DISCNUMBER", @"DISC" ]);
 
         if (trackText) {
-            normalizedProperties[@"AUDIOMATOR_TRACKNUMBER_TEXT"] = trackText;
+            normalizedProperties[@"TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT"] = trackText;
         }
 
         if (discText) {
-            normalizedProperties[@"AUDIOMATOR_DISCNUMBER_TEXT"] = discText;
+            normalizedProperties[@"TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT"] = discText;
         }
     }
 

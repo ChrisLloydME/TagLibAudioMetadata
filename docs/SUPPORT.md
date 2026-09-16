@@ -26,10 +26,9 @@ Most apps should import the Swift facade:
 import TagLibAudioMetadata
 ```
 
-The Swift module temporarily re-exports `CTagLibBridge`, so existing callers can
-still reach `TagLibMetadataExtractor` and `TagLibAudioMetadata`. New direct
-bridge integrations should depend on `TagLibAudioMetadataLowLevel` and
-`import CTagLibBridge`; the re-export may be removed in a future major release.
+Starting in 0.5, the Swift module no longer re-exports `CTagLibBridge`. Direct
+bridge integrations must depend on `TagLibAudioMetadataLowLevel` and
+`import CTagLibBridge` explicitly.
 
 Requirements:
 
@@ -81,8 +80,10 @@ from the snapshot alone is not guaranteed to reproduce opaque bytes.
 patch remain unchanged; `.remove` clears an explicitly named property; artwork
 has separate unchanged, replace, and remove-all cases; and
 `explicitAdvisory` preserves unspecified, not-explicit, explicit, and clean
-states. The compatibility Boolean `isExplicit` is a lossy projection; use the
-enum when the distinction matters.
+states. `numberText` carries an intentional formatted track/disc pair in the
+same transaction as other patch fields. A patch cannot mix that exact-text form
+with typed track/disc components. The compatibility Boolean `isExplicit` is a
+lossy projection; use the enum when the distinction matters.
 
 Known fields are validated against `MetadataFieldRegistry` before any staging
 copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
@@ -126,12 +127,15 @@ movement number/count uses native `MVIN`; patching either component preserves
 the other.
 
 An ordinary MP4 number Patch or Basic read-modify-write writes standard
-`trkn`/`disk` metadata. It does not introduce `AUDIOMATOR_TRACKNUMBER_TEXT` or
-`AUDIOMATOR_DISCNUMBER_TEXT`. If either private formatting atom was already
-present, it is formatting provenance rather than the numeric authority. A Basic
-numeric edit synchronizes it from `trkn`/`disk` values while retaining its
-number-padding convention; an unrelated edit preserves its text unchanged.
-Use `writeTrackNumberText` for an intentional formatted-text write.
+`trkn`/`disk` metadata and does not introduce private formatting atoms into a
+standard-only file. Legacy `AUDIOMATOR_*_TEXT` atoms remain readable formatting
+provenance rather than numeric authority. Editing the corresponding pair lazily
+migrates that provenance to package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` while
+retaining its padding; unrelated edits leave the legacy atom unchanged. Use
+`writeTrackNumberText` for intentional formatted text; new writes use the
+package-neutral namespace. When native
+`trkn`/`disk` pairs coexist with legacy freeform number or total aliases, native
+pairs are authoritative; number writes remove those conflicting aliases.
 
 `explicitAdvisory` is also container-aware in both Basic and Patch writes:
 MP4/M4A uses native `rtng`, ID3 uses the supported `ITUNESADVISORY` TXXX
@@ -146,6 +150,22 @@ representation. The high-level MP4 writer removes the explicitly recognized
 freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 instead of leaving stale native and freeform values together. Unrelated
 freeform metadata is not removed by fuzzy name matching.
+
+Date fields are deliberately separate:
+
+| Semantic field | Meaning | ID3v2 | Xiph/PropertyMap | MP4 |
+| --- | --- | --- | --- | --- |
+| `.date` | Recording date or year | `TDRC`; legacy `TYER` is read-compatible | `DATE`; `YEAR` is an alias | Unsupported for typed writes |
+| `.releaseDate` | Release date | `TDRL` | `RELEASEDATE` | `©day` |
+| `.originalReleaseDate` | Original release date | `TDOR` | `ORIGINALDATE` / `ORIGINAL YEAR` | `ORIGINAL YEAR` freeform |
+
+ID3 and Xiph-style formats can therefore retain different recording and release
+dates at the same time. MP4 exposes only one standard date atom, so
+`.releaseDate` is its sole owner. A typed `.date` patch for MP4 fails before
+staging or mutation, and a patch verification reads the exact storage selected
+by this format-aware write plan. `BasicMetadata.year` is retained for source
+compatibility; MP4 reads project its value from `©day`, but callers that need
+unambiguous editing should use `MetadataPatch` and the semantic field keys.
 
 When a capability descriptor supplies an explicit writable-field allowlist,
 `MetadataPatch` rejects unsupported typed fields before creating a staging copy.
@@ -170,8 +190,8 @@ let capability = TagLibMetadataManager.formatCapability(for: ext)
 
 Use `formatCapability(for:)` for UI decisions. It reports the format family,
 all extension aliases, metadata containers, artwork support, multi-value support,
-structured support, read-only caveats, and evidence level. `verified` is backed
-by a repository fixture and round-trip tests; `experimental` exposes incomplete
+structured support, read-only caveats, and evidence level. `fixtureCovered` is
+backed by a repository fixture and round-trip tests; `experimental` exposes incomplete
 container behavior; `upstreamSupported` is an unverified upstream parser path;
 `readOnly` has no supported save route; and `unsupported` has no package route.
 
@@ -819,9 +839,9 @@ Numbering:
 
 Dates:
 
-- `year`
-- `releaseDate`
-- `originalReleaseDate`
+- `year` (recording date/year compatibility projection)
+- `releaseDate` (release date; the owner of MP4 `©day`)
+- `originalReleaseDate` (original release date)
 
 People and roles:
 
@@ -890,6 +910,11 @@ fields, artwork, and custom fields back to the bridge model.
 
 ## Low-Level Bridge API
 
+Bridge diagnostics can be enabled for troubleshooting with the
+`TAGLIBAUDIOMETADATA_DEBUG` environment variable (`1`, `true`, `yes`, or `on`).
+The historical `AUDIOMATOR_TAGLIB_DEBUG` spelling remains accepted as a
+compatibility alias, but new integrations should use the package-neutral name.
+
 Most Swift app code should call `TagLibMetadataManager`. Use the bridge directly
 only when you need a property or method the facade does not wrap.
 
@@ -899,8 +924,8 @@ Declare the `TagLibAudioMetadataLowLevel` product and import its module:
 import CTagLibBridge
 ```
 
-Existing facade clients may still see these declarations through the temporary
-re-export. Do not rely on that for a new low-level integration.
+Facade clients migrating direct bridge calls must add the low-level product and
+explicit module import.
 
 `TagLibAudioMetadata` is an Objective-C class with nullable properties. It maps
 closely to the bridge writer. It is a full replacement model, so first read the
