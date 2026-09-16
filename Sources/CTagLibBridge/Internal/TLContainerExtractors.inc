@@ -106,18 +106,12 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
                     if (metadata.year.length == 0 && dateValue.length >= 4) {
                         metadata.year = [dateValue substringToIndex:4];
                     }
-                    if (metadata.releaseDate.length == 0) {
-                        metadata.releaseDate = dateValue;
-                    }
                 }
             }
             else if (frameIDStr == "TYER") {
                 NSString *yearValue = TagStringToNSString(value);
                 if (yearValue.length > 0) {
                     metadata.year = yearValue;
-                    if (metadata.releaseDate.length == 0) {
-                        metadata.releaseDate = yearValue;
-                    }
                 }
             }
             else if (frameIDStr == "TDOR") {
@@ -220,14 +214,20 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
     ApplyGenericPropertyMapMetadata(tag->properties(), metadata);
 
     const TagLib::MP4::ItemMap& items = tag->itemMap();
-    metadata.trackNumberText = PreferredNumberText(
-        metadata.trackNumberText,
-        MP4TextItemValue(items, kAudioMatorMP4TrackNumberTextKey)
+    NSString *storedTrackNumberText = MP4TextItemValue(
+        items,
+        items.contains(kTagLibAudioMetadataMP4TrackNumberTextKey)
+            ? kTagLibAudioMetadataMP4TrackNumberTextKey
+            : kLegacyAudioMatorMP4TrackNumberTextKey
     );
-    metadata.discNumberText = PreferredNumberText(
-        metadata.discNumberText,
-        MP4TextItemValue(items, kAudioMatorMP4DiscNumberTextKey)
+    NSString *storedDiscNumberText = MP4TextItemValue(
+        items,
+        items.contains(kTagLibAudioMetadataMP4DiscNumberTextKey)
+            ? kTagLibAudioMetadataMP4DiscNumberTextKey
+            : kLegacyAudioMatorMP4DiscNumberTextKey
     );
+    metadata.trackNumberText = PreferredNumberText(metadata.trackNumberText, storedTrackNumberText);
+    metadata.discNumberText = PreferredNumberText(metadata.discNumberText, storedDiscNumberText);
 
     // Track number
     if (items.contains("trkn")) {
@@ -405,6 +405,11 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
     for (const auto &[itemKey, itemValue] : items) {
         NSString *description = MP4FreeformDescriptionForItemKey(itemKey);
         if (!description) {
+            continue;
+        }
+
+        if ((items.contains("trkn") && IsMP4TrackNumberPairAlias(description)) ||
+            (items.contains("disk") && IsMP4DiscNumberPairAlias(description))) {
             continue;
         }
 

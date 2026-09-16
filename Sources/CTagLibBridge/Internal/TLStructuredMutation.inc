@@ -721,7 +721,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     }
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(ext);
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
     if (!IsWritableTagFileFormat(format)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -764,7 +764,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    if (format == AudioMatorTagFileFormatMPEGID3) {
+    if (format == TLTagFileFormatMPEGID3) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:232 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MPEG file for structured metadata editing" }];
@@ -788,7 +788,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatWAV) {
+    if (format == TLTagFileFormatWAV) {
         TagLib::RIFF::WAV::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:234 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open WAV file for structured metadata editing" }];
@@ -802,14 +802,14 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
         ReplaceID3v2Artwork(tag, artwork);
-        if (!file.save()) {
+        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured WAV metadata" }];
             return NO;
         }
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatAIFF) {
+    if (format == TLTagFileFormatAIFF) {
         TagLib::RIFF::AIFF::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:236 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open AIFF file for structured metadata editing" }];
@@ -830,7 +830,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatMP4) {
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File file(filePath);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:238 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MP4 file for structured metadata editing" }];
@@ -851,7 +851,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatASF) {
+    if (format == TLTagFileFormatASF) {
         TagLib::ASF::File file(filePath);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:240 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open ASF/WMA file for structured metadata editing" }];
@@ -872,7 +872,25 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         return YES;
     }
 
-    if (propertyValues) {
+    if (format == TLTagFileFormatFLAC ||
+        format == TLTagFileFormatOggVorbis || format == TLTagFileFormatOggOpus ||
+        format == TLTagFileFormatOggFlac || format == TLTagFileFormatOggSpeex) {
+        if (frames || mp4Atoms || asfAttributes || lyrics || comments) {
+            return SetStructuredPayloadValidationError(error, @"This format supports structured properties and artwork, not ID3/MP4/ASF collections");
+        }
+        TagLib::FileRef reference(filePath, true, TagLib::AudioProperties::Fast);
+        TagLib::File *file = reference.file();
+        if (!file || !file->isValid()) {
+            return SetStructuredPayloadValidationError(error, @"Unable to open audio file for structured artwork editing");
+        }
+        if (propertyValues) file->setProperties(BuildRawPropertyMapValues(propertyValues));
+        if (!ReplaceStructuredComplexArtwork(file, artwork) || !file->save()) {
+            return SetStructuredPayloadValidationError(error, @"TagLib could not save structured artwork");
+        }
+        return YES;
+    }
+
+    if (propertyValues && !frames && !mp4Atoms && !asfAttributes && !artwork && !lyrics && !comments) {
         return [self writeRawPropertyMapValues:propertyValues toURL:fileURL error:error];
     }
 

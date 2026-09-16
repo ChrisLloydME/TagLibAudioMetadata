@@ -1,5 +1,6 @@
 import XCTest
 @testable import TagLibAudioMetadata
+import CTagLibBridge
 #if os(macOS)
 import Darwin
 #endif
@@ -191,46 +192,71 @@ final class ReliabilityFailureTests: XCTestCase {
     }
 
 #if os(macOS)
-    func testAtomicReplacementPreservesExtendedAttributesACLsAndFileFlags() throws {
-        let url = try copyFixture("mp3")
-        let ordinaryAttribute = "com.audiomator.metadata-test"
-        let ordinaryValue = Data("preserve-me".utf8)
-        let quarantineAttribute = "com.apple.quarantine"
-        let quarantineValue = Data("0081;00000000;TagLibAudioMetadataTests;".utf8)
-        try setExtendedAttribute(ordinaryAttribute, value: ordinaryValue, at: url)
-        try setExtendedAttribute(quarantineAttribute, value: quarantineValue, at: url)
+    func testTransactionEnginesPreserveExtendedAttributesACLsFlagsAndPermissions() throws {
+        for engine in TransactionEngine.allCases {
+            let url = try copyFixture("mp3")
+            let ordinaryAttribute = "com.taglibaudiometadata.transaction-test"
+            let ordinaryValue = Data("preserve-me".utf8)
+            let quarantineAttribute = "com.apple.quarantine"
+            let quarantineValue = Data("0081;00000000;TagLibAudioMetadataTests;".utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o640], ofItemAtPath: url.path)
+            try setExtendedAttribute(ordinaryAttribute, value: ordinaryValue, at: url)
+            try setExtendedAttribute(quarantineAttribute, value: quarantineValue, at: url)
 
-        XCTAssertEqual(url.path.withCString { Darwin.chflags($0, UInt32(UF_NODUMP)) }, 0)
-        try addReadACL(at: url)
-        let originalACL = try aclEntries(at: url)
-        XCTAssertFalse(originalACL.isEmpty)
+            XCTAssertEqual(url.path.withCString { Darwin.chflags($0, UInt32(UF_NODUMP)) }, 0, engine.rawValue)
+            try addReadACL(at: url)
+            let originalACL = try aclEntries(at: url)
+            let originalPermissions = try posixPermissions(at: url)
+            XCTAssertFalse(originalACL.isEmpty, engine.rawValue)
 
-        var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-        metadata.title = "Preserve filesystem metadata"
-        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            switch engine {
+            case .swiftFacade:
+                var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+                metadata.title = "Swift transaction"
+                try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            case .objectiveCBridge:
+                let metadata = try TagLibMetadataExtractor.extractMetadata(from: url)
+                metadata.title = "Bridge transaction"
+                try TagLibMetadataExtractor.writeMetadata(metadata, to: url)
+            }
 
-        XCTAssertEqual(try extendedAttribute(ordinaryAttribute, at: url), ordinaryValue)
-        XCTAssertEqual(try extendedAttribute(quarantineAttribute, at: url), quarantineValue)
-        XCTAssertNotEqual(try fileFlags(at: url) & UInt32(UF_NODUMP), 0)
-        XCTAssertEqual(try aclEntries(at: url), originalACL)
+            XCTAssertEqual(try extendedAttribute(ordinaryAttribute, at: url), ordinaryValue, engine.rawValue)
+            XCTAssertEqual(try extendedAttribute(quarantineAttribute, at: url), quarantineValue, engine.rawValue)
+            XCTAssertNotEqual(try fileFlags(at: url) & UInt32(UF_NODUMP), 0, engine.rawValue)
+            XCTAssertEqual(try aclEntries(at: url), originalACL, engine.rawValue)
+            XCTAssertEqual(try posixPermissions(at: url), originalPermissions, engine.rawValue)
+        }
     }
 
-    func testAtomicReplacementChangesInodeAndDoesNotRetargetHardLinks() throws {
+    func testAtomicMutationRejectsHardLinksWithoutChangingEitherPath() throws {
         let url = try copyFixture("mp3")
         let linkedURL = url.deletingLastPathComponent().appendingPathComponent("linked.mp3")
         try FileManager.default.linkItem(at: url, to: linkedURL)
         let originalInode = try inode(at: url)
         XCTAssertEqual(try inode(at: linkedURL), originalInode)
-        let linkedTitleBeforeWrite = try TagLibMetadataManager.readMetadataResult(from: linkedURL).title
+        let originalBytes = try Data(contentsOf: url)
+        let originalTitle = try TagLibMetadataManager.readMetadataResult(from: url).title
 
         var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-        metadata.title = "Replacement inode"
-        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+        metadata.title = "Must not split hard link"
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+        ) { error in
+            XCTAssertTrue(error.localizedDescription.contains("hard-linked"))
+        }
 
-        XCTAssertNotEqual(try inode(at: url), originalInode)
+        let bridgeMetadata = TagLibAudioMetadata()
+        bridgeMetadata.title = "Bridge must not split hard link"
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeMetadata(bridgeMetadata, to: linkedURL)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("hard-linked"))
+        }
+
+        XCTAssertEqual(try inode(at: url), originalInode)
         XCTAssertEqual(try inode(at: linkedURL), originalInode)
-        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: linkedURL).title, linkedTitleBeforeWrite)
-        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Replacement inode")
+        XCTAssertEqual(try Data(contentsOf: url), originalBytes)
+        XCTAssertEqual(try Data(contentsOf: linkedURL), originalBytes)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, originalTitle)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: linkedURL).title, originalTitle)
     }
 #endif
 
@@ -511,6 +537,13 @@ final class ReliabilityFailureTests: XCTestCase {
         ]
     }
 }
+
+#if os(macOS)
+private enum TransactionEngine: String, CaseIterable {
+    case swiftFacade
+    case objectiveCBridge
+}
+#endif
 
 private extension RawMetadataDump {
     func values(for key: String) -> [String]? {

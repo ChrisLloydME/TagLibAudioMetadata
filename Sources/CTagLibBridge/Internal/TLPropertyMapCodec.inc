@@ -1,5 +1,5 @@
 static bool IsMP4LikeExtension(NSString * _Nullable ext) {
-    return DetectTagFileFormat(ext) == AudioMatorTagFileFormatMP4;
+    return DetectTagFileFormat(ext) == TLTagFileFormatMP4;
 }
 
 static void SetMP4TextItem(TagLib::MP4::Tag *tag,
@@ -74,6 +74,48 @@ static void SetMP4FreeformTextItem(TagLib::MP4::Tag *tag,
     }
 
     SetMP4TextItem(tag, key.c_str(), value);
+}
+
+static bool IsMP4TrackNumberPairAlias(NSString * _Nullable description)
+{
+    NSString *normalized = UppercaseTrimmedString(description);
+    return normalized && (
+        [normalized isEqualToString:@"TRACKNUMBER"] ||
+        [normalized isEqualToString:@"TRACK"] ||
+        [normalized isEqualToString:@"TRACKTOTAL"] ||
+        [normalized isEqualToString:@"TOTALTRACKS"]
+    );
+}
+
+static bool IsMP4DiscNumberPairAlias(NSString * _Nullable description)
+{
+    NSString *normalized = UppercaseTrimmedString(description);
+    return normalized && (
+        [normalized isEqualToString:@"DISCNUMBER"] ||
+        [normalized isEqualToString:@"DISC"] ||
+        [normalized isEqualToString:@"DISCTOTAL"] ||
+        [normalized isEqualToString:@"TOTALDISCS"]
+    );
+}
+
+static void RemoveRecognizedMP4NumberPairFreeformItems(TagLib::MP4::Tag *tag,
+                                                        bool removeTrackAliases,
+                                                        bool removeDiscAliases)
+{
+    if (!tag || (!removeTrackAliases && !removeDiscAliases)) return;
+
+    TagLib::StringList keysToRemove;
+    const TagLib::MP4::ItemMap &items = tag->itemMap();
+    for (auto iterator = items.begin(); iterator != items.end(); ++iterator) {
+        NSString *description = MP4FreeformDescriptionForItemKey(iterator->first);
+        if ((removeTrackAliases && IsMP4TrackNumberPairAlias(description)) ||
+            (removeDiscAliases && IsMP4DiscNumberPairAlias(description))) {
+            keysToRemove.append(iterator->first);
+        }
+    }
+    for (const TagLib::String &key : keysToRemove) {
+        tag->removeItem(key);
+    }
 }
 
 static void SetPropertyMapString(TagLib::PropertyMap &properties,
@@ -445,9 +487,6 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
 
     if ([normalizedKey isEqualToString:@"YEAR"]) {
         metadata.year = trimmedValue;
-        if (metadata.releaseDate.length == 0 && trimmedValue.length > 0) {
-            metadata.releaseDate = trimmedValue;
-        }
         return true;
     }
 
@@ -696,9 +735,6 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     if (!metadata) return properties;
 
     NSString *yearValue = TrimmedStringOrNil(metadata.year);
-    if (!yearValue && metadata.releaseDate.length >= 4) {
-        yearValue = [metadata.releaseDate substringToIndex:4];
-    }
 
     SetPropertyMapString(properties, "TITLE", metadata.title);
     SetPropertyMapString(properties, "ARTIST", metadata.artist);
@@ -707,8 +743,9 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "GENRE", metadata.genre);
     SetPropertyMapString(properties, "COMMENT", metadata.comment);
     SetPropertyMapString(properties, "ALBUMARTIST", metadata.albumArtist);
-    SetPropertyMapString(properties, "DATE", metadata.releaseDate.length > 0 ? metadata.releaseDate : metadata.year);
+    SetPropertyMapString(properties, "DATE", metadata.year);
     SetPropertyMapString(properties, "YEAR", yearValue);
+    SetPropertyMapString(properties, "RELEASEDATE", metadata.releaseDate);
     SetPropertyMapString(properties, "ORIGINALDATE", metadata.originalReleaseDate);
     SetPropertyMapString(properties, "COPYRIGHT", metadata.copyright);
     SetPropertyMapString(properties, "LABEL", metadata.label);

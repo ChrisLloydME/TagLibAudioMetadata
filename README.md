@@ -37,9 +37,9 @@ Most targets need only the facade product:
 ```
 
 Advanced clients that intentionally use the Objective-C bridge should depend
-on `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`. The facade still
-re-exports the bridge for source compatibility, but that is a migration aid,
-not the preferred dependency boundary.
+on `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`. Starting in 0.5,
+the facade no longer re-exports the bridge; add the low-level product explicitly
+when migrating code that directly names bridge types.
 
 The binary is fetched from the public
 [`taglib-binary-2.3.1-r2`](https://github.com/ChrisLloydME/TagLibAudioMetadata/releases/tag/taglib-binary-2.3.1-r2)
@@ -76,7 +76,8 @@ let patch = MetadataPatch(
     ],
     customFields: ["APP_WORKFLOW": .values(["Focused", "Calm"])],
     explicitAdvisory: .clean,
-    artwork: .unchanged
+    artwork: .unchanged,
+    numberText: .init(trackNumberText: "01/12", discNumberText: "01/02")
 )
 
 let result = try TagLibMetadataManager.applyMetadataPatch(
@@ -89,7 +90,9 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
 Known keys and aliases are rejected in `customFields`; use `fields` (or a
 dedicated patch property) for schema-known metadata. Unknown custom keys remain
-available and are normalized before mutation. Track/disc numbers and totals
+available and are normalized before mutation. Use either typed track/disc fields
+or `numberText` in one patch; the formatted form makes exact text authoritative
+and commits it in the same transaction as the other semantic changes. Track/disc numbers and totals
 accept `1...INT_MAX`; use `.remove` to unset those components. Numeric fields
 whose schema permits zero, such as BPM and movement numbering, accept
 `0...INT_MAX`. Invalid values fail before a staging copy is made. Formats with
@@ -126,15 +129,23 @@ as Patch writes, so switching between the two high-level APIs cannot leave a
 contradictory recognized freeform advisory. ID3 movement number/count patches
 likewise preserve the omitted component of native `MVIN`.
 
+Date fields have distinct semantics. `.date` is the recording date/year and
+owns ID3 `TDRC` (with legacy `TYER` read compatibility) plus PropertyMap
+`DATE`/`YEAR`. `.releaseDate` owns ID3 `TDRL` and PropertyMap `RELEASEDATE`.
+MP4 has one interoperable date atom, `©day`; `.releaseDate` owns it and `.date`
+is reported unsupported for MP4 rather than silently sharing the slot.
+`BasicMetadata.year` remains a compatibility projection and is derived from
+`©day` on MP4 reads; use `MetadataPatch` for explicit date semantics.
+
 Generic PropertyMap formats store number and total separately as
 `TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
 `TRCK`/`TPOS` text. Ordinary MP4 Patch or Basic writes do not create private
-`AUDIOMATOR_*_TEXT` atoms. If such a formatting atom already exists, it is
-formatting provenance: native `trkn`/`disk` remains authoritative, and a Basic
-numeric edit synchronizes the private text while retaining its established
-number padding. An unrelated Basic edit preserves the existing formatted text
-unchanged. Use `writeTrackNumberText` when formatted number text itself is the
-intentional input.
+formatting atoms. Legacy `AUDIOMATOR_*_TEXT` atoms remain readable. When the
+corresponding number pair is edited, the package lazily migrates that formatting
+provenance to a package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` atom while retaining
+its number padding. An unrelated edit preserves legacy provenance unchanged.
+Use `writeTrackNumberText` when formatted number text itself is the intentional
+input; new exact-text writes use the package-neutral namespace.
 
 `BasicMetadata` remains a convenient normalized projection, but it is not a
 lossless editing document. Values read from a file retain a separate raw
@@ -159,27 +170,31 @@ if let capability = TagLibMetadataManager.formatCapability(for: url.pathExtensio
 }
 ```
 
-Support levels are `verified`, `experimental`, `upstreamSupported`, `readOnly`,
-and `unsupported`. They distinguish fixture-backed package behavior from a
-parser path merely exposed by upstream TagLib.
+Support levels are `fixtureCovered`, `experimental`, `upstreamSupported`,
+`readOnly`, and `unsupported`. These are configured coverage/implementation
+labels, not generated release evidence or a guarantee that arbitrary files and
+metadata are preserved. The old `verified` case is deprecated and no longer
+returned by capability lookup.
 
 ## Reliability contract
 
-Throwing reads reject missing, empty, truncated, corrupt, and
-extension-disguised files. Snapshot reads also reject a destination whose file
-identity changes during extraction.
+Reads reject files the selected TagLib parser cannot read. This is not a promise
+to detect every malformed file. Snapshot reads require a regular file (not a final
+symlink), bracket extraction with file-version checks, and return `fileVersion`.
+Pass that token as `expectedVersion` to a typed or raw patch to reject stale edits
+after acquiring the transaction lock and before creating the temporary copy.
 
-Every facade or public bridge mutation:
+Transactional facade and bridge writes (not low-level `InPlace` entry points):
 
-1. rejects symlinks and requires an existing regular file;
+1. reject final symlinks and hard-linked files, and require an existing regular file;
 2. makes one sibling, same-volume copy;
 3. mutates and verifies the copy;
 4. flushes the copy, rechecks destination identity, atomically renames it, and
    flushes the parent directory.
 
 A failure before rename leaves the original pathname and bytes unchanged and
-cleans up the temporary copy. The rename changes inode identity and does not
-retarget other hard links. If the final directory flush fails, the rename has
+cleans up the temporary copy. Hard links are rejected because replacement would
+split their identity. If the final directory flush fails, the rename has
 already committed and the API throws
 `TagLibManagerError.committedButDurabilityUncertain`; retrying may repeat an
 already-committed operation.
@@ -191,8 +206,24 @@ TagLib parser and mutation work is protected by a process-wide recursive mutex.
 Objective-C projection objects copied directly from live TagLib values are also
 built under that lock; Swift model conversion, copying, flushing, and renaming
 occur outside it. Calls on independent
-files are safe, but callers must serialize mutations to the same canonical path
-when operation order matters.
+files retain this conservative serialization. Entire same-entry transactions are
+also serialized through a directory-identity/name lock shared by the facade and
+bridge. It survives destination inode replacement and parent-directory symlink
+aliases. Acquisition order is not a user-visible ordering guarantee.
+This is process-local coordination, **not cross-process exclusion**: an external
+writer can still race the final identity check and rename. Parent-directory
+replacement/rename by an external process is likewise not protected.
+
+Use `MetadataPatch` for semantic edits or `RawMetadataPatch` for exact PropertyMap
+arrays. Omitted keys are unchanged; deletion is explicit. Raw deltas compare all
+visible PropertyMap values before commit; typed patches compare unedited visible
+properties and artwork as well as requested changes. Neither comparison is a
+lossless oracle for opaque native metadata that TagLib does not expose. Empty
+FLAC comment values that TagLib drops are rejected by exact-value verification.
+Verification mismatches throw before commit, including with the deprecated
+`.warn` policy. Numeric-equivalent track/disc formatting is accepted. Legacy
+whole-object and whole-PropertyMap replacement APIs are not edit-session models;
+avoid them for changes intended to touch only selected fields.
 
 ## Format evidence
 
@@ -200,12 +231,12 @@ The registry contains 22 families and 37 extensions.
 
 | Level | Families/extensions |
 | --- | --- |
-| Verified | MP3, M4A, FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM |
+| Fixture-covered | MP3, M4A, FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM |
 | Experimental | S3M, Impulse Tracker |
 | Read-only | MOD family and Shorten |
 | Upstream-supported | Untested aliases and the remaining TagLib families, including Opus, Speex, APE, WavPack, Musepack, AIFF, TrueAudio, ASF/WMA, DSF, and DSDIFF |
 
-Verified means the repository has a licensed fixture and relevant read/write
+Fixture-covered means the repository has a licensed fixture and relevant read/write
 round-trip regression coverage. It does not imply that every alias or every
 container-specific field has been tested. Query `FormatCapability` for the
 extension and field in question rather than hard-coding this summary.
@@ -229,10 +260,10 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The current local acceptance matrix passes 94 tests, strict warnings-as-errors,
-Address Sanitizer, Thread Sanitizer, and builds both facade and low-level
-consumer packages. The published binary's broader platform and dynamic-link
-matrix remains documented in the migration report.
+The local acceptance matrix covers facade and low-level consumers, strict
+warnings-as-errors, sanitizer runs, concurrency stress, transaction failures,
+and format-specific round trips. The published binary's broader platform and
+dynamic-link matrix remains documented in the migration report.
 
 See [Architecture](docs/ARCHITECTURE.md), [Support](docs/SUPPORT.md),
 [Thread safety](docs/THREAD_SAFETY.md), and the

@@ -89,13 +89,22 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         if (trimmedKey) properties.erase(NSStringToTagString(trimmedKey));
     }
 
-    TagLib::PropertyMap replacements = BuildRawPropertyMapValues(valuesToSet ?: @{});
+    // Delta callers specify actual value arrays, not a display projection.
+    // Preserve whitespace, empty strings, duplicates, and value boundaries.
+    TagLib::PropertyMap replacements;
+    for (NSString *key in valuesToSet ?: @{}) {
+        TagLib::StringList values;
+        for (NSString *value in valuesToSet[key]) {
+            values.append(NSStringToTagString(value));
+        }
+        replacements.replace(NSStringToTagString(key), values);
+    }
     for (auto iterator = replacements.begin(); iterator != replacements.end(); ++iterator) {
         properties.replace(iterator->first, iterator->second);
     }
 
     file->setProperties(properties);
-    if (!file->save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9253
@@ -162,12 +171,12 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
     NSString *trackText = BuildTRCKString(trackNumber, totalTracks, 0);
     NSString *discText = BuildTRCKString(discNumber, totalDiscs, 0);
     NSString *movementText = BuildTRCKString(movementNumber, movementCount, 0);
 
-    if (format == AudioMatorTagFileFormatMP4) {
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File file(filePath);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = PropertyMapDeltaError(9262, @"Unable to open MP4/M4A file for native number-pair mutation");
@@ -176,13 +185,18 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         TagLib::MP4::Tag *tag = file.tag();
         if (updateTrackPair) {
             NSString *existingFormatting = nil;
-            if (tag->itemMap().contains(kAudioMatorMP4TrackNumberTextKey)) {
+            const char *existingFormattingKey = tag->itemMap().contains(kTagLibAudioMetadataMP4TrackNumberTextKey)
+                ? kTagLibAudioMetadataMP4TrackNumberTextKey
+                : kLegacyAudioMatorMP4TrackNumberTextKey;
+            if (tag->itemMap().contains(existingFormattingKey)) {
                 existingFormatting = TagStringToNSString(
-                    tag->itemMap()[kAudioMatorMP4TrackNumberTextKey].toStringList().toString()
+                    tag->itemMap()[existingFormattingKey].toStringList().toString()
                 );
             }
+            RemoveRecognizedMP4NumberPairFreeformItems(tag, true, false);
             tag->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
             SetMP4IntPairItem(tag, "trkn", trackNumber, totalTracks);
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
             if (existingFormatting) {
                 NSInteger ignoredNumber = 0;
                 NSInteger ignoredTotal = 0;
@@ -190,19 +204,24 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                 ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
                 SetMP4TextItem(
                     tag,
-                    kAudioMatorMP4TrackNumberTextKey,
+                    kTagLibAudioMetadataMP4TrackNumberTextKey,
                     BuildTRCKString(trackNumber, totalTracks, padWidth)
                 );
             }
         }
         if (updateDiscPair) {
             NSString *existingFormatting = nil;
-            if (tag->itemMap().contains(kAudioMatorMP4DiscNumberTextKey)) {
+            const char *existingFormattingKey = tag->itemMap().contains(kTagLibAudioMetadataMP4DiscNumberTextKey)
+                ? kTagLibAudioMetadataMP4DiscNumberTextKey
+                : kLegacyAudioMatorMP4DiscNumberTextKey;
+            if (tag->itemMap().contains(existingFormattingKey)) {
                 existingFormatting = TagStringToNSString(
-                    tag->itemMap()[kAudioMatorMP4DiscNumberTextKey].toStringList().toString()
+                    tag->itemMap()[existingFormattingKey].toStringList().toString()
                 );
             }
+            RemoveRecognizedMP4NumberPairFreeformItems(tag, false, true);
             SetMP4IntPairItem(tag, "disk", discNumber, totalDiscs);
+            SetMP4TextItem(tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
             if (existingFormatting) {
                 NSInteger ignoredNumber = 0;
                 NSInteger ignoredTotal = 0;
@@ -210,7 +229,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                 ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
                 SetMP4TextItem(
                     tag,
-                    kAudioMatorMP4DiscNumberTextKey,
+                    kTagLibAudioMetadataMP4DiscNumberTextKey,
                     BuildTRCKString(discNumber, totalDiscs, padWidth)
                 );
             }
@@ -234,7 +253,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = PropertyMapDeltaError(9264, @"Unable to open MPEG file for native number-pair mutation");
@@ -264,6 +283,35 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
+    if (format == TLTagFileFormatWAV) {
+        TagLib::RIFF::WAV::File file(filePath);
+        if (!file.isValid()) {
+            if (error) *error = PropertyMapDeltaError(9268, @"Unable to open WAV file for native number-pair mutation");
+            return NO;
+        }
+        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
+        if (updateTrackPair) {
+            TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
+            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
+            SetID3v2TextFrame(tag, "TRCK", trackText);
+        }
+        if (updateDiscPair) {
+            TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
+            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
+            SetID3v2TextFrame(tag, "TPOS", discText);
+        }
+        if (updateMovementPair) {
+            TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
+            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
+            SetID3v2TextFrame(tag, "MVIN", movementText);
+        }
+        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            if (error) *error = PropertyMapDeltaError(9269, @"TagLib could not save native WAV number pairs");
+            return NO;
+        }
+        return YES;
+    }
+
     TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Fast);
     TagLib::File *file = fileRef.file();
     if (fileRef.isNull() || !file || !file->isValid()) {
@@ -273,25 +321,25 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     TagLib::PropertyMap properties = file->properties();
     if (updateTrackPair) {
         NSString *existingTrackNumber = FirstStringFromProperty(properties, {"TRACKNUMBER", "TRACK"});
+        properties.erase("TRACK");
+        properties.erase("TOTALTRACKS");
         SetPropertyMapDynamicString(
             properties,
             @"TRACKNUMBER",
             BuildPropertyMapNumberTextPreservingFormatting(existingTrackNumber, trackNumber)
         );
         SetPropertyMapDynamicString(properties, @"TRACKTOTAL", totalTracks > 0 ? [NSString stringWithFormat:@"%ld", (long)totalTracks] : nil);
-        properties.erase("TRACK");
-        properties.erase("TOTALTRACKS");
     }
     if (updateDiscPair) {
         NSString *existingDiscNumber = FirstStringFromProperty(properties, {"DISCNUMBER", "DISC"});
+        properties.erase("DISC");
+        properties.erase("TOTALDISCS");
         SetPropertyMapDynamicString(
             properties,
             @"DISCNUMBER",
             BuildPropertyMapNumberTextPreservingFormatting(existingDiscNumber, discNumber)
         );
         SetPropertyMapDynamicString(properties, @"DISCTOTAL", totalDiscs > 0 ? [NSString stringWithFormat:@"%ld", (long)totalDiscs] : nil);
-        properties.erase("DISC");
-        properties.erase("TOTALDISCS");
     }
     if (updateMovementPair) {
         SetPropertyMapDynamicString(
@@ -306,7 +354,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         );
     }
     file->setProperties(properties);
-    if (!file->save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9267, @"TagLib could not save number-pair changes");
         return NO;
     }
@@ -335,7 +383,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL.pathExtension.lowercaseString);
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
     NSString *serialized = nil;
     switch (advisory) {
         case TagLibExplicitAdvisoryNotExplicit: serialized = @"0"; break;
@@ -344,7 +392,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         case TagLibExplicitAdvisoryUnspecified: break;
     }
 
-    if (format == AudioMatorTagFileFormatMP4) {
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File file(filePath);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = PropertyMapDeltaError(9272, @"Unable to open MP4/M4A file for native advisory mutation");
@@ -359,7 +407,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = PropertyMapDeltaError(9274, @"Unable to open MPEG file for advisory mutation");
@@ -400,7 +448,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
     SetPropertyMapDynamicString(properties, @"ITUNESADVISORY", serialized);
     file->setProperties(properties);
-    if (!file->save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9277, @"TagLib could not save advisory metadata");
         return NO;
     }

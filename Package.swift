@@ -38,7 +38,7 @@ let package = Package(
         ),
         .testTarget(
             name: "TagLibAudioMetadataTests",
-            dependencies: ["TagLibAudioMetadata"],
+            dependencies: ["TagLibAudioMetadata", "CTagLibBridge"],
             resources: [
                 .process("Audio"),
                 .process("Artwork"),

@@ -7,9 +7,9 @@ facade calls stable Objective-C declarations in `CTagLibBridge`; C++ types remai
 private to Objective-C++ translation units. The bridge dynamically links the
 `TagLibAudioMetadataTagLib` binary target.
 
-`TagLibAudioMetadataLowLevel` makes direct bridge use intentional. The facade's
-legacy re-export remains for source compatibility, with migration to the
-low-level product recommended before a future major release removes it.
+`TagLibAudioMetadataLowLevel` makes direct bridge use intentional. Starting in
+0.5, the facade does not re-export bridge declarations; direct bridge clients
+must opt into the low-level product and module.
 
 The framework name, Mach-O install name, bundle identifier, headers, and module
 map are namespaced. This prevents a generic `TagLib.framework` from being
@@ -86,12 +86,12 @@ that is the implemented mutation route.
 ID3 uses combined `TRCK`/`TPOS`, MP4 uses native `trkn`/`disk`, and ID3 movement
 number/count uses combined `MVIN`; pair mutations preserve an omitted component.
 Track/disc integers begin at one, while `.remove` unsets a component. MP4
-numeric Patch and Basic writes update an existing AudioMator formatting atom but
-do not introduce one into a standard-only file. Native `trkn`/`disk` pairs are
-authoritative for ordinary Basic writes: changing a numeric component rebuilds
-existing private text with its prior number-padding convention, while an
-unchanged pair preserves the private text exactly. Dedicated number-text APIs
-remain the explicit formatted-input path. MP4 advisory mutation from both
+numeric Patch and Basic writes do not introduce formatting atoms into a
+standard-only file. Native `trkn`/`disk` pairs are authoritative. Changing a
+numeric component lazily migrates legacy AudioMator formatting provenance to a
+package-neutral key while preserving its padding convention; an unchanged pair
+preserves legacy text and storage exactly. Dedicated number-text APIs remain the
+explicit formatted-input path and write the package-neutral namespace. MP4 advisory mutation from both
 high-level APIs removes exactly the recognized
 freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 before making native `rtng` authoritative.

@@ -4,14 +4,20 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
+#include <map>
+#include <memory>
 #include <stdarg.h>
+#include <string>
 #include <sys/stat.h>
 #include <unistd.h>
 
 // Simple logging helper for TagLib debugging
 static bool TagLibDebugLoggingEnabled() {
     static bool enabled = [] {
-        NSString *value = [NSProcessInfo processInfo].environment[@"AUDIOMATOR_TAGLIB_DEBUG"] ?: @"";
+        NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
+        NSString *value = environment[@"TAGLIBAUDIOMETADATA_DEBUG"]
+            ?: environment[@"AUDIOMATOR_TAGLIB_DEBUG"]
+            ?: @"";
         NSString *normalized = value.lowercaseString;
         return [normalized isEqualToString:@"1"] ||
                [normalized isEqualToString:@"true"] ||
@@ -68,21 +74,107 @@ thread_local NSUInteger TagLibAtomicMutationDepth = 0;
 TagLibAtomicMutationScope::TagLibAtomicMutationScope() { ++TagLibAtomicMutationDepth; }
 TagLibAtomicMutationScope::~TagLibAtomicMutationScope() { --TagLibAtomicMutationDepth; }
 
+static std::mutex &TagLibMutationLockRegistryMutex()
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+static std::map<std::string, std::weak_ptr<std::recursive_mutex>> &TagLibMutationLockRegistry()
+{
+    static std::map<std::string, std::weak_ptr<std::recursive_mutex>> registry;
+    return registry;
+}
+
+static std::string TagLibMutationLockKey(NSURL *fileURL)
+{
+    // Lock the directory entry, not the file inode: rename replaces the inode
+    // while existing waiters still hold the old lock. Parent identity also
+    // converges paths through symlinked directories. Hard-linked files are
+    // rejected by the transaction before mutation; they need no alias lock.
+    NSURL *target = fileURL.URLByStandardizingPath;
+    NSURL *parent = target.URLByDeletingLastPathComponent;
+    struct stat directory = {};
+    if (stat(parent.path.fileSystemRepresentation, &directory) == 0) {
+        // Conservative folding can serialize distinct names on case-sensitive
+        // volumes, but never weakens exclusion on case-insensitive volumes.
+        NSString *name = target.lastPathComponent.precomposedStringWithCanonicalMapping.lowercaseString;
+        return "entry:" + std::to_string(static_cast<unsigned long long>(directory.st_dev)) +
+            ":" + std::to_string(static_cast<unsigned long long>(directory.st_ino)) +
+            ":" + std::string(name.UTF8String ?: "");
+    }
+    return "path:" + std::string(target.path.fileSystemRepresentation ?: "");
+}
+
+static std::shared_ptr<std::recursive_mutex> TagLibMutationLockForURL(NSURL *fileURL)
+{
+    std::string key = TagLibMutationLockKey(fileURL);
+    std::lock_guard<std::mutex> registryGuard(TagLibMutationLockRegistryMutex());
+    auto &registry = TagLibMutationLockRegistry();
+    for (auto iterator = registry.begin(); iterator != registry.end();) {
+        if (iterator->second.expired()) {
+            iterator = registry.erase(iterator);
+        } else {
+            ++iterator;
+        }
+    }
+    auto &entry = registry[key];
+    std::shared_ptr<std::recursive_mutex> mutex = entry.lock();
+    if (!mutex) {
+        mutex = std::make_shared<std::recursive_mutex>();
+        entry = mutex;
+    }
+    return mutex;
+}
+
+BOOL CoordinateTagLibFileMutation(NSURL * _Nullable fileURL,
+                                  NSError * _Nullable * _Nullable error,
+                                  NSString *operation,
+                                  TagLibFileMutationCoordinationBlock _Nullable mutation)
+{
+    if (!fileURL || !fileURL.isFileURL || !mutation) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9112
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Metadata mutation coordination requires a file URL and operation" }];
+        }
+        return NO;
+    }
+
+    std::shared_ptr<std::recursive_mutex> mutex = TagLibMutationLockForURL(fileURL);
+    std::lock_guard<std::recursive_mutex> mutationGuard(*mutex);
+    @try {
+        return mutation(error);
+    } @catch (NSException *exception) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9113
+                                     userInfo:@{
+                                         NSLocalizedDescriptionKey : [NSString stringWithFormat:@"%@ raised an Objective-C exception", operation],
+                                         @"exceptionName" : exception.name ?: @"",
+                                         @"exceptionReason" : exception.reason ?: @"",
+                                     }];
+        }
+        return NO;
+    }
+}
+
 static bool SameTagLibFileVersion(const struct stat &lhs, const struct stat &rhs)
 {
     return lhs.st_dev == rhs.st_dev &&
         lhs.st_ino == rhs.st_ino &&
         lhs.st_size == rhs.st_size &&
+        lhs.st_nlink == rhs.st_nlink &&
         lhs.st_mtimespec.tv_sec == rhs.st_mtimespec.tv_sec &&
         lhs.st_mtimespec.tv_nsec == rhs.st_mtimespec.tv_nsec &&
         lhs.st_ctimespec.tv_sec == rhs.st_ctimespec.tv_sec &&
         lhs.st_ctimespec.tv_nsec == rhs.st_ctimespec.tv_nsec;
 }
 
-BOOL PerformAtomicTagLibMutation(NSURL * _Nullable fileURL,
-                                 NSError * _Nullable * _Nullable error,
-                                 NSString *operation,
-                                 TagLibAtomicMutationBlock _Nullable mutation)
+static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
+                                                      NSError * _Nullable * _Nullable error,
+                                                      NSString *operation,
+                                                      TagLibAtomicMutationBlock _Nullable mutation)
 {
     if (!fileURL || !fileURL.isFileURL || !mutation) {
         if (error) {
@@ -101,6 +193,14 @@ BOOL PerformAtomicTagLibMutation(NSURL * _Nullable fileURL,
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9101
                                      userInfo:@{ NSLocalizedDescriptionKey : @"Metadata mutations require an existing regular file and do not follow symbolic links" }];
+        }
+        return NO;
+    }
+    if (originalIdentity.st_nlink > 1) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9111
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"Metadata mutation was refused because atomic replacement would split a hard-linked file" }];
         }
         return NO;
     }
@@ -230,6 +330,7 @@ BOOL PerformAtomicTagLibMutation(NSURL * _Nullable fileURL,
     struct stat currentIdentity = {};
     if (lstat(targetURL.path.fileSystemRepresentation, &currentIdentity) != 0 ||
         !S_ISREG(currentIdentity.st_mode) ||
+        currentIdentity.st_nlink != 1 ||
         !SameTagLibFileVersion(currentIdentity, originalIdentity)) {
         [fileManager removeItemAtURL:temporaryURL error:nil];
         if (error) {
@@ -291,3 +392,24 @@ BOOL PerformAtomicTagLibMutation(NSURL * _Nullable fileURL,
 
     return YES;
 }
+
+BOOL PerformAtomicTagLibMutation(NSURL * _Nullable fileURL,
+                                 NSError * _Nullable * _Nullable error,
+                                 NSString *operation,
+                                 TagLibAtomicMutationBlock _Nullable mutation)
+{
+    return CoordinateTagLibFileMutation(fileURL, error, operation, ^BOOL(NSError **coordinationError) {
+        return PerformAtomicTagLibMutationUncoordinated(fileURL, coordinationError, operation, mutation);
+    });
+}
+
+@implementation TagLibMetadataExtractor (TransactionCoordination)
+
++ (BOOL)coordinateMutationAtURL:(NSURL *)fileURL
+                          error:(NSError **)error
+                       mutation:(TagLibFileMutationCoordinationBlock)mutation
+{
+    return CoordinateTagLibFileMutation(fileURL, error, @"Metadata transaction", mutation);
+}
+
+@end

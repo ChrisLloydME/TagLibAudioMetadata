@@ -5,6 +5,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- Preserved the untouched total component when patching WAV track or disc
+  numbers stored in native ID3v2 number pairs, and verified both components
+  after partial pair updates.
+- Made native MP4/M4A `trkn` and `disk` pairs authoritative over conflicting
+  legacy freeform number aliases, and removed those aliases during number
+  writes so totals cannot become stale.
+
 ## [0.5.0] - 2026-09-01
 
 ### Added
