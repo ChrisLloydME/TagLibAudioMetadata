@@ -14,7 +14,10 @@
 // Simple logging helper for TagLib debugging
 static bool TagLibDebugLoggingEnabled() {
     static bool enabled = [] {
-        NSString *value = [NSProcessInfo processInfo].environment[@"AUDIOMATOR_TAGLIB_DEBUG"] ?: @"";
+        NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
+        NSString *value = environment[@"TAGLIBAUDIOMETADATA_DEBUG"]
+            ?: environment[@"AUDIOMATOR_TAGLIB_DEBUG"]
+            ?: @"";
         NSString *normalized = value.lowercaseString;
         return [normalized isEqualToString:@"1"] ||
                [normalized isEqualToString:@"true"] ||

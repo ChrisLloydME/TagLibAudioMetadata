@@ -1,6 +1,6 @@
 //
 //  TagLibMetadataExtractor.mm
-//  AudioMator
+//  TagLibAudioMetadata
 //
 //  Objective-C++ implementation using TagLib
 //

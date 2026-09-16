@@ -57,8 +57,8 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     }
 
     NSString *extension = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
-    if (format == AudioMatorTagFileFormatUnknown) {
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
+    if (format == TLTagFileFormatUnknown) {
         if (error) *error = UnifiedExtractionError(9201, @"Unsupported audio format");
         return nil;
     }
@@ -72,10 +72,10 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     TAGLIB_BRIDGE_SERIAL_GUARD();
     TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Accurate);
     TagLib::File *baseFile = fileRef.file();
-    const bool isDetectedOgg = format == AudioMatorTagFileFormatOggVorbis ||
-        format == AudioMatorTagFileFormatOggOpus ||
-        format == AudioMatorTagFileFormatOggFlac ||
-        format == AudioMatorTagFileFormatOggSpeex;
+    const bool isDetectedOgg = format == TLTagFileFormatOggVorbis ||
+        format == TLTagFileFormatOggOpus ||
+        format == TLTagFileFormatOggFlac ||
+        format == TLTagFileFormatOggSpeex;
     if (!isDetectedOgg && (fileRef.isNull() || !baseFile || !baseFile->isValid())) {
         if (error) *error = UnifiedExtractionError(9203, @"Unable to open audio file with its extension-selected parser");
         return nil;
@@ -110,12 +110,12 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
         if (wantsPropertyMap) AppendRawPropertyEntries(propertiesOut, properties);
     };
 
-    if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         if (auto *file = dynamic_cast<TagLib::MPEG::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
-            basic.codec = format == AudioMatorTagFileFormatMPEGAAC ? @"AAC" : ([extension isEqualToString:@"mp2"] ? @"MP2" : @"MP3");
-            if (format == AudioMatorTagFileFormatMPEGID3) {
+            basic.codec = format == TLTagFileFormatMPEGAAC ? @"AAC" : ([extension isEqualToString:@"mp2"] ? @"MP2" : @"MP3");
+            if (format == TLTagFileFormatMPEGID3) {
                 if (file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
                 if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
                 if (file->ID3v1Tag()) ApplyBasicTagMetadata(file->ID3v1Tag(), basic);
@@ -123,7 +123,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
             }
         }
-    } else if (format == AudioMatorTagFileFormatMP4) {
+    } else if (format == TLTagFileFormatMP4) {
         if (auto *file = dynamic_cast<TagLib::MP4::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
@@ -133,7 +133,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (wantsStructured) AppendStructuredMP4(file->tag(), mp4AtomsOut, artworkOut);
             }
         }
-    } else if (format == AudioMatorTagFileFormatFLAC) {
+    } else if (format == TLTagFileFormatFLAC) {
         if (auto *file = dynamic_cast<TagLib::FLAC::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
@@ -143,7 +143,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             ExtractFLACPicture(file, basic);
             if (wantsStructured) AppendStructuredComplexPictures(file, @"flac", artworkOut);
         }
-    } else if (format == AudioMatorTagFileFormatOggVorbis) {
+    } else if (format == TLTagFileFormatOggVorbis) {
         TagLib::Ogg::Vorbis::File detectedFile(filePath);
         if (detectedFile.isValid()) {
             auto *file = &detectedFile;
@@ -156,7 +156,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
-    } else if (format == AudioMatorTagFileFormatOggOpus) {
+    } else if (format == TLTagFileFormatOggOpus) {
         TagLib::Ogg::Opus::File detectedFile(filePath);
         if (detectedFile.isValid()) {
             auto *file = &detectedFile;
@@ -169,7 +169,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
-    } else if (format == AudioMatorTagFileFormatOggFlac) {
+    } else if (format == TLTagFileFormatOggFlac) {
         TagLib::Ogg::FLAC::File detectedFile(filePath);
         if (detectedFile.isValid()) {
             auto *file = &detectedFile;
@@ -182,7 +182,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
-    } else if (format == AudioMatorTagFileFormatOggSpeex) {
+    } else if (format == TLTagFileFormatOggSpeex) {
         TagLib::Ogg::Speex::File detectedFile(filePath);
         if (detectedFile.isValid()) {
             auto *file = &detectedFile;
@@ -195,28 +195,28 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
-    } else if (format == AudioMatorTagFileFormatAPE) {
+    } else if (format == TLTagFileFormatAPE) {
         if (auto *file = dynamic_cast<TagLib::APE::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"APE";
             if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
         }
-    } else if (format == AudioMatorTagFileFormatWavPack) {
+    } else if (format == TLTagFileFormatWavPack) {
         if (auto *file = dynamic_cast<TagLib::WavPack::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"WavPack";
             if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
         }
-    } else if (format == AudioMatorTagFileFormatMPC) {
+    } else if (format == TLTagFileFormatMPC) {
         if (auto *file = dynamic_cast<TagLib::MPC::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"Musepack";
             if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
         }
-    } else if (format == AudioMatorTagFileFormatWAV) {
+    } else if (format == TLTagFileFormatWAV) {
         if (auto *file = dynamic_cast<TagLib::RIFF::WAV::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
@@ -229,7 +229,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 [warningsOut addObject:@"WAV structured writes default to ID3v2 while preserving existing RIFF INFO fields."];
             }
         }
-    } else if (format == AudioMatorTagFileFormatAIFF) {
+    } else if (format == TLTagFileFormatAIFF) {
         if (auto *file = dynamic_cast<TagLib::RIFF::AIFF::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
@@ -242,7 +242,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 [warningsOut addObject:@"AIFF structured writes use ID3v2."];
             }
         }
-    } else if (format == AudioMatorTagFileFormatTTA) {
+    } else if (format == TLTagFileFormatTTA) {
         if (auto *file = dynamic_cast<TagLib::TrueAudio::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
@@ -253,7 +253,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
             if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
         }
-    } else if (format == AudioMatorTagFileFormatASF) {
+    } else if (format == TLTagFileFormatASF) {
         if (auto *file = dynamic_cast<TagLib::ASF::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
@@ -263,48 +263,48 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 if (wantsStructured) AppendStructuredASF(file->tag(), asfAttributesOut, artworkOut);
             }
         }
-    } else if (format == AudioMatorTagFileFormatDSF) {
+    } else if (format == TLTagFileFormatDSF) {
         if (auto *file = dynamic_cast<TagLib::DSF::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"DSF";
             if (auto *tag = dynamic_cast<TagLib::ID3v2::Tag *>(file->tag())) ExtractID3v2Metadata(tag, basic);
         }
-    } else if (format == AudioMatorTagFileFormatDSDIFF) {
+    } else if (format == TLTagFileFormatDSDIFF) {
         if (auto *file = dynamic_cast<TagLib::DSDIFF::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"DSDIFF";
             if (file->hasID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
         }
-    } else if (format == AudioMatorTagFileFormatShorten) {
+    } else if (format == TLTagFileFormatShorten) {
         if (auto *file = dynamic_cast<TagLib::Shorten::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"Shorten";
             if (wantsStructured) [warningsOut addObject:@"Structured container metadata is not available for Shorten; PropertyMap entries are returned when possible."];
         }
-    } else if (format == AudioMatorTagFileFormatMOD) {
+    } else if (format == TLTagFileFormatMOD) {
         if (auto *file = dynamic_cast<TagLib::Mod::File *>(baseFile)) {
             openedExpectedType = true; applyCommon(file); basic.codec = @"MOD";
         }
-    } else if (format == AudioMatorTagFileFormatS3M) {
+    } else if (format == TLTagFileFormatS3M) {
         if (auto *file = dynamic_cast<TagLib::S3M::File *>(baseFile)) {
             openedExpectedType = true; applyCommon(file); basic.codec = @"S3M";
         }
-    } else if (format == AudioMatorTagFileFormatIT) {
+    } else if (format == TLTagFileFormatIT) {
         if (auto *file = dynamic_cast<TagLib::IT::File *>(baseFile)) {
             openedExpectedType = true; applyCommon(file); basic.codec = @"IT";
         }
-    } else if (format == AudioMatorTagFileFormatXM) {
+    } else if (format == TLTagFileFormatXM) {
         if (auto *file = dynamic_cast<TagLib::XM::File *>(baseFile)) {
             openedExpectedType = true; applyCommon(file); basic.codec = @"XM";
         }
     }
 
     const bool isTrackerFormat =
-        format == AudioMatorTagFileFormatMOD || format == AudioMatorTagFileFormatS3M ||
-        format == AudioMatorTagFileFormatIT || format == AudioMatorTagFileFormatXM;
+        format == TLTagFileFormatMOD || format == TLTagFileFormatS3M ||
+        format == TLTagFileFormatIT || format == TLTagFileFormatXM;
     const bool hasFormatCredibleProperties = isTrackerFormat
         ? basic.channels > 0
         : HasCredibleAudioProperties(basic);

@@ -283,7 +283,7 @@ static void SetID3v2LyricsFrame(TagLib::ID3v2::Tag *tag,
     tag->addFrame(lyricsFrame);
 }
 
-typedef NSString * _Nullable (*AudioMatorMetadataStringGetter)(TagLibAudioMetadata *metadata);
+typedef NSString * _Nullable (*TLMetadataStringGetter)(TagLibAudioMetadata *metadata);
 
 static NSString * _Nullable StringFromIntegerField(NSInteger value) {
     return value > 0 ? [NSString stringWithFormat:@"%ld", (long)value] : nil;
@@ -364,10 +364,10 @@ typedef struct {
     const char *id3v2UserTextDescription;
     const char *mp4Atom;
     const char *mp4FreeformDescription;
-    AudioMatorMetadataStringGetter getter;
-} AudioMatorWritableTextMapping;
+    TLMetadataStringGetter getter;
+} TLWritableTextMapping;
 
-static const AudioMatorWritableTextMapping kAudioMatorWritableTextMappings[] = {
+static const TLWritableTextMapping kWritableTextMappings[] = {
     { "TPE2", nullptr, "aART", nullptr, GetAlbumArtist },
     { "TCOM", nullptr, "\xA9" "wrt", nullptr, GetComposer },
     { "TBPM", nullptr, nullptr, nullptr, GetBPM },
@@ -440,7 +440,7 @@ static void ApplyWritableTextMappingsToID3v2Tag(TagLib::ID3v2::Tag *tag,
         return;
     }
 
-    for (const auto &mapping : kAudioMatorWritableTextMappings) {
+    for (const auto &mapping : kWritableTextMappings) {
         NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
         if (mapping.id3v2TextFrame) {
             SetID3v2TextFrame(tag, mapping.id3v2TextFrame, value);
@@ -458,7 +458,7 @@ static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,
         return;
     }
 
-    for (const auto &mapping : kAudioMatorWritableTextMappings) {
+    for (const auto &mapping : kWritableTextMappings) {
         NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
         if (mapping.mp4Atom) {
             SetMP4TextItem(tag, mapping.mp4Atom, value);

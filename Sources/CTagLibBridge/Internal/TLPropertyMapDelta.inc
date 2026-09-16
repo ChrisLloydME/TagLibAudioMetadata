@@ -171,12 +171,12 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
     NSString *trackText = BuildTRCKString(trackNumber, totalTracks, 0);
     NSString *discText = BuildTRCKString(discNumber, totalDiscs, 0);
     NSString *movementText = BuildTRCKString(movementNumber, movementCount, 0);
 
-    if (format == AudioMatorTagFileFormatMP4) {
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File file(filePath);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = PropertyMapDeltaError(9262, @"Unable to open MP4/M4A file for native number-pair mutation");
@@ -253,7 +253,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = PropertyMapDeltaError(9264, @"Unable to open MPEG file for native number-pair mutation");
@@ -283,7 +283,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatWAV) {
+    if (format == TLTagFileFormatWAV) {
         TagLib::RIFF::WAV::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = PropertyMapDeltaError(9268, @"Unable to open WAV file for native number-pair mutation");
@@ -383,7 +383,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
     NSString *serialized = nil;
     switch (advisory) {
         case TagLibExplicitAdvisoryNotExplicit: serialized = @"0"; break;
@@ -392,7 +392,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         case TagLibExplicitAdvisoryUnspecified: break;
     }
 
-    if (format == AudioMatorTagFileFormatMP4) {
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File file(filePath);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = PropertyMapDeltaError(9272, @"Unable to open MP4/M4A file for native advisory mutation");
@@ -407,7 +407,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
-    if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = PropertyMapDeltaError(9274, @"Unable to open MPEG file for advisory mutation");
