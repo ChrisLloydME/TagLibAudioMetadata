@@ -151,6 +151,22 @@ freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
 instead of leaving stale native and freeform values together. Unrelated
 freeform metadata is not removed by fuzzy name matching.
 
+Date fields are deliberately separate:
+
+| Semantic field | Meaning | ID3v2 | Xiph/PropertyMap | MP4 |
+| --- | --- | --- | --- | --- |
+| `.date` | Recording date or year | `TDRC`; legacy `TYER` is read-compatible | `DATE`; `YEAR` is an alias | Unsupported for typed writes |
+| `.releaseDate` | Release date | `TDRL` | `RELEASEDATE` | `©day` |
+| `.originalReleaseDate` | Original release date | `TDOR` | `ORIGINALDATE` / `ORIGINAL YEAR` | `ORIGINAL YEAR` freeform |
+
+ID3 and Xiph-style formats can therefore retain different recording and release
+dates at the same time. MP4 exposes only one standard date atom, so
+`.releaseDate` is its sole owner. A typed `.date` patch for MP4 fails before
+staging or mutation, and a patch verification reads the exact storage selected
+by this format-aware write plan. `BasicMetadata.year` is retained for source
+compatibility; MP4 reads project its value from `©day`, but callers that need
+unambiguous editing should use `MetadataPatch` and the semantic field keys.
+
 When a capability descriptor supplies an explicit writable-field allowlist,
 `MetadataPatch` rejects unsupported typed fields before creating a staging copy.
 Formats without reliable field-level restrictions continue to rely on their
@@ -823,9 +839,9 @@ Numbering:
 
 Dates:
 
-- `year`
-- `releaseDate`
-- `originalReleaseDate`
+- `year` (recording date/year compatibility projection)
+- `releaseDate` (release date; the owner of MP4 `©day`)
+- `originalReleaseDate` (original release date)
 
 People and roles:
 
@@ -893,6 +909,11 @@ fields, artwork, and custom fields back to the bridge model.
 - `failedToRead`: deprecated. Use `failedToReadWithUnderlying`.
 
 ## Low-Level Bridge API
+
+Bridge diagnostics can be enabled for troubleshooting with the
+`TAGLIBAUDIOMETADATA_DEBUG` environment variable (`1`, `true`, `yes`, or `on`).
+The historical `AUDIOMATOR_TAGLIB_DEBUG` spelling remains accepted as a
+compatibility alias, but new integrations should use the package-neutral name.
 
 Most Swift app code should call `TagLibMetadataManager`. Use the bridge directly
 only when you need a property or method the facade does not wrap.

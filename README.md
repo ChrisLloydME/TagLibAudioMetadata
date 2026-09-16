@@ -129,6 +129,14 @@ as Patch writes, so switching between the two high-level APIs cannot leave a
 contradictory recognized freeform advisory. ID3 movement number/count patches
 likewise preserve the omitted component of native `MVIN`.
 
+Date fields have distinct semantics. `.date` is the recording date/year and
+owns ID3 `TDRC` (with legacy `TYER` read compatibility) plus PropertyMap
+`DATE`/`YEAR`. `.releaseDate` owns ID3 `TDRL` and PropertyMap `RELEASEDATE`.
+MP4 has one interoperable date atom, `©day`; `.releaseDate` owns it and `.date`
+is reported unsupported for MP4 rather than silently sharing the slot.
+`BasicMetadata.year` remains a compatibility projection and is derived from
+`©day` on MP4 reads; use `MetadataPatch` for explicit date semantics.
+
 Generic PropertyMap formats store number and total separately as
 `TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
 `TRCK`/`TPOS` text. Ordinary MP4 Patch or Basic writes do not create private
@@ -252,10 +260,10 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The current local acceptance matrix passes 96 tests, strict warnings-as-errors,
-Address Sanitizer, Thread Sanitizer, and builds both facade and low-level
-consumer packages. The published binary's broader platform and dynamic-link
-matrix remains documented in the migration report.
+The local acceptance matrix covers facade and low-level consumers, strict
+warnings-as-errors, sanitizer runs, concurrency stress, transaction failures,
+and format-specific round trips. The published binary's broader platform and
+dynamic-link matrix remains documented in the migration report.
 
 See [Architecture](docs/ARCHITECTURE.md), [Support](docs/SUPPORT.md),
 [Thread safety](docs/THREAD_SAFETY.md), and the
