@@ -39,7 +39,7 @@
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:11
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing metadata is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support metadata writes." }];
         }
         TLog(@"Write skipped for '%@' (extension '%@' not supported for writing)", fileURL.lastPathComponent, ext);
         return NO;
@@ -840,7 +840,7 @@
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:11
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing metadata is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support metadata writes." }];
         }
         return NO;
     }
