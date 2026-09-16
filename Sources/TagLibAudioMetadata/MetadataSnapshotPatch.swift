@@ -398,16 +398,28 @@ extension TagLibMetadataManager {
             }
 
             if let numberText = patch.numberText {
+                let trackPair = parseNumberPair(numberText.trackNumberText)
+                let discPair = numberText.discNumberText.map(parseNumberPair)
+                try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                    trackNumber: trackPair.number,
+                    totalTracks: trackPair.total,
+                    updateTrackPair: true,
+                    discNumber: discPair?.number ?? 0,
+                    totalDiscs: discPair?.total ?? 0,
+                    updateDiscPair: discPair != nil,
+                    movementNumber: 0,
+                    movementCount: 0,
+                    updateMovementPair: false,
+                    to: mutationURL
+                )
                 try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                     numberText.trackNumberText,
                     discNumberText: numberText.discNumberText,
                     to: mutationURL
                 )
-                let trackPair = parseNumberPair(numberText.trackNumberText)
                 expectedNumberPairs[.track] = trackPair.number
                 expectedNumberPairs[.trackTotal] = trackPair.total
-                if let discNumberText = numberText.discNumberText {
-                    let discPair = parseNumberPair(discNumberText)
+                if let discPair {
                     expectedNumberPairs[.disc] = discPair.number
                     expectedNumberPairs[.discTotal] = discPair.total
                 }
