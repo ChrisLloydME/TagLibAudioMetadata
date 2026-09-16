@@ -1048,6 +1048,29 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(snapshot.basic.discTotal, 0)
     }
 
+    func testMetadataPatchAcceptsContainersThatStoreNumberAndTotalSeparately() throws {
+        let url = try copyAudioFixture("flac")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "07/12",
+                    discNumberText: "02/03"
+                )
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "07")
+        XCTAssertEqual(snapshot.basic.track, 7)
+        XCTAssertEqual(snapshot.basic.trackTotal, 12)
+        XCTAssertEqual(snapshot.basic.discNumberText, "02")
+        XCTAssertEqual(snapshot.basic.disc, 2)
+        XCTAssertEqual(snapshot.basic.discTotal, 3)
+    }
+
     func testDirectFormattedNumberWriteAcceptsPreservedExistingTotal() throws {
         let url = try copyAudioFixture("mp3")
         try TagLibMetadataManager.writeTrackNumberText(
