@@ -36,7 +36,7 @@
     AppendLine(out, [NSString stringWithFormat:@"Path: %@", NonNil(fileURL.path)]);
 
     NSString *ext = fileURL.pathExtension.lowercaseString;
-    AudioMatorTagFileFormat format = DetectTagFileFormat(fileURL);
+    TLTagFileFormat format = DetectTagFileFormat(fileURL);
     TagLib::FileRef fileRef(filePath);
 
     // 1) Unified properties (as TagLib sees them)
@@ -44,7 +44,7 @@
 
     bool anyProperties = false;
 
-    if (format == AudioMatorTagFileFormatMPEGID3 || format == AudioMatorTagFileFormatMPEGAAC) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -53,7 +53,7 @@
         } else {
             AppendLine(out, @"(unable to open as MPEG)");
         }
-    } else if (format == AudioMatorTagFileFormatMP4) {
+    } else if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -62,7 +62,7 @@
         } else {
             AppendLine(out, @"(unable to open as MP4)");
         }
-    } else if (format == AudioMatorTagFileFormatOggVorbis) {
+    } else if (format == TLTagFileFormatOggVorbis) {
         TagLib::Ogg::Vorbis::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -71,7 +71,7 @@
         } else {
             AppendLine(out, @"(unable to open as Ogg Vorbis)");
         }
-    } else if (format == AudioMatorTagFileFormatOggOpus) {
+    } else if (format == TLTagFileFormatOggOpus) {
         TagLib::Ogg::Opus::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -80,7 +80,7 @@
         } else {
             AppendLine(out, @"(unable to open as Ogg Opus)");
         }
-    } else if (format == AudioMatorTagFileFormatOggFlac) {
+    } else if (format == TLTagFileFormatOggFlac) {
         TagLib::Ogg::FLAC::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -89,7 +89,7 @@
         } else {
             AppendLine(out, @"(unable to open as Ogg FLAC)");
         }
-    } else if (format == AudioMatorTagFileFormatOggSpeex) {
+    } else if (format == TLTagFileFormatOggSpeex) {
         TagLib::Ogg::Speex::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -98,7 +98,7 @@
         } else {
             AppendLine(out, @"(unable to open as Ogg Speex)");
         }
-    } else if (format == AudioMatorTagFileFormatShorten) {
+    } else if (format == TLTagFileFormatShorten) {
         TagLib::Shorten::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -107,7 +107,7 @@
         } else {
             AppendLine(out, @"(unable to open as Shorten)");
         }
-    } else if (format == AudioMatorTagFileFormatMOD) {
+    } else if (format == TLTagFileFormatMOD) {
         TagLib::Mod::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -116,7 +116,7 @@
         } else {
             AppendLine(out, @"(unable to open as MOD)");
         }
-    } else if (format == AudioMatorTagFileFormatS3M) {
+    } else if (format == TLTagFileFormatS3M) {
         TagLib::S3M::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -125,7 +125,7 @@
         } else {
             AppendLine(out, @"(unable to open as S3M)");
         }
-    } else if (format == AudioMatorTagFileFormatIT) {
+    } else if (format == TLTagFileFormatIT) {
         TagLib::IT::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -134,7 +134,7 @@
         } else {
             AppendLine(out, @"(unable to open as IT)");
         }
-    } else if (format == AudioMatorTagFileFormatXM) {
+    } else if (format == TLTagFileFormatXM) {
         TagLib::XM::File f(filePath);
         if (f.isValid()) {
             TagLib::PropertyMap pm = f.properties();
@@ -155,7 +155,7 @@
 
     // 2) Format-specific raw structures (these are what helps with "same field, different names")
 
-    if (format == AudioMatorTagFileFormatMPEGID3) {
+    if (format == TLTagFileFormatMPEGID3) {
         TagLib::MPEG::File f(filePath);
         if (f.isValid()) {
             AppendID3v2FramesSection(out, f.hasID3v2Tag() ? f.ID3v2Tag() : nullptr, @"[ID3v2 Frames]");
@@ -168,7 +168,7 @@
         }
     }
 
-    if (format == AudioMatorTagFileFormatMP4) {
+    if (format == TLTagFileFormatMP4) {
         AppendSectionHeader(out, @"[MP4 ItemMap]");
 
         TagLib::MP4::File f(filePath);
@@ -196,7 +196,7 @@
         }
     }
 
-    if (format == AudioMatorTagFileFormatFLAC) {
+    if (format == TLTagFileFormatFLAC) {
         TagLib::FLAC::File f(filePath);
         if (f.isValid()) {
             AppendXiphCommentSection(out, f.hasXiphComment() ? f.xiphComment() : nullptr, @"[Xiph Comment]");
@@ -209,32 +209,32 @@
         }
     }
 
-    if (format == AudioMatorTagFileFormatOggVorbis) {
+    if (format == TLTagFileFormatOggVorbis) {
         TagLib::Ogg::Vorbis::File f(filePath);
         AppendXiphCommentSection(out, f.isValid() ? f.tag() : nullptr, @"[Xiph Comment]");
     }
 
-    if (format == AudioMatorTagFileFormatOggFlac) {
+    if (format == TLTagFileFormatOggFlac) {
         TagLib::Ogg::FLAC::File f(filePath);
         AppendXiphCommentSection(out, f.isValid() ? f.tag() : nullptr, @"[Xiph Comment]");
     }
 
-    if (format == AudioMatorTagFileFormatOggOpus) {
+    if (format == TLTagFileFormatOggOpus) {
         TagLib::Ogg::Opus::File f(filePath);
         AppendXiphCommentSection(out, f.isValid() ? f.tag() : nullptr, @"[Xiph Comment]");
     }
 
-    if (format == AudioMatorTagFileFormatOggSpeex) {
+    if (format == TLTagFileFormatOggSpeex) {
         TagLib::Ogg::Speex::File f(filePath);
         AppendXiphCommentSection(out, f.isValid() ? f.tag() : nullptr, @"[Xiph Comment]");
     }
 
-    if (format == AudioMatorTagFileFormatAPE) {
+    if (format == TLTagFileFormatAPE) {
         TagLib::APE::File f(filePath);
         AppendAPEItemsSection(out, (f.isValid() && f.hasAPETag()) ? f.APETag() : nullptr, @"[APE Items]");
     }
 
-    if (format == AudioMatorTagFileFormatWAV) {
+    if (format == TLTagFileFormatWAV) {
         TagLib::RIFF::WAV::File f(filePath);
         if (f.isValid()) {
             AppendRIFFInfoSection(out, f.hasInfoTag() ? f.InfoTag() : nullptr, @"[RIFF INFO]");
@@ -245,12 +245,12 @@
         }
     }
 
-    if (format == AudioMatorTagFileFormatAIFF) {
+    if (format == TLTagFileFormatAIFF) {
         TagLib::RIFF::AIFF::File f(filePath);
         AppendID3v2FramesSection(out, (f.isValid() && f.hasID3v2Tag()) ? f.tag() : nullptr, @"[ID3v2 Frames]");
     }
 
-    if (format == AudioMatorTagFileFormatWavPack) {
+    if (format == TLTagFileFormatWavPack) {
         TagLib::WavPack::File f(filePath);
         if (f.isValid()) {
             AppendAPEItemsSection(out, f.hasAPETag() ? f.APETag() : nullptr, @"[APE Items]");
@@ -261,7 +261,7 @@
         }
     }
 
-    if (format == AudioMatorTagFileFormatMPC) {
+    if (format == TLTagFileFormatMPC) {
         TagLib::MPC::File f(filePath);
         if (f.isValid()) {
             AppendAPEItemsSection(out, f.hasAPETag() ? f.APETag() : nullptr, @"[APE Items]");
@@ -272,7 +272,7 @@
         }
     }
 
-    if (format == AudioMatorTagFileFormatTTA) {
+    if (format == TLTagFileFormatTTA) {
         TagLib::TrueAudio::File f(filePath);
         if (f.isValid()) {
             AppendID3v2FramesSection(out, f.hasID3v2Tag() ? f.ID3v2Tag() : nullptr, @"[ID3v2 Frames]");
@@ -311,7 +311,7 @@ static NSString * _Nullable MetadataMappingString(const char * _Nullable value)
 + (NSArray<NSDictionary<NSString *, NSObject *> *> *)metadataFieldMappings
 {
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *result = [NSMutableArray array];
-    for (const auto &mapping : kAudioMatorMetadataFieldMappings) {
+    for (const auto &mapping : kMetadataFieldMappings) {
         NSMutableArray<NSString *> *aliases = [NSMutableArray array];
         for (const char *alias : mapping.propertyAliases) {
             if (NSString *value = MetadataMappingString(alias)) {
@@ -335,7 +335,7 @@ static NSString * _Nullable MetadataMappingString(const char * _Nullable value)
     return [result copy];
 }
 
-static NSArray<NSString *> *ExtensionsForDescriptor(const AudioMatorFormatCapabilityDescriptor &descriptor)
+static NSArray<NSString *> *ExtensionsForDescriptor(const TLFormatCapabilityDescriptor &descriptor)
 {
     NSMutableArray<NSString *> *extensions = [NSMutableArray array];
     for (const char * const *extension = descriptor.extensions; *extension; ++extension) {
@@ -344,22 +344,22 @@ static NSArray<NSString *> *ExtensionsForDescriptor(const AudioMatorFormatCapabi
     return [extensions copy];
 }
 
-static NSArray<NSString *> *ContainerNamesForMask(AudioMatorMetadataContainerMask containers)
+static NSArray<NSString *> *ContainerNamesForMask(TLMetadataContainerMask containers)
 {
     NSMutableArray<NSString *> *names = [NSMutableArray array];
-    if (containers & AudioMatorMetadataContainerTag) [names addObject:@"tag"];
-    if (containers & AudioMatorMetadataContainerPropertyMap) [names addObject:@"propertyMap"];
-    if (containers & AudioMatorMetadataContainerID3v1) [names addObject:@"id3v1"];
-    if (containers & AudioMatorMetadataContainerID3v2) [names addObject:@"id3v2"];
-    if (containers & AudioMatorMetadataContainerAPE) [names addObject:@"ape"];
-    if (containers & AudioMatorMetadataContainerMP4ItemMap) [names addObject:@"mp4"];
-    if (containers & AudioMatorMetadataContainerXiph) [names addObject:@"xiph"];
-    if (containers & AudioMatorMetadataContainerASF) [names addObject:@"asf"];
-    if (containers & AudioMatorMetadataContainerRIFFInfo) [names addObject:@"riffInfo"];
+    if (containers & TLMetadataContainerTag) [names addObject:@"tag"];
+    if (containers & TLMetadataContainerPropertyMap) [names addObject:@"propertyMap"];
+    if (containers & TLMetadataContainerID3v1) [names addObject:@"id3v1"];
+    if (containers & TLMetadataContainerID3v2) [names addObject:@"id3v2"];
+    if (containers & TLMetadataContainerAPE) [names addObject:@"ape"];
+    if (containers & TLMetadataContainerMP4ItemMap) [names addObject:@"mp4"];
+    if (containers & TLMetadataContainerXiph) [names addObject:@"xiph"];
+    if (containers & TLMetadataContainerASF) [names addObject:@"asf"];
+    if (containers & TLMetadataContainerRIFFInfo) [names addObject:@"riffInfo"];
     return [names copy];
 }
 
-static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDescriptor &descriptor,
+static const char *SupportLevelForExtension(const TLFormatCapabilityDescriptor &descriptor,
                                             NSString *extension)
 {
     static NSSet<NSString *> *fixtureCoveredExtensions = [NSSet setWithArray:@[
@@ -368,41 +368,41 @@ static const char *SupportLevelForExtension(const AudioMatorFormatCapabilityDesc
     if ([fixtureCoveredExtensions containsObject:extension.lowercaseString]) {
         return "fixtureCovered";
     }
-    if (descriptor.format == AudioMatorTagFileFormatShorten ||
-        descriptor.format == AudioMatorTagFileFormatMOD) {
+    if (descriptor.format == TLTagFileFormatShorten ||
+        descriptor.format == TLTagFileFormatMOD) {
         return "readOnly";
     }
     switch (descriptor.format) {
-        case AudioMatorTagFileFormatS3M:
-        case AudioMatorTagFileFormatIT:
+        case TLTagFileFormatS3M:
+        case TLTagFileFormatIT:
             return "experimental";
         default:
             return "upstreamSupported";
     }
 }
 
-static NSArray<NSString *> * _Nullable ExplicitReadableFieldsForFormat(AudioMatorTagFileFormat format)
+static NSArray<NSString *> * _Nullable ExplicitReadableFieldsForFormat(TLTagFileFormat format)
 {
     switch (format) {
-        case AudioMatorTagFileFormatMOD:
-        case AudioMatorTagFileFormatS3M:
-        case AudioMatorTagFileFormatIT:
-        case AudioMatorTagFileFormatXM:
+        case TLTagFileFormatMOD:
+        case TLTagFileFormatS3M:
+        case TLTagFileFormatIT:
+        case TLTagFileFormatXM:
             return @[ @"title", @"comment", @"trackerName" ];
         default:
             return nil;
     }
 }
 
-static NSArray<NSString *> * _Nullable ExplicitWritableFieldsForFormat(AudioMatorTagFileFormat format)
+static NSArray<NSString *> * _Nullable ExplicitWritableFieldsForFormat(TLTagFileFormat format)
 {
     switch (format) {
-        case AudioMatorTagFileFormatMOD:
+        case TLTagFileFormatMOD:
             return @[];
-        case AudioMatorTagFileFormatS3M:
-        case AudioMatorTagFileFormatIT:
+        case TLTagFileFormatS3M:
+        case TLTagFileFormatIT:
             return @[ @"title", @"comment" ];
-        case AudioMatorTagFileFormatXM:
+        case TLTagFileFormatXM:
             return @[ @"title", @"comment", @"trackerName" ];
         default:
             return nil;
@@ -410,11 +410,11 @@ static NSArray<NSString *> * _Nullable ExplicitWritableFieldsForFormat(AudioMato
 }
 
 static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
-    const AudioMatorFormatCapabilityDescriptor &descriptor,
+    const TLFormatCapabilityDescriptor &descriptor,
     NSString * _Nullable requestedExtension = nil
 )
 {
-    AudioMatorMetadataContainerMask containers = ContainerMaskForFormat(descriptor.format);
+    TLMetadataContainerMask containers = ContainerMaskForFormat(descriptor.format);
     BOOL writable = IsWritableTagFileFormat(descriptor.format);
     NSArray<NSString *> *extensions = ExtensionsForDescriptor(descriptor);
     NSString *primaryExtension = extensions.firstObject ?: @"";
@@ -464,7 +464,7 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
 
 + (BOOL)isWritableFormat:(NSString *)fileExtension {
     try {
-    const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
+    const TLFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
     return descriptor ? IsWritableTagFileFormat(descriptor->format) : NO;
     TAGLIB_BRIDGE_CATCH_SAFE(@"Writable-format lookup", NO)
 }
@@ -493,7 +493,7 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
 
 + (nullable NSDictionary<NSString *, NSObject *> *)formatCapabilityForExtension:(NSString *)fileExtension {
     try {
-    const AudioMatorFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
+    const TLFormatCapabilityDescriptor *descriptor = DescriptorForExtension(fileExtension);
     if (!descriptor) {
         return nil;
     }

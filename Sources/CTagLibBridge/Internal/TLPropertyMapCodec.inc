@@ -1,5 +1,5 @@
 static bool IsMP4LikeExtension(NSString * _Nullable ext) {
-    return DetectTagFileFormat(ext) == AudioMatorTagFileFormatMP4;
+    return DetectTagFileFormat(ext) == TLTagFileFormatMP4;
 }
 
 static void SetMP4TextItem(TagLib::MP4::Tag *tag,

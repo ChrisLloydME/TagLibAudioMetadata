@@ -1,6 +1,6 @@
 //
 //  TagLibMetadataExtractor.h
-//  AudioMator
+//  TagLibAudioMetadata
 //
 //  Objective-C++ wrapper for TagLib metadata extraction
 //

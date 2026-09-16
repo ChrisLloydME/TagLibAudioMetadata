@@ -26,7 +26,6 @@ This journal tracks package-side work for the coordinated metadata correctness a
 
 ## Pending verification
 
-- Consider a later mechanical rename of remaining package-internal historical `AudioMator*` symbols. They are not externally observable; user-facing error text and written metadata no longer carry AudioMator product assumptions.
 - Publish the intentional breaking high-level bridge-boundary/API changes as version 0.6.0 before AudioMator can resolve its final remote dependency requirement.
 - A full cross-language transaction-coordinator merge remains a possible breaking redesign. The current safe facade and explicitly low-level product have separate coordinators with aligned, tested identity invariants.
 
@@ -57,6 +56,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Kept `BasicMetadata.year` as a compatibility projection. For MP4 it is derived from `©day`; a conflicting independent Basic year write is rejected rather than silently overwriting or being ignored.
 - Retained the two transaction coordinators because merging the public Swift facade and explicitly low-level Objective-C bridge would be a breaking product-boundary redesign. A shared conformance regression now runs both engines through preservation of ordinary and quarantine xattrs, ACLs, filesystem flags, and POSIX permissions; existing shared tests cover symlink and pre-existing hard-link rejection.
 - Strengthened bridge/schema consistency checks so every bridge mapping must have exactly one Swift schema that owns its complete PropertyMap key set, and that same owner must agree on native ID3/MP4 storage and cardinality/people semantics. Merely intersecting an alias set is no longer accepted as semantic agreement.
+- Renamed the remaining private bridge types/tables from historical `AudioMator*` names to package-neutral `TL*` names. Compatibility identifiers that explicitly recognize legacy AudioMator-written atoms remain named and readable. `TAGLIBAUDIOMETADATA_DEBUG` is now the preferred debug switch, with `AUDIOMATOR_TAGLIB_DEBUG` retained as a compatibility alias.
 
 ## Tests and validation
 
@@ -71,6 +71,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Passed after versioned direct-number writes and replacement-pair semantics: full `swift test` (119 tests, 2 opt-in tests skipped, 0 failures).
 - Passed after the date semantic split: full `swift test` baseline plus focused ID3/FLAC/MP4 date ownership, removal, unsupported-format, and capability tests.
 - Passed after transaction/schema hardening: focused cross-engine filesystem-preservation and complete semantic-owner mapping tests (2 tests, 0 failures).
+- Passed after private naming cleanup: `FormatCapabilityTests` (16 tests, 0 failures), which recompiles the renamed bridge implementation and revalidates schema/capability exposure.
 
 ## Commits
 
