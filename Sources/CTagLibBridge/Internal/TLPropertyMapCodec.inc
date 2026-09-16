@@ -487,9 +487,6 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
 
     if ([normalizedKey isEqualToString:@"YEAR"]) {
         metadata.year = trimmedValue;
-        if (metadata.releaseDate.length == 0 && trimmedValue.length > 0) {
-            metadata.releaseDate = trimmedValue;
-        }
         return true;
     }
 
@@ -738,9 +735,6 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     if (!metadata) return properties;
 
     NSString *yearValue = TrimmedStringOrNil(metadata.year);
-    if (!yearValue && metadata.releaseDate.length >= 4) {
-        yearValue = [metadata.releaseDate substringToIndex:4];
-    }
 
     SetPropertyMapString(properties, "TITLE", metadata.title);
     SetPropertyMapString(properties, "ARTIST", metadata.artist);
@@ -749,8 +743,9 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "GENRE", metadata.genre);
     SetPropertyMapString(properties, "COMMENT", metadata.comment);
     SetPropertyMapString(properties, "ALBUMARTIST", metadata.albumArtist);
-    SetPropertyMapString(properties, "DATE", metadata.releaseDate.length > 0 ? metadata.releaseDate : metadata.year);
+    SetPropertyMapString(properties, "DATE", metadata.year);
     SetPropertyMapString(properties, "YEAR", yearValue);
+    SetPropertyMapString(properties, "RELEASEDATE", metadata.releaseDate);
     SetPropertyMapString(properties, "ORIGINALDATE", metadata.originalReleaseDate);
     SetPropertyMapString(properties, "COPYRIGHT", metadata.copyright);
     SetPropertyMapString(properties, "LABEL", metadata.label);

@@ -74,6 +74,7 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
 
     public func readSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
         guard isReadable,
+              !(field == .date && metadataFieldFormats.contains(.mp4)),
               let schema = MetadataFieldRegistry.schema(for: field),
               readableFields?.contains(field) != false,
               schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),
@@ -84,6 +85,7 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
 
     public func writeSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
         guard isWritable,
+              !(field == .date && metadataFieldFormats.contains(.mp4)),
               let schema = MetadataFieldRegistry.schema(for: field),
               writableFields?.contains(field) != false,
               schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),

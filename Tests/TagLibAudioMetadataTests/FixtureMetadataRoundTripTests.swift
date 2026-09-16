@@ -673,6 +673,93 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(result.originalReleaseDate, metadata.originalReleaseDate)
     }
 
+    func testRecordingAndReleaseDatesRemainIndependentWhereRepresentable() throws {
+        for ext in ["mp3", "flac"] {
+            let url = try copyAudioFixture(ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [
+                    .date: .text("2020"),
+                    .releaseDate: .text("2020-05-31"),
+                ]),
+                to: url
+            )
+
+            var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2020"], ext)
+            XCTAssertEqual(snapshot.raw.values(for: "RELEASEDATE"), ["2020-05-31"], ext)
+            XCTAssertEqual(snapshot.basic.year, "2020", ext)
+            XCTAssertEqual(snapshot.basic.releaseDate, "2020-05-31", ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.date: .text("2021")]),
+                to: url
+            )
+            snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2021"], ext)
+            XCTAssertEqual(snapshot.raw.values(for: "RELEASEDATE"), ["2020-05-31"], ext)
+            XCTAssertEqual(snapshot.basic.year, "2021", ext)
+            XCTAssertEqual(snapshot.basic.releaseDate, "2020-05-31", ext)
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.releaseDate: .remove]),
+                to: url
+            )
+            snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2021"], ext)
+            XCTAssertTrue(snapshot.raw.values(for: "RELEASEDATE").isEmpty, ext)
+            XCTAssertEqual(snapshot.basic.year, "2021", ext)
+            XCTAssertEqual(snapshot.basic.releaseDate, "", ext)
+        }
+    }
+
+    func testMP4ReleaseDateOwnsDayAtomAndRecordingDateIsExplicitlyUnsupported() throws {
+        let url = try copyAudioFixture("m4a")
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.releaseDate: .text("2020-05-31")]),
+            to: url
+        )
+        var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.raw.values(for: "DATE"), ["2020-05-31"])
+        XCTAssertTrue(snapshot.raw.values(for: "RELEASEDATE").isEmpty)
+        XCTAssertEqual(snapshot.basic.releaseDate, "2020-05-31")
+        XCTAssertEqual(snapshot.basic.year, "2020", "Year remains a compatibility projection of MP4 ©day.")
+
+        let beforeUnsupportedPatch = try Data(contentsOf: url)
+        XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.date: .text("2021")]),
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .unsupportedFieldForFormat(field: .date, format: "mp4")
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)
+
+        var conflictingBasic = BasicMetadata.empty
+        conflictingBasic.year = "2021"
+        XCTAssertThrowsError(try TagLibMetadataManager.writeMetadataWithVerification(
+            conflictingBasic,
+            to: url
+        )) { error in
+            XCTAssertEqual(
+                error as? MetadataPatchValidationError,
+                .unsupportedFieldForFormat(field: .date, format: "mp4")
+            )
+        }
+        XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.releaseDate: .remove]),
+            to: url
+        )
+        snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertTrue(snapshot.raw.values(for: "DATE").isEmpty)
+        XCTAssertEqual(snapshot.basic.releaseDate, "")
+    }
+
     func testStructuredCollectionsCanRemoveTheirLastEntry() throws {
         let url = try copyAudioFixture("mp3")
         let artwork = try Data(contentsOf: artworkFixtureURL())

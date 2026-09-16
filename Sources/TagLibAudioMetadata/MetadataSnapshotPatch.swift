@@ -217,6 +217,44 @@ extension TagLibMetadataManager {
         var customFields: [String: MetadataPatchValue]
     }
 
+    private struct SemanticPropertyStorage: Sendable {
+        var writeKey: String
+        var keysToRemove: Set<String>
+    }
+
+    nonisolated private static func propertyStorage(
+        for field: MetadataFieldKey,
+        fileExtension: String
+    ) throws -> SemanticPropertyStorage {
+        guard let schema = MetadataFieldRegistry.schema(for: field),
+              let canonicalKey = schema.propertyMapKeys.first else {
+            throw MetadataPatchValidationError.unsupportedField(field)
+        }
+
+        let capability = formatCapability(for: fileExtension)
+        let isMP4 = capability?.metadataFieldFormats.contains(.mp4) == true
+        if field == .date, isMP4 {
+            throw MetadataPatchValidationError.unsupportedFieldForFormat(
+                field: field,
+                format: capability?.identifier ?? fileExtension
+            )
+        }
+
+        if field == .releaseDate, isMP4 {
+            // TagLib exposes the native MP4 ©day atom through PropertyMap's DATE key.
+            // RELEASEDATE would create a freeform field instead of updating ©day.
+            return SemanticPropertyStorage(
+                writeKey: "DATE",
+                keysToRemove: ["DATE", "RELEASEDATE"]
+            )
+        }
+
+        return SemanticPropertyStorage(
+            writeKey: canonicalKey,
+            keysToRemove: Set(schema.propertyMapKeys)
+        )
+    }
+
     nonisolated private static func validate(_ patch: MetadataPatch) throws -> ValidatedMetadataPatch {
         var normalizedFields: [MetadataFieldKey: MetadataPatchValue] = [:]
         for (field, value) in patch.fields {
@@ -276,7 +314,11 @@ extension TagLibMetadataManager {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjections(from: url)
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
-        let basic = basicMetadata(fromBridgeMetadata: projections.basic, rawDump: raw)
+        let basic = basicMetadata(
+            fromBridgeMetadata: projections.basic,
+            rawDump: raw,
+            fileExtension: url.pathExtension
+        )
         let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
         guard version == (try? fileVersion(at: url)) else {
             throw TagLibManagerError.fileChanged
@@ -320,14 +362,20 @@ extension TagLibMetadataManager {
             }
         }
 
+        let structuredNumberPairFields: Set<MetadataFieldKey> = [
+            .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
+        ]
+        let fieldStorage = try validatedPatch.fields.reduce(into: [MetadataFieldKey: SemanticPropertyStorage]()) {
+            result, entry in
+            guard !structuredNumberPairFields.contains(entry.key) else { return }
+            result[entry.key] = try propertyStorage(for: entry.key, fileExtension: ext)
+        }
+
         return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let before = try readSnapshot(from: mutationURL)
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
-            let structuredNumberPairFields: Set<MetadataFieldKey> = [
-                .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
-            ]
             let patchesNumberPair = !structuredNumberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
 
@@ -426,13 +474,10 @@ extension TagLibMetadataManager {
             }
 
             for (field, value) in validatedPatch.fields where !structuredNumberPairFields.contains(field) {
-                guard let schema = MetadataFieldRegistry.schema(for: field),
-                      let canonicalKey = schema.propertyMapKeys.first else {
-                    continue
-                }
-                keysToRemove.formUnion(schema.propertyMapKeys)
+                guard let storage = fieldStorage[field] else { continue }
+                keysToRemove.formUnion(storage.keysToRemove)
                 if !value.propertyMapValues.isEmpty {
-                    propertyValues[canonicalKey] = value.propertyMapValues
+                    propertyValues[storage.writeKey] = value.propertyMapValues
                 }
             }
 
@@ -494,7 +539,11 @@ extension TagLibMetadataManager {
                 )
             }
             let afterRaw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
-            let afterBasic = basicMetadata(fromBridgeMetadata: bridgeBasic, rawDump: afterRaw)
+            let afterBasic = basicMetadata(
+                fromBridgeMetadata: bridgeBasic,
+                rawDump: afterRaw,
+                fileExtension: mutationURL.pathExtension
+            )
             let afterStructured = (projections["structured"] as? [String: NSObject]).map {
                 structuredMetadata(fromBridgeDictionary: $0)
             } ?? StructuredMetadata()
@@ -534,15 +583,12 @@ extension TagLibMetadataManager {
                 }
             }
             for (field, value) in validatedPatch.fields where expectedNumberPairs[field] == nil {
-                guard let schema = MetadataFieldRegistry.schema(for: field),
-                      let key = schema.propertyMapKeys.first else { continue }
-                let actual = afterRaw.properties.first { entry in
-                    schema.propertyMapKeys.contains { alias in
-                        alias.caseInsensitiveCompare(entry.key) == .orderedSame
-                    }
+                guard let storage = fieldStorage[field] else { continue }
+                let actual = afterRaw.properties.first {
+                    storage.writeKey.caseInsensitiveCompare($0.key) == .orderedSame
                 }?.values ?? []
                 if actual != value.propertyMapValues {
-                    warnings.append("Patched field \(key) differs after save.")
+                    warnings.append("Patched field \(storage.writeKey) differs after save.")
                 }
             }
             for (key, value) in validatedPatch.customFields {

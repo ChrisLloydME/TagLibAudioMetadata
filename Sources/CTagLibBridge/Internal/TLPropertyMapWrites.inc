@@ -311,7 +311,8 @@ static NSString * _Nullable GetMood(TagLibAudioMetadata *m) { return m.mood; }
 static NSString * _Nullable GetMediaType(TagLibAudioMetadata *m) { return m.mediaType; }
 static NSString * _Nullable GetMovement(TagLibAudioMetadata *m) { return m.movement; }
 static NSString * _Nullable GetCompilation(TagLibAudioMetadata *m) { return m.compilation ? @"1" : nil; }
-static NSString * _Nullable GetReleaseDate(TagLibAudioMetadata *m) { return m.releaseDate.length > 0 ? m.releaseDate : m.year; }
+static NSString * _Nullable GetDate(TagLibAudioMetadata *m) { return m.year; }
+static NSString * _Nullable GetReleaseDate(TagLibAudioMetadata *m) { return m.releaseDate; }
 static NSString * _Nullable GetOriginalReleaseDate(TagLibAudioMetadata *m) { return m.originalReleaseDate; }
 static NSString * _Nullable GetLabel(TagLibAudioMetadata *m) { return m.label; }
 static NSString * _Nullable GetReleaseType(TagLibAudioMetadata *m) { return m.releaseType; }
@@ -394,7 +395,7 @@ static const AudioMatorWritableTextMapping kAudioMatorWritableTextMappings[] = {
     { nullptr, nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
     { "TCMP", nullptr, nullptr, nullptr, GetCompilation },
     { "TDRL", nullptr, "\xA9" "day", nullptr, GetReleaseDate },
-    { "TDRC", nullptr, nullptr, nullptr, GetReleaseDate },
+    { "TDRC", nullptr, nullptr, nullptr, GetDate },
     { "TDOR", nullptr, nullptr, "ORIGINAL YEAR", GetOriginalReleaseDate },
     { "TPUB", nullptr, nullptr, "LABEL", GetLabel },
     { nullptr, "RELEASETYPE", nullptr, "RELEASETYPE", GetReleaseType },
@@ -554,12 +555,14 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     metadata.composer = FirstStringFromProperty(properties, {"COMPOSER"}, true) ?: metadata.composer;
     metadata.albumArtist = FirstStringFromProperty(properties, {"ALBUMARTIST"}, true) ?: metadata.albumArtist;
 
-    NSString *dateValue = FirstStringFromProperty(properties, {"RELEASEDATE", "DATE", "YEAR"});
-    if (dateValue.length > 0) {
-        metadata.releaseDate = dateValue;
-        if (metadata.year.length == 0 && dateValue.length >= 4) {
-            metadata.year = [dateValue substringToIndex:4];
-        }
+    NSString *dateValue = FirstStringFromProperty(properties, {"DATE", "YEAR"});
+    if (dateValue.length > 0 && metadata.year.length == 0) {
+        metadata.year = dateValue.length >= 4 ? [dateValue substringToIndex:4] : dateValue;
+    }
+
+    NSString *releaseDateValue = FirstStringFromProperty(properties, {"RELEASEDATE"});
+    if (releaseDateValue.length > 0) {
+        metadata.releaseDate = releaseDateValue;
     }
 
     NSString *originalDate = FirstStringFromProperty(properties, {"ORIGINALDATE"});

@@ -216,8 +216,30 @@ extension TagLibMetadataManager {
 
     nonisolated static func basicMetadata(
         fromBridgeMetadata meta: TagLibAudioMetadata,
-        rawDump: RawMetadataDump
+        rawDump: RawMetadataDump,
+        fileExtension: String? = nil
     ) -> BasicMetadata {
+        func firstRawValue(for keys: [String]) -> String? {
+            for key in keys {
+                if let value = rawDump.properties.first(where: {
+                    $0.key.caseInsensitiveCompare(key) == .orderedSame
+                })?.values.first {
+                    return value
+                }
+            }
+            return nil
+        }
+
+        let capability = fileExtension.flatMap { formatCapability(for: $0) }
+        let isMP4 = capability?.metadataFieldFormats.contains(.mp4) == true
+        let recordingDate = isMP4 ? nil : firstRawValue(for: ["DATE", "YEAR"])
+        let releaseDate = isMP4
+            ? firstRawValue(for: ["DATE"])
+            : firstRawValue(for: ["RELEASEDATE"])
+        let projectedYearSource = recordingDate ?? (isMP4 ? releaseDate : nil) ?? meta.year
+        let projectedYear = projectedYearSource.map {
+            $0.count >= 4 ? String($0.prefix(4)) : $0
+        } ?? ""
         let trackNumberText = meta.trackNumberText ?? ""
         let discNumberText = meta.discNumberText ?? ""
         let needsTrackTextFallback =
@@ -306,9 +328,9 @@ extension TagLibMetadataManager {
             discNumberText: needsDiscTextFallback
                 ? preferredRawNumberText(discNumberText, rawNumberText.disc)
                 : discNumberText,
-            year: meta.year ?? "",
+            year: projectedYear,
             albumArtist: meta.albumArtist ?? "",
-            releaseDate: meta.releaseDate ?? "",
+            releaseDate: releaseDate ?? "",
             originalReleaseDate: meta.originalReleaseDate ?? "",
             isrc: meta.isrc ?? "",
             barcode: meta.barcode ?? "",
@@ -409,7 +431,8 @@ extension TagLibMetadataManager {
         }
         return basicMetadata(
             fromBridgeMetadata: bridgeBasic,
-            rawDump: rawMetadataDump(fromBridgeDictionary: bridgeRaw)
+            rawDump: rawMetadataDump(fromBridgeDictionary: bridgeRaw),
+            fileExtension: url.pathExtension
         )
     }
 
