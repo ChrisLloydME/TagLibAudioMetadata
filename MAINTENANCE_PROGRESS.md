@@ -55,6 +55,8 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Split recording-date and release-date ownership throughout the Swift schema and Objective-C++ bridge. ID3 and Xiph-style PropertyMaps now read/write `DATE` and `RELEASEDATE` independently instead of copying one value into both semantics.
 - Added a format-aware semantic write plan: MP4 release-date patches target the PropertyMap `DATE` key that actually owns `©day`, MP4 recording-date patches fail before mutation, and verification checks the exact key chosen by the plan rather than the first overlapping alias.
 - Kept `BasicMetadata.year` as a compatibility projection. For MP4 it is derived from `©day`; a conflicting independent Basic year write is rejected rather than silently overwriting or being ignored.
+- Retained the two transaction coordinators because merging the public Swift facade and explicitly low-level Objective-C bridge would be a breaking product-boundary redesign. A shared conformance regression now runs both engines through preservation of ordinary and quarantine xattrs, ACLs, filesystem flags, and POSIX permissions; existing shared tests cover symlink and pre-existing hard-link rejection.
+- Strengthened bridge/schema consistency checks so every bridge mapping must have exactly one Swift schema that owns its complete PropertyMap key set, and that same owner must agree on native ID3/MP4 storage and cardinality/people semantics. Merely intersecting an alias set is no longer accepted as semantic agreement.
 
 ## Tests and validation
 
@@ -68,6 +70,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Passed after the WAV exact-number correction: full `swift test` (116 tests, 2 opt-in tests skipped, 0 failures).
 - Passed after versioned direct-number writes and replacement-pair semantics: full `swift test` (119 tests, 2 opt-in tests skipped, 0 failures).
 - Passed after the date semantic split: full `swift test` baseline plus focused ID3/FLAC/MP4 date ownership, removal, unsupported-format, and capability tests.
+- Passed after transaction/schema hardening: focused cross-engine filesystem-preservation and complete semantic-owner mapping tests (2 tests, 0 failures).
 
 ## Commits
 
@@ -80,3 +83,4 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - `94f8fdd` — `fix: replace formatted number pairs in patches`
 - `b44bf4c` — `fix: verify number-only writes with preserved totals`
 - `42bc1c3` — `fix: accept split number-pair storage in patches`
+- `763e31f` — `fix: separate recording and release date storage`

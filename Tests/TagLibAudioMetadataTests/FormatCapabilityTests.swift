@@ -189,37 +189,44 @@ final class FormatCapabilityTests: XCTestCase {
             let aliases = mapping["propertyAliases"] as? [String] ?? []
             let propertyKeys = Set([canonical] + aliases)
             let schemas = MetadataFieldRegistry.allSchemas.filter {
-                !propertyKeys.isDisjoint(with: Set($0.propertyMapKeys))
+                propertyKeys.isSubset(of: Set($0.propertyMapKeys))
             }
-            XCTAssertFalse(schemas.isEmpty, canonical)
+            let schema = try XCTUnwrap(
+                schemas.count == 1 ? schemas.first : nil,
+                "Bridge mapping \(propertyKeys.sorted()) must have exactly one complete Swift semantic owner; found \(schemas.map { $0.key.rawValue })"
+            )
 
             if let frame = mapping["id3v2TextFrame"] as? String {
-                XCTAssertTrue(schemas.contains { schema in
+                XCTAssertTrue(
                     schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .textFrame && $0.keys.contains(frame) }
-                        || schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .binary && $0.keys.contains(frame) }
-                }, "\(canonical) / \(frame)")
+                        || schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .binary && $0.keys.contains(frame) },
+                    "\(schema.key.rawValue) / \(frame)"
+                )
             }
             if let description = mapping["id3v2UserTextDescription"] as? String {
-                XCTAssertTrue(schemas.contains { schema in
-                    schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .userTextFrame && $0.keys.contains(description) }
-                }, "\(canonical) / \(description)")
+                XCTAssertTrue(
+                    schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .userTextFrame && $0.keys.contains(description) },
+                    "\(schema.key.rawValue) / \(description)"
+                )
             }
             if let atom = mapping["mp4Atom"] as? String {
-                XCTAssertTrue(schemas.contains { schema in
+                XCTAssertTrue(
                     schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .mp4Atom && $0.keys.contains(atom) }
-                        || schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .binary && $0.keys.contains(atom) }
-                }, "\(canonical) / \(atom)")
+                        || schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .binary && $0.keys.contains(atom) },
+                    "\(schema.key.rawValue) / \(atom)"
+                )
             }
             if let description = mapping["mp4FreeformDescription"] as? String {
                 let atom = "----:com.apple.iTunes:\(description)"
-                XCTAssertTrue(schemas.contains { schema in
-                    schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .mp4Freeform && $0.keys.contains(atom) }
-                }, "\(canonical) / \(atom)")
+                XCTAssertTrue(
+                    schema.mappings.contains { $0.format == .mp4 && $0.storageKind == .mp4Freeform && $0.keys.contains(atom) },
+                    "\(schema.key.rawValue) / \(atom)"
+                )
             }
 
-            XCTAssertTrue(schemas.contains { $0.isMultiValue == ((mapping["multiValue"] as? NSNumber)?.boolValue ?? false) }, canonical)
-            XCTAssertTrue(schemas.contains { $0.isPeopleField == ((mapping["peopleField"] as? NSNumber)?.boolValue ?? false) }, canonical)
-            XCTAssertTrue(schemas.contains { $0.isRoleQualified == ((mapping["roleQualified"] as? NSNumber)?.boolValue ?? false) }, canonical)
+            XCTAssertEqual(schema.isMultiValue, (mapping["multiValue"] as? NSNumber)?.boolValue ?? false, canonical)
+            XCTAssertEqual(schema.isPeopleField, (mapping["peopleField"] as? NSNumber)?.boolValue ?? false, canonical)
+            XCTAssertEqual(schema.isRoleQualified, (mapping["roleQualified"] as? NSNumber)?.boolValue ?? false, canonical)
         }
     }
 }
