@@ -557,12 +557,21 @@ extension TagLibMetadataManager {
                 warnings.append("Patched explicit advisory differs after save.")
             }
             if let numberText = patch.numberText {
-                if afterBasic.trackNumberText != numberText.trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines) {
+                let expectedTrackText = numberText.trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let expectedTrackPair = parseNumberPair(expectedTrackText)
+                let trackPairStoredAcrossFields = afterBasic.track == expectedTrackPair.number &&
+                    afterBasic.trackTotal == expectedTrackPair.total
+                if afterBasic.trackNumberText != expectedTrackText && !trackPairStoredAcrossFields {
                     warnings.append("Patched track number text differs after save.")
                 }
-                if let discNumberText = numberText.discNumberText,
-                   afterBasic.discNumberText != discNumberText.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    warnings.append("Patched disc number text differs after save.")
+                if let discNumberText = numberText.discNumberText {
+                    let expectedDiscText = discNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let expectedDiscPair = parseNumberPair(expectedDiscText)
+                    let discPairStoredAcrossFields = afterBasic.disc == expectedDiscPair.number &&
+                        afterBasic.discTotal == expectedDiscPair.total
+                    if afterBasic.discNumberText != expectedDiscText && !discPairStoredAcrossFields {
+                        warnings.append("Patched disc number text differs after save.")
+                    }
                 }
             }
             switch patch.artwork {
