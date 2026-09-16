@@ -23,6 +23,12 @@ final class SnapshotVersionTests: XCTestCase {
             RawMetadataPatch(valuesToSet: ["LYRICS": ["Stale lyrics"]]), to: url, expectedVersion: version
         ))
         XCTAssertThrowsError(try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, expectedVersion: version))
+        XCTAssertThrowsError(try TagLibMetadataManager.writeTrackNumberText(
+            "02/09",
+            discNumberText: nil,
+            to: url,
+            expectedVersion: version
+        ))
         XCTAssertEqual(try Data(contentsOf: url), newerBytes)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path), [url.lastPathComponent])
     }
