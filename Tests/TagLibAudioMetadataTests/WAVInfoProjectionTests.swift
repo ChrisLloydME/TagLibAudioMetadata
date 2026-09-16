@@ -25,6 +25,50 @@ final class WAVInfoProjectionTests: XCTestCase {
         XCTAssertEqual(try infoChunks(Data(contentsOf: url)), info, "A text delta must not rebuild unrelated INFO metadata.")
     }
 
+    func testFormattedTrackDiscAndMovementPatchPreservesMixedWAVInfoAndID3() throws {
+        let source = try XCTUnwrap(Bundle.module.url(forResource: "info-only", withExtension: "wav", subdirectory: "Audio")
+            ?? Bundle.module.url(forResource: "info-only", withExtension: "wav"))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("WAVMixedNumbers-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("audio.wav")
+        try FileManager.default.copyItem(at: source, to: url)
+        let info = try infoChunks(Data(contentsOf: url))
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.title: .text("ID3 title")]),
+            to: url,
+            failurePolicy: .throw
+        )
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                fields: [
+                    .movementNumber: .integer(2),
+                    .movementCount: .integer(4),
+                ],
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "01/10",
+                    discNumberText: "02/03"
+                )
+            ),
+            to: url,
+            failurePolicy: .throw
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.title, "ID3 title")
+        XCTAssertEqual(snapshot.basic.track, 1)
+        XCTAssertEqual(snapshot.basic.trackTotal, 10)
+        XCTAssertEqual(snapshot.basic.disc, 2)
+        XCTAssertEqual(snapshot.basic.discTotal, 3)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "01/10")
+        XCTAssertEqual(snapshot.basic.discNumberText, "02/03")
+        XCTAssertEqual(snapshot.basic.movementNumber, 2)
+        XCTAssertEqual(snapshot.basic.movementCount, 4)
+        XCTAssertEqual(try infoChunks(Data(contentsOf: url)), info)
+        XCTAssertGreaterThan(snapshot.basic.duration, 0)
+    }
+
     private func infoChunks(_ data: Data) throws -> [Data] {
         guard data.count >= 12, data.prefix(4) == Data("RIFF".utf8), data[8..<12] == Data("WAVE".utf8) else {
             throw ParseError.invalidRIFF

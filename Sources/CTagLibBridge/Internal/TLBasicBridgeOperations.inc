@@ -185,7 +185,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:41
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing track numbers is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support track-number writes." }];
         }
         TLog(@"Track renumber skipped for '%@' (extension '%@' not supported)", fileURL.lastPathComponent, ext);
         return NO;
@@ -526,7 +526,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:41
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing track numbers is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support track-number writes." }];
         }
         return NO;
     }

@@ -499,7 +499,7 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:51
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing track/disc numbers is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support track/disc-number writes." }];
         }
         TLog(@"Track/disc write skipped for '%@' (extension '%@' not supported)", fileURL.lastPathComponent, ext);
         return NO;
@@ -800,15 +800,25 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
         }
     } else if (format == AudioMatorTagFileFormatWAV) {
         TagLib::RIFF::WAV::File wavFile(filePath);
-        if (!WritePropertyMapNumberTextToFile(wavFile,
-                                              TrimmedStringOrNil(trackNumberText),
-                                              discNumberText,
-                                              error,
-                                              64,
-                                              @"Unable to open WAV file for writing track/disc numbers",
-                                              65,
-                                              @"TagLib failed to save WAV track/disc numbers",
-                                              [NSString stringWithFormat:@"WAV '%@'", fileURL.lastPathComponent])) {
+        if (!wavFile.isValid()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:64
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open WAV file for writing track/disc numbers" }];
+            }
+            return NO;
+        }
+        TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
+        SetID3v2TextFrame(id3v2Tag, "TRCK", TrimmedStringOrNil(trackNumberText));
+        if (discNumberText != nil) {
+            SetID3v2TextFrame(id3v2Tag, "TPOS", TrimmedStringOrNil(discNumberText));
+        }
+        if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:65
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save WAV track/disc numbers" }];
+            }
             return NO;
         }
     } else if (format == AudioMatorTagFileFormatAIFF) {
@@ -932,7 +942,7 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:51
-                                     userInfo:@{ NSLocalizedDescriptionKey : @"Writing track/disc numbers is currently supported for every format that AudioMator can edit metadata for" }];
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"This audio format does not support track/disc-number writes." }];
         }
         return NO;
     }
