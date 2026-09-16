@@ -56,14 +56,15 @@ extension TagLibMetadataManager {
         discNumberText: String?,
         to url: URL,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .throw
+        failurePolicy: VerificationFailurePolicy = .throw,
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
                 discNumberText: discNumberText,
