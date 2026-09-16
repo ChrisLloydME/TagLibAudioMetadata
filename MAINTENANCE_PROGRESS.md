@@ -1,6 +1,6 @@
 # Metadata Architecture Maintenance Progress
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 ## Scope
 
@@ -28,6 +28,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 
 - Consider a later mechanical rename of remaining package-internal historical `AudioMator*` symbols. They are not externally observable; user-facing error text and written metadata no longer carry AudioMator product assumptions.
 - Publish the intentional breaking high-level bridge-boundary/API changes as version 0.6.0 before AudioMator can resolve its final remote dependency requirement.
+- A full cross-language transaction-coordinator merge remains a possible breaking redesign. The current safe facade and explicitly low-level product have separate coordinators with aligned, tested identity invariants.
 
 ## Architectural direction
 
@@ -47,6 +48,9 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Corrected WAV formatted-number writes to target the WAV ID3v2 tag and save with `StripNone`, matching the typed number-pair path instead of routing exact text through a normalizing PropertyMap.
 - Added a mixed RIFF INFO + ID3v2 WAV regression covering exact `01/10` and `02/03` text, movement number/count, untouched INFO bytes, and continued readability.
 - Removed AudioMator-specific wording from low-level bridge errors; remaining AudioMator-prefixed C++ identifiers are private historical implementation names only.
+- Added `expectedVersion` to direct formatted-number writes so inspector saves, erases, raw patches, and track renumbering can all reject a stale edit-session snapshot at the transaction boundary.
+- Defined the compatibility distinction between direct formatted-number writes and semantic patches: a direct number-only write preserves an existing total, while a `MetadataNumberTextPatch` replaces the owned pair and therefore clears an omitted total.
+- Allowed patch verification to accept containers that store number and total in separate native fields while retaining exact combined text on containers that support it.
 
 ## Tests and validation
 
@@ -58,6 +62,7 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - Passed: focused formatted-number `MetadataPatch` tests, including rejection of competing typed and exact representations before mutation.
 - Passed after formatted-number patch API: full `swift test` (115 tests, 2 opt-in tests skipped, 0 failures).
 - Passed after the WAV exact-number correction: full `swift test` (116 tests, 2 opt-in tests skipped, 0 failures).
+- Passed after versioned direct-number writes and replacement-pair semantics: full `swift test` (119 tests, 2 opt-in tests skipped, 0 failures).
 
 ## Commits
 
@@ -65,3 +70,8 @@ This journal tracks package-side work for the coordinated metadata correctness a
 - `6ea5195` — `fix: detect hard links added during transactions`
 - `6bfd1b1` — `refactor: enforce package metadata boundaries`
 - `252c16d` — `feat: include formatted numbers in semantic patches`
+- `514c7ef` — `fix: preserve exact WAV number text in ID3`
+- `fc15ab0` — `feat: version exact-number writes`
+- `94f8fdd` — `fix: replace formatted number pairs in patches`
+- `b44bf4c` — `fix: verify number-only writes with preserved totals`
+- `42bc1c3` — `fix: accept split number-pair storage in patches`
