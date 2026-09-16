@@ -65,6 +65,7 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let beforeWrite = verifyAfterWrite ? try readMetadataResult(from: mutationURL) : nil
             try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
                 discNumberText: discNumberText,
@@ -77,16 +78,18 @@ extension TagLibMetadataManager {
 
             let expectedTrackPair = parseNumberPair(trackNumberText)
             let expectedDiscPair = parseNumberPair(normalizedTrimmed(discNumberText))
+            let verifiesExactTrackText = expectedTrackPair.total > 0 || (beforeWrite?.trackTotal ?? 0) == 0
+            let verifiesExactDiscText = expectedDiscPair.total > 0 || (beforeWrite?.discTotal ?? 0) == 0
 
             let warnings = metadataWriteWarnings(
                 for: mutationURL,
                 verification: MetadataWriteVerificationContext(
                     expectedTrackNumber: expectedTrackPair.number > 0 ? expectedTrackPair.number : nil,
                     expectedTrackTotal: expectedTrackPair.total > 0 ? expectedTrackPair.total : nil,
-                    expectedTrackNumberText: trackNumberText,
+                    expectedTrackNumberText: verifiesExactTrackText ? trackNumberText : nil,
                     expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
                     expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
-                    expectedDiscNumberText: discNumberText,
+                    expectedDiscNumberText: verifiesExactDiscText ? discNumberText : nil,
                     expectedExplicitContent: nil,
                     artworkExpectation: .unchanged,
                     customFieldKeys: []
