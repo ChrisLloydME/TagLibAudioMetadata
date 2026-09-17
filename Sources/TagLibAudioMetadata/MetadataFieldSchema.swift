@@ -315,7 +315,7 @@ public enum MetadataFieldRegistry {
         schema(.itunesSMPB, "iTunSMPB", .itunes, ["ITUNSMPB"], id3User: ["ITUNSMPB"], mp4Freeform: ["ITUNSMPB"]),
         schema(.originalAlbum, "Original Album", .release, ["ORIGINALALBUM"], id3: ["TOAL"], mp4Freeform: ["ORIGINALALBUM"]),
         schema(.originalArtist, "Original Artist", .people, ["ORIGINALARTIST"], id3: ["TOPE"], mp4Freeform: ["ORIGINALARTIST"], multi: true, people: true),
-        schema(.artistType, "Artist Type", .release, ["ARTISTTYPE", "MUSICBRAINZ_ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"], id3User: ["ARTISTTYPE"], mp4Freeform: ["ARTISTTYPE"]),
+        schema(.artistType, "Artist Type", .release, ["MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"], id3User: ["ARTISTTYPE"], mp4Freeform: ["ARTISTTYPE"]),
         schema(.trackerName, "Tracker Name", .technical, ["TRACKERNAME"]),
         MetadataFieldSchema(
             key: .custom,

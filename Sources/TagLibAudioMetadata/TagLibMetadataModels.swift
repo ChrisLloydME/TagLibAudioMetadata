@@ -578,6 +578,7 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
     case fileChanged
     case hardLinkedFile
     case unsupportedFormat
+    case unsupportedWritePolicy(String)
     @available(*, deprecated, message: "Use failedToReadWithUnderlying(_:) for throwing read failures.")
     case failedToRead
     case failedToReadWithUnderlying(String)
@@ -592,6 +593,7 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
         case .fileChanged: "The file changed since it was read. No metadata was committed by this operation; reload before editing."
         case .hardLinkedFile: "Atomic metadata replacement would split a hard-linked file. No metadata was committed."
         case .unsupportedFormat: "This audio format does not support the requested operation."
+        case .unsupportedWritePolicy(let detail): "The requested metadata write policy is unsupported: \(detail)"
         case .failedToRead: "The audio metadata could not be read."
         case .failedToReadWithUnderlying(let detail): "The audio metadata could not be read: \(detail)"
         case .verificationFailed(let details): "Metadata verification failed before commit: \(details.joined(separator: "; "))"
