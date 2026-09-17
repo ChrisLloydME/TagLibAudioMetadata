@@ -5,6 +5,7 @@
 
 import Foundation
 import CTagLibBridge
+import CTagLibBridgeInternalAPI
 
 extension TagLibMetadataManager {
     nonisolated private static func validateDateStorageCompatibility(

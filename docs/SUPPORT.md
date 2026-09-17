@@ -12,7 +12,10 @@ and how to handle container-specific behavior after writes.
 
 - `TagLibAudioMetadata`: the Swift facade used by app code.
 - `TagLibAudioMetadataLowLevel`: the `CTagLibBridge` Objective-C bridge for
-  advanced integrations.
+  advanced integrations. Its mutators retain the package transaction guarantees.
+
+Unsafe in-place mutation and coordination declarations are isolated in the
+non-product `CTagLibBridgeInternalAPI` target for facade implementation and tests.
 
 The root manifest declares a checksum-pinned remote `binaryTarget` for the
 dynamic, namespaced `TagLibAudioMetadataTagLib.xcframework`. The bridge depends
@@ -907,11 +910,10 @@ fields, artwork, and custom fields back to the bridge model.
 
 Bridge diagnostics can be enabled for troubleshooting with the
 `TAGLIBAUDIOMETADATA_DEBUG` environment variable (`1`, `true`, `yes`, or `on`).
-The historical `AUDIOMATOR_TAGLIB_DEBUG` spelling remains accepted as a
-compatibility alias, but new integrations should use the package-neutral name.
 
 Most Swift app code should call `TagLibMetadataManager`. Use the bridge directly
-only when you need a property or method the facade does not wrap.
+only when you need a safe property or transactional method the facade does not
+wrap. The public bridge does not expose package-internal in-place mutation.
 
 Declare the `TagLibAudioMetadataLowLevel` product and import its module:
 

@@ -1,5 +1,6 @@
 import Foundation
 import CTagLibBridge
+import CTagLibBridgeInternalAPI
 
 /// A delta over TagLib's PropertyMap, not a replacement or a native-tag archive.
 /// Keys omitted from both collections must remain unchanged. Array boundaries,

@@ -64,7 +64,10 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
   before staging begins with `unsupportedWritePolicy`.
 - Exported the low-level NSError domain and typed durability-uncertain code.
 - Removed the AudioMator-specific debug environment alias.
-- Commit pending for this coherent consumer-contract correction.
+- Consumer-contract corrections committed as `fa34ed4`.
+- Moved every in-place mutator and the coordination callback out of the public
+  Low-Level header into the non-product `CTagLibBridgeInternalAPI` target. Public
+  bridge mutators continue to use the safe transactional implementation.
 
 ## Tests added or updated
 
@@ -73,11 +76,13 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
   omitted keys and preservation under merge.
 - Unsupported RIFF write policy fails without changing original bytes.
 - Public low-level durability error domain/code availability.
+- Public Low-Level header exclusion test plus an external consumer build: safe
+  Low-Level selectors compile, while `writeMetadataInPlace` is no longer a member.
 
 ## Remaining work
 
 - Inspect the public low-level headers/product boundary and durability-uncertain contract.
-- Reorganize/remove the unsafe public Low-Level product boundary.
+- Commit the validated Low-Level public-boundary isolation.
 - Determine whether the two transaction engines can be consolidated without weakening guarantees.
 - Audit logging, lock granularity, public surface, CI, release tooling, and documentation.
 

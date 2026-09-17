@@ -54,4 +54,21 @@ final class PublicAPICompatibilityTests: XCTestCase {
         XCTAssertEqual(TagLibMetadataErrorDomain, "TagLibMetadataExtractor")
         XCTAssertEqual(TagLibMetadataTransactionErrorCode.committedButDurabilityUncertain.rawValue, 9_110)
     }
+
+    func testPublicLowLevelHeaderExcludesTransactionBypassPrimitives() throws {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let packageRoot = testFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let header = try String(
+            contentsOf: packageRoot
+                .appendingPathComponent("Sources/CTagLibBridge/include/TagLibMetadataExtractor.h"),
+            encoding: .utf8
+        )
+
+        XCTAssertFalse(header.contains("InPlace"))
+        XCTAssertFalse(header.contains("coordinateMutationAtURL"))
+        XCTAssertFalse(header.contains("TagLibFileMutationCoordinationBlock"))
+    }
 }

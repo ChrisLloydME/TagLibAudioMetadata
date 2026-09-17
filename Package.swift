@@ -33,12 +33,17 @@ let package = Package(
             ]
         ),
         .target(
+            name: "CTagLibBridgeInternalAPI",
+            dependencies: ["CTagLibBridge"],
+            publicHeadersPath: "include"
+        ),
+        .target(
             name: "TagLibAudioMetadata",
-            dependencies: ["CTagLibBridge"]
+            dependencies: ["CTagLibBridge", "CTagLibBridgeInternalAPI"]
         ),
         .testTarget(
             name: "TagLibAudioMetadataTests",
-            dependencies: ["TagLibAudioMetadata", "CTagLibBridge"],
+            dependencies: ["TagLibAudioMetadata", "CTagLibBridge", "CTagLibBridgeInternalAPI"],
             resources: [
                 .process("Audio"),
                 .process("Artwork"),

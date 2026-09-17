@@ -39,7 +39,9 @@ Most targets need only the facade product:
 Advanced clients that intentionally use the Objective-C bridge should depend
 on `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`. Starting in 0.5,
 the facade no longer re-exports the bridge; add the low-level product explicitly
-when migrating code that directly names bridge types.
+when migrating code that directly names bridge types. The product exposes only
+transactional mutators; package-only in-place primitives live in a separate
+non-product module.
 
 The binary is fetched from the public
 [`taglib-binary-2.3.1-r2`](https://github.com/ChrisLloydME/TagLibAudioMetadata/releases/tag/taglib-binary-2.3.1-r2)
@@ -184,7 +186,7 @@ symlink), bracket extraction with file-version checks, and return `fileVersion`.
 Pass that token as `expectedVersion` to a typed or raw patch to reject stale edits
 after acquiring the transaction lock and before creating the temporary copy.
 
-Transactional facade and bridge writes (not low-level `InPlace` entry points):
+Transactional facade and public low-level bridge writes:
 
 1. reject final symlinks and hard-linked files, and require an existing regular file;
 2. makes one sibling, same-volume copy;
@@ -252,7 +254,11 @@ The package deliberately exposes two products:
 | Product | Module | Purpose |
 | --- | --- | --- |
 | `TagLibAudioMetadata` | `TagLibAudioMetadata` | Stable Swift facade and application models |
-| `TagLibAudioMetadataLowLevel` | `CTagLibBridge` | Explicit advanced Objective-C bridge access |
+| `TagLibAudioMetadataLowLevel` | `CTagLibBridge` | Advanced transactional Objective-C bridge access |
+
+`CTagLibBridgeInternalAPI` contains the in-place mutation declarations required
+by the Swift facade's pre-commit verification pipeline. It is intentionally not
+a library product and is not supported for package consumers.
 
 The binary framework is named `TagLibAudioMetadataTagLib`, with install name
 `@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib`, to avoid

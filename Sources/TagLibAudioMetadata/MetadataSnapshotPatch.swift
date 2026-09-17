@@ -1,5 +1,6 @@
 import Foundation
 import CTagLibBridge
+import CTagLibBridgeInternalAPI
 
 /// An opaque local-file version, for optimistic edits based on a snapshot.
 /// This detects observed filesystem changes; it is not a cross-process lock or
