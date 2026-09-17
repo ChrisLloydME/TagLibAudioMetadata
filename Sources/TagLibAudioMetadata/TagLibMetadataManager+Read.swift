@@ -424,7 +424,7 @@ extension TagLibMetadataManager {
                 "The bridge returned an incomplete Basic metadata projection set."
             )
         }
-        guard identityBeforeRead == regularFileIdentity(at: url) else {
+        guard identityBeforeRead?.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while metadata was being read."
             )
@@ -437,12 +437,7 @@ extension TagLibMetadataManager {
     }
 
     public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
-        do {
-            return try readMetadataResult(from: url)
-        } catch {
-            print("TagLib read error for \(url.lastPathComponent): \(error)")
-            return nil
-        }
+        try? readMetadataResult(from: url)
     }
 
     // MARK: - Write / Erase
@@ -460,7 +455,7 @@ extension TagLibMetadataManager {
                 "The bridge returned an incomplete raw metadata projection set."
             )
         }
-        guard identityBeforeRead == regularFileIdentity(at: url) else {
+        guard identityBeforeRead?.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while raw metadata was being read."
             )

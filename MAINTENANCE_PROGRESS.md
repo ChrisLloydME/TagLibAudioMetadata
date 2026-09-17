@@ -42,6 +42,15 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
 - Logging is opt-in rather than unsolicited, but the bridge accepted an
   AudioMator-specific environment variable. That product-specific alias was
   removed; `TAGLIBAUDIOMETADATA_DEBUG` remains the independent package switch.
+- The audit's optional-read logging finding was also confirmed: the legacy
+  nonthrowing `readMetadata` convenience printed the source filename and error
+  directly to stdout. It now returns `nil` without unsolicited diagnostics;
+  callers that need details use `readMetadataResult`.
+- A full AudioMator integration run exposed a transient false read conflict.
+  Read validation compared status-change time even though permissions, ACLs, or
+  extended attributes can change it without changing audio bytes. Read guards
+  now compare entry identity, size, and modification time; optimistic mutation
+  versions retain the stronger full identity including status-change time.
 - The two transaction engines have different jobs today: bridge methods provide
   safe low-level single-operation transactions, while the Swift engine keeps
   multi-step mutation plus semantic verification inside one pre-commit staging
@@ -68,6 +77,9 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
 - Moved every in-place mutator and the coordination callback out of the public
   Low-Level header into the non-product `CTagLibBridgeInternalAPI` target. Public
   bridge mutators continue to use the safe transactional implementation.
+- Low-Level boundary isolation committed as `f6a314d`.
+- Removed unsolicited stdout logging from the nonthrowing read convenience and
+  separated read-content stability from the stricter mutation version identity.
 
 ## Tests added or updated
 
@@ -78,13 +90,20 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
 - Public low-level durability error domain/code availability.
 - Public Low-Level header exclusion test plus an external consumer build: safe
   Low-Level selectors compile, while `writeMetadataInPlace` is no longer a member.
+- Read-identity tests prove status-only permission changes remain readable while
+  byte/size changes are rejected.
+- Added a source-policy regression preventing `print`, `debugPrint`, or `NSLog`
+  calls from returning to the high-level Swift facade. The bridge's environment-
+  gated diagnostic logger remains deliberately opt-in.
 
 ## Remaining work
 
-- Inspect the public low-level headers/product boundary and durability-uncertain contract.
-- Commit the validated Low-Level public-boundary isolation.
-- Determine whether the two transaction engines can be consolidated without weakening guarantees.
-- Audit logging, lock granularity, public surface, CI, release tooling, and documentation.
+- Publish the coordinated package changes as a new independent release before
+  AudioMator can adopt them from its remote exact-version dependency.
+- A future generic internal transaction SPI could consolidate staging mechanics,
+  but only if it preserves the Swift facade's multi-step semantic verification.
+- Source-generating the cross-language schema remains an optional maintainability
+  improvement; the exact ordered consistency tests currently fail closed on drift.
 
 ## Unresolved questions
 
@@ -94,3 +113,12 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
 ## Cross-repository dependencies
 
 - AudioMator currently resolves published TagLibAudioMetadata 0.5.1. Package API changes must be released independently and then deliberately adopted by AudioMator.
+
+## Validation
+
+- Complete package suite after the final read/logging fixes: 128 tests executed,
+  2 opt-in tests skipped, 0 failures.
+- CI configuration includes strict warning builds, external high- and low-level
+  consumers, dynamic-link audit, AddressSanitizer, ThreadSanitizer, release tests,
+  and minimum-platform macOS/iOS builds. Those hosted CI jobs were inspected but
+  were not reproduced locally in full.

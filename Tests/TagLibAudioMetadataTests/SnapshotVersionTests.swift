@@ -3,6 +3,33 @@ import XCTest
 @testable import TagLibAudioMetadata
 
 final class SnapshotVersionTests: XCTestCase {
+    func testReadIdentityIgnoresStatusOnlyChanges() throws {
+        let url = try fixtureCopy()
+        let before = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o600))],
+            ofItemAtPath: url.path
+        )
+
+        let after = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+        XCTAssertNotEqual(before, after, "Changing permissions should update file status identity.")
+        XCTAssertTrue(before.hasSameReadableContents(as: after))
+    }
+
+    func testReadIdentityRejectsContentChanges() throws {
+        let url = try fixtureCopy()
+        let before = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+
+        let handle = try FileHandle(forWritingTo: url)
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data([0]))
+
+        let after = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+        XCTAssertFalse(before.hasSameReadableContents(as: after))
+    }
+
     func testStaleSnapshotRejectsPatchWithoutChangingNewerBytes() throws {
         let url = try fixtureCopy()
         let original = try TagLibMetadataManager.readSnapshot(from: url)

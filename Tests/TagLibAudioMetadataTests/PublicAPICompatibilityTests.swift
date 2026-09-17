@@ -71,4 +71,31 @@ final class PublicAPICompatibilityTests: XCTestCase {
         XCTAssertFalse(header.contains("coordinateMutationAtURL"))
         XCTAssertFalse(header.contains("TagLibFileMutationCoordinationBlock"))
     }
+
+    func testSwiftFacadeDoesNotEmitUnsolicitedConsoleDiagnostics() throws {
+        let testFile = URL(fileURLWithPath: #filePath)
+        let packageRoot = testFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceRoot = packageRoot.appendingPathComponent("Sources/TagLibAudioMetadata")
+        let sourceURLs = try XCTUnwrap(
+            FileManager.default.enumerator(
+                at: sourceRoot,
+                includingPropertiesForKeys: nil
+            )?.allObjects as? [URL]
+        ).filter { $0.pathExtension == "swift" }
+        let forbiddenCall = try NSRegularExpression(
+            pattern: #"\b(?:print|debugPrint|NSLog)\s*\("#
+        )
+
+        for sourceURL in sourceURLs {
+            let source = try String(contentsOf: sourceURL, encoding: .utf8)
+            let range = NSRange(source.startIndex..., in: source)
+            XCTAssertNil(
+                forbiddenCall.firstMatch(in: source, range: range),
+                "Unsolicited console output in \(sourceURL.lastPathComponent)"
+            )
+        }
+    }
 }

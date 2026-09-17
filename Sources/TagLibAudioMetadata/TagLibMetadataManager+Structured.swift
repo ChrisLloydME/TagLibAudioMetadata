@@ -434,7 +434,7 @@ extension TagLibMetadataManager {
                 "The bridge returned an incomplete structured metadata projection set."
             )
         }
-        guard identityBeforeRead == regularFileIdentity(at: url) else {
+        guard identityBeforeRead?.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while structured metadata was being read."
             )

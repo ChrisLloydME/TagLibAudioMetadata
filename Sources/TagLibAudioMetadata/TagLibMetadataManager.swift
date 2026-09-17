@@ -30,6 +30,15 @@ public struct TagLibMetadataManager {
                 lhs.statusChangeTime.tv_sec == rhs.statusChangeTime.tv_sec &&
                 lhs.statusChangeTime.tv_nsec == rhs.statusChangeTime.tv_nsec
         }
+
+        func hasSameReadableContents(as other: FileIdentity?) -> Bool {
+            guard let other else { return false }
+            return device == other.device &&
+                inode == other.inode &&
+                size == other.size &&
+                modificationTime.tv_sec == other.modificationTime.tv_sec &&
+                modificationTime.tv_nsec == other.modificationTime.tv_nsec
+        }
     }
 
     nonisolated static func regularFileIdentity(at url: URL) -> FileIdentity? {
