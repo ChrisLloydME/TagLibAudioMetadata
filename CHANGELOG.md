@@ -9,6 +9,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Removed transaction-bypassing in-place mutators and coordination helpers from
+  the public Low-Level header; the Swift facade now imports them from a dedicated
+  non-product implementation target.
+
 - Unified `artistType` on `MUSICBRAINZ_ARTISTTYPE` as the canonical PropertyMap
   key and strengthened schema tests to compare exact ordered mappings.
 - Made full PropertyMap replacement verification compare the complete visible

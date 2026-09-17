@@ -163,8 +163,6 @@ typedef NS_OPTIONS(NSUInteger, TagLibMetadataExtractionOptions) {
     TagLibMetadataExtractionOptionAll = NSUIntegerMax,
 };
 
-typedef BOOL (^TagLibFileMutationCoordinationBlock)(NSError *_Nullable *_Nullable error);
-
 /// TagLib metadata extractor
 ///
 /// All selectors that enter TagLib are serialized internally. They are safe to
@@ -275,63 +273,6 @@ NS_SWIFT_NAME(writeStructuredMetadata(_:to:));
                       error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(wipeMetadata(from:));
 
-/// Package implementation details. These mutate the supplied regular file directly.
-/// High-level consumers must use the transactional APIs above.
-+ (BOOL)writeMetadataInPlace:(TagLibAudioMetadata *)metadata
-                       toURL:(NSURL *)fileURL
-                       error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeMetadataInPlace(_:to:));
-+ (BOOL)writeTrackNumberTextInPlace:(NSString *)trackNumberText
-                     discNumberText:(nullable NSString *)discNumberText
-                              toURL:(NSURL *)fileURL
-                              error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeTrackNumberTextInPlace(_:discNumberText:to:));
-+ (BOOL)writeRawPropertyMapInPlace:(NSDictionary<NSString *, NSString *> *)properties
-                            toURL:(NSURL *)fileURL
-                            error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeRawPropertyMapInPlace(_:to:));
-+ (BOOL)writeRawPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)properties
-                                  toURL:(NSURL *)fileURL
-                                  error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeRawPropertyMapValuesInPlace(_:to:));
-+ (BOOL)applyPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
-                         removingKeys:(NSArray<NSString *> *)keysToRemove
-                                toURL:(NSURL *)fileURL
-                                error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(applyPropertyMapValuesInPlace(_:removingKeys:to:));
-+ (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
-                                   totalTracks:(NSInteger)totalTracks
-                               updateTrackPair:(BOOL)updateTrackPair
-                                     discNumber:(NSInteger)discNumber
-                                     totalDiscs:(NSInteger)totalDiscs
-                                updateDiscPair:(BOOL)updateDiscPair
-                                          toURL:(NSURL *)fileURL
-                                          error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeNumberPairsInPlace(trackNumber:totalTracks:updateTrackPair:discNumber:totalDiscs:updateDiscPair:to:));
-+ (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
-                                   totalTracks:(NSInteger)totalTracks
-                               updateTrackPair:(BOOL)updateTrackPair
-                                    discNumber:(NSInteger)discNumber
-                                     totalDiscs:(NSInteger)totalDiscs
-                                updateDiscPair:(BOOL)updateDiscPair
-                                movementNumber:(NSInteger)movementNumber
-                                  movementCount:(NSInteger)movementCount
-                             updateMovementPair:(BOOL)updateMovementPair
-                                          toURL:(NSURL *)fileURL
-                                          error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeNumberPairsInPlace(trackNumber:totalTracks:updateTrackPair:discNumber:totalDiscs:updateDiscPair:movementNumber:movementCount:updateMovementPair:to:));
-+ (BOOL)writeExplicitAdvisoryInPlace:(TagLibExplicitAdvisory)advisory
-                               toURL:(NSURL *)fileURL
-                               error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeExplicitAdvisoryInPlace(_:to:));
-+ (BOOL)writeStructuredMetadataInPlace:(NSDictionary<NSString *, NSObject *> *)metadata
-                                 toURL:(NSURL *)fileURL
-                                 error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(writeStructuredMetadataInPlace(_:to:));
-+ (BOOL)wipeMetadataInPlaceFromURL:(NSURL *)fileURL
-                             error:(NSError *_Nullable *_Nullable)error
-NS_SWIFT_NAME(wipeMetadataInPlace(from:));
-
 /// Return raw metadata as TagLib sees it for display purposes.
 ///
 /// The returned dictionary typically contains keys such as:
@@ -380,19 +321,6 @@ NS_SWIFT_NAME(knownMetadataPropertyKeys());
 /// Return the bridge's canonical property, ID3v2, and MP4 field mappings.
 + (NSArray<NSDictionary<NSString *, NSObject *> *> *)metadataFieldMappings
 NS_SWIFT_NAME(metadataFieldMappings());
-
-@end
-
-@interface TagLibMetadataExtractor (TransactionCoordination)
-
-/// Package implementation detail. Serializes the complete transaction for one
-/// regular file across both the Swift facade and direct bridge entry points.
-/// Coordination is process-local; external writers are detected separately by
-/// the transaction's file-identity check.
-+ (BOOL)coordinateMutationAtURL:(NSURL *)fileURL
-                          error:(NSError *_Nullable *_Nullable)error
-                       mutation:(TagLibFileMutationCoordinationBlock)mutation
-NS_SWIFT_NAME(coordinateMutation(at:_:));
 
 @end
 

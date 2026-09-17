@@ -5,6 +5,7 @@
 
 import Foundation
 import CTagLibBridge
+import CTagLibBridgeInternalAPI
 
 private extension String {
     var nilIfEmpty: String? {

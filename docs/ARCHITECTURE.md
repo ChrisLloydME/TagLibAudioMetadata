@@ -9,7 +9,10 @@ private to Objective-C++ translation units. The bridge dynamically links the
 
 `TagLibAudioMetadataLowLevel` makes direct bridge use intentional. Starting in
 0.5, the facade does not re-export bridge declarations; direct bridge clients
-must opt into the low-level product and module.
+must opt into the low-level product and module. The public bridge header contains
+only transactional mutation entry points. In-place mutation and same-entry
+coordination declarations live in `CTagLibBridgeInternalAPI`, a package-internal
+target that is not published as a library product.
 
 The framework name, Mach-O install name, bundle identifier, headers, and module
 map are namespaced. This prevents a generic `TagLib.framework` from being

@@ -6,6 +6,7 @@
 import Foundation
 import Darwin
 import CTagLibBridge
+import CTagLibBridgeInternalAPI
 
 public struct TagLibMetadataManager {
 

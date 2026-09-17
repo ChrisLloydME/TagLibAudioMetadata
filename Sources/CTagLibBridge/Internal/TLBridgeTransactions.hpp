@@ -14,6 +14,8 @@ void SetTagLibBridgeExceptionError(NSError * _Nullable * _Nullable error,
                                    const char * _Nullable detail,
                                    NSInteger code);
 
+typedef BOOL (^TagLibFileMutationCoordinationBlock)(NSError *_Nullable *_Nullable error);
+
 #define TAGLIB_BRIDGE_SERIAL_GUARD() \
     std::lock_guard<std::recursive_mutex> tagLibBridgeSerialGuard(TagLibBridgeMutex())
 
