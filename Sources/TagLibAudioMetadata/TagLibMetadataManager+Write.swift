@@ -145,18 +145,32 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(resolvedProperties, to: mutationURL)
             }
 
-            let warnings = verifyAfterWrite
-                ? rawPropertyMapWriteWarnings(requestedProperties: properties, for: mutationURL)
-                : []
+            let warnings: [String]
+            if !verifyAfterWrite {
+                warnings = []
+            } else {
+                switch mode {
+                case .replace:
+                    warnings = rawPropertyMapReplacementWarnings(
+                        expectedProperties: properties.mapValues { [$0] },
+                        for: mutationURL
+                    )
+                case .merge:
+                    warnings = rawPropertyMapWriteWarnings(requestedProperties: properties, for: mutationURL)
+                }
+            }
             try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
             return MetadataWriteResult(warnings: warnings)
         }
     }
 
     @discardableResult
+    /// Writes a complete multi-value PropertyMap replacement by default.
+    /// Pass `.merge` to preserve unspecified keys.
     public nonisolated static func writeRawMetadataPropertyMapValuesWithVerification(
         _ properties: [String: [String]],
         to url: URL,
+        mode: RawPropertyMapWriteMode = .replace,
         verifyAfterWrite: Bool = true,
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
@@ -166,17 +180,28 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicFileMutation(at: url) { mutationURL in
-            try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
+            let resolvedProperties: [String: [String]]
+            switch mode {
+            case .replace:
+                resolvedProperties = properties
+            case .merge:
+                resolvedProperties = try resolvedRawPropertyMapValuesForMerge(properties, to: mutationURL)
+            }
+            try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(resolvedProperties, to: mutationURL)
 
             let warnings: [String]
             if verifyAfterWrite {
-                let after = try rawMetadataResult(from: mutationURL)
-                let lookup = after.properties.reduce(into: [String: [String]]()) { result, entry in
-                    result[entry.key.uppercased()] = entry.values
-                }
-                warnings = properties.flatMap { key, values -> [String] in
-                    let persisted = lookup[key.uppercased()] ?? []
-                    return persisted == values ? [] : ["Raw multi-value key \"\(key)\" differs after save."]
+                switch mode {
+                case .replace:
+                    warnings = rawPropertyMapReplacementWarnings(
+                        expectedProperties: properties,
+                        for: mutationURL
+                    )
+                case .merge:
+                    warnings = rawPropertyMapReplacementWarnings(
+                        expectedProperties: resolvedProperties,
+                        for: mutationURL
+                    )
                 }
             } else {
                 warnings = []

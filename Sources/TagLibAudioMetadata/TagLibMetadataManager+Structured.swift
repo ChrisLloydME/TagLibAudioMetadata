@@ -456,19 +456,16 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
+        if ["wav", "aiff", "aif", "aifc", "afc"].contains(ext),
+           riffPolicy == .syncBasicFieldsToInfo {
+            throw TagLibManagerError.unsupportedWritePolicy(
+                "syncBasicFieldsToInfo is not implemented; use preserveInfo or id3v2Only."
+            )
+        }
+
         return try withAtomicFileMutation(at: url) { mutationURL in
             var warnings: [String] = []
             var verificationFailures: [String] = []
-            if ["wav", "aiff", "aif", "aifc", "afc"].contains(ext) {
-                switch riffPolicy {
-                case .id3v2Only, .preserveInfo:
-                    break
-                case .syncBasicFieldsToInfo:
-                    let warning = "syncBasicFieldsToInfo is documented but not yet applied by the structured bridge; existing INFO fields are preserved."
-                    warnings.append(warning)
-                    verificationFailures.append(warning)
-                }
-            }
 
             let payload = bridgePayload(
                 from: metadata,

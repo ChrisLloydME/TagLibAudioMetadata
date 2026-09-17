@@ -11,13 +11,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+NSErrorDomain const TagLibMetadataErrorDomain = @"TagLibMetadataExtractor";
+
 // Simple logging helper for TagLib debugging
 static bool TagLibDebugLoggingEnabled() {
     static bool enabled = [] {
         NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
-        NSString *value = environment[@"TAGLIBAUDIOMETADATA_DEBUG"]
-            ?: environment[@"AUDIOMATOR_TAGLIB_DEBUG"]
-            ?: @"";
+        NSString *value = environment[@"TAGLIBAUDIOMETADATA_DEBUG"] ?: @"";
         NSString *normalized = value.lowercaseString;
         return [normalized isEqualToString:@"1"] ||
                [normalized isEqualToString:@"true"] ||
@@ -379,8 +379,8 @@ static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
         close(parentDescriptor);
         if (error) {
             NSError *underlying = [NSError errorWithDomain:NSPOSIXErrorDomain code:syncErrorCode userInfo:nil];
-            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                         code:9110
+            *error = [NSError errorWithDomain:TagLibMetadataErrorDomain
+                                         code:TagLibMetadataTransactionErrorCodeCommittedButDurabilityUncertain
                                      userInfo:@{
                                          NSLocalizedDescriptionKey : @"The metadata mutation was committed, but its directory entry could not be flushed",
                                          NSUnderlyingErrorKey : underlying,

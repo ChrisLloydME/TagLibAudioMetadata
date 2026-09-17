@@ -220,8 +220,9 @@ visible PropertyMap values before commit; typed patches compare unedited visible
 properties and artwork as well as requested changes. Neither comparison is a
 lossless oracle for opaque native metadata that TagLib does not expose. Empty
 FLAC comment values that TagLib drops are rejected by exact-value verification.
-Verification mismatches throw before commit, including with the deprecated
-`.warn` policy. Numeric-equivalent track/disc formatting is accepted. Legacy
+Verification mismatches always throw before commit; `.warn` is unavailable
+because committing a result that failed verification would violate the transaction contract.
+Numeric-equivalent track/disc formatting is accepted. Legacy
 whole-object and whole-PropertyMap replacement APIs are not edit-session models;
 avoid them for changes intended to touch only selected fields.
 

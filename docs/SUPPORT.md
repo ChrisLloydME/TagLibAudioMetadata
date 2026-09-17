@@ -298,7 +298,7 @@ metadata.trackNumberText = "02/10"
 let result = try TagLibMetadataManager.writeMetadataWithVerification(
     metadata,
     to: url,
-    failurePolicy: .warn
+    failurePolicy: .throw
 )
 
 for warning in result.warnings {
@@ -307,10 +307,9 @@ for warning in result.warnings {
 ```
 
 `writeMetadataWithVerification` writes through the bridge and reads the file back
-to check important fields. Containers can normalize or reject values. The method
-reports those cases as warnings.
-
-Set `failurePolicy: .throw` when a warning should fail the operation:
+to check important fields. A verification mismatch always invalidates the
+transaction and throws before commit. Successful structured writes may still
+return non-fatal container advisories in `MetadataWriteResult.warnings`.
 
 ```swift
 try TagLibMetadataManager.writeMetadataWithVerification(
@@ -505,12 +504,14 @@ the supplied keys, and removes a key when the supplied value is empty. Existing
 multi-value arrays on untouched keys remain arrays during the merge.
 
 Use `writeRawMetadataPropertyMapValuesWithVerification` when the container can
-preserve arrays:
+preserve arrays. Its default `.replace` mode owns the complete visible PropertyMap
+and removes omitted keys; pass `mode: .merge` for a partial edit:
 
 ```swift
 try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
     ["ARTIST": ["One", "Two"]],
-    to: url
+    to: url,
+    mode: .merge
 )
 ```
 
@@ -596,7 +597,7 @@ let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
     payload,
     to: url,
     includeProperties: true,
-    failurePolicy: .warn
+    failurePolicy: .throw
 )
 ```
 
@@ -670,8 +671,8 @@ Structured mutation route is limited to PropertyMap values. Accordingly,
 
 - `.id3v2Only`: write structured ID3v2 data only.
 - `.preserveInfo`: keep existing RIFF INFO fields.
-- `.syncBasicFieldsToInfo`: currently reports a warning because the structured
-  bridge does not apply INFO synchronization yet.
+- `.syncBasicFieldsToInfo`: reserved but not implemented; selection fails before
+  a staging transaction begins with `unsupportedWritePolicy`.
 
 ## Erasing Metadata
 
@@ -680,7 +681,7 @@ Use the verified erase API when the user chooses a destructive metadata clear:
 ```swift
 let result = try TagLibMetadataManager.eraseAllMetadataWithVerification(
     from: url,
-    failurePolicy: .warn
+    failurePolicy: .throw
 )
 
 for warning in result.warnings {
@@ -715,22 +716,16 @@ Common warning causes:
   in `MetadataWriteResult.warnings`, but do not by themselves make
   `failurePolicy: .throw` roll back a correctly verified structured write.
 
-Choose the failure policy per workflow:
+Verification differences are transaction failures. Container advisories are
+returned separately after a successful verification:
 
 ```swift
-// Let the save succeed and show warnings in the UI.
-try TagLibMetadataManager.writeMetadataWithVerification(
-    metadata,
-    to: url,
-    failurePolicy: .warn
-)
-
-// Treat verification differences as save failures.
-try TagLibMetadataManager.writeMetadataWithVerification(
+let result = try TagLibMetadataManager.writeMetadataWithVerification(
     metadata,
     to: url,
     failurePolicy: .throw
 )
+showWarnings(result.warnings)
 ```
 
 Use `.throw` for tests, batch processing, and workflows where a read-back
@@ -998,7 +993,7 @@ do {
     let result = try TagLibMetadataManager.writeMetadataWithVerification(
         metadata,
         to: url,
-        failurePolicy: .warn
+        failurePolicy: .throw
     )
     showWarnings(result.warnings)
 } catch TagLibManagerError.unsupportedFormat {

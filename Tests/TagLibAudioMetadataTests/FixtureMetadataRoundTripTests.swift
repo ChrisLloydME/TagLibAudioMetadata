@@ -40,7 +40,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             let writeResult = try TagLibMetadataManager.writeMetadataWithVerification(
                 metadata,
                 to: url,
-                failurePolicy: .warn
+                failurePolicy: .throw
             )
             XCTAssertTrue(
                 writeResult.warnings.allSatisfy { $0.contains("formatting was normalized") },
@@ -65,7 +65,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             let clearResult = try TagLibMetadataManager.writeMetadataWithVerification(
                 cleared,
                 to: url,
-                failurePolicy: .warn
+                failurePolicy: .throw
             )
             XCTAssertTrue(
                 clearResult.warnings.isEmpty,
@@ -246,7 +246,18 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             )
 
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertFalse(raw.containsProperty("TITLE"), "Multi-value replace must remove omitted keys for \(ext)")
             XCTAssertTrue(raw.properties.contains { $0.key.uppercased() == "ARTIST" && Set($0.values) == Set(["One", "Two"]) }, ext)
+
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["MOOD": ["Focused", "Energetic"]],
+                to: url,
+                mode: .merge,
+                failurePolicy: .throw
+            )
+            raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+            XCTAssertEqual(Set(raw.values(for: "ARTIST")), Set(["One", "Two"]), ext)
+            XCTAssertEqual(Set(raw.values(for: "MOOD")), Set(["Focused", "Energetic"]), ext)
         }
     }
 
@@ -411,7 +422,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata,
             to: warningURL,
             verification: mismatchedVerification,
-            failurePolicy: .warn
+            failurePolicy: .throw
         )) { error in
             guard case TagLibManagerError.verificationFailed = error else {
                 return XCTFail("Expected verificationFailed, got \(error)")
@@ -2222,8 +2233,8 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 failurePolicy: .throw
             )
         ) { error in
-            guard case TagLibManagerError.verificationFailed = error else {
-                return XCTFail("Expected verificationFailed, got \(error)")
+            guard case TagLibManagerError.unsupportedWritePolicy = error else {
+                return XCTFail("Expected unsupportedWritePolicy, got \(error)")
             }
         }
 
@@ -2390,7 +2401,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             ["ALBUM": ["Raw attempt"]],
             to: url,
             verifyAfterWrite: false,
-            failurePolicy: .warn
+            failurePolicy: .throw
         ))
     }
 

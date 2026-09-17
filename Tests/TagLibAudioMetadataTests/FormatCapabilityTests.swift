@@ -187,13 +187,13 @@ final class FormatCapabilityTests: XCTestCase {
         for mapping in TagLibMetadataExtractor.metadataFieldMappings() {
             let canonical = try XCTUnwrap(mapping["canonicalPropertyKey"] as? String)
             let aliases = mapping["propertyAliases"] as? [String] ?? []
-            let propertyKeys = Set([canonical] + aliases)
+            let propertyKeys = [canonical] + aliases
             let schemas = MetadataFieldRegistry.allSchemas.filter {
-                propertyKeys.isSubset(of: Set($0.propertyMapKeys))
+                propertyKeys == $0.propertyMapKeys
             }
             let schema = try XCTUnwrap(
                 schemas.count == 1 ? schemas.first : nil,
-                "Bridge mapping \(propertyKeys.sorted()) must have exactly one complete Swift semantic owner; found \(schemas.map { $0.key.rawValue })"
+                "Bridge ordered mapping \(propertyKeys) must exactly match one Swift semantic owner; found \(schemas.map { $0.key.rawValue })"
             )
 
             if let frame = mapping["id3v2TextFrame"] as? String {
@@ -228,5 +228,17 @@ final class FormatCapabilityTests: XCTestCase {
             XCTAssertEqual(schema.isPeopleField, (mapping["peopleField"] as? NSNumber)?.boolValue ?? false, canonical)
             XCTAssertEqual(schema.isRoleQualified, (mapping["roleQualified"] as? NSNumber)?.boolValue ?? false, canonical)
         }
+    }
+
+    func testArtistTypeCanonicalKeyMatchesEverySchemaSurface() throws {
+        let swiftSchema = try XCTUnwrap(MetadataFieldRegistry.schema(for: .artistType))
+        XCTAssertEqual(
+            swiftSchema.propertyMapKeys,
+            ["MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"]
+        )
+        let bridgeMapping = try XCTUnwrap(TagLibMetadataExtractor.metadataFieldMappings().first {
+            ($0["canonicalPropertyKey"] as? String) == "MUSICBRAINZ_ARTISTTYPE"
+        })
+        XCTAssertEqual(bridgeMapping["propertyAliases"] as? [String], ["ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"])
     }
 }

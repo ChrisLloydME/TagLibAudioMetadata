@@ -12,6 +12,16 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Error domain used by the public low-level bridge.
+FOUNDATION_EXPORT NSErrorDomain const TagLibMetadataErrorDomain;
+
+/// Transaction outcomes that require consumer-specific handling.
+typedef NS_ENUM(NSInteger, TagLibMetadataTransactionErrorCode) {
+    /// Atomic replacement succeeded, but flushing the parent directory failed.
+    /// The mutation is visible and callers must not blindly retry it.
+    TagLibMetadataTransactionErrorCodeCommittedButDurabilityUncertain = 9110,
+};
+
 typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
     TagLibExplicitAdvisoryUnspecified = 0,
     TagLibExplicitAdvisoryClean = 1,
@@ -183,6 +193,9 @@ NS_SWIFT_NAME(metadataProjections(for:));
 NS_SWIFT_NAME(metadataProjections(for:options:));
 
 /// Write metadata back to an audio file.
+///
+/// If this throws `TagLibMetadataErrorCommittedButDurabilityUncertain`, the
+/// replacement has already committed and must not be treated as a rollback.
 + (BOOL)writeMetadata:(TagLibAudioMetadata *)metadata
                 toURL:(NSURL *)fileURL
                 error:(NSError *_Nullable *_Nullable)error

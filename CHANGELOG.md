@@ -9,6 +9,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Unified `artistType` on `MUSICBRAINZ_ARTISTTYPE` as the canonical PropertyMap
+  key and strengthened schema tests to compare exact ordered mappings.
+- Made full PropertyMap replacement verification compare the complete visible
+  result, including removal of omitted keys; multi-value writes now expose an
+  explicit `.replace`/`.merge` mode.
+- Made verification mismatches unconditionally transactional failures and made
+  unsupported RIFF INFO synchronization fail before mutation begins.
+- Exported a typed low-level committed-but-durability-uncertain error contract.
+
 - Preserved the untouched total component when patching WAV track or disc
   numbers stored in native ID3v2 number pairs, and verified both components
   after partial pair updates.

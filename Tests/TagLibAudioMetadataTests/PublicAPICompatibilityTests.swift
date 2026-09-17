@@ -49,4 +49,9 @@ final class PublicAPICompatibilityTests: XCTestCase {
         if case .throw = policy {} else { XCTFail("Expected throw policy") }
         if case .unchanged = artwork {} else { XCTFail("Expected unchanged artwork expectation") }
     }
+
+    func testLowLevelCommittedDurabilityOutcomeIsPubliclyTyped() {
+        XCTAssertEqual(TagLibMetadataErrorDomain, "TagLibMetadataExtractor")
+        XCTAssertEqual(TagLibMetadataTransactionErrorCode.committedButDurabilityUncertain.rawValue, 9_110)
+    }
 }

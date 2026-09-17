@@ -449,6 +449,59 @@ extension TagLibMetadataManager {
         return warnings
     }
 
+    nonisolated static func rawPropertyMapReplacementWarnings(
+        expectedProperties: [String: [String]],
+        for url: URL
+    ) -> [String] {
+        guard let rawDump = rawMetadata(from: url) else {
+            return ["Could not verify raw metadata replacement after save."]
+        }
+
+        func canonicalKey(_ rawKey: String) -> String {
+            let trimmed = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            let prefix = "----:COM.APPLE.ITUNES:"
+            let uppercased = trimmed.uppercased()
+            let propertyKey = uppercased.hasPrefix(prefix)
+                ? String(uppercased.dropFirst(prefix.count))
+                : uppercased
+            return MetadataFieldRegistry.schema(forPropertyMapKey: propertyKey)?
+                .propertyMapKeys.first?.uppercased() ?? propertyKey
+        }
+
+        func normalizedValues(_ values: [String]) -> [String] {
+            values
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
+
+        let expected = expectedProperties.reduce(into: [String: [String]]()) { result, entry in
+            let key = canonicalKey(entry.key)
+            let values = normalizedValues(entry.value)
+            guard !key.isEmpty, !values.isEmpty else { return }
+            result[key, default: []].append(contentsOf: values)
+        }
+        let actual = rawDump.properties.reduce(into: [String: [String]]()) { result, entry in
+            guard !isHiddenInternalRawFieldKey(entry.key) else { return }
+            let key = canonicalKey(entry.key)
+            let sourceValues = entry.values.isEmpty ? [entry.value] : entry.values
+            let values = normalizedValues(sourceValues)
+            guard !key.isEmpty, !values.isEmpty else { return }
+            result[key, default: []].append(contentsOf: values)
+        }
+
+        guard expected != actual else { return [] }
+        let staleKeys = Set(actual.keys).subtracting(expected.keys).sorted()
+        let missingKeys = Set(expected.keys).subtracting(actual.keys).sorted()
+        let changedKeys = Set(expected.keys).intersection(actual.keys)
+            .filter { expected[$0] != actual[$0] }
+            .sorted()
+        var details: [String] = []
+        if !staleKeys.isEmpty { details.append("unexpected keys: \(staleKeys.joined(separator: ", "))") }
+        if !missingKeys.isEmpty { details.append("missing keys: \(missingKeys.joined(separator: ", "))") }
+        if !changedKeys.isEmpty { details.append("changed values: \(changedKeys.joined(separator: ", "))") }
+        return ["Raw property-map replacement did not persist the complete requested map (\(details.joined(separator: "; ")))."]
+    }
+
     nonisolated static func resolvedRawPropertyMapValuesForMerge(
         _ properties: [String: String],
         to url: URL
@@ -480,6 +533,38 @@ extension TagLibMetadataManager {
             }
         }
 
+        return merged
+    }
+
+    nonisolated static func resolvedRawPropertyMapValuesForMerge(
+        _ properties: [String: [String]],
+        to url: URL
+    ) throws -> [String: [String]] {
+        var merged = try rawMetadataResult(from: url).properties.reduce(into: [String: [String]]()) { result, entry in
+            let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { return }
+            let sourceValues = entry.values.isEmpty ? [entry.value] : entry.values
+            let values = sourceValues
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            guard !values.isEmpty else { return }
+            result[key, default: []].append(contentsOf: values)
+        }
+
+        for (rawKey, rawValues) in properties {
+            let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { continue }
+            let aliases = normalizedRawKeyAliases(for: key.uppercased())
+            for existingKey in Array(merged.keys) where aliases.contains(existingKey.uppercased()) {
+                merged.removeValue(forKey: existingKey)
+            }
+            let values = rawValues
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !values.isEmpty {
+                merged[key] = values
+            }
+        }
         return merged
     }
 
