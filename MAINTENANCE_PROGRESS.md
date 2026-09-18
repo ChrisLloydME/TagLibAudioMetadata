@@ -1,6 +1,6 @@
 # Maintenance Progress
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 
 ## Scope and product boundary
 
@@ -80,6 +80,7 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
 - Low-Level boundary isolation committed as `f6a314d`.
 - Removed unsolicited stdout logging from the nonthrowing read convenience and
   separated read-content stability from the stricter mutation version identity.
+- Read-content identity and logging corrections committed as `f0ea153`.
 
 ## Tests added or updated
 
