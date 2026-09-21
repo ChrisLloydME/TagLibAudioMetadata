@@ -9,6 +9,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Made high-level writes return committed parent-directory durability uncertainty
+  through `MetadataWriteResult.commitStatus` instead of throwing after rename.
+- Made formatted track and disc patch intent independent, including unchanged,
+  set, and remove semantics, so editing one pair cannot rewrite the other.
+
 - Removed transaction-bypassing in-place mutators and coordination helpers from
   the public Low-Level header; the Swift facade now imports them from a dedicated
   non-product implementation target.

@@ -32,6 +32,31 @@ final class ReliabilityFailureTests: XCTestCase {
         )
     }
 
+    func testHighLevelWriteReturnsCommittedDurabilityUncertainStatus() throws {
+        let url = try copyFixture("flac")
+
+        let result = try TagLibMetadataManager.withAtomicMetadataWriteMutation(
+            at: url,
+            directorySync: { _ in -1 }
+        ) { mutationURL in
+            try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                ["TITLE": ["Committed typed outcome"]],
+                removingKeys: ["TITLE"],
+                to: mutationURL
+            )
+            return TagLibMetadataManager.MetadataWriteResult(warnings: [])
+        }
+
+        guard case .durabilityUncertain(let detail) = result.commitStatus else {
+            return XCTFail("Expected a committed durability-uncertain result")
+        }
+        XCTAssertTrue(detail.contains("already committed"))
+        XCTAssertEqual(
+            try TagLibMetadataManager.readMetadataResult(from: url).title,
+            "Committed typed outcome"
+        )
+    }
+
     func testReadAndInspectRejectInvalidSupportedExtensionFiles() throws {
         let directory = try temporaryDirectory()
         let missing = directory.appendingPathComponent("missing.mp3")

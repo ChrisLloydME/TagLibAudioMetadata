@@ -14,7 +14,7 @@ typedef BOOL (^TagLibFileMutationCoordinationBlock)(NSError *_Nullable *_Nullabl
                        toURL:(NSURL *)fileURL
                        error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(writeMetadataInPlace(_:to:));
-+ (BOOL)writeTrackNumberTextInPlace:(NSString *)trackNumberText
++ (BOOL)writeTrackNumberTextInPlace:(nullable NSString *)trackNumberText
                      discNumberText:(nullable NSString *)discNumberText
                               toURL:(NSURL *)fileURL
                               error:(NSError *_Nullable *_Nullable)error

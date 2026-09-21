@@ -1146,6 +1146,58 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(snapshot.basic.discTotal, 0)
     }
 
+    func testMetadataPatchDiscOnlyFormattedEditPreservesTrackRepresentation() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "007/012",
+                    discNumberText: "02/03"
+                )
+            ),
+            to: url
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                numberText: MetadataNumberTextPatch(discNumberText: "04/05")
+            ),
+            to: url
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "007/012")
+        XCTAssertEqual(snapshot.basic.track, 7)
+        XCTAssertEqual(snapshot.basic.trackTotal, 12)
+        XCTAssertEqual(snapshot.basic.discNumberText, "04/05")
+    }
+
+    func testMetadataPatchTrackOnlyFormattedEditPreservesDiscRepresentation() throws {
+        let url = try copyAudioFixture("m4a")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                numberText: MetadataNumberTextPatch(
+                    trackNumberText: "007/012",
+                    discNumberText: "002/003"
+                )
+            ),
+            to: url
+        )
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(
+                numberText: MetadataNumberTextPatch(trackNumberText: "008/012")
+            ),
+            to: url
+        )
+
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(snapshot.basic.trackNumberText, "008/012")
+        XCTAssertEqual(snapshot.basic.discNumberText, "002/003")
+        XCTAssertEqual(snapshot.basic.disc, 2)
+        XCTAssertEqual(snapshot.basic.discTotal, 3)
+    }
+
     func testMetadataPatchAcceptsContainersThatStoreNumberAndTotalSeparately() throws {
         let url = try copyAudioFixture("flac")
 

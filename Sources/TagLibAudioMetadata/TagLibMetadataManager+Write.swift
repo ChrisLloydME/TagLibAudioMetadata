@@ -64,7 +64,7 @@ extension TagLibMetadataManager {
             for: url
         )
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
@@ -88,7 +88,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let beforeWrite = verifyAfterWrite ? try readMetadataResult(from: mutationURL) : nil
             try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
@@ -137,7 +137,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
             switch mode {
             case .replace:
                 try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
@@ -180,7 +180,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
             let resolvedProperties: [String: [String]]
             switch mode {
             case .replace:
@@ -275,7 +275,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try eraseAllMetadataInPlaceWithVerification(
                 from: mutationURL,
                 failurePolicy: failurePolicy
@@ -623,7 +623,7 @@ extension TagLibMetadataManager {
                 expectedExplicitAdvisory: meta.explicitAdvisory
             )
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
             if !preservedStandardValues.isEmpty {
                 try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(

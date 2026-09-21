@@ -123,9 +123,10 @@ environment. The caller needs read access to the file and create/rename access
 in its parent directory.
 
 If rename succeeds but the final parent-directory `fsync` fails, the new file is
-already committed. The Swift facade throws
-`committedButDurabilityUncertain`; it does not attempt rollback, and blind retry
-may repeat the operation.
+already committed. High-level Swift writes return a
+`MetadataWriteResult` whose commit status is `durabilityUncertain`; they do not
+attempt rollback, and consumers must not blindly repeat the operation. The
+lower-level/internal transaction helper retains the historical typed error.
 
 ## Schema and capabilities
 

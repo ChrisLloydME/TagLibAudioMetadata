@@ -639,12 +639,13 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
 
         RemoveRecognizedMP4NumberPairFreeformItems(
             mp4Tag,
-            YES,
+            trackNumberText != nil,
             discNumberText != nil
         );
 
-        NSString *trimmedTrackText = TrimmedStringOrNil(trackNumberText);
-        if (trimmedTrackText) {
+        if (trackNumberText != nil) {
+            NSString *trimmedTrackText = TrimmedStringOrNil(trackNumberText);
+            if (trimmedTrackText) {
             NSInteger trackNumber = 0;
             NSInteger totalTracks = 0;
             NSInteger padWidth = 0;
@@ -657,11 +658,12 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
             SetMP4IntPairItem(mp4Tag, "trkn", trackNumber, totalTracks);
             SetMP4TextItem(mp4Tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
             SetMP4TextItem(mp4Tag, kTagLibAudioMetadataMP4TrackNumberTextKey, trimmedTrackText);
-        } else {
-            mp4Tag->removeItem("trkn");
-            mp4Tag->setTrack(0);
-            SetMP4TextItem(mp4Tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
-            SetMP4TextItem(mp4Tag, kTagLibAudioMetadataMP4TrackNumberTextKey, nil);
+            } else {
+                mp4Tag->removeItem("trkn");
+                mp4Tag->setTrack(0);
+                SetMP4TextItem(mp4Tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
+                SetMP4TextItem(mp4Tag, kTagLibAudioMetadataMP4TrackNumberTextKey, nil);
+            }
         }
 
         if (discNumberText) {
@@ -809,7 +811,9 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
             return NO;
         }
         TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
-        SetID3v2TextFrame(id3v2Tag, "TRCK", TrimmedStringOrNil(trackNumberText));
+        if (trackNumberText != nil) {
+            SetID3v2TextFrame(id3v2Tag, "TRCK", TrimmedStringOrNil(trackNumberText));
+        }
         if (discNumberText != nil) {
             SetID3v2TextFrame(id3v2Tag, "TPOS", TrimmedStringOrNil(discNumberText));
         }
