@@ -431,6 +431,7 @@ public struct TagLibMetadataManager {
         case merge
     }
 
+    @available(*, deprecated, message: "Verification mismatches always abort the transaction. Omit the obsolete failurePolicy parameter.")
     public enum VerificationFailurePolicy: Sendable {
         @available(*, unavailable, message: "Verification mismatches invalidate the transaction and always throw. Use .throw.")
         case warn

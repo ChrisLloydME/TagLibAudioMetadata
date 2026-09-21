@@ -38,7 +38,6 @@ final class WAVInfoProjectionTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.title: .text("ID3 title")]),
             to: url,
-            failurePolicy: .throw
         )
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(
@@ -52,7 +51,6 @@ final class WAVInfoProjectionTests: XCTestCase {
                 )
             ),
             to: url,
-            failurePolicy: .throw
         )
 
         let snapshot = try TagLibMetadataManager.readSnapshot(from: url)

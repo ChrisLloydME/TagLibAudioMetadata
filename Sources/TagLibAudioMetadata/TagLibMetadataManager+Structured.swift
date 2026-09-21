@@ -449,8 +449,7 @@ extension TagLibMetadataManager {
         riffPolicy: RIFFMetadataWritePolicy = .preserveInfo,
         includeProperties: Bool = false,
         replacingCollections: Set<StructuredMetadataReplaceableCollection> = [],
-        verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .throw
+        verifyAfterWrite: Bool = true
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -485,9 +484,30 @@ extension TagLibMetadataManager {
                 warnings.append(contentsOf: verification.failures)
                 warnings.append(contentsOf: verification.advisories)
             }
-            try applyVerificationFailurePolicy(failurePolicy, warnings: verificationFailures)
+            try throwOnVerificationFailures(verificationFailures)
             return MetadataWriteResult(warnings: warnings)
         }
+    }
+
+    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
+    @discardableResult
+    public nonisolated static func writeStructuredMetadataWithVerification(
+        _ metadata: StructuredMetadata,
+        to url: URL,
+        riffPolicy: RIFFMetadataWritePolicy = .preserveInfo,
+        includeProperties: Bool = false,
+        replacingCollections: Set<StructuredMetadataReplaceableCollection> = [],
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy
+    ) throws -> MetadataWriteResult {
+        try writeStructuredMetadataWithVerification(
+            metadata,
+            to: url,
+            riffPolicy: riffPolicy,
+            includeProperties: includeProperties,
+            replacingCollections: replacingCollections,
+            verifyAfterWrite: verifyAfterWrite
+        )
     }
 
 }

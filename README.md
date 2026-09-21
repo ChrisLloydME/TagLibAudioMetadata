@@ -84,8 +84,7 @@ let patch = MetadataPatch(
 
 let result = try TagLibMetadataManager.applyMetadataPatch(
     patch,
-    to: url,
-    failurePolicy: .throw
+    to: url
 )
 ```
 
@@ -95,6 +94,8 @@ replacement. `replaceBasicMetadata` intentionally replaces the complete modeled
 Basic projection, so empty/default fields clear existing values. The older
 `writeMetadata` and `writeMetadataWithVerification` names are deprecated because
 their replacement semantics were easy to mistake for a partial update.
+Verification mismatches always abort a transaction; the former one-case
+`VerificationFailurePolicy` and `failurePolicy` overloads are deprecated.
 
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
 Known keys and aliases are rejected in `customFields`; use `fields` (or a

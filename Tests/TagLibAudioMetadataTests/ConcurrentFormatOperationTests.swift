@@ -80,10 +80,9 @@ final class ConcurrentFormatOperationTests: XCTestCase {
                 group.addTask {
                     var metadata = BasicMetadata.empty
                     metadata.title = job.title
-                    _ = try TagLibMetadataManager.writeMetadataWithVerification(
+                    _ = try TagLibMetadataManager.replaceBasicMetadata(
                         metadata,
                         to: job.url,
-                        failurePolicy: .throw
                     )
                     let readBack = try TagLibMetadataManager.readMetadataResult(from: job.url)
                     return (job.title, readBack.title)
@@ -123,10 +122,9 @@ final class ConcurrentFormatOperationTests: XCTestCase {
                         expectedTitle = "Stress \(job.worker)-\(iteration)"
                         var metadata = BasicMetadata.empty
                         metadata.title = expectedTitle
-                        _ = try TagLibMetadataManager.writeMetadataWithVerification(
+                        _ = try TagLibMetadataManager.replaceBasicMetadata(
                             metadata,
                             to: job.url,
-                            failurePolicy: .throw
                         )
                     }
                     let final = try TagLibMetadataManager.readMetadataResult(from: job.url)

@@ -51,8 +51,7 @@ extension TagLibMetadataManager {
     public nonisolated static func writeTagMetadata(
         _ metadata: TagLibAudioMetadata,
         to url: URL,
-        verification: MetadataWriteVerificationContext = .none,
-        failurePolicy: VerificationFailurePolicy = .throw
+        verification: MetadataWriteVerificationContext = .none
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -67,9 +66,19 @@ extension TagLibMetadataManager {
         return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
-            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
+    }
+
+    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
+    public nonisolated static func writeTagMetadata(
+        _ metadata: TagLibAudioMetadata,
+        to url: URL,
+        verification: MetadataWriteVerificationContext = .none,
+        failurePolicy: VerificationFailurePolicy
+    ) throws -> MetadataWriteResult {
+        try writeTagMetadata(metadata, to: url, verification: verification)
     }
 
     /// Intentionally writes formatted track/disc number text. Unlike an ordinary
@@ -80,7 +89,6 @@ extension TagLibMetadataManager {
         discNumberText: String?,
         to url: URL,
         verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .throw,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
@@ -119,9 +127,28 @@ extension TagLibMetadataManager {
                     customFieldKeys: []
                 )
             )
-            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
+    }
+
+    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
+    @discardableResult
+    public nonisolated static func writeTrackNumberText(
+        _ trackNumberText: String,
+        discNumberText: String?,
+        to url: URL,
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy,
+        expectedVersion: MetadataFileVersion? = nil
+    ) throws -> MetadataWriteResult {
+        try writeTrackNumberText(
+            trackNumberText,
+            discNumberText: discNumberText,
+            to: url,
+            verifyAfterWrite: verifyAfterWrite,
+            expectedVersion: expectedVersion
+        )
     }
 
     @discardableResult
@@ -129,8 +156,7 @@ extension TagLibMetadataManager {
         _ properties: [String: String],
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
-        verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .throw
+        verifyAfterWrite: Bool = true
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -160,9 +186,26 @@ extension TagLibMetadataManager {
                     warnings = rawPropertyMapWriteWarnings(requestedProperties: properties, for: mutationURL)
                 }
             }
-            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
+    }
+
+    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
+    @discardableResult
+    public nonisolated static func writeRawMetadataPropertyMapWithVerification(
+        _ properties: [String: String],
+        to url: URL,
+        mode: RawPropertyMapWriteMode = .replace,
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy
+    ) throws -> MetadataWriteResult {
+        try writeRawMetadataPropertyMapWithVerification(
+            properties,
+            to: url,
+            mode: mode,
+            verifyAfterWrite: verifyAfterWrite
+        )
     }
 
     @discardableResult
@@ -172,8 +215,7 @@ extension TagLibMetadataManager {
         _ properties: [String: [String]],
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
-        verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy = .throw
+        verifyAfterWrite: Bool = true
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -208,9 +250,26 @@ extension TagLibMetadataManager {
                 warnings = []
             }
 
-            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
+    }
+
+    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
+    @discardableResult
+    public nonisolated static func writeRawMetadataPropertyMapValuesWithVerification(
+        _ properties: [String: [String]],
+        to url: URL,
+        mode: RawPropertyMapWriteMode = .replace,
+        verifyAfterWrite: Bool = true,
+        failurePolicy: VerificationFailurePolicy
+    ) throws -> MetadataWriteResult {
+        try writeRawMetadataPropertyMapValuesWithVerification(
+            properties,
+            to: url,
+            mode: mode,
+            verifyAfterWrite: verifyAfterWrite
+        )
     }
 
     nonisolated private static func residualWarningsAfterErase(for url: URL) -> [String] {
@@ -267,8 +326,7 @@ extension TagLibMetadataManager {
     @discardableResult
     public nonisolated static func eraseAllMetadataWithVerification(
         from url: URL,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy = .throw
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -276,16 +334,22 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
-            try eraseAllMetadataInPlaceWithVerification(
-                from: mutationURL,
-                failurePolicy: failurePolicy
-            )
+            try eraseAllMetadataInPlaceWithVerification(from: mutationURL)
         }
     }
 
-    nonisolated private static func eraseAllMetadataInPlaceWithVerification(
+    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
+    @discardableResult
+    public nonisolated static func eraseAllMetadataWithVerification(
         from url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy
+    ) throws -> MetadataWriteResult {
+        try eraseAllMetadataWithVerification(from: url, expectedVersion: expectedVersion)
+    }
+
+    nonisolated private static func eraseAllMetadataInPlaceWithVerification(
+        from url: URL
     ) throws -> MetadataWriteResult {
         let meta = TagLibAudioMetadata()
         meta.title = ""
@@ -365,7 +429,7 @@ extension TagLibMetadataManager {
         }
 
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))
-        try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+        try throwOnVerificationFailures(warnings)
         return MetadataWriteResult(warnings: warnings)
     }
 
@@ -383,8 +447,7 @@ extension TagLibMetadataManager {
     public nonisolated static func replaceBasicMetadata(
         _ meta: BasicMetadata,
         to url: URL,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy = .throw
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -634,7 +697,7 @@ extension TagLibMetadataManager {
                 )
             }
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
-            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
     }
@@ -656,14 +719,14 @@ extension TagLibMetadataManager {
         )
     }
 
-    @available(*, deprecated, renamed: "replaceBasicMetadata(_:to:expectedVersion:failurePolicy:)")
+    @available(*, deprecated, renamed: "replaceBasicMetadata(_:to:expectedVersion:)")
     @discardableResult
     public nonisolated static func writeMetadataWithVerification(
         _ meta: BasicMetadata,
         to url: URL,
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
-        try replaceBasicMetadata(meta, to: url, failurePolicy: failurePolicy)
+        try replaceBasicMetadata(meta, to: url)
     }
 
     /// Write `BasicMetadata` back to the file using TagLib.
@@ -673,7 +736,7 @@ extension TagLibMetadataManager {
     /// - Fields that are empty strings are written as `nil` (i.e. removed/cleared).
     /// - `publisher` is mapped to TagLib's `label` field.
     @discardableResult
-    @available(*, deprecated, message: "This replaces the complete Basic projection. Use replaceBasicMetadata(_:to:expectedVersion:failurePolicy:) or updateBasicMetadata(at:_:).")
+    @available(*, deprecated, message: "This replaces the complete Basic projection. Use replaceBasicMetadata(_:to:expectedVersion:) or updateBasicMetadata(at:_:).")
     public nonisolated static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool {
         _ = try replaceBasicMetadata(meta, to: url)
         return true

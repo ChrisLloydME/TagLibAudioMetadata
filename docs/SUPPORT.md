@@ -52,7 +52,7 @@ Pick the highest-level layer that keeps the data you need.
 | Layer | Main types | Use it for |
 | --- | --- | --- |
 | Comprehensive editing | `MetadataSnapshot`, `MetadataPatch`, `readSnapshot`, `applyMetadataPatch` | Professional editors that must preserve omitted and container-specific data. |
-| Basic metadata | `BasicMetadata`, `TagLibMetadataManager.readMetadataResult`, `writeMetadataWithVerification` | Track editors, library views, common tags, artwork, common IDs, ReplayGain, iTunes fields. |
+| Basic metadata | `BasicMetadata`, `TagLibMetadataManager.readMetadataResult`, `updateBasicMetadata`, `replaceBasicMetadata` | Track editors, library views, common tags, artwork, common IDs, ReplayGain, iTunes fields. |
 | Raw property map | `RawMetadataDump`, `RawPropertyEntry`, `writeRawMetadataPropertyMapWithVerification` | Advanced editors that expose TagLib property keys directly. |
 | Structured metadata | `StructuredMetadata`, `StructuredID3v2Frame`, `StructuredMP4Atom`, `StructuredASFAttribute` | Container-aware editing of ID3v2 frames, MP4 atoms, ASF attributes, comments, lyrics, and artwork. |
 
@@ -115,8 +115,7 @@ let patch = MetadataPatch(
 
 try TagLibMetadataManager.applyMetadataPatch(
     patch,
-    to: url,
-    failurePolicy: .throw
+    to: url
 )
 ```
 
@@ -305,10 +304,9 @@ metadata.track = 2
 metadata.trackTotal = 10
 metadata.trackNumberText = "02/10"
 
-let result = try TagLibMetadataManager.writeMetadataWithVerification(
+let result = try TagLibMetadataManager.replaceBasicMetadata(
     metadata,
-    to: url,
-    failurePolicy: .throw
+    to: url
 )
 
 for warning in result.warnings {
@@ -324,13 +322,13 @@ return non-fatal container advisories in `MetadataWriteResult.warnings`.
 ```swift
 try TagLibMetadataManager.replaceBasicMetadata(
     metadata,
-    to: url,
-    failurePolicy: .throw
+    to: url
 )
 ```
 
-With `.throw`, verification warnings become
-`TagLibManagerError.verificationFailed([String])`.
+Verification failures always abort the transaction as
+`TagLibManagerError.verificationFailed([String])`. The former one-case policy
+parameter remains only on deprecated source-compatible overloads.
 
 Prefer the omission-safe Basic update convenience when starting from an existing file:
 
@@ -376,13 +374,12 @@ if let artwork = metadata.artworkData {
 }
 ```
 
-Write artwork by assigning image data:
+Write artwork through the omission-safe update convenience:
 
 ```swift
-var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-metadata.artworkData = try Data(contentsOf: coverURL)
-
-let result = try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url)
+let result = try TagLibMetadataManager.updateBasicMetadata(at: url) { metadata in
+    metadata.artworkData = try Data(contentsOf: coverURL)
+}
 ```
 
 Check `FormatCapability.canWriteArtwork` before enabling artwork editing. Some
@@ -606,8 +603,7 @@ let payload = StructuredMetadata(
 let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
     payload,
     to: url,
-    includeProperties: true,
-    failurePolicy: .throw
+    includeProperties: true
 )
 ```
 
@@ -623,8 +619,7 @@ remove the final entries, name the collections explicitly:
 try TagLibMetadataManager.writeStructuredMetadataWithVerification(
     StructuredMetadata(),
     to: url,
-    replacingCollections: [.artwork, .lyrics, .comments],
-    failurePolicy: .throw
+    replacingCollections: [.artwork, .lyrics, .comments]
 )
 ```
 
@@ -690,8 +685,7 @@ Use the verified erase API when the user chooses a destructive metadata clear:
 
 ```swift
 let result = try TagLibMetadataManager.eraseAllMetadataWithVerification(
-    from: url,
-    failurePolicy: .throw
+    from: url
 )
 
 for warning in result.warnings {
@@ -723,23 +717,21 @@ Common warning causes:
 - Artwork could not be confirmed after write.
 - Structured metadata collections changed shape after TagLib saved the file.
 - A structured reader reported a container advisory. Advisories remain visible
-  in `MetadataWriteResult.warnings`, but do not by themselves make
-  `failurePolicy: .throw` roll back a correctly verified structured write.
+  in `MetadataWriteResult.warnings`, but do not by themselves roll back a
+  correctly verified structured write.
 
 Verification differences are transaction failures. Container advisories are
 returned separately after a successful verification:
 
 ```swift
-let result = try TagLibMetadataManager.writeMetadataWithVerification(
+let result = try TagLibMetadataManager.replaceBasicMetadata(
     metadata,
-    to: url,
-    failurePolicy: .throw
+    to: url
 )
 showWarnings(result.warnings)
 ```
 
-Use `.throw` for tests, batch processing, and workflows where a read-back
-verification difference would be data loss.
+Read-back verification differences always abort before commit.
 
 Basic verification requests Basic+PropertyMap together and derives both checks
 from one TagLib extraction without enumerating raw ID3 frame summaries. Patch
@@ -911,8 +903,8 @@ fields, artwork, and custom fields back to the bridge model.
 - `unsupportedFormat`: the URL has no extension or the bridge does not support it.
 - `failedToReadWithUnderlying(String)`: TagLib or the bridge failed while reading.
 - `verificationFailed([String])`: verification produced failures and the caller
-  requested `failurePolicy: .throw`. Structured container advisories can still
-  be returned as warnings without triggering this error.
+  cannot safely commit the staged replacement. Structured container advisories
+  can still be returned as warnings without triggering this error.
 - `failedToRead`: deprecated. Use `failedToReadWithUnderlying`.
 
 ## Low-Level Bridge API
@@ -1001,10 +993,9 @@ structuredButton.isEnabled = capability.structuredWriteSupport != .none
 
 ```swift
 do {
-    let result = try TagLibMetadataManager.writeMetadataWithVerification(
+    let result = try TagLibMetadataManager.replaceBasicMetadata(
         metadata,
-        to: url,
-        failurePolicy: .throw
+        to: url
     )
     showWarnings(result.warnings)
 } catch TagLibManagerError.unsupportedFormat {
@@ -1029,7 +1020,7 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
 var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
 metadata.customFields["CATALOGNUMBER"] = "ABC-123"
 
-try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url)
+try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
 ```
 
 For an MP4 freeform atom where you need the exact atom key, use structured
@@ -1056,10 +1047,9 @@ for url in urls {
     metadata.album = "Batch Album"
 
     do {
-        try TagLibMetadataManager.writeMetadataWithVerification(
+        try TagLibMetadataManager.replaceBasicMetadata(
             metadata,
-            to: url,
-            failurePolicy: .throw
+            to: url
         )
     } catch TagLibManagerError.verificationFailed(let warnings) {
         report(url, warnings)
