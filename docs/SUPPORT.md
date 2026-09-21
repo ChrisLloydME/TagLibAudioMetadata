@@ -52,7 +52,7 @@ Pick the highest-level layer that keeps the data you need.
 | Layer | Main types | Use it for |
 | --- | --- | --- |
 | Comprehensive editing | `MetadataSnapshot`, `MetadataPatch`, `readSnapshot`, `applyMetadataPatch` | Professional editors that must preserve omitted and container-specific data. |
-| Basic metadata | `BasicMetadata`, `TagLibMetadataManager.readMetadataResult`, `updateBasicMetadata`, `replaceBasicMetadata` | Track editors, library views, common tags, artwork, common IDs, ReplayGain, iTunes fields. |
+| Basic metadata | `BasicMetadata`, `BasicMetadataSnapshot`, `readMetadataResult`, `readBasicSnapshot`, `updateBasicMetadata`, `replaceBasicMetadata` | Track editors, library views, common tags, artwork, common IDs, ReplayGain, iTunes fields. |
 | Raw property map | `RawMetadataDump`, `RawPropertyEntry`, `writeRawMetadataPropertyMapWithVerification` | Advanced editors that expose TagLib property keys directly. |
 | Structured metadata | `StructuredMetadata`, `StructuredID3v2Frame`, `StructuredMP4Atom`, `StructuredASFAttribute` | Container-aware editing of ID3v2 frames, MP4 atoms, ASF attributes, comments, lyrics, and artwork. |
 
@@ -297,6 +297,15 @@ if let metadata = TagLibMetadataManager.bestEffortMetadata(from: url) {
 intentional loss of unsupported-format, corrupt-file, permission, I/O, and
 concurrent-change errors explicit. The older `readMetadata(from:)` optional
 helper is deprecated.
+
+When a loader also needs a version token for a later optimistic edit, use the
+focused snapshot rather than the comprehensive inspector snapshot:
+
+```swift
+let snapshot = try TagLibMetadataManager.readBasicSnapshot(from: url)
+show(snapshot.metadata)
+let version = snapshot.fileVersion
+```
 
 ### Writing Basic Metadata
 

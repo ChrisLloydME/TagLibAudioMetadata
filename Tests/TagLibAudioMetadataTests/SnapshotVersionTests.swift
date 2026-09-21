@@ -60,6 +60,26 @@ final class SnapshotVersionTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path), [url.lastPathComponent])
     }
 
+    func testBasicSnapshotReturnsMetadataAndUsableVersionWithoutFullSnapshot() throws {
+        let url = try fixtureCopy()
+        let focused = try TagLibMetadataManager.readBasicSnapshot(from: url)
+        let full = try TagLibMetadataManager.readSnapshot(from: url)
+
+        XCTAssertEqual(focused.metadata.title, full.basic.title)
+        XCTAssertEqual(focused.metadata.artist, full.basic.artist)
+        XCTAssertEqual(focused.metadata.customFieldValues, full.basic.customFieldValues)
+
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [.title: .text("Focused snapshot edit")]),
+            to: url,
+            expectedVersion: focused.fileVersion
+        )
+        XCTAssertEqual(
+            try TagLibMetadataManager.readMetadataResult(from: url).title,
+            "Focused snapshot edit"
+        )
+    }
+
     func testSnapshotRejectsFinalSymlinkInsteadOfComparingTwoMissingIdentities() throws {
         let url = try fixtureCopy()
         let alias = url.deletingLastPathComponent().appendingPathComponent("alias.flac")

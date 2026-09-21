@@ -77,6 +77,15 @@ Last updated: 2026-09-21
   fixtures at runtime. `fixtureCovered` is static evidence metadata configured
   in the capability registry, and documentation now states that it is neither a
   per-file validation result nor a blanket release guarantee.
+- Added `readBasicSnapshot(from:)`, returning normalized Basic metadata and its
+  exact `MetadataFileVersion` without constructing the structured inspector
+  projection. This creates a focused loading path for consumers such as
+  AudioMator after an independent package release.
+- Revised the patch-verification performance finding: current `.all` reads are
+  not merely verifying changed scalar fields. They also enforce preservation of
+  every untouched PropertyMap value and artwork collection. Removing structured
+  verification would weaken that contract; an artwork-only bridge projection
+  remains a possible future optimization, not a safe change in this pass.
 
 ### Validation in this pass
 
@@ -92,6 +101,8 @@ Last updated: 2026-09-21
 - Complete package suite after the best-effort read API migration: 135 tests
   executed, 2 opt-in tests skipped, 0 failures.
 - Complete package suite after extension/probe capability separation: 136 tests
+  executed, 2 opt-in tests skipped, 0 failures.
+- Complete package suite after the focused Basic snapshot API: 137 tests
   executed, 2 opt-in tests skipped, 0 failures.
 
 ## Scope and product boundary

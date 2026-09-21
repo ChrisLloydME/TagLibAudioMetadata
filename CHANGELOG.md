@@ -28,6 +28,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
   `isReadableExtension`, and `isWritableExtension`) from concrete-file
   validation through the new throwing `probeFile(at:)` API. Ambiguous legacy
   extension lookup names remain as deprecated wrappers.
+- Added `readBasicSnapshot(from:)` for consumers that need Basic metadata and a
+  matching optimistic-concurrency token without constructing structured
+  inspector models.
 
 - Removed transaction-bypassing in-place mutators and coordination helpers from
   the public Low-Level header; the Swift facade now imports them from a dedicated

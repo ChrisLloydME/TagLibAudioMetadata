@@ -97,6 +97,11 @@ their replacement semantics were easy to mistake for a partial update.
 Verification mismatches always abort a transaction; the former one-case
 `VerificationFailurePolicy` and `failurePolicy` overloads are deprecated.
 
+Loaders that need normalized Basic metadata plus an optimistic-concurrency token,
+but not raw/structured inspector models, can use `readBasicSnapshot(from:)`.
+Use the comprehensive `readSnapshot(from:)` only when those additional
+representations are actually needed.
+
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
 Known keys and aliases are rejected in `customFields`; use `fields` (or a
 dedicated patch property) for schema-known metadata. Unknown custom keys remain

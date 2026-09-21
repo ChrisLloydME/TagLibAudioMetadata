@@ -47,6 +47,18 @@ public struct MetadataSnapshot: Sendable {
     }
 }
 
+/// A focused read for list/editor loading that needs normalized Basic metadata
+/// and an optimistic-concurrency token, but not structured inspector models.
+public struct BasicMetadataSnapshot: Sendable {
+    public var metadata: BasicMetadata
+    public let fileVersion: MetadataFileVersion
+
+    public init(metadata: BasicMetadata, fileVersion: MetadataFileVersion) {
+        self.metadata = metadata
+        self.fileVersion = fileVersion
+    }
+}
+
 public enum MetadataPatchValue: Hashable, Sendable {
     /// Non-empty text. Leading and trailing whitespace is removed before mutation.
     case text(String)
