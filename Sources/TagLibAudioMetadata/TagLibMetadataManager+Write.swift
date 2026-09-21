@@ -275,7 +275,7 @@ extension TagLibMetadataManager {
     nonisolated private static func residualWarningsAfterErase(for url: URL) -> [String] {
         var warnings: [String] = []
 
-        if let metadata = readMetadata(from: url) {
+        if let metadata = bestEffortMetadata(from: url) {
             var residualFields: [String] = []
             if !metadata.title.isEmpty { residualFields.append("TITLE") }
             if !metadata.artist.isEmpty { residualFields.append("ARTIST") }
@@ -305,7 +305,7 @@ extension TagLibMetadataManager {
             warnings.append("Could not verify erase result by re-reading metadata.")
         }
 
-        if let rawDump = rawMetadata(from: url) {
+        if let rawDump = bestEffortRawMetadata(from: url) {
             let remainingKeys = rawDump.properties
                 .map(\.key)
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

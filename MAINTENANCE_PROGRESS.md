@@ -64,6 +64,10 @@ Last updated: 2026-09-21
 - Deprecated only the setter of the lossy `BasicMetadata.isExplicit` Boolean.
   The compatibility getter remains, while writes now point consumers to the
   four-state `explicitAdvisory` value.
+- Kept throwing result reads as the primary error-preserving interface and
+  renamed optional conveniences around explicit `bestEffort` semantics. The
+  old optional names remain as deprecated wrappers, and stale documentation
+  claiming that they print errors was corrected.
 
 ### Validation in this pass
 
@@ -76,6 +80,8 @@ Last updated: 2026-09-21
   executed, 2 opt-in tests skipped, 0 failures.
 - Advisory model semantics suite after deprecating the Boolean setter: 3 tests,
   0 failures.
+- Complete package suite after the best-effort read API migration: 135 tests
+  executed, 2 opt-in tests skipped, 0 failures.
 
 ## Scope and product boundary
 

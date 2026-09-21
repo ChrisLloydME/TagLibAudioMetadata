@@ -21,6 +21,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
   one-case policy type remain for source compatibility.
 - Deprecated the lossy `isExplicit` setter. The Boolean remains available as a
   read projection, while mutations use the four-state `explicitAdvisory` model.
+- Added clearly named `bestEffortMetadata`, `bestEffortRawMetadata`,
+  `bestEffortRawMetadataText`, and `bestEffortStructuredMetadata` conveniences;
+  deprecated ambiguous optional read names that silently collapse read errors.
 
 - Removed transaction-bypassing in-place mutators and coordination helpers from
   the public Low-Level header; the Swift facade now imports them from a dedicated

@@ -436,15 +436,25 @@ extension TagLibMetadataManager {
         )
     }
 
-    public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
+    public nonisolated static func bestEffortMetadata(from url: URL) -> BasicMetadata? {
         try? readMetadataResult(from: url)
+    }
+
+    @available(*, deprecated, renamed: "bestEffortMetadata(from:)")
+    public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
+        bestEffortMetadata(from: url)
     }
 
     // MARK: - Write / Erase
 
     @discardableResult
-    public nonisolated static func rawMetadata(from url: URL) -> RawMetadataDump? {
+    public nonisolated static func bestEffortRawMetadata(from url: URL) -> RawMetadataDump? {
         try? rawMetadataResult(from: url)
+    }
+
+    @available(*, deprecated, renamed: "bestEffortRawMetadata(from:)")
+    public nonisolated static func rawMetadata(from url: URL) -> RawMetadataDump? {
+        bestEffortRawMetadata(from: url)
     }
 
     public nonisolated static func rawMetadataResult(from url: URL) throws -> RawMetadataDump {
@@ -469,14 +479,14 @@ extension TagLibMetadataManager {
     /// It surfaces:
     /// - TagLib `PropertyMap` entries (including multi-value fields)
     /// - ID3v2 frames (MP3 only), including TXXX/COMM details when available
-    public nonisolated static func rawMetadataText(from url: URL) -> String? {
+    public nonisolated static func bestEffortRawMetadataText(from url: URL) -> String? {
         // Prefer a direct text dump from the bridge if available.
         if let text = bridgeTextDumpIfAvailable(for: url) {
             return text
         }
 
         // Otherwise, build a readable text representation from the normalized dump models.
-        guard let dump = rawMetadata(from: url) else { return nil }
+        guard let dump = bestEffortRawMetadata(from: url) else { return nil }
 
         var lines: [String] = []
         lines.append("File: \(url.lastPathComponent)")
@@ -529,5 +539,10 @@ extension TagLibMetadataManager {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    @available(*, deprecated, renamed: "bestEffortRawMetadataText(from:)")
+    public nonisolated static func rawMetadataText(from url: URL) -> String? {
+        bestEffortRawMetadataText(from: url)
     }
 }

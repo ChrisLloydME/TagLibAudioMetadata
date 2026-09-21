@@ -285,13 +285,15 @@ do {
 Use the optional API for compatibility paths where `nil` is enough:
 
 ```swift
-if let metadata = TagLibMetadataManager.readMetadata(from: url) {
+if let metadata = TagLibMetadataManager.bestEffortMetadata(from: url) {
     print(metadata.album)
 }
 ```
 
-`readMetadata(from:)` prints the read error and returns `nil`. It does not let the
-caller distinguish unsupported formats from corrupt files.
+`bestEffortMetadata(from:)` returns `nil` without diagnostics. Its name makes the
+intentional loss of unsupported-format, corrupt-file, permission, I/O, and
+concurrent-change errors explicit. The older `readMetadata(from:)` optional
+helper is deprecated.
 
 ### Writing Basic Metadata
 
@@ -458,16 +460,16 @@ for frame in dump.id3v2Frames {
 }
 ```
 
-Use `rawMetadata(from:)` when `nil` is enough:
+Use `bestEffortRawMetadata(from:)` when `nil` is enough:
 
 ```swift
-let dump = TagLibMetadataManager.rawMetadata(from: url)
+let dump = TagLibMetadataManager.bestEffortRawMetadata(from: url)
 ```
 
-Use `rawMetadataText(from:)` for copyable diagnostics:
+Use `bestEffortRawMetadataText(from:)` for copyable diagnostics:
 
 ```swift
-if let text = TagLibMetadataManager.rawMetadataText(from: url) {
+if let text = TagLibMetadataManager.bestEffortRawMetadataText(from: url) {
     print(text)
 }
 ```
@@ -561,10 +563,10 @@ for warning in structured.warnings {
 }
 ```
 
-Use `readStructuredMetadata(from:)` for an optional result:
+Use `bestEffortStructuredMetadata(from:)` for an optional result:
 
 ```swift
-let structured = TagLibMetadataManager.readStructuredMetadata(from: url)
+let structured = TagLibMetadataManager.bestEffortStructuredMetadata(from: url)
 ```
 
 `CHAP` and `CTOC` records expose their container data directly on
@@ -971,7 +973,7 @@ verification. Prefer the manager unless you have a specific bridge-level need.
 
 ```swift
 let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-let rawText = TagLibMetadataManager.rawMetadataText(from: url)
+let rawText = TagLibMetadataManager.bestEffortRawMetadataText(from: url)
 
 titleLabel.text = metadata.title
 artistLabel.text = metadata.artist
