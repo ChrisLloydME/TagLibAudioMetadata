@@ -208,7 +208,8 @@ after acquiring the transaction lock and before creating the temporary copy.
 Transactional facade and public low-level bridge writes:
 
 1. reject final symlinks and hard-linked files, and require an existing regular file;
-2. makes one sibling, same-volume copy;
+2. make one sibling, same-volume copy-on-write clone when supported, with an
+   automatic ordinary-copy fallback;
 3. mutates and verifies the copy;
 4. flushes the copy, rechecks destination identity, atomically renames it, and
    flushes the parent directory.

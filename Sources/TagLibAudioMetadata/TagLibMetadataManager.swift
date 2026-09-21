@@ -237,13 +237,22 @@ public struct TagLibMetadataManager {
             }
         }
 
-        do {
-            try fileManager.copyItem(at: url, to: temporaryURL)
-        } catch {
+        let copyResult = url.path.withCString { sourcePath in
+            temporaryURL.path.withCString { destinationPath in
+                copyfile(
+                    sourcePath,
+                    destinationPath,
+                    nil,
+                    copyfile_flags_t(COPYFILE_CLONE | COPYFILE_ACL)
+                )
+            }
+        }
+        guard copyResult == 0 else {
+            let copyErrorCode = errno
             throw mutationError(
                 code: 1004,
                 description: "Could not create a transactional copy of the metadata destination.",
-                underlying: error
+                underlying: NSError(domain: NSPOSIXErrorDomain, code: Int(copyErrorCode))
             )
         }
 

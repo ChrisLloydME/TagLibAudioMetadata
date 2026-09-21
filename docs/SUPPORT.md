@@ -765,8 +765,9 @@ performance follow-ups rather than semantic limitations.
 
 Facade writes validate the original, create one same-directory staging copy,
 mutate and verify that copy, flush it, recheck destination identity, atomically
-rename it, and then `fsync` the parent directory. Failures before rename leave
-the original pathname unchanged.
+rename it, and then `fsync` the parent directory. Staging requests a copy-on-write
+clone and automatically falls back to an ordinary copy when the filesystem does
+not support cloning. Failures before rename leave the original pathname unchanged.
 
 If the final directory `fsync` fails, rename has already committed. High-level
 manager writes return `.durabilityUncertain(detail)` in
