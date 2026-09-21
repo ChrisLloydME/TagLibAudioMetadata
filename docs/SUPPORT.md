@@ -244,7 +244,8 @@ original-projection bookkeeping is exposed read-only and cannot be mutated by
 callers to corrupt preservation decisions. Precise editing should use a
 snapshot/patch, raw multi-value map, or structured payload.
 
-Use `BasicMetadata.empty` when you want to build a value from scratch:
+Use `BasicMetadata.empty` only when you intentionally want to build a complete
+replacement from scratch:
 
 ```swift
 var metadata = BasicMetadata.empty
@@ -258,7 +259,11 @@ metadata.artworkData = try Data(contentsOf: coverURL)
 ```
 
 Empty strings mean "clear this field" when you write through
-`writeMetadataWithVerification`. Numeric zero means "unset" for number fields.
+`replaceBasicMetadata`. Numeric zero means "unset" for number fields. For a safe
+read/modify/write convenience, use `updateBasicMetadata(at:_:)`; it reads the
+current Basic projection and supplies its version to the replacement transaction.
+The ambiguous `writeMetadata` and `writeMetadataWithVerification` entry points
+remain as deprecated source-compatible wrappers.
 
 ### Reading Basic Metadata
 
@@ -311,13 +316,13 @@ for warning in result.warnings {
 }
 ```
 
-`writeMetadataWithVerification` writes through the bridge and reads the file back
+`replaceBasicMetadata` writes through the bridge and reads the file back
 to check important fields. A verification mismatch always invalidates the
 transaction and throws before commit. Successful structured writes may still
 return non-fatal container advisories in `MetadataWriteResult.warnings`.
 
 ```swift
-try TagLibMetadataManager.writeMetadataWithVerification(
+try TagLibMetadataManager.replaceBasicMetadata(
     metadata,
     to: url,
     failurePolicy: .throw
@@ -327,13 +332,13 @@ try TagLibMetadataManager.writeMetadataWithVerification(
 With `.throw`, verification warnings become
 `TagLibManagerError.verificationFailed([String])`.
 
-Use `writeMetadata(_:to:)` only when you want the convenience wrapper:
+Prefer the omission-safe Basic update convenience when starting from an existing file:
 
 ```swift
-try TagLibMetadataManager.writeMetadata(metadata, to: url)
+try TagLibMetadataManager.updateBasicMetadata(at: url) { metadata in
+    metadata.title = "New Title"
+}
 ```
-
-It prints verification warnings and returns `true` on success.
 
 ### Track and Disc Number Text
 

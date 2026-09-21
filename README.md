@@ -89,6 +89,13 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
 )
 ```
 
+For a Basic read/modify/write workflow, use
+`updateBasicMetadata(at:_:)`; it captures a file version and rejects a stale
+replacement. `replaceBasicMetadata` intentionally replaces the complete modeled
+Basic projection, so empty/default fields clear existing values. The older
+`writeMetadata` and `writeMetadataWithVerification` names are deprecated because
+their replacement semantics were easy to mistake for a partial update.
+
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
 Known keys and aliases are rejected in `customFields`; use `fields` (or a
 dedicated patch property) for schema-known metadata. Unknown custom keys remain

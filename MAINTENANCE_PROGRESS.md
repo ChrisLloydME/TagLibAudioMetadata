@@ -7,7 +7,8 @@ Last updated: 2026-09-21
 ### Current status
 
 - The worktree began clean on `main` at `62dcf9b`.
-- The new audit was checked against current source. Several earlier maintenance decisions remain valid, but two public mutation-contract problems are still present and are now the first implementation targets.
+- The new audit was checked against current source. The first mutation-contract
+  problems are now fixed and the pass has moved on to API misuse resistance.
 
 ### Newly confirmed findings
 
@@ -45,10 +46,21 @@ Last updated: 2026-09-21
 - Added fault-injection coverage proving a high-level committed-but-uncertain
   result leaves the changed metadata visible, plus M4A regressions proving
   disc-only and track-only formatted edits preserve the opposite representation.
+- Added `updateBasicMetadata(at:_:)` for version-checked read/modify/write edits
+  and explicitly named the destructive whole-object operation
+  `replaceBasicMetadata`. The ambiguous `writeMetadata` and
+  `writeMetadataWithVerification` entry points remain available as deprecated
+  source-compatible wrappers.
+- Added regressions proving the safe update preserves an unspecified artist and
+  the explicit replacement clears it.
 
 ### Validation in this pass
 
 - Focused reliability and fixture round-trip suites: 85 tests, 0 failures.
+- Focused Basic replacement/update and public API compatibility suites: 7 tests,
+  0 failures.
+- Complete package suite after the Basic API changes: 133 tests executed, 2
+  opt-in tests skipped, 0 failures.
 
 ## Scope and product boundary
 
@@ -161,7 +173,7 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
 
 ## Cross-repository dependencies
 
-- AudioMator currently resolves published TagLibAudioMetadata 0.5.1. Package API changes must be released independently and then deliberately adopted by AudioMator.
+- AudioMator currently resolves published TagLibAudioMetadata 0.5.2. Package API changes must be released independently and then deliberately adopted by AudioMator.
 
 ## Validation
 

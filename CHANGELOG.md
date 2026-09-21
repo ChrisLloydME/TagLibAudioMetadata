@@ -13,6 +13,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
   through `MetadataWriteResult.commitStatus` instead of throwing after rename.
 - Made formatted track and disc patch intent independent, including unchanged,
   set, and remove semantics, so editing one pair cannot rewrite the other.
+- Added explicitly named `replaceBasicMetadata` and version-checked
+  `updateBasicMetadata`; deprecated ambiguous whole-object write names that could
+  make a sparse `BasicMetadata.empty` value look like a partial update.
 
 - Removed transaction-bypassing in-place mutators and coordination helpers from
   the public Low-Level header; the Swift facade now imports them from a dedicated
