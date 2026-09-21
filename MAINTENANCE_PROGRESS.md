@@ -1,6 +1,36 @@
 # Maintenance Progress
 
-Last updated: 2026-09-18
+Last updated: 2026-09-21
+
+## 2026-09-21 coordinated reliability pass
+
+### Current status
+
+- The worktree began clean on `main` at `62dcf9b`.
+- The new audit was checked against current source. Several earlier maintenance decisions remain valid, but two public mutation-contract problems are still present and are now the first implementation targets.
+
+### Newly confirmed findings
+
+- High-level writes still throw `committedButDurabilityUncertain` after atomic rename when parent-directory `fsync` fails. Tests prove the new metadata is already visible, but the public result cannot represent that committed state.
+- `MetadataNumberTextPatch.trackNumberText` remains mandatory. Disc-only formatted edits therefore cannot be represented without also enabling the track-pair write.
+- `applyMetadataPatch` still requests `.all` verification projections even for scalar-only changes.
+- Extension capability and concrete-file validity are distinct in implementation, but public naming and consumer guidance still deserve review.
+- `VerificationFailurePolicy` has one usable case; it remains compatibility surface rather than a meaningful policy.
+- `BasicMetadata.empty` plus whole-object writes remains potentially destructive by design and needs an explicit API/deprecation decision.
+
+### Revised or already-addressed findings
+
+- Transaction duplication is not presently equivalent duplication: the Swift facade keeps multi-step semantic verification inside one transaction, while public bridge methods provide safe single-operation transactions. Consolidation remains deferred pending a generic internal SPI.
+- The process-wide TagLib mutex does not cover copying, `fsync`, rename, or directory sync; it protects TagLib entry points and shared registries.
+- Unsafe in-place bridge methods are already isolated from the public low-level product.
+- Optional read helpers no longer print unsolicited diagnostics; throwing reads are already the detailed primary path, though lossy naming remains under review.
+
+### Immediate implementation order
+
+1. Return a typed durability status from high-level write APIs after successful rename, reserving throws for pre-commit failures.
+2. Redesign formatted number patches so track and disc can independently be unchanged, set, or removed; preserve source compatibility where practical.
+3. Add focused transaction and number-representation regressions, then run the complete package suite before committing.
+4. Continue the whole-object API, verification projection, capability, fixture-level, and explicit-advisory review after the correctness contract lands.
 
 ## Scope and product boundary
 
