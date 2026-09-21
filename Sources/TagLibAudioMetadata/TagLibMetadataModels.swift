@@ -187,6 +187,7 @@ public struct BasicMetadata: Sendable {
     /// use `explicitAdvisory` to distinguish absence, not-explicit, and clean.
     public var isExplicit: Bool {
         get { explicitAdvisory == .explicit }
+        @available(*, deprecated, message: "Assign explicitAdvisory so unspecified, not-explicit, and clean remain distinct.")
         set { explicitAdvisory = newValue ? .explicit : .clean }
     }
     public var duration: Double

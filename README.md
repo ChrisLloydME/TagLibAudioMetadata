@@ -134,8 +134,9 @@ Canonical MP4/M4A storage is respectively absent, `rtng = 0`, `rtng = 1`, and
 retain their established container-specific `ITUNESADVISORY` representation
 using values `0`, `1`, and `2`. Legacy `4`, text `TRUE`/`YES`/`EXPLICIT`, and
 `FALSE`/`NO`/`NONE`/`-1` remain readable; a high-level rewrite emits canonical
-values. The compatibility Boolean `isExplicit` is intentionally lossy: use
-`explicitAdvisory` whenever absence, not-explicit, and clean must remain distinct.
+values. The compatibility Boolean `isExplicit` is intentionally a lossy read
+projection. Its setter is deprecated; assign `explicitAdvisory` whenever
+absence, not-explicit, and clean must remain distinct.
 
 Basic MP4 advisory writes use the same canonical `rtng` helper and alias cleanup
 as Patch writes, so switching between the two high-level APIs cannot leave a

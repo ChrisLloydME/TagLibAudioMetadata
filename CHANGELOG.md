@@ -19,6 +19,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Removed the obsolete `failurePolicy` parameter from primary verified-write
   APIs. Verification mismatches always abort; deprecated overloads and the
   one-case policy type remain for source compatibility.
+- Deprecated the lossy `isExplicit` setter. The Boolean remains available as a
+  read projection, while mutations use the four-state `explicitAdvisory` model.
 
 - Removed transaction-bypassing in-place mutators and coordination helpers from
   the public Low-Level header; the Swift facade now imports them from a dedicated
