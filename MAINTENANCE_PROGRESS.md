@@ -1,6 +1,6 @@
 # Maintenance Progress
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## 2026-09-21 coordinated reliability pass
 
@@ -112,6 +112,18 @@ Last updated: 2026-09-21
 - Complete package suite after copy-on-write staging: 137 tests executed, 2
   opt-in tests skipped, 0 failures. The existing dual-engine preservation test
   continued to pass for xattrs, ACLs, flags, permissions, and payload bytes.
+
+### Commits created in this pass
+
+- `9d85a01` — reopen the package reliability journal.
+- `1436956` — fix committed write and number-patch outcomes.
+- `300f16d` — clarify destructive Basic metadata replacement.
+- `17a808b` — deprecate the obsolete verification failure policy.
+- `3ae4879` — deprecate the lossy explicit-advisory setter.
+- `1eb4069` — make lossy read semantics explicit.
+- `2ceac41` — separate extension support from concrete-file probing.
+- `5174cf0` — add focused Basic metadata snapshots.
+- `2fb5597` — use copy-on-write transaction staging.
 
 ## Scope and product boundary
 
