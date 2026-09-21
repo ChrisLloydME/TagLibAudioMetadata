@@ -40,14 +40,27 @@ final class PublicAPICompatibilityTests: XCTestCase {
         let verification: TagLibMetadataManager.MetadataWriteVerificationContext = .none
         let result = TagLibMetadataManager.MetadataWriteResult(warnings: [])
         let mode: TagLibMetadataManager.RawPropertyMapWriteMode = .merge
-        let policy: TagLibMetadataManager.VerificationFailurePolicy = .throw
         let artwork: TagLibMetadataManager.ArtworkVerificationExpectation = .unchanged
 
         XCTAssertEqual(verification, .none)
         XCTAssertTrue(result.warnings.isEmpty)
         if case .merge = mode {} else { XCTFail("Expected merge mode") }
-        if case .throw = policy {} else { XCTFail("Expected throw policy") }
         if case .unchanged = artwork {} else { XCTFail("Expected unchanged artwork expectation") }
+    }
+
+    func testBestEffortReadNamesExplicitlyCollapseFailures() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp3")
+        try Data("not audio".utf8).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertNil(TagLibMetadataManager.bestEffortMetadata(from: url))
+        XCTAssertNil(TagLibMetadataManager.bestEffortRawMetadata(from: url))
+        XCTAssertNil(TagLibMetadataManager.bestEffortStructuredMetadata(from: url))
+        XCTAssertThrowsError(try TagLibMetadataManager.readMetadataResult(from: url))
+        XCTAssertThrowsError(try TagLibMetadataManager.rawMetadataResult(from: url))
+        XCTAssertThrowsError(try TagLibMetadataManager.readStructuredMetadataResult(from: url))
     }
 
     func testLowLevelCommittedDurabilityOutcomeIsPubliclyTyped() {

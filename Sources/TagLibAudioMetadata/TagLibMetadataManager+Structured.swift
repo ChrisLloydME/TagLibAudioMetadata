@@ -422,8 +422,13 @@ extension TagLibMetadataManager {
         )
     }
 
-    public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
+    public nonisolated static func bestEffortStructuredMetadata(from url: URL) -> StructuredMetadata? {
         try? readStructuredMetadataResult(from: url)
+    }
+
+    @available(*, deprecated, renamed: "bestEffortStructuredMetadata(from:)")
+    public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
+        bestEffortStructuredMetadata(from: url)
     }
 
     public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {

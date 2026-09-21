@@ -385,7 +385,7 @@ extension TagLibMetadataManager {
         for url: URL
     ) -> [String] {
         guard !requestedProperties.isEmpty else { return [] }
-        guard let rawDump = rawMetadata(from: url) else {
+        guard let rawDump = bestEffortRawMetadata(from: url) else {
             return ["Could not verify raw metadata write after save."]
         }
 
@@ -448,7 +448,7 @@ extension TagLibMetadataManager {
         expectedProperties: [String: [String]],
         for url: URL
     ) -> [String] {
-        guard let rawDump = rawMetadata(from: url) else {
+        guard let rawDump = bestEffortRawMetadata(from: url) else {
             return ["Could not verify raw metadata replacement after save."]
         }
 
