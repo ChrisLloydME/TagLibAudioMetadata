@@ -86,6 +86,11 @@ Last updated: 2026-09-21
   every untouched PropertyMap value and artwork collection. Removing structured
   verification would weaken that contract; an artwork-only bridge projection
   remains a possible future optimization, not a safe change in this pass.
+- Replaced both transaction engines' generic sibling copy with macOS
+  `copyfile(COPYFILE_CLONE | COPYFILE_ACL)`. The flag attempts a same-volume
+  copy-on-write clone and automatically falls back to a regular copy, while the
+  existing verification, fsync, identity, atomic rename, ACL/xattr/flags, and
+  cleanup behavior remains in place.
 
 ### Validation in this pass
 
@@ -104,6 +109,9 @@ Last updated: 2026-09-21
   executed, 2 opt-in tests skipped, 0 failures.
 - Complete package suite after the focused Basic snapshot API: 137 tests
   executed, 2 opt-in tests skipped, 0 failures.
+- Complete package suite after copy-on-write staging: 137 tests executed, 2
+  opt-in tests skipped, 0 failures. The existing dual-engine preservation test
+  continued to pass for xattrs, ACLs, flags, permissions, and payload bytes.
 
 ## Scope and product boundary
 

@@ -1,6 +1,7 @@
 #import "Internal/TLBridgeTransactions.hpp"
 
 #include <cerrno>
+#include <copyfile.h>
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
@@ -248,14 +249,21 @@ static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
     NSURL *temporaryURL = [targetURL.URLByDeletingLastPathComponent URLByAppendingPathComponent:temporaryName];
 
     NSFileManager *fileManager = NSFileManager.defaultManager;
-    NSError *copyError = nil;
-    if (![fileManager copyItemAtURL:targetURL toURL:temporaryURL error:&copyError]) {
+    copyfile_flags_t copyFlags = COPYFILE_CLONE | COPYFILE_ACL;
+    if (copyfile(targetURL.path.fileSystemRepresentation,
+                 temporaryURL.path.fileSystemRepresentation,
+                 nullptr,
+                 copyFlags) != 0) {
+        int copyErrorCode = errno;
+        [fileManager removeItemAtURL:temporaryURL error:nil];
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9103
                                      userInfo:@{
                                          NSLocalizedDescriptionKey : @"Could not create a transactional copy of the metadata destination",
-                                         NSUnderlyingErrorKey : copyError,
+                                         NSUnderlyingErrorKey : [NSError errorWithDomain:NSPOSIXErrorDomain
+                                                                                    code:copyErrorCode
+                                                                                userInfo:nil],
                                      }];
         }
         return NO;

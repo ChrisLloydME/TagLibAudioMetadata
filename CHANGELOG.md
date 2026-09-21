@@ -31,6 +31,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added `readBasicSnapshot(from:)` for consumers that need Basic metadata and a
   matching optimistic-concurrency token without constructing structured
   inspector models.
+- Staged transactions now request same-volume copy-on-write cloning through
+  `copyfile`; macOS automatically falls back to an ordinary copy when cloning is
+  unavailable. Both transaction engines retain ACL/xattr/stat preservation and
+  the existing atomic verification/commit sequence.
 
 - Removed transaction-bypassing in-place mutators and coordination helpers from
   the public Low-Level header; the Swift facade now imports them from a dedicated
