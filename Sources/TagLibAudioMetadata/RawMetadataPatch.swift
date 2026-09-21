@@ -78,7 +78,7 @@ extension TagLibMetadataManager {
         guard isWritableFormat(url.pathExtension) else { throw TagLibManagerError.unsupportedFormat }
         let replacements = values
         let removals = removed
-        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { temporary in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { temporary in
             var expected = exactPropertyValues(try rawMetadataResult(from: temporary))
             for key in removals { expected.removeValue(forKey: key) }
             for (key, entries) in replacements { expected[key] = entries }

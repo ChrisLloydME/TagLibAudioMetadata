@@ -162,17 +162,20 @@ public enum MetadataArtworkPatch: Hashable, Sendable {
     case removeAll
 }
 
-/// An intentional formatted track/disc edit. The track text is required because
-/// the underlying cross-container operation always establishes the track pair;
-/// `discNumberText == nil` leaves the disc pair unchanged, while an empty string
+/// An intentional formatted track/disc edit. Each optional independently means:
+/// `nil` leaves that pair unchanged, a nonempty value sets it, and an empty string
 /// removes it.
 public struct MetadataNumberTextPatch: Hashable, Sendable {
-    public var trackNumberText: String
+    public var trackNumberText: String?
     public var discNumberText: String?
 
-    public init(trackNumberText: String, discNumberText: String? = nil) {
+    public init(trackNumberText: String? = nil, discNumberText: String? = nil) {
         self.trackNumberText = trackNumberText
         self.discNumberText = discNumberText
+    }
+
+    public var isEmpty: Bool {
+        trackNumberText == nil && discNumberText == nil
     }
 }
 
@@ -200,7 +203,7 @@ public struct MetadataPatch: Hashable, Sendable {
     }
 
     public var isEmpty: Bool {
-        fields.isEmpty && customFields.isEmpty && explicitAdvisory == nil && artwork == .unchanged && numberText == nil
+        fields.isEmpty && customFields.isEmpty && explicitAdvisory == nil && artwork == .unchanged && (numberText == nil || numberText?.isEmpty == true)
     }
 }
 
@@ -350,7 +353,7 @@ extension TagLibMetadataManager {
             let requestedFields = Set(validatedPatch.fields.keys)
                 .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])
                 .union(patch.artwork == .unchanged ? [] : [.artwork])
-                .union(patch.numberText == nil ? [] : [.track, .trackTotal])
+                .union(patch.numberText?.trackNumberText == nil ? [] : [.track, .trackTotal])
                 .union(patch.numberText?.discNumberText == nil ? [] : [.disc, .discTotal])
             if let unsupported = requestedFields
                 .filter({ !writableFields.contains($0) })
@@ -372,7 +375,7 @@ extension TagLibMetadataManager {
             result[entry.key] = try propertyStorage(for: entry.key, fileExtension: ext)
         }
 
-        return try withAtomicFileMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let before = try readSnapshot(from: mutationURL)
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
@@ -447,12 +450,12 @@ extension TagLibMetadataManager {
             }
 
             if let numberText = patch.numberText {
-                let trackPair = parseNumberPair(numberText.trackNumberText)
+                let trackPair = numberText.trackNumberText.map(parseNumberPair)
                 let discPair = numberText.discNumberText.map(parseNumberPair)
                 try TagLibMetadataExtractor.writeNumberPairsInPlace(
-                    trackNumber: trackPair.number,
-                    totalTracks: trackPair.total,
-                    updateTrackPair: true,
+                    trackNumber: trackPair?.number ?? 0,
+                    totalTracks: trackPair?.total ?? 0,
+                    updateTrackPair: trackPair != nil,
                     discNumber: discPair?.number ?? 0,
                     totalDiscs: discPair?.total ?? 0,
                     updateDiscPair: discPair != nil,
@@ -466,8 +469,10 @@ extension TagLibMetadataManager {
                     discNumberText: numberText.discNumberText,
                     to: mutationURL
                 )
-                expectedNumberPairs[.track] = trackPair.number
-                expectedNumberPairs[.trackTotal] = trackPair.total
+                if let trackPair {
+                    expectedNumberPairs[.track] = trackPair.number
+                    expectedNumberPairs[.trackTotal] = trackPair.total
+                }
                 if let discPair {
                     expectedNumberPairs[.disc] = discPair.number
                     expectedNumberPairs[.discTotal] = discPair.total
@@ -604,12 +609,14 @@ extension TagLibMetadataManager {
                 warnings.append("Patched explicit advisory differs after save.")
             }
             if let numberText = patch.numberText {
-                let expectedTrackText = numberText.trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
-                let expectedTrackPair = parseNumberPair(expectedTrackText)
-                let trackPairStoredAcrossFields = afterBasic.track == expectedTrackPair.number &&
-                    afterBasic.trackTotal == expectedTrackPair.total
-                if afterBasic.trackNumberText != expectedTrackText && !trackPairStoredAcrossFields {
-                    warnings.append("Patched track number text differs after save.")
+                if let trackNumberText = numberText.trackNumberText {
+                    let expectedTrackText = trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let expectedTrackPair = parseNumberPair(expectedTrackText)
+                    let trackPairStoredAcrossFields = afterBasic.track == expectedTrackPair.number &&
+                        afterBasic.trackTotal == expectedTrackPair.total
+                    if afterBasic.trackNumberText != expectedTrackText && !trackPairStoredAcrossFields {
+                        warnings.append("Patched track number text differs after save.")
+                    }
                 }
                 if let discNumberText = numberText.discNumberText {
                     let expectedDiscText = discNumberText.trimmingCharacters(in: .whitespacesAndNewlines)

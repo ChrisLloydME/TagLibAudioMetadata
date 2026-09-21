@@ -32,6 +32,24 @@ Last updated: 2026-09-21
 3. Add focused transaction and number-representation regressions, then run the complete package suite before committing.
 4. Continue the whole-object API, verification projection, capability, fixture-level, and explicit-advisory review after the correctness contract lands.
 
+### Completed in this pass
+
+- Added `MetadataCommitStatus` to high-level write results. Successful rename plus
+  failed parent-directory `fsync` now returns `.durabilityUncertain(detail)`;
+  pre-commit failures still throw, and the internal generic transaction helper
+  retains its historical typed error behavior.
+- Made `MetadataNumberTextPatch.trackNumberText` optional with the same semantics
+  as disc text: `nil` unchanged, nonempty set, empty remove. The package-internal
+  bridge now gates track and disc mutation independently for PropertyMap, ID3,
+  MP4, and WAV paths.
+- Added fault-injection coverage proving a high-level committed-but-uncertain
+  result leaves the changed metadata visible, plus M4A regressions proving
+  disc-only and track-only formatted edits preserve the opposite representation.
+
+### Validation in this pass
+
+- Focused reliability and fixture round-trip suites: 85 tests, 0 failures.
+
 ## Scope and product boundary
 
 This journal tracks the independent maintenance review of TagLibAudioMetadata. The package may serve AudioMator, but its public API, safety guarantees, tests, and release process must remain suitable for unrelated third-party consumers. AudioMator has a separate journal in its repository.

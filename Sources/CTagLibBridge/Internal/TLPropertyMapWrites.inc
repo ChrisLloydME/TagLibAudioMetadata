@@ -89,8 +89,9 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
     }
 
     TagLib::PropertyMap properties = file.properties();
-    NSString *trimmedTrackNumberText = TrimmedStringOrNil(trackNumberText);
-    if (trimmedTrackNumberText) {
+    if (trackNumberText != nil) {
+        NSString *trimmedTrackNumberText = TrimmedStringOrNil(trackNumberText);
+        if (trimmedTrackNumberText) {
         NSInteger explicitTrackNumber = 0;
         NSInteger explicitTrackTotal = 0;
         NSInteger padWidth = 0;
@@ -120,10 +121,11 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
             SetPropertyMapString(properties, "TRACKTOTAL", nil);
             SetPropertyMapString(properties, "TOTALTRACKS", nil);
         }
-    } else {
-        SetPropertyMapNumberText(properties, "TRACKNUMBER", nil);
-        SetPropertyMapString(properties, "TRACKTOTAL", nil);
-        SetPropertyMapString(properties, "TOTALTRACKS", nil);
+        } else {
+            SetPropertyMapNumberText(properties, "TRACKNUMBER", nil);
+            SetPropertyMapString(properties, "TRACKTOTAL", nil);
+            SetPropertyMapString(properties, "TOTALTRACKS", nil);
+        }
     }
 
     if (discNumberText != nil) {

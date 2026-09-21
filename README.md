@@ -94,7 +94,10 @@ Known keys and aliases are rejected in `customFields`; use `fields` (or a
 dedicated patch property) for schema-known metadata. Unknown custom keys remain
 available and are normalized before mutation. Use either typed track/disc fields
 or `numberText` in one patch; the formatted form makes exact text authoritative
-and commits it in the same transaction as the other semantic changes. Track/disc numbers and totals
+and commits it in the same transaction as the other semantic changes. Within
+`MetadataNumberTextPatch`, `nil` leaves that pair unchanged, a nonempty string
+sets it, and an empty string removes it, so track-only and disc-only edits do not
+rewrite the other representation. Track/disc numbers and totals
 accept `1...INT_MAX`; use `.remove` to unset those components. Numeric fields
 whose schema permits zero, such as BPM and movement numbering, accept
 `0...INT_MAX`. Invalid values fail before a staging copy is made. Formats with
@@ -197,9 +200,11 @@ Transactional facade and public low-level bridge writes:
 A failure before rename leaves the original pathname and bytes unchanged and
 cleans up the temporary copy. Hard links are rejected because replacement would
 split their identity. If the final directory flush fails, the rename has
-already committed and the API throws
-`TagLibManagerError.committedButDurabilityUncertain`; retrying may repeat an
-already-committed operation.
+already committed. High-level manager writes return
+`MetadataWriteResult.commitStatus == .durabilityUncertain(...)` so callers can
+report committed state without inviting a blind retry. The lower-level/internal
+transaction helper retains `TagLibManagerError.committedButDurabilityUncertain`
+for compatibility.
 Sibling-copy creation also requires write access to the parent directory.
 Security-scoped URLs must already be accessed by the caller; App Sandbox and
 code-signing behavior are integration responsibilities.

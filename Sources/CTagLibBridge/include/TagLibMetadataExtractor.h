@@ -200,9 +200,10 @@ NS_SWIFT_NAME(metadataProjections(for:options:));
 NS_SWIFT_NAME(writeMetadata(_:to:));
 
 /// Write only track/disc number text (useful for auto-renumbering with padding).
-/// - trackNumberText: Examples: "1", "01", "01/10"
-/// - discNumberText:  Examples: "1", "01", "01/02" (pass nil to leave disc unchanged)
-+ (BOOL)writeTrackNumberText:(NSString *)trackNumberText
+/// - trackNumberText: Examples: "1", "01", "01/10" (pass nil to leave track unchanged)
+/// - discNumberText: Examples: "1", "01", "01/02" (pass nil to leave disc unchanged)
+/// Passing an empty string removes the corresponding pair.
++ (BOOL)writeTrackNumberText:(nullable NSString *)trackNumberText
               discNumberText:(nullable NSString *)discNumberText
                        toURL:(NSURL *)fileURL
                        error:(NSError *_Nullable *_Nullable)error

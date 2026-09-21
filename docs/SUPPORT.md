@@ -84,7 +84,9 @@ patch remain unchanged; `.remove` clears an explicitly named property; artwork
 has separate unchanged, replace, and remove-all cases; and
 `explicitAdvisory` preserves unspecified, not-explicit, explicit, and clean
 states. `numberText` carries an intentional formatted track/disc pair in the
-same transaction as other patch fields. A patch cannot mix that exact-text form
+same transaction as other patch fields. Track and disc intent are independent:
+`nil` is unchanged, a nonempty string sets the pair, and an empty string removes
+it. A patch cannot mix that exact-text form
 with typed track/disc components. The compatibility Boolean `isExplicit` is a
 lossy projection; use the enum when the distinction matters.
 
@@ -754,10 +756,12 @@ mutate and verify that copy, flush it, recheck destination identity, atomically
 rename it, and then `fsync` the parent directory. Failures before rename leave
 the original pathname unchanged.
 
-If the final directory `fsync` fails, rename has already committed. The facade
-throws `TagLibManagerError.committedButDurabilityUncertain(String)`. Inspect the
-file before retrying because retry may repeat an already-committed operation;
-the package does not attempt a fake post-rename rollback.
+If the final directory `fsync` fails, rename has already committed. High-level
+manager writes return `.durabilityUncertain(detail)` in
+`MetadataWriteResult.commitStatus`; this is a committed result, not a failure to
+blindly retry. The lower-level/internal transaction helper retains
+`TagLibManagerError.committedButDurabilityUncertain(String)` for compatibility.
+The package does not attempt a fake post-rename rollback.
 
 TagLib access and Objective-C projection construction from live native objects
 are serialized by a process-wide recursive mutex. Swift model conversion and

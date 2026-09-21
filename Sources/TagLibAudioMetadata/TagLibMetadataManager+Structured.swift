@@ -464,7 +464,7 @@ extension TagLibMetadataManager {
             )
         }
 
-        return try withAtomicFileMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
             var warnings: [String] = []
             var verificationFailures: [String] = []
 

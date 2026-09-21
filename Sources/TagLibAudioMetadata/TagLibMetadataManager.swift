@@ -70,6 +70,16 @@ public struct TagLibMetadataManager {
         return NSError(domain: errorDomain, code: code, userInfo: userInfo)
     }
 
+    enum FileMutationDurability: Sendable {
+        case durable
+        case uncertain(String)
+    }
+
+    struct FileMutationOutcome<Result> {
+        let result: Result
+        let durability: FileMutationDurability
+    }
+
     /// Runs the complete mutation and verification sequence on a sibling copy.
     /// The destination is replaced with a same-volume atomic rename only after
     /// every pre-commit step succeeds. The file is synced before rename and the
@@ -81,12 +91,58 @@ public struct TagLibMetadataManager {
         afterFinalValidation: @escaping () throws -> Void = {},
         _ operation: @escaping (URL) throws -> Result
     ) throws -> Result {
-        var result: Result?
+        let outcome = try withAtomicFileMutationOutcome(
+            at: url,
+            expectedVersion: expectedVersion,
+            directorySync: directorySync,
+            afterFinalValidation: afterFinalValidation,
+            operation
+        )
+        switch outcome.durability {
+        case .durable:
+            return outcome.result
+        case .uncertain(let detail):
+            throw TagLibManagerError.committedButDurabilityUncertain(detail)
+        }
+    }
+
+    /// Variant used by high-level writes, where post-rename durability uncertainty
+    /// is a committed result rather than an exception that invites blind retry.
+    nonisolated static func withAtomicMetadataWriteMutation(
+        at url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
+        directorySync: @escaping (Int32) -> Int32 = Darwin.fsync,
+        _ operation: @escaping (URL) throws -> MetadataWriteResult
+    ) throws -> MetadataWriteResult {
+        let outcome = try withAtomicFileMutationOutcome(
+            at: url,
+            expectedVersion: expectedVersion,
+            directorySync: directorySync,
+            operation
+        )
+        var result = outcome.result
+        switch outcome.durability {
+        case .durable:
+            result.commitStatus = .durable
+        case .uncertain(let detail):
+            result.commitStatus = .durabilityUncertain(detail)
+        }
+        return result
+    }
+
+    nonisolated private static func withAtomicFileMutationOutcome<Result>(
+        at url: URL,
+        expectedVersion: MetadataFileVersion?,
+        directorySync: @escaping (Int32) -> Int32,
+        afterFinalValidation: @escaping () throws -> Void = {},
+        _ operation: @escaping (URL) throws -> Result
+    ) throws -> FileMutationOutcome<Result> {
+        var outcome: FileMutationOutcome<Result>?
         var operationError: Error?
         do {
             try TagLibMetadataExtractor.coordinateMutation(at: url) { errorPointer in
                 do {
-                    result = try performAtomicFileMutation(
+                    outcome = try performAtomicFileMutation(
                         at: url,
                         expectedVersion: expectedVersion,
                         directorySync: directorySync,
@@ -104,13 +160,13 @@ public struct TagLibMetadataManager {
             throw operationError ?? error
         }
 
-        guard let result else {
+        guard let outcome else {
             throw operationError ?? mutationError(
                 code: 1010,
                 description: "Metadata transaction coordination failed."
             )
         }
-        return result
+        return outcome
     }
 
     nonisolated private static func performAtomicFileMutation<Result>(
@@ -119,7 +175,7 @@ public struct TagLibMetadataManager {
         directorySync: (Int32) -> Int32,
         afterFinalValidation: () throws -> Void,
         _ operation: (URL) throws -> Result
-    ) throws -> Result {
+    ) throws -> FileMutationOutcome<Result> {
         guard url.isFileURL else {
             throw mutationError(code: 1001, description: "Metadata mutations require a file URL.")
         }
@@ -262,11 +318,14 @@ public struct TagLibMetadataManager {
         shouldRemoveTemporaryFile = false
         guard directorySync(directoryDescriptor) == 0 else {
             let syncErrorCode = errno
-            throw TagLibManagerError.committedButDurabilityUncertain(
-                "Directory fsync failed with POSIX error \(syncErrorCode). The metadata mutation is already committed; retrying may repeat it."
+            return FileMutationOutcome(
+                result: result,
+                durability: .uncertain(
+                    "Directory fsync failed with POSIX error \(syncErrorCode). The metadata mutation is already committed; retrying may repeat it."
+                )
             )
         }
-        return result
+        return FileMutationOutcome(result: result, durability: .durable)
     }
 
     nonisolated static let hiddenInternalRawFieldKeys: Set<String> = [
@@ -339,11 +398,26 @@ public struct TagLibMetadataManager {
         )
     }
 
+    public enum MetadataCommitStatus: Equatable, Sendable {
+        /// Atomic replacement and the parent-directory durability sync completed.
+        case durable
+
+        /// Atomic replacement completed and the new metadata is visible, but the
+        /// final parent-directory durability sync failed. Callers must not retry
+        /// as though the mutation did not commit.
+        case durabilityUncertain(String)
+    }
+
     public struct MetadataWriteResult: Sendable {
         public var warnings: [String]
+        public var commitStatus: MetadataCommitStatus
 
-        public init(warnings: [String]) {
+        public init(
+            warnings: [String],
+            commitStatus: MetadataCommitStatus = .durable
+        ) {
             self.warnings = warnings
+            self.commitStatus = commitStatus
         }
     }
 
