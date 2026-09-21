@@ -53,6 +53,14 @@ Last updated: 2026-09-21
   source-compatible wrappers.
 - Added regressions proving the safe update preserves an unspecified artist and
   the explicit replacement clears it.
+- Removed the obsolete `failurePolicy` argument from the primary verified-write
+  APIs and renamed internal verification handling around failures rather than
+  warnings. Verification mismatches still always abort before commit; the
+  one-case policy type and labeled overloads are deprecated compatibility
+  surface, so existing callers can migrate without an immediate source break.
+- Migrated package tests and current documentation examples to the policy-free
+  APIs; historical changelog entries retain the signatures they documented at
+  the time.
 
 ### Validation in this pass
 
@@ -61,6 +69,8 @@ Last updated: 2026-09-21
   0 failures.
 - Complete package suite after the Basic API changes: 133 tests executed, 2
   opt-in tests skipped, 0 failures.
+- Complete package suite after the verification-policy migration: 133 tests
+  executed, 2 opt-in tests skipped, 0 failures.
 
 ## Scope and product boundary
 

@@ -37,10 +37,9 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.discNumberText = "01/02"
             metadata.isExplicit = true
 
-            let writeResult = try TagLibMetadataManager.writeMetadataWithVerification(
+            let writeResult = try TagLibMetadataManager.replaceBasicMetadata(
                 metadata,
                 to: url,
-                failurePolicy: .throw
             )
             XCTAssertTrue(
                 writeResult.warnings.allSatisfy { $0.contains("formatting was normalized") },
@@ -62,10 +61,9 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             var cleared = BasicMetadata.empty
             cleared.trackNumberText = ""
             cleared.discNumberText = ""
-            let clearResult = try TagLibMetadataManager.writeMetadataWithVerification(
+            let clearResult = try TagLibMetadataManager.replaceBasicMetadata(
                 cleared,
                 to: url,
-                failurePolicy: .throw
             )
             XCTAssertTrue(
                 clearResult.warnings.isEmpty,
@@ -92,7 +90,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
             var metadata = BasicMetadata.empty
             metadata.explicitAdvisory = .unspecified
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             XCTAssertEqual(
                 try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
                 .unspecified,
@@ -100,25 +98,25 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             )
 
             metadata.explicitAdvisory = .notExplicit
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             var result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.explicitAdvisory, .notExplicit, "\(ext) should preserve not-explicit")
             XCTAssertFalse(result.isExplicit, ext)
 
             metadata.explicitAdvisory = .clean
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.explicitAdvisory, .clean, "\(ext) should preserve an explicit clean advisory")
             XCTAssertFalse(result.isExplicit, ext)
 
             metadata.explicitAdvisory = .explicit
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.explicitAdvisory, .explicit, "\(ext) should preserve an explicit advisory")
             XCTAssertTrue(result.isExplicit, ext)
 
             metadata.explicitAdvisory = .unspecified
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             XCTAssertEqual(
                 try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
                 .unspecified,
@@ -139,7 +137,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.title = "Artwork \(ext)"
             metadata.artworkData = artwork
 
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).artworkData, artwork, ext)
 
             let removal = TagLibAudioMetadata()
@@ -158,7 +156,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     artworkExpectation: .absent,
                     customFieldKeys: []
                 ),
-                failurePolicy: .throw
             )
             XCTAssertNil(try TagLibMetadataManager.readMetadataResult(from: url).artworkData, ext)
         }
@@ -176,7 +173,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.artworkData = artwork
             metadata.artworkMIMEType = "image/jpeg"
 
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             let result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.artworkData, artwork, ext)
             XCTAssertEqual(result.artworkMIMEType, "image/jpeg", ext)
@@ -197,7 +194,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.artworkData = artwork
             metadata.artworkMIMEType = nil
 
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             let result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.artworkData, artwork, ext)
             XCTAssertEqual(result.artworkMIMEType, "image/png", ext)
@@ -212,14 +209,12 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ["OLD_SENTINEL": "remove me"],
                 to: url,
                 mode: .replace,
-                failurePolicy: .throw
             )
 
             try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
                 ["TITLE": "Raw Title", "MOOD": "Focused", "CUSTOM_CASE": "Alpha"],
                 to: url,
                 mode: .replace,
-                failurePolicy: .throw
             )
 
             var raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -231,7 +226,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ["MOOD": "", "CUSTOM_CASE": "Beta"],
                 to: url,
                 mode: .merge,
-                failurePolicy: .throw
             )
 
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -242,7 +236,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 ["ARTIST": ["One", "Two"]],
                 to: url,
-                failurePolicy: .throw
             )
 
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -253,7 +246,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ["MOOD": ["Focused", "Energetic"]],
                 to: url,
                 mode: .merge,
-                failurePolicy: .throw
             )
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             XCTAssertEqual(Set(raw.values(for: "ARTIST")), Set(["One", "Two"]), ext)
@@ -268,13 +260,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 ["ARTIST": ["One", "Two"]],
                 to: url,
-                failurePolicy: .throw
             )
             try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
                 ["MOOD": "Focused"],
                 to: url,
                 mode: .merge,
-                failurePolicy: .throw
             )
 
             let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -289,13 +279,12 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 ["CUSTOM_MULTI": ["Artist A", "Artist B"]],
                 to: url,
-                failurePolicy: .throw
             )
 
             var basic = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(basic.customFieldValues["CUSTOM_MULTI"], ["Artist A", "Artist B"], ext)
             basic.title = "Basic title edit"
-            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
             XCTAssertEqual(
                 try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "CUSTOM_MULTI"),
@@ -318,12 +307,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 originalValues,
                 to: url,
-                failurePolicy: .throw
             )
 
             var basic = try TagLibMetadataManager.readMetadataResult(from: url)
             basic.title = "Unrelated Basic title edit"
-            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
             let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             for (key, values) in originalValues {
@@ -349,13 +337,12 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 preservedValues,
                 to: url,
-                failurePolicy: .throw
             )
 
             var basic = try TagLibMetadataManager.readMetadataResult(from: url)
             basic.title = "Only Basic title changed"
             basic.customFields.removeValue(forKey: "UNREGISTERED_CUSTOM")
-            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
             let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             for (key, values) in preservedValues {
@@ -375,7 +362,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             to: url,
             riffPolicy: .preserveInfo,
             includeProperties: true,
-            failurePolicy: .throw
         )
 
         XCTAssertFalse(result.warnings.isEmpty, "WAV capability advisories should remain visible to callers.")
@@ -407,7 +393,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 metadata,
                 to: rollbackURL,
                 verification: mismatchedVerification,
-                failurePolicy: .throw
             )
         ) { error in
             guard case TagLibManagerError.verificationFailed = error else {
@@ -422,7 +407,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata,
             to: warningURL,
             verification: mismatchedVerification,
-            failurePolicy: .throw
         )) { error in
             guard case TagLibManagerError.verificationFailed = error else {
                 return XCTFail("Expected verificationFailed, got \(error)")
@@ -446,7 +430,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             mp3Payload,
             to: mp3URL,
             includeProperties: true,
-            failurePolicy: .throw
         )
         var structured = try TagLibMetadataManager.readStructuredMetadataResult(from: mp3URL)
         XCTAssertTrue(structured.properties.contains { $0.key.uppercased() == "TITLE" && $0.values.contains("Structured MP3") })
@@ -464,7 +447,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             m4aPayload,
             to: m4aURL,
             includeProperties: true,
-            failurePolicy: .throw
         )
         structured = try TagLibMetadataManager.readStructuredMetadataResult(from: m4aURL)
         XCTAssertTrue(structured.properties.contains { $0.key.uppercased() == "TITLE" && $0.values.contains("Structured M4A") })
@@ -482,7 +464,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             payload,
             to: url,
-            failurePolicy: .throw
         )
 
         let structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -496,7 +477,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
             ["SUBTITLE": ["A", "B"]],
             to: url,
-            failurePolicy: .throw
         )
 
         let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -507,7 +487,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(id3v2Frames: [frame]),
             to: url,
-            failurePolicy: .throw
         )
 
         let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -520,7 +499,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
             ["TEST": ["A", "B"]],
             to: url,
-            failurePolicy: .throw
         )
 
         let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -533,7 +511,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(id3v2Frames: [frame]),
             to: url,
-            failurePolicy: .throw
         )
 
         let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -551,7 +528,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
             ["SUBTITLE": ["A; B"]],
             to: url,
-            failurePolicy: .throw
         )
 
         let expected = StructuredMetadata(
@@ -566,9 +542,8 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         )
 
         XCTAssertEqual(verification.failures.count, 1)
-        XCTAssertThrowsError(try TagLibMetadataManager.applyVerificationFailurePolicy(
-            .throw,
-            warnings: verification.failures
+        XCTAssertThrowsError(try TagLibMetadataManager.throwOnVerificationFailures(
+            verification.failures
         )) { error in
             guard case TagLibManagerError.verificationFailed = error else {
                 return XCTFail("Expected verificationFailed, got \(error)")
@@ -604,7 +579,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             payload,
             to: url,
-            failurePolicy: .throw
         )
 
         let result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -643,10 +617,9 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.replayGainTrack = "-3.50 dB"
             metadata.musicBrainzWorkID = "00000000-0000-0000-0000-000000000001"
 
-            try TagLibMetadataManager.writeMetadataWithVerification(
+            try TagLibMetadataManager.replaceBasicMetadata(
                 metadata,
                 to: url,
-                failurePolicy: .throw
             )
 
             let result = try TagLibMetadataManager.readMetadataResult(from: url)
@@ -673,10 +646,9 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         var metadata = BasicMetadata.empty
         metadata.originalReleaseDate = "1984-01-24"
 
-        try TagLibMetadataManager.writeMetadataWithVerification(
+        try TagLibMetadataManager.replaceBasicMetadata(
             metadata,
             to: url,
-            failurePolicy: .throw
         )
 
         let result = try TagLibMetadataManager.readMetadataResult(from: url)
@@ -751,7 +723,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
 
         var conflictingBasic = BasicMetadata.empty
         conflictingBasic.year = "2021"
-        XCTAssertThrowsError(try TagLibMetadataManager.writeMetadataWithVerification(
+        XCTAssertThrowsError(try TagLibMetadataManager.replaceBasicMetadata(
             conflictingBasic,
             to: url
         )) { error in
@@ -783,14 +755,12 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             initial,
             to: url,
-            failurePolicy: .throw
         )
 
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(),
             to: url,
             replacingCollections: [.artwork, .lyrics, .comments],
-            failurePolicy: .throw
         )
 
         let result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -817,7 +787,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeStructuredMetadataWithVerification(
                 payload,
                 to: url,
-                failurePolicy: .throw
             )
 
             var result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -828,7 +797,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 StructuredMetadata(),
                 to: url,
                 replacingCollections: [.artwork],
-                failurePolicy: .throw
             )
 
             result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -862,7 +830,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ),
             ]),
             to: url,
-            failurePolicy: .throw
         )
 
         let result = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
@@ -911,12 +878,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     .init(container: container, mimeType: "image/jpeg", description: "Back", data: secondArtwork),
                 ]),
                 to: url,
-                failurePolicy: .throw
             )
 
             var basic = try TagLibMetadataManager.readMetadataResult(from: url)
             basic.title = "Only the title changed"
-            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
             let artwork = try TagLibMetadataManager.readStructuredMetadataResult(from: url).artwork
             XCTAssertEqual(artwork.count, 2, ext)
@@ -934,7 +900,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 ["TITLE": ["Before"], "CUSTOM_MULTI": ["One", "Two"]],
                 to: url,
-                failurePolicy: .throw
             )
             let container = ext == "mp3" ? "id3v2" : "mp4"
             try TagLibMetadataManager.writeStructuredMetadataWithVerification(
@@ -943,7 +908,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     .init(container: container, mimeType: "image/jpeg", description: "Back", data: secondArtwork),
                 ]),
                 to: url,
-                failurePolicy: .throw
             )
 
             let before = try TagLibMetadataManager.readSnapshot(from: url)
@@ -953,7 +917,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.title: .text("After")], explicitAdvisory: .clean),
                 to: url,
-                failurePolicy: .throw
             )
 
             var after = try TagLibMetadataManager.readSnapshot(from: url)
@@ -965,7 +928,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(customFields: ["CUSTOM_MULTI": .values(["Three", "Four"])]),
                 to: url,
-                failurePolicy: .throw
             )
             after = try TagLibMetadataManager.readSnapshot(from: url)
             XCTAssertEqual(after.basic.title, "After", ext)
@@ -1040,12 +1002,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             baseline.disc = 1
             baseline.discTotal = 2
             baseline.discNumberText = "1/2"
-            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(baseline, to: url)
 
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: scenario.fields),
                 to: url,
-                failurePolicy: .throw
             )
 
             let result = try TagLibMetadataManager.readMetadataResult(from: url)
@@ -1074,7 +1035,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 .discTotal: .integer(2),
             ]),
             to: url,
-            failurePolicy: .throw
         )
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(mp4Atoms: [
@@ -1090,7 +1050,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ),
             ]),
             to: url,
-            failurePolicy: .throw
         )
         var result = try TagLibMetadataManager.readMetadataResult(from: url)
         XCTAssertEqual(result.trackTotal, 12, "Native trkn must override a conflicting freeform total.")
@@ -1100,7 +1059,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             "02/09",
             discNumberText: "03/04",
             to: url,
-            failurePolicy: .throw
         )
 
         result = try TagLibMetadataManager.readMetadataResult(from: url)
@@ -1141,7 +1099,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 )
             ),
             to: url,
-            failurePolicy: .throw
         )
 
         let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -1161,7 +1118,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             "07/12",
             discNumberText: "02/03",
             to: url,
-            failurePolicy: .throw
         )
 
         try TagLibMetadataManager.applyMetadataPatch(
@@ -1172,7 +1128,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 )
             ),
             to: url,
-            failurePolicy: .throw
         )
 
         let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -1247,7 +1202,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 )
             ),
             to: url,
-            failurePolicy: .throw
         )
 
         let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -1265,14 +1219,12 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             "01/12",
             discNumberText: nil,
             to: url,
-            failurePolicy: .throw
         )
 
         let result = try TagLibMetadataManager.writeTrackNumberText(
             "07",
             discNumberText: nil,
             to: url,
-            failurePolicy: .throw
         )
 
         XCTAssertTrue(result.warnings.isEmpty)
@@ -1313,13 +1265,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ],
                 to: url,
                 verifyAfterWrite: false,
-                failurePolicy: .throw
             )
 
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.track: .integer(5)]),
                 to: url,
-                failurePolicy: .throw
             )
             var raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             XCTAssertEqual(raw.values(for: "TRACKNUMBER"), ["5"], ext)
@@ -1328,7 +1278,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.trackTotal: .integer(20)]),
                 to: url,
-                failurePolicy: .throw
             )
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             XCTAssertEqual(raw.values(for: "TRACKNUMBER"), ["5"], ext)
@@ -1337,7 +1286,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.disc: .integer(2)]),
                 to: url,
-                failurePolicy: .throw
             )
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             XCTAssertEqual(raw.values(for: "DISCNUMBER"), ["2"], ext)
@@ -1346,7 +1294,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.discTotal: .integer(4)]),
                 to: url,
-                failurePolicy: .throw
             )
             raw = try TagLibMetadataManager.rawMetadataResult(from: url)
             XCTAssertEqual(raw.values(for: "DISCNUMBER"), ["2"], ext)
@@ -1371,13 +1318,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     .discTotal: .integer(2),
                 ]),
                 to: url,
-                failurePolicy: .throw
             )
 
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.track: .integer(5), .disc: .integer(2)]),
                 to: url,
-                failurePolicy: .throw
             )
 
             let result = try TagLibMetadataManager.readMetadataResult(from: url)
@@ -1396,7 +1341,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 .init(key: "disk", type: "intPair", first: 1, second: 2),
             ]),
             to: url,
-            failurePolicy: .throw
         )
 
         var atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
@@ -1405,7 +1349,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
             to: url,
-            failurePolicy: .throw
         )
 
         atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
@@ -1426,13 +1369,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
             ]),
             to: url,
-            failurePolicy: .throw
         )
 
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.track: .integer(5), .discTotal: .integer(4)]),
             to: url,
-            failurePolicy: .throw
         )
 
         let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
@@ -1456,14 +1397,13 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 .init(key: "disk", type: "intPair", first: 1, second: 2),
             ]),
             to: url,
-            failurePolicy: .throw
         )
 
         var basic = try TagLibMetadataManager.readMetadataResult(from: url)
         XCTAssertEqual(basic.trackNumberText, "3/12")
         XCTAssertEqual(basic.discNumberText, "1/2")
         basic.title = "Standard-only title edit"
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
         let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
         XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_TRACKNUMBER_TEXT") })
@@ -1482,12 +1422,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 .init(key: "disk", type: "intPair", first: 1, second: 2),
             ]),
             to: url,
-            failurePolicy: .throw
         )
 
         var basic = try TagLibMetadataManager.readMetadataResult(from: url)
         basic.track = 5
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
         let result = try TagLibMetadataManager.readMetadataResult(from: url)
         XCTAssertEqual(result.track, 5)
@@ -1550,12 +1489,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
                 ]),
                 to: url,
-                failurePolicy: .throw
             )
 
             var basic = try TagLibMetadataManager.readMetadataResult(from: url)
             scenario.edit(&basic)
-            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
             let result = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(result.track, scenario.expectedTrack, scenario.name)
@@ -1622,12 +1560,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 .init(key: "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT", type: "stringList", values: ["01/02"]),
             ]),
             to: url,
-            failurePolicy: .throw
         )
 
         var basic = try TagLibMetadataManager.readMetadataResult(from: url)
         basic.title = "Preserve provenance"
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
         let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
         XCTAssertEqual(
@@ -1647,21 +1584,18 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.compilation: .boolean(false)]),
             to: url,
-            failurePolicy: .throw
         )
         XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), ["0"])
 
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.compilation: .boolean(true)]),
             to: url,
-            failurePolicy: .throw
         )
         XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), ["1"])
 
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.compilation: .remove]),
             to: url,
-            failurePolicy: .throw
         )
         XCTAssertEqual(try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "COMPILATION"), [])
     }
@@ -1688,12 +1622,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             let url = try copyAudioFixture("m4a")
             var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
             baseline.explicitAdvisory = scenario.initial
-            try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(baseline, to: url)
 
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(explicitAdvisory: scenario.patched),
                 to: url,
-                failurePolicy: .throw
             )
 
             let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -1730,7 +1663,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             let url = try copyAudioFixture("m4a")
             var basic = try TagLibMetadataManager.readMetadataResult(from: url)
             basic.explicitAdvisory = scenario.initial
-            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
 
             let conflictingAtoms = aliases.map {
                 StructuredMP4Atom(
@@ -1742,13 +1675,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeStructuredMetadataWithVerification(
                 StructuredMetadata(mp4Atoms: conflictingAtoms),
                 to: url,
-                failurePolicy: .throw
             )
 
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(explicitAdvisory: scenario.patched),
                 to: url,
-                failurePolicy: .throw
             )
 
             let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -1808,14 +1739,13 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             let basicURL = try copyAudioFixture("m4a")
             var basic = try TagLibMetadataManager.readMetadataResult(from: basicURL)
             basic.explicitAdvisory = advisory
-            try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicURL, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: basicURL)
             try assertCanonical(basicURL, advisory: advisory, nativeValue: nativeValue)
 
             let patchURL = try copyAudioFixture("m4a")
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(explicitAdvisory: advisory),
                 to: patchURL,
-                failurePolicy: .throw
             )
             try assertCanonical(patchURL, advisory: advisory, nativeValue: nativeValue)
         }
@@ -1823,17 +1753,16 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let basicRemoval = try copyAudioFixture("m4a")
         var basic = try TagLibMetadataManager.readMetadataResult(from: basicRemoval)
         basic.explicitAdvisory = .explicit
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicRemoval, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(basic, to: basicRemoval)
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(mp4Atoms: aliases.map {
                 .init(key: "----:com.apple.iTunes:\($0)", type: "stringList", values: ["1"])
             }),
             to: basicRemoval,
-            failurePolicy: .throw
         )
         basic = try TagLibMetadataManager.readMetadataResult(from: basicRemoval)
         basic.explicitAdvisory = .unspecified
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: basicRemoval, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(basic, to: basicRemoval)
         try assertCanonical(basicRemoval, advisory: .unspecified, nativeValue: nil)
     }
 
@@ -1848,7 +1777,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(explicitAdvisory: .unspecified),
             to: absentURL,
-            failurePolicy: .throw
         )
         XCTAssertEqual(
             try TagLibMetadataManager.readMetadataResult(from: absentURL).explicitAdvisory,
@@ -1863,7 +1791,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ]),
                 to: url,
                 verifyAfterWrite: false,
-                failurePolicy: .throw
             )
             XCTAssertEqual(
                 try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
@@ -1879,13 +1806,12 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             ]),
             to: legacyURL,
             verifyAfterWrite: false,
-            failurePolicy: .throw
         )
         var legacy = try TagLibMetadataManager.readMetadataResult(from: legacyURL)
         XCTAssertEqual(legacy.explicitAdvisory, .explicit)
 
         legacy.title = "Canonical legacy rewrite"
-        try TagLibMetadataManager.writeMetadataWithVerification(legacy, to: legacyURL, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(legacy, to: legacyURL)
         let rewritten = try TagLibMetadataManager.readSnapshot(from: legacyURL)
         XCTAssertEqual(rewritten.basic.explicitAdvisory, .explicit)
         XCTAssertEqual(rewritten.structured.mp4Atoms.first { $0.key == "rtng" }?.value, "1")
@@ -1895,12 +1821,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let url = try copyAudioFixture("mp3")
         var baseline = try TagLibMetadataManager.readMetadataResult(from: url)
         baseline.explicitAdvisory = .explicit
-        try TagLibMetadataManager.writeMetadataWithVerification(baseline, to: url, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(baseline, to: url)
 
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(explicitAdvisory: .clean),
             to: url,
-            failurePolicy: .throw
         )
         var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
         XCTAssertEqual(snapshot.basic.explicitAdvisory, .clean)
@@ -1914,7 +1839,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(explicitAdvisory: .notExplicit),
             to: url,
-            failurePolicy: .throw
         )
         snapshot = try TagLibMetadataManager.readSnapshot(from: url)
         XCTAssertEqual(snapshot.basic.explicitAdvisory, .notExplicit)
@@ -1928,7 +1852,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(explicitAdvisory: .unspecified),
             to: url,
-            failurePolicy: .throw
         )
         snapshot = try TagLibMetadataManager.readSnapshot(from: url)
         XCTAssertEqual(snapshot.basic.explicitAdvisory, .unspecified)
@@ -1950,7 +1873,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(explicitAdvisory: advisory),
                 to: url,
-                failurePolicy: .throw
             )
 
             let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -1980,7 +1902,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
                 ["ITUNESADVISORY": [storedValue]],
                 to: url,
-                failurePolicy: .throw
             )
             XCTAssertEqual(
                 try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory,
@@ -2069,7 +1990,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(customFields: ["truly_unknown": .values(["One", "Two"])]),
             to: url,
-            failurePolicy: .throw
         )
         XCTAssertEqual(
             try TagLibMetadataManager.rawMetadataResult(from: url).values(for: "TRULY_UNKNOWN"),
@@ -2126,7 +2046,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.bpm: .integer(0)]),
             to: zeroBPMURL,
-            failurePolicy: .throw
         )
         XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: zeroBPMURL).bpm, 0)
 
@@ -2137,12 +2056,10 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 "DISCNUMBER": ["1"], "DISCTOTAL": ["2"],
             ],
             to: removalURL,
-            failurePolicy: .throw
         )
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.track: .remove, .discTotal: .remove]),
             to: removalURL,
-            failurePolicy: .throw
         )
         let removed = try TagLibMetadataManager.rawMetadataResult(from: removalURL)
         XCTAssertEqual(removed.values(for: "TRACKNUMBER"), [])
@@ -2154,7 +2071,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.bpm: .integer(Int(Int32.max))]),
             to: maximumURL,
-            failurePolicy: .throw
         )
         XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: maximumURL).bpm, Int(Int32.max))
         let maximumBytes = try Data(contentsOf: maximumURL)
@@ -2182,12 +2098,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         var basic = try TagLibMetadataManager.readMetadataResult(from: numberURL)
         basic.movementNumber = 2
         basic.movementCount = 4
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: numberURL, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(basic, to: numberURL)
 
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.movementNumber: .integer(3)]),
             to: numberURL,
-            failurePolicy: .throw
         )
         var result = try TagLibMetadataManager.readMetadataResult(from: numberURL)
         XCTAssertEqual(result.movementNumber, 3)
@@ -2202,12 +2117,11 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         basic = try TagLibMetadataManager.readMetadataResult(from: countURL)
         basic.movementNumber = 2
         basic.movementCount = 4
-        try TagLibMetadataManager.writeMetadataWithVerification(basic, to: countURL, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(basic, to: countURL)
 
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.movementCount: .integer(6)]),
             to: countURL,
-            failurePolicy: .throw
         )
         result = try TagLibMetadataManager.readMetadataResult(from: countURL)
         XCTAssertEqual(result.movementNumber, 2)
@@ -2233,7 +2147,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 ]
             ),
             to: url,
-            failurePolicy: .throw
         )
 
         let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -2292,8 +2205,8 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.customFields = ["ERASE_CUSTOM": "present"]
             metadata.artworkData = try Data(contentsOf: artworkFixtureURL())
 
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
-            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
+            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
 
             let afterErase = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertEqual(afterErase.title, "", ext)
@@ -2320,7 +2233,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 riffPolicy: .syncBasicFieldsToInfo,
                 includeProperties: true,
                 verifyAfterWrite: false,
-                failurePolicy: .throw
             )
         ) { error in
             guard case TagLibManagerError.unsupportedWritePolicy = error else {
@@ -2340,7 +2252,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let directory = url.deletingLastPathComponent()
         var metadata = BasicMetadata.empty
         metadata.title = "Successful mutation"
-        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
         XCTAssertTrue(try transactionTemporaryFiles(in: directory).isEmpty)
 
         let bridgeMetadata = TagLibAudioMetadata()
@@ -2362,7 +2274,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 bridgeMetadata,
                 to: url,
                 verification: mismatched,
-                failurePolicy: .throw
             )
         )
         XCTAssertTrue(try transactionTemporaryFiles(in: directory).isEmpty)
@@ -2441,7 +2352,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             ],
             to: url,
             verifyAfterWrite: false,
-            failurePolicy: .throw
         )
         XCTAssertTrue(result.warnings.isEmpty)
 
@@ -2470,7 +2380,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         try TagLibMetadataManager.applyMetadataPatch(
             MetadataPatch(fields: [.title: .text("Typed XM Title")]),
             to: url,
-            failurePolicy: .throw
         )
         XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Typed XM Title")
 
@@ -2491,7 +2400,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             ["ALBUM": ["Raw attempt"]],
             to: url,
             verifyAfterWrite: false,
-            failurePolicy: .throw
         ))
     }
 

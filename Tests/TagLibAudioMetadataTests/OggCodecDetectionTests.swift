@@ -58,7 +58,6 @@ final class OggCodecDetectionTests: XCTestCase {
                 "CUSTOM": ["Symphony; Live Version", "Second value"],
             ],
             to: seededURL,
-            failurePolicy: .throw
         )
 
         let misleadingURL = directory.appendingPathComponent("misleading.\(misleadingExtension)")

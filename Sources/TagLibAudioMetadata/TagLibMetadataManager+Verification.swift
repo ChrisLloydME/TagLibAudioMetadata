@@ -103,14 +103,9 @@ extension TagLibMetadataManager {
         return aliases
     }
 
-    nonisolated static func applyVerificationFailurePolicy(
-        _ policy: VerificationFailurePolicy,
-        warnings: [String]
-    ) throws {
-        // A mismatch is never permission to replace an original user file.
-        // Retain the parameter for source compatibility, not weaker semantics.
-        guard !warnings.isEmpty else { return }
-        throw TagLibManagerError.verificationFailed(warnings)
+    nonisolated static func throwOnVerificationFailures(_ failures: [String]) throws {
+        guard !failures.isEmpty else { return }
+        throw TagLibManagerError.verificationFailed(failures)
     }
 
     nonisolated static func explicitValueSource(from dump: RawMetadataDump, fallback: Bool) -> MetadataValueSource {

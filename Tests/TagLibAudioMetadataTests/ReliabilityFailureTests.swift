@@ -92,12 +92,12 @@ final class ReliabilityFailureTests: XCTestCase {
         try originalBytes.write(to: url)
 
         XCTAssertThrowsError(
-            try TagLibMetadataManager.writeMetadataWithVerification(.empty, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(.empty, to: url)
         )
         XCTAssertEqual(try Data(contentsOf: url), originalBytes)
 
         XCTAssertThrowsError(
-            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .throw)
+            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
         )
         XCTAssertEqual(try Data(contentsOf: url), originalBytes)
     }
@@ -111,7 +111,7 @@ final class ReliabilityFailureTests: XCTestCase {
 
         for url in [unsupported, noExtension] {
             XCTAssertThrowsError(
-                try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .throw)
+                try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
             ) { error in
                 guard case TagLibManagerError.unsupportedFormat = error else {
                     return XCTFail("Expected unsupportedFormat for \(url.lastPathComponent), got \(error)")
@@ -134,7 +134,7 @@ final class ReliabilityFailureTests: XCTestCase {
         var metadata = BasicMetadata.empty
         metadata.title = "Must not persist"
         XCTAssertThrowsError(
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
         )
         XCTAssertEqual(try Data(contentsOf: url), originalBytes)
     }
@@ -150,7 +150,7 @@ final class ReliabilityFailureTests: XCTestCase {
         var metadata = BasicMetadata.empty
         metadata.title = "Must not persist"
         XCTAssertThrowsError(
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: link, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: link)
         )
         XCTAssertEqual(try Data(contentsOf: target), originalBytes)
 
@@ -178,7 +178,6 @@ final class ReliabilityFailureTests: XCTestCase {
                     "ARTIST": ["一", "Two"],
                 ],
                 to: url,
-                failurePolicy: .throw
             )
 
             let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -207,12 +206,12 @@ final class ReliabilityFailureTests: XCTestCase {
         var metadata = BasicMetadata.empty
         metadata.title = "Payload-safe title"
         metadata.comment = "Metadata only"
-        try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+        try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
         XCTAssertEqual(try wavAudioPayload(Data(contentsOf: url)), originalPayload)
         XCTAssertEqual(try posixPermissions(at: url), originalPermissions)
 
-        try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .throw)
-        try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url, failurePolicy: .throw)
+        try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+        try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
         XCTAssertEqual(try wavAudioPayload(Data(contentsOf: url)), originalPayload)
         XCTAssertEqual(try posixPermissions(at: url), originalPermissions)
     }
@@ -239,7 +238,7 @@ final class ReliabilityFailureTests: XCTestCase {
             case .swiftFacade:
                 var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
                 metadata.title = "Swift transaction"
-                try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+                try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
             case .objectiveCBridge:
                 let metadata = try TagLibMetadataExtractor.extractMetadata(from: url)
                 metadata.title = "Bridge transaction"
@@ -266,7 +265,7 @@ final class ReliabilityFailureTests: XCTestCase {
         var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
         metadata.title = "Must not split hard link"
         XCTAssertThrowsError(
-            try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw)
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
         ) { error in
             XCTAssertTrue(error.localizedDescription.contains("hard-linked"))
         }
@@ -348,7 +347,7 @@ final class ReliabilityFailureTests: XCTestCase {
                 mutation(&metadata)
 
                 XCTAssertThrowsError(
-                    try TagLibMetadataManager.writeMetadataWithVerification(metadata, to: url, failurePolicy: .throw),
+                    try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url),
                     "\(ext): \(label)"
                 )
                 XCTAssertEqual(try Data(contentsOf: url), originalBytes, "\(ext): \(label)")

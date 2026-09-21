@@ -335,8 +335,7 @@ extension TagLibMetadataManager {
     public nonisolated static func applyMetadataPatch(
         _ patch: MetadataPatch,
         to url: URL,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy = .throw
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
         let validatedPatch = try validate(patch)
@@ -640,8 +639,19 @@ extension TagLibMetadataManager {
             default: break
             }
 
-            try applyVerificationFailurePolicy(failurePolicy, warnings: warnings)
+            try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
+    }
+
+    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
+    @discardableResult
+    public nonisolated static func applyMetadataPatch(
+        _ patch: MetadataPatch,
+        to url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
+        failurePolicy: VerificationFailurePolicy
+    ) throws -> MetadataWriteResult {
+        try applyMetadataPatch(patch, to: url, expectedVersion: expectedVersion)
     }
 }
