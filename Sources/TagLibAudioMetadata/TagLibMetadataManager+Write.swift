@@ -380,9 +380,10 @@ extension TagLibMetadataManager {
     }
 
     @discardableResult
-    public nonisolated static func writeMetadataWithVerification(
+    public nonisolated static func replaceBasicMetadata(
         _ meta: BasicMetadata,
         to url: URL,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy = .throw
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
@@ -623,7 +624,7 @@ extension TagLibMetadataManager {
                 expectedExplicitAdvisory: meta.explicitAdvisory
             )
 
-        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
             if !preservedStandardValues.isEmpty {
                 try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
@@ -638,6 +639,33 @@ extension TagLibMetadataManager {
         }
     }
 
+    /// Reads the current Basic projection, applies an in-memory edit, and replaces
+    /// it only if the file still matches the captured version.
+    @discardableResult
+    public nonisolated static func updateBasicMetadata(
+        at url: URL,
+        _ update: (inout BasicMetadata) throws -> Void
+    ) throws -> MetadataWriteResult {
+        let snapshot = try readSnapshot(from: url)
+        var metadata = snapshot.basic
+        try update(&metadata)
+        return try replaceBasicMetadata(
+            metadata,
+            to: url,
+            expectedVersion: snapshot.fileVersion
+        )
+    }
+
+    @available(*, deprecated, renamed: "replaceBasicMetadata(_:to:expectedVersion:failurePolicy:)")
+    @discardableResult
+    public nonisolated static func writeMetadataWithVerification(
+        _ meta: BasicMetadata,
+        to url: URL,
+        failurePolicy: VerificationFailurePolicy = .throw
+    ) throws -> MetadataWriteResult {
+        try replaceBasicMetadata(meta, to: url, failurePolicy: failurePolicy)
+    }
+
     /// Write `BasicMetadata` back to the file using TagLib.
     ///
     /// Notes:
@@ -645,8 +673,9 @@ extension TagLibMetadataManager {
     /// - Fields that are empty strings are written as `nil` (i.e. removed/cleared).
     /// - `publisher` is mapped to TagLib's `label` field.
     @discardableResult
+    @available(*, deprecated, message: "This replaces the complete Basic projection. Use replaceBasicMetadata(_:to:expectedVersion:failurePolicy:) or updateBasicMetadata(at:_:).")
     public nonisolated static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool {
-        _ = try writeMetadataWithVerification(meta, to: url)
+        _ = try replaceBasicMetadata(meta, to: url)
         return true
     }
 

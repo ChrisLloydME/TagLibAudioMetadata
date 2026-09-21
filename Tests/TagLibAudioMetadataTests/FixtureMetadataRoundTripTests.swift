@@ -974,6 +974,44 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         }
     }
 
+    func testSafeBasicMetadataUpdatePreservesUnspecifiedFields() throws {
+        let url = try copyAudioFixture("flac")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [
+                .title: .text("Original title"),
+                .artist: .text("Preserved artist")
+            ]),
+            to: url
+        )
+
+        try TagLibMetadataManager.updateBasicMetadata(at: url) { metadata in
+            metadata.title = "Updated title"
+        }
+
+        let result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.title, "Updated title")
+        XCTAssertEqual(result.artist, "Preserved artist")
+    }
+
+    func testExplicitBasicMetadataReplacementClearsUnspecifiedFields() throws {
+        let url = try copyAudioFixture("flac")
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [
+                .title: .text("Original title"),
+                .artist: .text("Artist to replace")
+            ]),
+            to: url
+        )
+
+        var replacement = BasicMetadata.empty
+        replacement.title = "Replacement title"
+        try TagLibMetadataManager.replaceBasicMetadata(replacement, to: url)
+
+        let result = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(result.title, "Replacement title")
+        XCTAssertEqual(result.artist, "")
+    }
+
     func testM4AMetadataPatchPreservesAndUpdatesNativeTrackDiscPairs() throws {
         struct Scenario {
             let name: String
