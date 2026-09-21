@@ -35,7 +35,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata.discTotal = 2
             metadata.trackNumberText = "01/10"
             metadata.discNumberText = "01/02"
-            metadata.isExplicit = true
+            metadata.explicitAdvisory = .explicit
 
             let writeResult = try TagLibMetadataManager.replaceBasicMetadata(
                 metadata,

@@ -61,6 +61,9 @@ Last updated: 2026-09-21
 - Migrated package tests and current documentation examples to the policy-free
   APIs; historical changelog entries retain the signatures they documented at
   the time.
+- Deprecated only the setter of the lossy `BasicMetadata.isExplicit` Boolean.
+  The compatibility getter remains, while writes now point consumers to the
+  four-state `explicitAdvisory` value.
 
 ### Validation in this pass
 
@@ -71,6 +74,8 @@ Last updated: 2026-09-21
   opt-in tests skipped, 0 failures.
 - Complete package suite after the verification-policy migration: 133 tests
   executed, 2 opt-in tests skipped, 0 failures.
+- Advisory model semantics suite after deprecating the Boolean setter: 3 tests,
+  0 failures.
 
 ## Scope and product boundary
 

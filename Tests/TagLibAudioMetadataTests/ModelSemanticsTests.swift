@@ -27,4 +27,16 @@ final class ModelSemanticsTests: XCTestCase {
         let changed = StructuredPropertyEntry(key: "ARTIST", values: ["One", "Three"])
         XCTAssertNotEqual(original, changed)
     }
+
+    func testExplicitBooleanIsOnlyALossyReadProjection() {
+        var metadata = BasicMetadata.empty
+
+        for advisory in [ExplicitAdvisory.unspecified, .notExplicit, .clean] {
+            metadata.explicitAdvisory = advisory
+            XCTAssertFalse(metadata.isExplicit)
+        }
+
+        metadata.explicitAdvisory = .explicit
+        XCTAssertTrue(metadata.isExplicit)
+    }
 }

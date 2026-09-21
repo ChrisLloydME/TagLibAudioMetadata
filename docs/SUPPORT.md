@@ -88,7 +88,8 @@ same transaction as other patch fields. Track and disc intent are independent:
 `nil` is unchanged, a nonempty string sets the pair, and an empty string removes
 it. A patch cannot mix that exact-text form
 with typed track/disc components. The compatibility Boolean `isExplicit` is a
-lossy projection; use the enum when the distinction matters.
+lossy read projection; its setter is deprecated, so mutations should use the
+enum and state their exact intent.
 
 Known fields are validated against `MetadataFieldRegistry` before any staging
 copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
