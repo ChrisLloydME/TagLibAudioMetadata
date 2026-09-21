@@ -13,7 +13,7 @@ extension TagLibMetadataManager {
         releaseDate: String?,
         for url: URL
     ) throws {
-        guard formatCapability(for: url.pathExtension)?.metadataFieldFormats.contains(.mp4) == true else {
+        guard capability(forExtension: url.pathExtension)?.metadataFieldFormats.contains(.mp4) == true else {
             return
         }
 
@@ -588,7 +588,7 @@ extension TagLibMetadataManager {
             preservedStandardAliases.formUnion(schema.propertyMapKeys)
         }
 
-        let isMP4Family = formatCapability(for: ext)?.identifier == "mp4"
+        let isMP4Family = capability(forExtension: ext)?.identifier == "mp4"
         let expectedTrackNumberText = isMP4Family
             ? numberTextPreservingFormatting(
                 meta.trackNumberText,

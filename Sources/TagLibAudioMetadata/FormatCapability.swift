@@ -142,15 +142,33 @@ public extension TagLibMetadataManager {
         TagLibMetadataExtractor.formatCapabilities().compactMap(FormatCapability.init(bridgeDictionary:))
     }
 
-    nonisolated static func formatCapability(for fileExtension: String) -> FormatCapability? {
+    /// Returns declared capability for an extension. This does not inspect a file.
+    nonisolated static func capability(forExtension fileExtension: String) -> FormatCapability? {
         guard let dictionary = TagLibMetadataExtractor.formatCapability(for: fileExtension) else {
             return nil
         }
         return FormatCapability(bridgeDictionary: dictionary)
     }
 
+    @available(*, deprecated, renamed: "capability(forExtension:)")
+    nonisolated static func formatCapability(for fileExtension: String) -> FormatCapability? {
+        capability(forExtension: fileExtension)
+    }
+
+    /// Opens and reads a concrete file before returning its extension capability.
+    ///
+    /// Use this for editability decisions about user-selected files. A declared
+    /// extension capability alone does not prove that the file is valid audio.
+    nonisolated static func probeFile(at url: URL) throws -> FormatCapability {
+        guard let capability = capability(forExtension: url.pathExtension) else {
+            throw TagLibManagerError.unsupportedFormat
+        }
+        _ = try readMetadataResult(from: url)
+        return capability
+    }
+
     nonisolated static func formatSupportLevel(for fileExtension: String) -> FormatSupportLevel {
-        formatCapability(for: fileExtension)?.supportLevel ?? .unsupported
+        capability(forExtension: fileExtension)?.supportLevel ?? .unsupported
     }
 }
 

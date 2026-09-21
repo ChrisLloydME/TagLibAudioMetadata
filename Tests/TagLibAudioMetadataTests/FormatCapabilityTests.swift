@@ -16,22 +16,40 @@ final class FormatCapabilityTests: XCTestCase {
             .flatMap(\.extensions)
 
         XCTAssertEqual(Set(TagLibMetadataManager.writableExtensions), Set(writableCapabilityExtensions))
-        XCTAssertFalse(TagLibMetadataManager.isWritableFormat("shn"))
-        XCTAssertTrue(TagLibMetadataManager.isReadableFormat("shn"))
+        XCTAssertFalse(TagLibMetadataManager.isWritableExtension("shn"))
+        XCTAssertTrue(TagLibMetadataManager.isReadableExtension("shn"))
     }
 
     func testAliasLookupReturnsFamilyCapability() {
-        let m4a = TagLibMetadataManager.formatCapability(for: "m4a")
-        let mp4 = TagLibMetadataManager.formatCapability(for: "MP4")
-        let aifc = TagLibMetadataManager.formatCapability(for: "aifc")
+        let m4a = TagLibMetadataManager.capability(forExtension: "m4a")
+        let mp4 = TagLibMetadataManager.capability(forExtension: "MP4")
+        let aifc = TagLibMetadataManager.capability(forExtension: "aifc")
 
         XCTAssertEqual(m4a?.identifier, "mp4")
         XCTAssertEqual(mp4?.identifier, "mp4")
         XCTAssertEqual(aifc?.identifier, "aiff")
     }
 
+    func testConcreteFileProbeIsDistinctFromExtensionCapability() throws {
+        XCTAssertNotNil(TagLibMetadataManager.capability(forExtension: "mp3"))
+
+        let corruptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp3")
+        try Data("not MPEG audio".utf8).write(to: corruptURL)
+        defer { try? FileManager.default.removeItem(at: corruptURL) }
+
+        XCTAssertThrowsError(try TagLibMetadataManager.probeFile(at: corruptURL))
+
+        let fixtureURL = try XCTUnwrap(
+            Bundle.module.url(forResource: "testAudioFile", withExtension: "mp3", subdirectory: "Audio")
+                ?? Bundle.module.url(forResource: "testAudioFile", withExtension: "mp3")
+        )
+        XCTAssertEqual(try TagLibMetadataManager.probeFile(at: fixtureURL).identifier, "mpeg-id3")
+    }
+
     func testCapabilityCaveatsAreExplicit() throws {
-        let shorten = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "shn"))
+        let shorten = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "shn"))
 
         XCTAssertTrue(shorten.isReadable)
         XCTAssertFalse(shorten.isWritable)
@@ -40,10 +58,10 @@ final class FormatCapabilityTests: XCTestCase {
     }
 
     func testStructuredSupportLevelsMatchKnownFamilies() throws {
-        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "mp3")).structuredReadSupport, .container)
-        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a")).structuredWriteSupport, .container)
-        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "flac")).structuredWriteSupport, .propertyMap)
-        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "tta")).structuredWriteSupport, .propertyMap)
+        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "mp3")).structuredReadSupport, .container)
+        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "m4a")).structuredWriteSupport, .container)
+        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "flac")).structuredWriteSupport, .propertyMap)
+        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "tta")).structuredWriteSupport, .propertyMap)
     }
 
     func testConfiguredCoverageDistinguishesFixturesUpstreamAndExperimentalFormats() throws {
@@ -60,36 +78,36 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "shn"), .readOnly)
         XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: "not-a-format"), .unsupported)
 
-        let mp4Family = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
+        let mp4Family = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "m4a"))
         XCTAssertEqual(mp4Family.supportLevel, .fixtureCovered)
         XCTAssertEqual(mp4Family.supportLevel(forExtension: "m4a"), .fixtureCovered)
         XCTAssertEqual(mp4Family.supportLevel(forExtension: "mp4"), .upstreamSupported)
     }
 
     func testFieldLevelSupportReflectsMappingsArtworkAndWriteAvailability() throws {
-        let xm = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "xm"))
+        let xm = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "xm"))
         XCTAssertEqual(xm.readSupport(for: .title), .fixtureCovered)
         XCTAssertEqual(xm.writeSupport(for: .title), .fixtureCovered)
         XCTAssertEqual(xm.writeSupport(for: .trackerName), .fixtureCovered)
         XCTAssertEqual(xm.writeSupport(for: .album), .unsupported)
         XCTAssertEqual(xm.writeSupport(for: .artwork), .unsupported)
 
-        let s3m = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "s3m"))
+        let s3m = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "s3m"))
         XCTAssertEqual(s3m.readSupport(for: .trackerName), .experimental)
         XCTAssertEqual(s3m.writeSupport(for: .trackerName), .unsupported)
 
-        let mod = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "mod"))
+        let mod = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "mod"))
         XCTAssertFalse(mod.isWritable)
         XCTAssertEqual(mod.readSupport(for: .title), .readOnly)
         XCTAssertEqual(mod.writeSupport(for: .title), .unsupported)
 
-        let shorten = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "shn"))
+        let shorten = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "shn"))
         XCTAssertEqual(shorten.readSupport(for: .title), .readOnly)
         XCTAssertEqual(shorten.writeSupport(for: .title), .unsupported)
     }
 
     func testMP4DateCapabilitiesExposeSingleReleaseDateOwner() throws {
-        let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
+        let capability = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "m4a"))
 
         XCTAssertEqual(capability.readSupport(for: .date), .unsupported)
         XCTAssertEqual(capability.writeSupport(for: .date), .unsupported)
@@ -98,7 +116,7 @@ final class FormatCapabilityTests: XCTestCase {
     }
 
     func testFieldSchemasCanBeFilteredByCapability() throws {
-        let mp4 = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "m4a"))
+        let mp4 = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "m4a"))
         let mp4Schemas = MetadataFieldRegistry.schemas(storableIn: mp4)
 
         XCTAssertTrue(mp4.metadataFieldFormats.contains(.mp4))
@@ -107,7 +125,7 @@ final class FormatCapabilityTests: XCTestCase {
     }
 
     func testReadOnlyCapabilitiesDoNotAdvertiseStorableFields() throws {
-        let shorten = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: "shn"))
+        let shorten = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "shn"))
 
         XCTAssertFalse(shorten.isWritable)
         XCTAssertTrue(MetadataFieldRegistry.schemas(storableIn: shorten).isEmpty)
