@@ -438,12 +438,22 @@ public struct TagLibMetadataManager {
         case `throw`
     }
 
-    public nonisolated static func isReadableFormat(_ fileExtension: String) -> Bool {
+    public nonisolated static func isReadableExtension(_ fileExtension: String) -> Bool {
         TagLibMetadataExtractor.isSupportedFormat(fileExtension)
     }
 
-    public nonisolated static func isWritableFormat(_ fileExtension: String) -> Bool {
+    public nonisolated static func isWritableExtension(_ fileExtension: String) -> Bool {
         TagLibMetadataExtractor.isWritableFormat(fileExtension)
+    }
+
+    @available(*, deprecated, renamed: "isReadableExtension(_:)")
+    public nonisolated static func isReadableFormat(_ fileExtension: String) -> Bool {
+        isReadableExtension(fileExtension)
+    }
+
+    @available(*, deprecated, renamed: "isWritableExtension(_:)")
+    public nonisolated static func isWritableFormat(_ fileExtension: String) -> Bool {
+        isWritableExtension(fileExtension)
     }
 
     public nonisolated static var readableExtensions: [String] {

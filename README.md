@@ -178,11 +178,13 @@ it. Internal preservation provenance is readable but not caller-mutable.
 Check capability evidence before enabling controls:
 
 ```swift
-if let capability = TagLibMetadataManager.formatCapability(for: url.pathExtension) {
-    print(capability.supportLevel)
-    print(capability.writeSupport(for: .artwork))
-}
+let capability = try TagLibMetadataManager.probeFile(at: url)
+print(capability.supportLevel)
+print(capability.writeSupport(for: .artwork))
 ```
+
+Use `capability(forExtension:)` only for declared-format discovery where no
+concrete file exists yet. It does not open or validate audio content.
 
 Support levels are `fixtureCovered`, `experimental`, `upstreamSupported`,
 `readOnly`, and `unsupported`. These are configured coverage/implementation

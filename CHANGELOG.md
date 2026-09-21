@@ -24,6 +24,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added clearly named `bestEffortMetadata`, `bestEffortRawMetadata`,
   `bestEffortRawMetadataText`, and `bestEffortStructuredMetadata` conveniences;
   deprecated ambiguous optional read names that silently collapse read errors.
+- Separated declared extension discovery (`capability(forExtension:)`,
+  `isReadableExtension`, and `isWritableExtension`) from concrete-file
+  validation through the new throwing `probeFile(at:)` API. Ambiguous legacy
+  extension lookup names remain as deprecated wrappers.
 
 - Removed transaction-bypassing in-place mutators and coordination helpers from
   the public Low-Level header; the Swift facade now imports them from a dedicated

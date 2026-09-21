@@ -235,7 +235,7 @@ extension TagLibMetadataManager {
             throw MetadataPatchValidationError.unsupportedField(field)
         }
 
-        let capability = formatCapability(for: fileExtension)
+        let capability = capability(forExtension: fileExtension)
         let isMP4 = capability?.metadataFieldFormats.contains(.mp4) == true
         if field == .date, isMP4 {
             throw MetadataPatchValidationError.unsupportedFieldForFormat(
@@ -347,7 +347,7 @@ extension TagLibMetadataManager {
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
-        if let capability = formatCapability(for: ext),
+        if let capability = capability(forExtension: ext),
            let writableFields = capability.writableFields {
             let requestedFields = Set(validatedPatch.fields.keys)
                 .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])

@@ -230,7 +230,7 @@ extension TagLibMetadataManager {
             return nil
         }
 
-        let capability = fileExtension.flatMap { formatCapability(for: $0) }
+        let capability = fileExtension.flatMap { capability(forExtension: $0) }
         let isMP4 = capability?.metadataFieldFormats.contains(.mp4) == true
         let recordingDate = isMP4 ? nil : firstRawValue(for: ["DATE", "YEAR"])
         let releaseDate = isMP4

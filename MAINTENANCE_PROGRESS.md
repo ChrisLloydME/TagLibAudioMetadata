@@ -68,6 +68,15 @@ Last updated: 2026-09-21
   renamed optional conveniences around explicit `bestEffort` semantics. The
   old optional names remain as deprecated wrappers, and stale documentation
   claiming that they print errors was corrected.
+- Separated extension declarations from concrete-file validity in public naming:
+  `capability(forExtension:)`, `isReadableExtension`, and
+  `isWritableExtension` describe configured support, while `probeFile(at:)`
+  opens and reads the actual file before returning its capability. Ambiguous
+  legacy names remain deprecated wrappers.
+- Revised the fixture-coverage finding: production does not inspect repository
+  fixtures at runtime. `fixtureCovered` is static evidence metadata configured
+  in the capability registry, and documentation now states that it is neither a
+  per-file validation result nor a blanket release guarantee.
 
 ### Validation in this pass
 
@@ -81,6 +90,8 @@ Last updated: 2026-09-21
 - Advisory model semantics suite after deprecating the Boolean setter: 3 tests,
   0 failures.
 - Complete package suite after the best-effort read API migration: 135 tests
+  executed, 2 opt-in tests skipped, 0 failures.
+- Complete package suite after extension/probe capability separation: 136 tests
   executed, 2 opt-in tests skipped, 0 failures.
 
 ## Scope and product boundary

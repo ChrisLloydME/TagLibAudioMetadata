@@ -13,7 +13,7 @@ final class ExternalCorpusPreservationTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let sources = try FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: path), includingPropertiesForKeys: nil)
-        let audioSources = sources.filter { TagLibMetadataManager.isWritableFormat($0.pathExtension) }
+        let audioSources = sources.filter { TagLibMetadataManager.isWritableExtension($0.pathExtension) }
         guard !audioSources.isEmpty else {
             XCTFail("The corpus directory contains no writable audio fixtures: \(path)")
             return

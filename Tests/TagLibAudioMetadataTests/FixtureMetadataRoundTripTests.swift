@@ -129,7 +129,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let artwork = try Data(contentsOf: artworkFixtureURL())
 
         for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
-            let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
+            let capability = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: ext))
             guard capability.canWriteArtwork else { continue }
 
             let url = try copyAudioFixture(ext)
@@ -165,7 +165,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         let artwork = try Data(contentsOf: artworkFixtureURL())
 
         for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
-            let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
+            let capability = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: ext))
             guard capability.canWriteArtwork else { continue }
 
             let url = try copyAudioFixture(ext)
@@ -186,7 +186,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         ))
 
         for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav"] {
-            let capability = try XCTUnwrap(TagLibMetadataManager.formatCapability(for: ext))
+            let capability = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: ext))
             guard capability.canWriteArtwork else { continue }
 
             let url = try copyAudioFixture(ext)

@@ -185,15 +185,18 @@ Check support before you show editing controls or attempt a write.
 ```swift
 let ext = url.pathExtension
 
-guard TagLibMetadataManager.isReadableFormat(ext) else {
+guard TagLibMetadataManager.isReadableExtension(ext) else {
     throw TagLibManagerError.unsupportedFormat
 }
 
-let canWrite = TagLibMetadataManager.isWritableFormat(ext)
-let capability = TagLibMetadataManager.formatCapability(for: ext)
+let canWrite = TagLibMetadataManager.isWritableExtension(ext)
+let capability = TagLibMetadataManager.capability(forExtension: ext)
 ```
 
-Use `formatCapability(for:)` for UI decisions. It reports the format family,
+These APIs describe a declared extension; they do not open a file. Use
+`probeFile(at:)` for editability decisions about a concrete user file. It reads
+the file and throws if the selected parser cannot validate it, then returns the
+corresponding capability. `capability(forExtension:)` reports the format family,
 all extension aliases, metadata containers, artwork support, multi-value support,
 structured support, read-only caveats, and evidence level. `fixtureCovered` is
 backed by a repository fixture and round-trip tests; `experimental` exposes incomplete
@@ -201,7 +204,7 @@ container behavior; `upstreamSupported` is an unverified upstream parser path;
 `readOnly` has no supported save route; and `unsupported` has no package route.
 
 ```swift
-if let capability = TagLibMetadataManager.formatCapability(for: "m4a") {
+if let capability = TagLibMetadataManager.capability(forExtension: "m4a") {
     print(capability.identifier)              // "mp4"
     print(capability.extensions)              // extension aliases for the family
     print(capability.canWriteArtwork)
@@ -801,7 +804,7 @@ let id3Fields = MetadataFieldRegistry.schemas(withMappingsFor: .id3v2)
 Filter fields by a runtime format capability:
 
 ```swift
-if let capability = TagLibMetadataManager.formatCapability(for: url.pathExtension) {
+if let capability = TagLibMetadataManager.capability(forExtension: url.pathExtension) {
     let supportedFields = MetadataFieldRegistry.schemas(storableIn: capability)
 }
 ```
@@ -983,9 +986,7 @@ debugTextView.text = rawText ?? ""
 ### Build an Editor With Capability-Based Controls
 
 ```swift
-guard let capability = TagLibMetadataManager.formatCapability(for: url.pathExtension) else {
-    return
-}
+let capability = try TagLibMetadataManager.probeFile(at: url)
 
 titleField.isEnabled = capability.isWritable
 artworkButton.isEnabled = capability.canWriteArtwork
@@ -1062,11 +1063,14 @@ for url in urls {
 
 ## Notes for App Integrators
 
-Call the support APIs with extensions, not full paths:
+Call extension discovery APIs with extensions, not full paths:
 
 ```swift
-TagLibMetadataManager.isReadableFormat(url.pathExtension)
+TagLibMetadataManager.isReadableExtension(url.pathExtension)
 ```
+
+For a concrete user file, prefer `probeFile(at:)`; an extension lookup alone
+does not prove that the bytes are valid audio or safe to offer for editing.
 
 Treat a successful write with warnings as a partial success. The file was saved,
 but the saved metadata may not exactly match the requested value.
