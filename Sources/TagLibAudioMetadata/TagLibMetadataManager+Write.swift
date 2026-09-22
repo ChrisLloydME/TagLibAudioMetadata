@@ -710,8 +710,8 @@ extension TagLibMetadataManager {
         at url: URL,
         _ update: (inout BasicMetadata) throws -> Void
     ) throws -> MetadataWriteResult {
-        let snapshot = try readSnapshot(from: url)
-        var metadata = snapshot.basic
+        let snapshot = try readBasicSnapshot(from: url)
+        var metadata = snapshot.metadata
         try update(&metadata)
         return try replaceBasicMetadata(
             metadata,

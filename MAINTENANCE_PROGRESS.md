@@ -128,6 +128,9 @@ Last updated: 2026-09-22
   exact `MetadataFileVersion` without constructing the structured inspector
   projection. This creates a focused loading path for consumers such as
   AudioMator after an independent package release.
+- Routed `updateBasicMetadata(at:_:)` through that focused snapshot path, so a
+  Basic read/modify/write no longer constructs unused structured/container
+  inspector models while retaining the same version-checked replacement.
 - Revised the patch-verification performance finding: current `.all` reads are
   not merely verifying changed scalar fields. They also enforce preservation of
   every untouched PropertyMap value and artwork collection. Removing structured
