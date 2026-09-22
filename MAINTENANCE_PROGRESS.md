@@ -2,6 +2,96 @@
 
 Last updated: 2026-09-22
 
+## 2026-09-22 architecture and test-structure pass
+
+### Current status
+
+- Re-established the package from clean `main` and checked the external audit
+  against the current implementation and previous maintenance evidence.
+- Correctness work from the prior passes remains present: typed commit status,
+  independent track/disc mutation, safe Basic updates, rich advisory state,
+  focused Basic reads, and concrete-file probing.
+- Incremental Objective-C++ modularization is in progress.
+
+### Confirmed findings
+
+- Most bridge implementation fragments remain `.inc` files compiled into the
+  single `TagLibMetadataExtractor.mm` translation unit.
+- The format descriptor/extension registry was low-coupling data and lookup
+  logic suitable for the first real translation-unit extraction.
+- Current thread-safety documentation understated the existing process-local
+  same-entry mutation coordinator.
+- Swift and bridge schema tables remain intentionally duplicated and defended
+  by consistency tests; they are not generated from one source.
+
+### Rejected or revised findings
+
+- `fixtureCovered` is static validation evidence metadata, not runtime fixture
+  discovery. A public model split would be source-breaking and is not justified
+  solely for conceptual neatness in this pass.
+- The transaction subsystem already has a real translation unit and remains out
+  of scope for bridge modularization unless behavior requires a change.
+
+### Architecture decisions
+
+- Extract low-coupling registries behind private C++ headers first. Keep the
+  public Objective-C bridge API and Swift facade unchanged.
+- Preserve cross-language schema consistency tests. A checked-in generator is
+  deferred until its canonical input can represent aliases, container mappings,
+  field kinds, and capability restrictions without becoming a second schema.
+
+### Completed changes
+
+- Moved format enums, descriptors, extension arrays, and lookup functions from
+  `TLMetadataCore.inc` into `TLFormatRegistry.mm` with a private header.
+- Updated current thread-safety documentation to distinguish process-local
+  same-entry serialization from unspecified acquisition order/fairness.
+
+### Tests reorganized or added
+
+- Pending.
+
+### Validation performed
+
+- Focused `FormatCapabilityTests`: 18 tests, 0 failures.
+- Complete package suite: 137 tests executed, 2 opt-in tests skipped,
+  0 failures.
+- Strict Swift/Clang warnings-as-errors build succeeded.
+
+### Commits
+
+- Pending for this pass.
+
+### Cross-repository dependencies
+
+- No AudioMator dependency pin or release coupling changed. This package change
+  preserves the existing public API and can ship independently.
+
+### Documentation changes
+
+- Current architecture now identifies the real format-registry translation
+  unit and the remaining include-based bridge subsystems.
+- Thread-safety documentation now matches the implemented coordinator.
+
+### Remaining work
+
+- Run the complete package suite and strict-warning build.
+- Reorganize the clearest large test files without duplicating fixture support.
+- Finish the schema-generation decision record and final validation notes.
+
+### Deferred work
+
+- Property-map codec and container extractors need explicit private interfaces
+  before they can safely become separate translation units.
+- A machine-generated cross-language metadata schema remains deferred design
+  work; runtime schema parsing is rejected.
+
+### Risks / unresolved questions
+
+- The remaining bridge include graph still has implicit ordering dependencies.
+  Each later extraction must first make those dependencies explicit rather than
+  simply renaming an `.inc` file to `.mm`.
+
 ## 2026-09-22 second maintenance pass
 
 ### Current status
