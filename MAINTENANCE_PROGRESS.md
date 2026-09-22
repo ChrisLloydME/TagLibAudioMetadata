@@ -9,21 +9,19 @@ Last updated: 2026-09-22
 - Began from clean `main` at `0ccd4a7`. This repository has no `AGENTS.md`; the
   package remains an independent multi-platform product under its existing
   package contract.
-- The reported build, sanitizer, and minimum-platform CI failures currently
-  share a Swift compiler/type-inference failure in
-  `TagLibMetadataManager+Read.swift`. This must be corrected before treating any
-  job as an independent sanitizer or platform failure.
+- The reported build, sanitizer, and minimum-platform CI failures shared a
+  Swift compiler/type-inference failure in
+  `TagLibMetadataManager+Read.swift`. The source-compatible correction now lets
+  every local lane reach its intended checks; no second-layer defect appeared.
 - Xcode 27 is the stable local toolchain. Older supported CI toolchains still
   need source-compatible expressions and remain part of package validation.
 
-### Immediate order
+### Remaining work
 
-1. Fix the shared compiler-compatibility failure and scan adjacent source for
-   the same fragile inference pattern.
-2. Run the ordinary suite, minimum-platform builds, and sanitizer lanes far
-   enough to expose any genuine second-layer failures.
-3. Revalidate the first-pass API and transaction contracts without prematurely
-   publishing a package release.
+1. Run the final complete suite after documentation and the focused Basic-update
+   optimization.
+2. Verify the worktree is clean. Hosted CI remains authoritative for its runner
+   images after these commits are pushed.
 
 ### Completed changes
 
@@ -32,6 +30,19 @@ Last updated: 2026-09-22
   qualified `MetadataFieldFormat.mp4` case. The reported failures across the
   ordinary, sanitizer, and minimum-platform jobs shared this compiler-inference
   root cause rather than representing eight independent defects.
+- Routed `updateBasicMetadata(at:_:)` through `readBasicSnapshot(from:)`,
+  avoiding unused structured/container models without changing provenance or
+  optimistic-concurrency semantics.
+- Updated current architecture/support documentation for clone-or-copy staging
+  and the focused update path; the 2026-09-01 migration report is explicitly
+  labeled as historical evidence. The Xcode 27 workflow no longer calls the
+  stable toolchain a preview.
+
+### Commits
+
+- `c9ff8a4` — open the second package maintenance pass.
+- `299a506` — fix capability inference on supported CI toolchains.
+- `fdef171` — use focused snapshots for Basic metadata updates.
 
 ### Tests and validation
 

@@ -264,7 +264,9 @@ metadata.artworkData = try Data(contentsOf: coverURL)
 Empty strings mean "clear this field" when you write through
 `replaceBasicMetadata`. Numeric zero means "unset" for number fields. For a safe
 read/modify/write convenience, use `updateBasicMetadata(at:_:)`; it reads the
-current Basic projection and supplies its version to the replacement transaction.
+current Basic+PropertyMap projection through `readBasicSnapshot`, without
+constructing structured inspector models, and supplies its version to the
+replacement transaction.
 The ambiguous `writeMetadata` and `writeMetadataWithVerification` entry points
 remain as deprecated source-compatible wrappers.
 

@@ -1,5 +1,10 @@
 # Correctness and TagLib 2.3.1 migration report
 
+> Historical validation snapshot for 2026-09-01 and the migration revision
+> described below. Test totals and CI results are retained as period evidence,
+> not as a statement of current branch health. See `MAINTENANCE_PROGRESS.md` and
+> the current workflow for the maintained validation state.
+
 Date: 2026-09-01
 
 ## Outcome
