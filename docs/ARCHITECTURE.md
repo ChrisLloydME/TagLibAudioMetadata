@@ -46,6 +46,11 @@ current unified bridge still constructs its internal Basic carrier during a
 structured-only traversal; removing that remaining allocation requires a wider
 format-extractor split and is deferred.
 
+`readBasicSnapshot(from:)` returns that focused Basic projection with its exact
+optimistic-concurrency token. `updateBasicMetadata(at:_:)` uses this path before
+the version-checked replacement, so safe Basic read/modify/write does not build
+unused structured/container inspector models.
+
 ## Write pipeline
 
 The facade transaction coordinator creates one same-directory copy, takes one
@@ -115,12 +120,14 @@ bookkeeping is publicly readable for compatibility but writable only inside the
 module.
 
 Atomic rename provides a pathname-level all-or-nothing commit on one volume. It
-does not preserve inode identity or update sibling hard links. FileManager's
-copy preserves the metadata the platform preserves for an ordinary copy, but
-clients with strict ACL, extended-attribute, quarantine, immutable-flag, or
-security-scoped requirements must validate those properties in their deployment
-environment. The caller needs read access to the file and create/rename access
-in its parent directory.
+does not preserve inode identity or update sibling hard links. Staging uses
+`copyfile(COPYFILE_CLONE | COPYFILE_ACL)`: macOS attempts a same-volume
+copy-on-write clone and automatically falls back to an ordinary copy. Existing
+transaction checks still verify preserved ACLs, extended attributes, flags,
+permissions, and payload bytes, but clients with deployment-specific quarantine,
+immutable-flag, or security-scoped requirements must validate their environment.
+The caller needs read access to the file and create/rename access in its parent
+directory.
 
 If rename succeeds but the final parent-directory `fsync` fails, the new file is
 already committed. High-level Swift writes return a
@@ -144,9 +151,9 @@ because aliases and container fields can have different evidence levels.
 ## Performance and concurrency
 
 The migration removes ineffective generic-read fallback parsing and avoids
-nested facade transactions. A facade edit uses one staging copy rather than the
-former nested two-copy path; a complete snapshot uses one parser session rather
-than three. Basic post-write verification now derives Basic and PropertyMap
+nested facade transactions. A facade edit uses one clone-or-copy staging
+operation rather than the former nested two-copy path; a complete snapshot uses
+one parser session rather than three. Basic post-write verification now derives Basic and PropertyMap
 checks from one extraction instead of two, without enumerating raw ID3 frames.
 No synthetic percentage speedup is claimed because file size, storage,
 container, and tag density dominate elapsed time.
