@@ -25,6 +25,13 @@ dependencies: [
 ]
 ```
 
+That range selects the newest compatible tagged release. The API additions in
+the `[Unreleased]` changelog section describe current `main` and will become
+available in the next release after the maintainer creates its tag. Consumers
+evaluating those additions before then must deliberately select the `main`
+branch or an exact revision; production dependencies should prefer a release
+tag. No untagged version number is implied by this documentation.
+
 Most targets need only the facade product:
 
 ```swift
@@ -84,7 +91,8 @@ let patch = MetadataPatch(
 
 let result = try TagLibMetadataManager.applyMetadataPatch(
     patch,
-    to: url
+    to: url,
+    expectedVersion: snapshot.fileVersion
 )
 ```
 
@@ -289,10 +297,13 @@ The dynamic framework still exports TagLib C++ symbols, so loading another
 incompatible TagLib C++ implementation into the same process remains an ABI
 risk.
 
-The local acceptance matrix covers facade and low-level consumers, strict
+The CI configuration covers facade and low-level consumers, strict
 warnings-as-errors, sanitizer runs, concurrency stress, transaction failures,
-and format-specific round trips. The published binary's broader platform and
-dynamic-link matrix remains documented in the migration report.
+minimum deployment targets, release builds, and format-specific round trips.
+Those configured jobs are not evidence that an unrun commit passed. The latest
+completed validation for current `main` is recorded in
+[`MAINTENANCE_PROGRESS.md`](MAINTENANCE_PROGRESS.md); the older migration report
+is explicitly historical evidence.
 
 See [Architecture](docs/ARCHITECTURE.md), [Support](docs/SUPPORT.md),
 [Thread safety](docs/THREAD_SAFETY.md), and the

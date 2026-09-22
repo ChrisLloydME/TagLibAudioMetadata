@@ -13,11 +13,18 @@ parsing another file.
 
 Operations on independent files are safe. Mutations of the same canonical
 directory entry are serialized inside this process by a coordinator shared by
-the Swift facade and internal bridge transaction paths. Acquisition order and
-fairness are not part of the public contract, so callers must still provide
-their own ordering when a particular writer must win. Destination identity
-checks reject a stale transaction when an external actor changes the original
-before commit.
+the Swift facade and public bridge transaction paths. The lock key uses parent
+directory identity plus entry name, so it survives destination inode replacement
+and parent-directory symlink aliases. Acquisition order and fairness are not
+part of the public contract, so callers must still provide their own ordering
+when a particular writer must win. Destination identity checks reject a stale
+transaction when an external actor changes the original before commit.
+
+Snapshot reads do not hold the same-entry mutation lock for their full duration.
+They capture and compare file identity around extraction. Passing the returned
+`MetadataFileVersion` to a later patch or replacement causes the transaction to
+recheck that exact version after acquiring its same-entry lock and before
+staging.
 
 This contract assumes the client does not concurrently mutate TagLib global
 hooks through another direct linkage. Loading another TagLib C++ implementation

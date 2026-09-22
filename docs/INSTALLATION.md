@@ -5,7 +5,8 @@ XCFramework. It has no source, static, Homebrew, or system-library fallback.
 
 ## Add the package
 
-Depend on the Swift facade for normal application code:
+Depend on the Swift facade for normal application code. This version range
+selects the newest compatible tagged release:
 
 ```swift
 .package(
@@ -15,6 +16,22 @@ Depend on the Swift facade for normal application code:
 
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
+
+The APIs listed under `[Unreleased]` in the changelog belong to current `main`
+until the maintainer creates the next release tag. To evaluate that exact state
+before release, opt in explicitly:
+
+```swift
+.package(
+    url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
+    branch: "main"
+)
+```
+
+Branch dependencies move over time. Use them only for evaluation or coordinated
+integration; production dependencies should return to a tagged version range or
+an exact release after the next tag exists. This repository does not assign an
+untagged release version in advance.
 
 Advanced targets that directly use `TagLibMetadataExtractor` or
 `TagLibAudioMetadata` should declare the low-level product explicitly:

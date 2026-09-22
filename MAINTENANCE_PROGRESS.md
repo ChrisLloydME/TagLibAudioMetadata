@@ -2,6 +2,43 @@
 
 Last updated: 2026-09-22
 
+## Current task — next-release documentation readiness
+
+- [x] Step 1 — AudioMator removed the four converter Beta badges
+  (`7264504` in the AudioMator repository).
+- [x] Step 2 — Prepare TagLibAudioMetadata documentation for the next release.
+- [ ] Step 3 — AudioMator audits the former Beta converter workflows.
+
+### Step 2 — Documentation review
+
+- Reviewed the current manifest, public Swift facade, public Objective-C bridge,
+  field/capability registry, selective readers, patch validators, transaction
+  coordinators, file-version checks, and CI workflows before changing docs.
+- Corrected stale warning semantics: requested-value verification mismatches
+  abort before commit; successful warnings are non-fatal container advisories.
+- Corrected examples to carry `MetadataFileVersion` from snapshots into later
+  writes, documented versionless-write intent, and made same-entry transaction
+  serialization and its process-local limit explicit.
+- Elevated `RawMetadataPatch` as the precise partial PropertyMap API, corrected
+  the known-vs-custom field example, and documented independent formatted
+  track/disc mutations, Basic replacement/update semantics, field-level
+  capability preflight, concrete-file probing, selective reads, clone-or-copy
+  staging, and post-rename durability status against current implementation.
+- Clarified that compatibility `Bool` write/erase wrappers discard rich results
+  rather than printing warnings.
+- Confirmed supported deployment targets from `Package.swift` and the binary
+  slice documentation: macOS 13+ and iOS 16+ with Swift tools 6.0.
+- Installation now distinguishes compatible tagged releases from opt-in current
+  `main`. The `[Unreleased]` API is described as current `main` / next release;
+  no future version number was invented.
+- Kept `docs/MIGRATION_REPORT.md` unchanged as a clearly labeled historical
+  2026-09-01 snapshot rather than rewriting its period evidence.
+- Release/tag creation and the downstream AudioMator dependency upgrade remain
+  manual and explicitly deferred.
+- Validation: documentation/source consistency scan completed; full existing
+  package suite passed with 137 tests executed, 2 opt-in skips, and 0 failures.
+- Commit: this step's commit (`Prepare TagLibAudioMetadata documentation for next release`).
+
 ## 2026-09-22 architecture and test-structure pass
 
 ### Current status
