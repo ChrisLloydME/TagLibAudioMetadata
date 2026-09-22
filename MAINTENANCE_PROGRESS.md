@@ -2,6 +2,35 @@
 
 Last updated: 2026-09-22
 
+## 2026-09-22 second maintenance pass
+
+### Current status
+
+- Began from clean `main` at `0ccd4a7`. This repository has no `AGENTS.md`; the
+  package remains an independent multi-platform product under its existing
+  package contract.
+- The reported build, sanitizer, and minimum-platform CI failures currently
+  share a Swift compiler/type-inference failure in
+  `TagLibMetadataManager+Read.swift`. This must be corrected before treating any
+  job as an independent sanitizer or platform failure.
+- Xcode 27 is the stable local toolchain. Older supported CI toolchains still
+  need source-compatible expressions and remain part of package validation.
+
+### Immediate order
+
+1. Fix the shared compiler-compatibility failure and scan adjacent source for
+   the same fragile inference pattern.
+2. Run the ordinary suite, minimum-platform builds, and sanitizer lanes far
+   enough to expose any genuine second-layer failures.
+3. Revalidate the first-pass API and transaction contracts without prematurely
+   publishing a package release.
+
+### Deferred release integration
+
+- Publish these package changes only during release preparation. AudioMator must
+  then update its exact pin, map typed commit status, adopt selective Basic reads,
+  and execute cross-repository integration coverage.
+
 ## 2026-09-21 coordinated reliability pass
 
 ### Current status
