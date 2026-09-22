@@ -174,8 +174,13 @@ copy, flush, and rename work are outside the lock. See
   work.
 - `TagLibAudioMetadata.m`: Objective-C model and compatibility implementation.
 - `TLBridgeTransactions.mm`: low-level mutation transaction coordinator.
+- `TLFormatRegistry.mm`: format-family descriptors and extension lookup in an
+  independent translation unit.
 - `Internal/*.hpp`: private Objective-C++ declarations and TagLib header
   compatibility.
+- `Internal/*.inc`: bridge subsystems still compiled into
+  `TagLibMetadataExtractor.mm`; these are being migrated incrementally where a
+  real private interface provides a meaningful compiler boundary.
 - `Sources/TagLibAudioMetadata/*.swift`: public models, schemas, facade reads,
   writes, structured conversion, patches, and verification.
 

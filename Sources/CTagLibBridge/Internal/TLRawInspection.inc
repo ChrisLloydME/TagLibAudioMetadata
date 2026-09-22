@@ -472,7 +472,7 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
 + (NSArray<NSString *> *)supportedExtensions {
     try {
     NSMutableArray<NSString *> *extensions = [NSMutableArray array];
-    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+    for (const auto &descriptor : TLFormatCapabilityDescriptors()) {
         [extensions addObjectsFromArray:ExtensionsForDescriptor(descriptor)];
     }
     return [extensions copy];
@@ -482,7 +482,7 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
 + (NSArray<NSString *> *)writableExtensions {
     try {
     NSMutableArray<NSString *> *extensions = [NSMutableArray array];
-    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+    for (const auto &descriptor : TLFormatCapabilityDescriptors()) {
         if (IsWritableTagFileFormat(descriptor.format)) {
             [extensions addObjectsFromArray:ExtensionsForDescriptor(descriptor)];
         }
@@ -504,7 +504,7 @@ static NSDictionary<NSString *, NSObject *> *CapabilityDictionaryForDescriptor(
 + (NSArray<NSDictionary<NSString *, NSObject *> *> *)formatCapabilities {
     try {
     NSMutableArray<NSDictionary<NSString *, NSObject *> *> *capabilities = [NSMutableArray array];
-    for (const auto &descriptor : kFormatCapabilityDescriptors) {
+    for (const auto &descriptor : TLFormatCapabilityDescriptors()) {
         [capabilities addObject:CapabilityDictionaryForDescriptor(descriptor)];
     }
     return [capabilities copy];

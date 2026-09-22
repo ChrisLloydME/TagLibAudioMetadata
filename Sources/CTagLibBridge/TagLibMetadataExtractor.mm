@@ -20,6 +20,7 @@
 #include <stdarg.h>
 
 #include "Internal/TLTagLibHeaders.hpp"
+#include "Internal/TLFormatRegistry.hpp"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnullability-completeness"

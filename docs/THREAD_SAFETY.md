@@ -11,11 +11,13 @@ Swift value-model conversion, sibling-file copying, `fsync`, and atomic rename
 run outside the lock, so slow filesystem work does not unnecessarily block
 parsing another file.
 
-Operations on independent files are safe. The package does not promise ordering
-for concurrent mutations of the same canonical pathname; callers must serialize
-those operations when ordering matters. Destination identity checks reject a
-stale transaction when another actor changes the original before commit, but
-they do not choose which writer should win.
+Operations on independent files are safe. Mutations of the same canonical
+directory entry are serialized inside this process by a coordinator shared by
+the Swift facade and internal bridge transaction paths. Acquisition order and
+fairness are not part of the public contract, so callers must still provide
+their own ordering when a particular writer must win. Destination identity
+checks reject a stale transaction when an external actor changes the original
+before commit.
 
 This contract assumes the client does not concurrently mutate TagLib global
 hooks through another direct linkage. Loading another TagLib C++ implementation
