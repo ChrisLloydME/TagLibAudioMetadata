@@ -247,12 +247,12 @@ extension TagLibMetadataManager {
             throw MetadataPatchValidationError.unsupportedField(field)
         }
 
-        let capability = capability(forExtension: fileExtension)
-        let isMP4 = capability?.metadataFieldFormats.contains(.mp4) == true
+        let formatCapability: FormatCapability? = Self.capability(forExtension: fileExtension)
+        let isMP4 = formatCapability?.metadataFieldFormats.contains(MetadataFieldFormat.mp4) == true
         if field == .date, isMP4 {
             throw MetadataPatchValidationError.unsupportedFieldForFormat(
                 field: field,
-                format: capability?.identifier ?? fileExtension
+                format: formatCapability?.identifier ?? fileExtension
             )
         }
 

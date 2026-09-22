@@ -25,6 +25,24 @@ Last updated: 2026-09-22
 3. Revalidate the first-pass API and transaction contracts without prematurely
    publishing a package release.
 
+### Completed changes
+
+- Replaced three fragile nested capability expressions with explicitly typed
+  `FormatCapability` values, `Self.capability(forExtension:)`, and the fully
+  qualified `MetadataFieldFormat.mp4` case. The reported failures across the
+  ordinary, sanitizer, and minimum-platform jobs shared this compiler-inference
+  root cause rather than representing eight independent defects.
+
+### Tests and validation
+
+- Complete package suite: 137 tests executed, 2 opt-in tests skipped, 0 failures.
+- Strict warning build passed with Swift and Clang warnings treated as errors.
+- macOS 13 builds passed for arm64 and x86_64.
+- iOS 16 builds passed for device arm64 and Simulator arm64/x86_64.
+- AddressSanitizer and ThreadSanitizer suites each passed 137 tests with the same
+  2 opt-in skips. These local runs confirm both jobs now reach sanitizer execution;
+  hosted CI remains authoritative for its older runner toolchain.
+
 ### Deferred release integration
 
 - Publish these package changes only during release preparation. AudioMator must
