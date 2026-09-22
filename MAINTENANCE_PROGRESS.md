@@ -7,7 +7,13 @@ Last updated: 2026-09-22
 - [x] Step 1 — AudioMator removed the four converter Beta badges
   (`7264504` in the AudioMator repository).
 - [x] Step 2 — Prepare TagLibAudioMetadata documentation for the next release.
-- [ ] Step 3 — AudioMator audits the former Beta converter workflows.
+- [x] Step 3 — AudioMator audits the former Beta converter workflows.
+
+Cross-repository completion: AudioMator recorded the four-workflow audit,
+validation evidence, known limitations, and deferred release integration in
+`41ae960` (`Audit text and CSV metadata workflows`). The application remains on
+released TagLibAudioMetadata 0.5.2; this task did not create a release or change
+its package pin.
 
 ### Step 2 — Documentation review
 
