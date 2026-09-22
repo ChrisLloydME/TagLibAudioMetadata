@@ -11,7 +11,8 @@ Last updated: 2026-09-22
 - Correctness work from the prior passes remains present: typed commit status,
   independent track/disc mutation, safe Basic updates, rich advisory state,
   focused Basic reads, and concrete-file probing.
-- Incremental Objective-C++ modularization is in progress.
+- The scoped Objective-C++ modularization and physical test reorganization are
+  complete for this pass.
 
 ### Confirmed findings
 
@@ -65,7 +66,8 @@ Last updated: 2026-09-22
 
 ### Commits
 
-- Pending for this pass.
+- `c5edb86` — extract the TagLib format registry translation unit.
+- `e1e54b7` — reorganize TagLib tests by verification layer.
 
 ### Cross-repository dependencies
 
@@ -82,7 +84,8 @@ Last updated: 2026-09-22
 
 - Split the largest fixture and reliability test types only after their shared
   helpers are extracted without duplicating fixture support.
-- Finish the schema-generation decision record and final validation notes.
+- Extract shared fixture helpers before splitting the concentrated round-trip
+  test source by metadata concern.
 
 ### Deferred work
 
