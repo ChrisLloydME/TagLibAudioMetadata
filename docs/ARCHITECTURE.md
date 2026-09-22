@@ -185,3 +185,20 @@ copy, flush, and rename work are outside the lock. See
   writes, structured conversion, patches, and verification.
 
 Public headers do not expose internal C++ declarations.
+
+## Test layout
+
+The single SwiftPM test target is organized physically by test layer:
+
+- `Capabilities/` checks the public capability model and cross-language schema
+  consistency.
+- `Integration/` owns real-fixture round trips, container projections, and raw
+  metadata behavior.
+- `Transactions/` covers stale versions, failure atomicity, preservation, and
+  same-entry coordination.
+- `Concurrency/` contains cross-format and M4A stress coverage.
+- `ModelSemantics/` covers pure value-model contracts.
+- `Performance/` contains opt-in, non-gating throughput experiments.
+
+This hierarchy communicates failure semantics without multiplying XCTest
+targets or changing test discovery.
