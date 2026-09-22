@@ -49,7 +49,10 @@ Last updated: 2026-09-22
 
 ### Tests reorganized or added
 
-- Pending.
+- Reorganized the existing SwiftPM test target into `Capabilities`,
+  `Integration`, `Transactions`, `Concurrency`, `ModelSemantics`, and
+  `Performance` folders. Test types and behavior remain unchanged; shared audio
+  and artwork resources remain target-level resources.
 
 ### Validation performed
 
@@ -57,6 +60,8 @@ Last updated: 2026-09-22
 - Complete package suite: 137 tests executed, 2 opt-in tests skipped,
   0 failures.
 - Strict Swift/Clang warnings-as-errors build succeeded.
+- Complete suite after physical test reorganization: 137 tests executed,
+  2 opt-in tests skipped, 0 failures.
 
 ### Commits
 
@@ -75,8 +80,8 @@ Last updated: 2026-09-22
 
 ### Remaining work
 
-- Run the complete package suite and strict-warning build.
-- Reorganize the clearest large test files without duplicating fixture support.
+- Split the largest fixture and reliability test types only after their shared
+  helpers are extracted without duplicating fixture support.
 - Finish the schema-generation decision record and final validation notes.
 
 ### Deferred work
