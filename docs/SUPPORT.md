@@ -53,7 +53,7 @@ Pick the highest-level layer that keeps the data you need.
 | --- | --- | --- |
 | Comprehensive editing | `MetadataSnapshot`, `MetadataPatch`, `readSnapshot`, `applyMetadataPatch` | Professional editors that must preserve omitted and container-specific data. |
 | Basic metadata | `BasicMetadata`, `BasicMetadataSnapshot`, `readMetadataResult`, `readBasicSnapshot`, `updateBasicMetadata`, `replaceBasicMetadata` | Track editors, library views, common tags, artwork, common IDs, ReplayGain, iTunes fields. |
-| Raw property map | `RawMetadataDump`, `RawPropertyEntry`, `writeRawMetadataPropertyMapWithVerification` | Advanced editors that expose TagLib property keys directly. |
+| Raw property map | `RawMetadataDump`, `RawMetadataPatch`, `applyRawMetadataPatch`, whole-map compatibility writers | Advanced editors that expose exact TagLib property keys and value arrays. |
 | Structured metadata | `StructuredMetadata`, `StructuredID3v2Frame`, `StructuredMP4Atom`, `StructuredASFAttribute` | Container-aware editing of ID3v2 frames, MP4 atoms, ASF attributes, comments, lyrics, and artwork. |
 
 Use `BasicMetadata` for display and simple full-model editing. Use snapshots and
@@ -108,6 +108,7 @@ containing empty or whitespace-only elements are validation errors. Use
 `.remove` when absence is intended.
 
 ```swift
+let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
 let patch = MetadataPatch(
     fields: [.title: .text("Edited")],
     customFields: ["APP_EDITOR_STATE": .values(["One", "Two"])],
@@ -116,9 +117,15 @@ let patch = MetadataPatch(
 
 try TagLibMetadataManager.applyMetadataPatch(
     patch,
-    to: url
+    to: url,
+    expectedVersion: snapshot.fileVersion
 )
 ```
+
+Passing the snapshot version makes an edit based on that snapshot fail closed if
+the destination changes before the transaction acquires its same-entry lock.
+Omitting `expectedVersion` is appropriate only when the operation intentionally
+targets whatever content is current when it begins.
 
 Track and disc fields are semantic pairs even though the Patch API exposes
 their components separately. On MP4/M4A, changing only `.track` preserves the
@@ -311,10 +318,12 @@ let version = snapshot.fileVersion
 
 ### Writing Basic Metadata
 
-Use the verified write API for editable user data:
+When the UI already owns a Basic snapshot, pass its version into the verified
+replacement so a stale edit cannot overwrite a newer file:
 
 ```swift
-var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+let snapshot = try TagLibMetadataManager.readBasicSnapshot(from: url)
+var metadata = snapshot.metadata
 metadata.title = "New Title"
 metadata.artist = "New Artist"
 metadata.track = 2
@@ -323,7 +332,8 @@ metadata.trackNumberText = "02/10"
 
 let result = try TagLibMetadataManager.replaceBasicMetadata(
     metadata,
-    to: url
+    to: url,
+    expectedVersion: snapshot.fileVersion
 )
 
 for warning in result.warnings {
@@ -541,8 +551,26 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
 
 This is the better API for Xiph/Vorbis-style multi-value fields.
 
-The convenience wrapper `writeRawMetadataPropertyMap(_:to:mode:)` writes and
-prints warnings:
+For precise partial edits, prefer `RawMetadataPatch`. It retains exact arrays,
+uses explicit removals, verifies the complete visible PropertyMap, and accepts
+an optimistic-concurrency token:
+
+```swift
+let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+let patch = RawMetadataPatch(
+    valuesToSet: ["ARTIST": ["One", "Two"]],
+    removingKeys: ["OLD_WORKFLOW_KEY"]
+)
+
+let result = try TagLibMetadataManager.applyRawMetadataPatch(
+    patch,
+    to: url,
+    expectedVersion: snapshot.fileVersion
+)
+```
+
+The compatibility convenience `writeRawMetadataPropertyMap(_:to:mode:)`
+returns only `Bool` and discards the richer write result:
 
 ```swift
 try TagLibMetadataManager.writeRawMetadataPropertyMap(
@@ -714,7 +742,9 @@ The manager writes an empty `TagLibAudioMetadata`, clears the raw property map,
 wipes the native metadata container for supported families, and reads back the
 file to report residual fields.
 
-The convenience wrapper prints warnings:
+The compatibility convenience returns only `Bool` and discards the richer write
+result, so new code that needs residual diagnostics should keep using the
+verified API above:
 
 ```swift
 try TagLibMetadataManager.eraseAllMetadata(from: url)
@@ -722,23 +752,16 @@ try TagLibMetadataManager.eraseAllMetadata(from: url)
 
 ## Verification
 
-Write methods that return `MetadataWriteResult` may include warnings. Most
-warnings mean the bridge completed the write call, then the read-back check
-found a difference or could not confirm part of the requested change.
+Write methods that return `MetadataWriteResult` may include non-fatal container
+advisories after a successful verification. A requested value that is missing,
+different, unsupported by the actual write path, or otherwise unconfirmed is a
+verification failure: it throws and the staged file is not committed. Number
+format normalization is accepted only where the verifier establishes semantic
+numeric equivalence.
 
-Common warning causes:
-
-- The container normalized number formatting, such as `01/10` to `1/10`.
-- The container does not support a field.
-- A custom field was stored under a container-specific alias.
-- Artwork could not be confirmed after write.
-- Structured metadata collections changed shape after TagLib saved the file.
-- A structured reader reported a container advisory. Advisories remain visible
-  in `MetadataWriteResult.warnings`, but do not by themselves roll back a
-  correctly verified structured write.
-
-Verification differences are transaction failures. Container advisories are
-returned separately after a successful verification:
+Structured readers can report container advisories that do not contradict the
+requested mutation. Those advisories remain visible in
+`MetadataWriteResult.warnings` after a correctly verified write:
 
 ```swift
 let result = try TagLibMetadataManager.replaceBasicMetadata(
@@ -780,7 +803,12 @@ The package does not attempt a fake post-rename rollback.
 
 TagLib access and Objective-C projection construction from live native objects
 are serialized by a process-wide recursive mutex. Swift model conversion and
-filesystem copy, flush, and rename operations occur outside that lock.
+filesystem copy, flush, and rename operations occur outside that lock. A
+separate process-local directory-entry lock serializes the complete transaction
+for one destination across facade and bridge writes, including after atomic
+inode replacement. Independent destinations may stage and commit concurrently,
+although their TagLib parser intervals still share the global mutex. Neither
+lock excludes writers in another process.
 
 ## Field Registry
 
@@ -889,6 +917,8 @@ Technical and playback metadata:
 - `encodedBy`, `encoderSettings`
 - `replayGainTrack`, `replayGainAlbum`
 - `mediaType`, `bpm`, `isCompilation`, `isExplicit`
+- `explicitAdvisory` (the lossless four-state advisory value); `isExplicit` is
+  its deprecated-setter Boolean compatibility projection
 
 iTunes metadata:
 
@@ -918,11 +948,20 @@ fields, artwork, and custom fields back to the bridge model.
 
 `TagLibManagerError` can report:
 
+- `invalidFile`: the URL is not an existing regular file or is a final symbolic
+  link.
+- `fileChanged`: the optimistic version or destination identity became stale.
+- `hardLinkedFile`: atomic replacement would split a hard-linked file identity.
 - `unsupportedFormat`: the URL has no extension or the bridge does not support it.
+- `unsupportedWritePolicy(String)`: the selected structured write policy is not
+  implemented for that container.
 - `failedToReadWithUnderlying(String)`: TagLib or the bridge failed while reading.
 - `verificationFailed([String])`: verification produced failures and the caller
   cannot safely commit the staged replacement. Structured container advisories
   can still be returned as warnings without triggering this error.
+- `committedButDurabilityUncertain(String)`: compatibility/internal transaction
+  code observed parent-directory sync failure after rename. High-level manager
+  writes represent this committed state in `MetadataWriteResult.commitStatus`.
 - `failedToRead`: deprecated. Use `failedToReadWithUnderlying`.
 
 ## Low-Level Bridge API
@@ -1030,14 +1069,25 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
 )
 ```
 
-### Add a Custom Field
+### Add a Typed or Custom Field
 
 ```swift
-var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-metadata.customFields["CATALOGNUMBER"] = "ABC-123"
+let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+let patch = MetadataPatch(
+    fields: [.catalogNumber: .text("ABC-123")],
+    customFields: ["APP_REVIEW_STATE": .text("Approved")]
+)
 
-try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
+try TagLibMetadataManager.applyMetadataPatch(
+    patch,
+    to: url,
+    expectedVersion: snapshot.fileVersion
+)
 ```
+
+Schema-known keys such as `CATALOGNUMBER` belong in `fields`; `customFields`
+rejects known keys and aliases so the same semantic field cannot be written
+through two representations.
 
 For an MP4 freeform atom where you need the exact atom key, use structured
 metadata instead:
@@ -1084,15 +1134,20 @@ TagLibMetadataManager.isReadableExtension(url.pathExtension)
 For a concrete user file, prefer `probeFile(at:)`; an extension lookup alone
 does not prove that the bytes are valid audio or safe to offer for editing.
 
-Treat a successful write with warnings as a partial success. The file was saved,
-but the saved metadata may not exactly match the requested value.
+Treat a successful write with warnings as a verified commit with non-fatal
+container advisories. A mismatch in requested metadata throws before commit;
+warnings must not be described as silent write failure. Handle
+`commitStatus == .durabilityUncertain` separately because the rename committed
+even though the final directory sync failed.
 
 Do not assume that a field maps to the same storage key in every container. Use
 `MetadataFieldRegistry` to show mappings and `FormatCapability` to decide which
 controls to expose.
 
 Do not flatten multi-value fields unless your UI has decided to lose that
-structure. Use `writeRawMetadataPropertyMapValuesWithVerification` for arrays.
+structure. Prefer `RawMetadataPatch` for partial exact-array edits; use the
+whole-map values writer only when the caller deliberately owns a replacement or
+merge of the visible PropertyMap.
 
 Use structured metadata for frame-level editors. Use basic metadata for normal
 library editing.

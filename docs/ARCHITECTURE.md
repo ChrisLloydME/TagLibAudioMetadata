@@ -51,6 +51,12 @@ optimistic-concurrency token. `updateBasicMetadata(at:_:)` uses this path before
 the version-checked replacement, so safe Basic read/modify/write does not build
 unused structured/container inspector models.
 
+Callers that split read and write across UI events should retain the token and
+pass it to `applyMetadataPatch`, `applyRawMetadataPatch`,
+`replaceBasicMetadata`, or another version-aware entry point. Without an
+`expectedVersion`, a write intentionally targets the file state current when its
+transaction begins rather than the state previously shown to the user.
+
 ## Write pipeline
 
 The facade transaction coordinator creates one same-directory copy, takes one
