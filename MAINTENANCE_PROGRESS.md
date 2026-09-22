@@ -15,13 +15,14 @@ Last updated: 2026-09-22
   every local lane reach its intended checks; no second-layer defect appeared.
 - Xcode 27 is the stable local toolchain. Older supported CI toolchains still
   need source-compatible expressions and remain part of package validation.
+- The second pass is complete locally. Implementation, documentation, the full
+  package suite, strict-warning build, sanitizer lanes, and minimum-platform
+  matrix pass; hosted CI remains authoritative after push.
 
 ### Remaining work
 
-1. Run the final complete suite after documentation and the focused Basic-update
-   optimization.
-2. Verify the worktree is clean. Hosted CI remains authoritative for its runner
-   images after these commits are pushed.
+- No implementation work remains in this pass. The independent package release
+  and downstream AudioMator integration remain deferred to release preparation.
 
 ### Completed changes
 
@@ -43,6 +44,7 @@ Last updated: 2026-09-22
 - `c9ff8a4` — open the second package maintenance pass.
 - `299a506` — fix capability inference on supported CI toolchains.
 - `fdef171` — use focused snapshots for Basic metadata updates.
+- `3150c1e` — refresh package maintenance documentation.
 
 ### Tests and validation
 
@@ -53,6 +55,8 @@ Last updated: 2026-09-22
 - AddressSanitizer and ThreadSanitizer suites each passed 137 tests with the same
   2 opt-in skips. These local runs confirm both jobs now reach sanitizer execution;
   hosted CI remains authoritative for its older runner toolchain.
+- Final post-documentation/optimization package suite: 137 tests executed, 2
+  opt-in tests skipped, 0 failures.
 
 ### Deferred release integration
 
