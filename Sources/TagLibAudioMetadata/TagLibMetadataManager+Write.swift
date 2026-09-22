@@ -13,7 +13,8 @@ extension TagLibMetadataManager {
         releaseDate: String?,
         for url: URL
     ) throws {
-        guard capability(forExtension: url.pathExtension)?.metadataFieldFormats.contains(.mp4) == true else {
+        guard Self.capability(forExtension: url.pathExtension)?
+            .metadataFieldFormats.contains(MetadataFieldFormat.mp4) == true else {
             return
         }
 
