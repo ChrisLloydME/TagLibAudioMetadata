@@ -177,7 +177,7 @@ public struct TagLibMetadataManager {
             }
             let nsError = underlying as NSError
             if nsError.domain == "TagLibMetadataExtractor" || nsError.domain == "TagLibMetadataManager" {
-                throw TagLibManagerError.operationFailed(nsError.localizedDescription)
+                throw TagLibManagerError.operationFailedWithUnderlying(nsError)
             }
             throw underlying
         }

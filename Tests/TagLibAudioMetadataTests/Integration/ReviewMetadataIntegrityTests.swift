@@ -151,6 +151,25 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func nativeFailureRetainsStructuredCauseAndRollsBack() throws {
+        try withFixture("mp3") { url in
+            let before = try Data(contentsOf: url)
+            do {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(id3v2Frames: [
+                        .init(frameID: "BAD", type: "text", value: "Invalid")
+                    ]), to: url
+                )
+                Issue.record("Expected native payload validation failure")
+            } catch let error as TagLibManagerError {
+                let underlying = try #require(error.underlyingError)
+                #expect(underlying.domain == "TagLibMetadataExtractor")
+                #expect(underlying.code == 243)
+            }
+            #expect(try Data(contentsOf: url) == before)
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()

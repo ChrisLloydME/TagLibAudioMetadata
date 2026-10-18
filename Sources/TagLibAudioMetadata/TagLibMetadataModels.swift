@@ -617,7 +617,16 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
     case failedToRead
     case failedToReadWithUnderlying(String)
     case verificationFailed([String])
+    /// Compatibility case for callers constructing a message-only failure.
     case operationFailed(String)
+    /// A pre-commit native or filesystem failure, retaining domain, code, and
+    /// nested causes for recovery decisions.
+    case operationFailedWithUnderlying(NSError)
+
+    public var underlyingError: NSError? {
+        if case .operationFailedWithUnderlying(let error) = self { return error }
+        return nil
+    }
     /// Atomic rename completed, but the parent-directory fsync failed.
     /// The new file is already visible and callers must not treat this as a pre-commit failure.
     case committedButDurabilityUncertain(String)
@@ -633,6 +642,7 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
         case .failedToReadWithUnderlying(let detail): "The audio metadata could not be read: \(detail)"
         case .verificationFailed(let details): "Metadata verification failed before commit: \(details.joined(separator: "; "))"
         case .operationFailed(let detail): "The metadata operation failed: \(detail)"
+        case .operationFailedWithUnderlying(let error): "The metadata operation failed: \(error.localizedDescription)"
         case .committedButDurabilityUncertain(let detail): "Metadata was committed, but durability is uncertain: \(detail)"
         }
     }
