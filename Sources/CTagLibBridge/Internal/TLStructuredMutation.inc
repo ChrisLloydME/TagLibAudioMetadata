@@ -300,6 +300,12 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             return SetStructuredPayloadValidationError(error, @"ASF attribute fields have invalid value types");
         }
         NSString *type = (NSString *)entry[@"type"];
+        if ([type isEqualToString:@"guid"]) {
+            // The pinned public Attribute API cannot construct GuidType.
+            // Encoding as BytesType would silently change native identity.
+            return SetStructuredPayloadValidationError(error,
+                @"ASF GUID attributes are inspection-only with the pinned TagLib encoder");
+        }
         if ([type isEqualToString:@"int64"]) {
             unsigned long long value = 0;
             if (!UnsignedLongLongValueFromObject(entry[@"value"], value)) {
