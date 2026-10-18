@@ -128,6 +128,29 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func rawMergeAcceptsCaseInsensitiveKeys() throws {
+        try withFixture("flac") { url in
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["TITLE": ["Old"], "ARTIST": ["Keep"]], to: url
+            )
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["title": ["New"]], to: url, mode: .merge
+            )
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).title == "New")
+            try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+                ["title": ""], to: url, mode: .merge
+            )
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).title.isEmpty)
+            let before = try Data(contentsOf: url)
+            #expect(throws: RawMetadataPatchError.self) {
+                try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                    ["TITLE": ["One"], "title": ["Two"]], to: url, mode: .merge
+                )
+            }
+            #expect(try Data(contentsOf: url) == before)
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()
