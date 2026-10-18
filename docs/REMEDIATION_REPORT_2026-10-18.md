@@ -21,7 +21,7 @@ The most important corrections are:
 - ALAC codec/bit depth, multi-value capability flags, AAC/APE/ASF/TTA artwork, ASF custom attributes/advisory, and typed write errors were corrected.
 - `F_FULLFSYNC` is requested with an `fsync` fallback, and `.durable` is documented as an OS-level flush rather than a hardware guarantee.
 
-Validation on the final working tree: **152 tests executed, 150 passed, 2 opt-in skips, 0 failures**; Debug build and SwiftPM Release build succeeded. Sanitizer, alternate deployment targets, and independent ID3/MP4/ASF oracles remain unverified and are not claimed.
+Validation on the final working tree: **153 tests executed, 151 passed, 2 opt-in skips, 0 failures**; Debug build and SwiftPM Release build succeeded. Sanitizer, alternate deployment targets, and independent MP4/ASF oracles remain unverified and are not claimed.
 
 ---
 
@@ -176,12 +176,12 @@ No sanitizer, Thread Sanitizer, iOS device, or minimum-OS binary run was perform
 
 Final suite on the remediation tree:
 
-- **152 total**
-- **150 passed**
+- **153 total**
+- **151 passed**
 - **2 skipped** (`ExternalCorpusPreservationTests.testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus`, `SnapshotThroughputBenchmarkTests.testOptInIndependentFileSnapshotThroughput`)
 - **0 failed**, **0 expected failures**, **0 not run**
 
-New regression file: `Tests/TagLibAudioMetadataTests/Integration/AuditRemediationRegressionTests.swift` (15 tests). It covers:
+New regression file: `Tests/TagLibAudioMetadataTests/Integration/AuditRemediationRegressionTests.swift` (16 tests). It covers:
 
 1. structured property merge on M4A with hidden atoms/artwork;
 2. include-properties validation and key removal;
@@ -304,7 +304,7 @@ New fixtures are documented with SHA-256 in `Tests/TagLibAudioMetadataTests/Audi
 | RIFF | preserveInfo/id3v2Only independent chunk parser |
 | Capability | ALAC, multi-value flags, AAC artwork, MP4 date schema |
 | Errors | typed operation failure, missing reads, role/partial-pair errors |
-| Regression suite | 152 total, 150 pass, 2 opt-in skips |
+| Regression suite | 153 total, 151 pass, 2 opt-in skips |
 
 Existing suite also covers concurrency, transaction failure, hard links, malformed payloads, external categories (opt-in), structured collections, artwork types, explicit advisory, and source API compatibility.
 
@@ -312,7 +312,7 @@ Existing suite also covers concurrency, transaction failure, hard links, malform
 
 ## J. Deferred and Recommended Work
 
-1. Add independent ID3v2, MP4, and ASF oracles; do not rely only on package readers for verification.
+1. Add independent MP4 and ASF oracles; ID3v2 dates and WAV now have independent parsers.
 2. Add a compile-only/source-compatibility test target that exercises deprecated overloads, `.warn`, `.unchanged`, and bridge-type imports.
 3. Add deterministic changed-during-read race tests and sanitizer/thread-sanitizer runs.
 4. Normalize or formally deprecate Basic display separators, or provide an array-valued Basic projection.
@@ -331,5 +331,5 @@ The remediation fixes the confirmed high-impact data-loss and false-success path
 **Branch:** `fix/comprehensive-audit-remediation`
 **Base:** `main` at `03473c9`
 **Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`, `09b6f7d`, `9adb715`, `a62ab1c`, `c1d726b`, `2f918ae`, `47eb91b`, `c42e822`, `8cfa7d7`
-**Final validation:** Debug build pass; SwiftPM Release build pass; 152 tests, 150 pass, 2 skips, 0 failures (plus focused tests for the follow-up commits).
+**Final validation:** Debug build pass; SwiftPM Release build pass; 153 tests, 151 pass, 2 skips, 0 failures (plus focused tests for the follow-up commits).
 **Audit report:** `AUDIT_REPORT.md` (untracked, local exclude; not committed).
