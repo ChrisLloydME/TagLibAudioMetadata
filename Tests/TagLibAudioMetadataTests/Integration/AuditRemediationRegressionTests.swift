@@ -234,6 +234,27 @@ final class AuditRemediationRegressionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), before)
     }
 
+    func testBasicClearingPreservesUnmodeledQualifiedAndCustomFields() throws {
+        for ext in ["flac", "ogg"] {
+            let url = try copyFixture(ext)
+            try TagLibMetadataManager.applyRawMetadataPatch(
+                RawMetadataPatch(valuesToSet: [
+                    "TITLE": ["Clear me"],
+                    "PERFORMER:GUITAR": ["Guitarist"],
+                    "CUSTOM_FIELD": ["Custom Value"],
+                ]),
+                to: url
+            )
+
+            try TagLibMetadataManager.replaceBasicMetadata(.empty, to: url)
+
+            let basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(basic.title, "", ext)
+            XCTAssertEqual(try values("PERFORMER:GUITAR", in: url), ["Guitarist"], ext)
+            XCTAssertEqual(try values("CUSTOM_FIELD", in: url), ["Custom Value"], ext)
+        }
+    }
+
     func testPartialNumberPairRemovalIsRejectedAndGenericRemovalPreservesTotal() throws {
         for ext in ["mp3", "m4a"] {
             let url = try copyFixture(ext)
