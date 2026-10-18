@@ -2,7 +2,18 @@
 
 Last updated: 2026-10-18
 
-## Current task — comprehensive audit remediation
+## Current task — independent post-remediation review
+
+- Review branch: `review/comprehensive-remediation-verification`, created from
+  third-party HEAD `62504ff`; main remains at `03473c9`.
+- Independently reproduced and repaired preservation, verification, native
+  concurrency-boundary, and source-compatibility defects in focused commits.
+- Added native byte/atom evidence and strengthened fixtures that previously
+  concealed WAV INFO loss. Historical audit/remediation records are unchanged.
+- The dated independent review records the final finding matrix, executed checks,
+  remaining caveats, commit history, and merge decision. No merge was performed.
+
+## Prior task — comprehensive audit remediation
 
 - Validated the independent audit findings against source and runtime probes,
   then implemented focused fixes on `fix/comprehensive-audit-remediation`.

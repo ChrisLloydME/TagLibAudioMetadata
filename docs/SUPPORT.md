@@ -267,6 +267,8 @@ Basic custom fields is rejected.
 
 Removing an entry from `BasicMetadata.customFields` does not delete it on disk;
 absence means the normalized Basic projection is not making a deletion request.
+An explicitly supplied empty custom value clears that custom entry; raw Patch
+removal is the preferred explicit deletion API.
 Use `MetadataPatch(customFields: [key: .remove])` or a raw API for deletion.
 Changing an existing custom value still writes the new value. Cardinality and
 original-projection bookkeeping is exposed read-only and cannot be mutated by
@@ -827,7 +829,10 @@ showWarnings(result.warnings)
 Read-back verification differences always abort before commit.
 
 Basic verification requests Basic+PropertyMap together and derives both checks
-from one TagLib extraction without enumerating raw ID3 frame summaries. Patch
+from one TagLib extraction without enumerating raw ID3 frame summaries. A whole
+Basic transaction may additionally capture native collections, restore raw/native
+preservation data, and verify those restorations; it is not a single-parse or
+single-save operation. Patch
 verification requests the complete projection set because it compares both
 unedited PropertyMap fields and unedited artwork; it does not switch projection
 work on only when artwork changes. Raw inspectors request PropertyMap and

@@ -61,7 +61,7 @@ than the state previously shown to the user.
 ## Write pipeline
 
 The facade transaction coordinator creates one same-directory copy, takes one
-initial snapshot where needed, performs in-place bridge mutations on that copy,
+current projections where needed, performs in-place bridge mutations on that copy,
 reads a verification snapshot, requests `F_FULLFSYNC` on the file (falling back
 to `fsync` when unsupported), rechecks original identity, renames atomically, and
 flushes the parent directory. Public bridge mutators use
