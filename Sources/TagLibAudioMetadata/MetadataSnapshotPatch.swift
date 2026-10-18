@@ -239,7 +239,7 @@ extension TagLibMetadataManager {
         number: Int, total: Int, field: MetadataFieldKey, for url: URL
     ) throws {
         let format = capability(forExtension: url.pathExtension)?.identifier ?? url.pathExtension
-        if ["mpeg-id3", "mpeg-aac", "mp4", "wav"].contains(format), number == 0, total > 0 {
+        if ["mpeg-id3", "mpeg-aac", "mp4", "wav", "asf"].contains(format), number == 0, total > 0 {
             throw MetadataPatchValidationError.unsupportedPartialPairRemoval(field: field, format: format)
         }
     }

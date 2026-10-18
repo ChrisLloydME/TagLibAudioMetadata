@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 // The public package currently consumes the legacy TagLib.framework release,
 // while the next binary revision uses a namespaced framework to avoid host-app
 // collisions. Keep the bridge source compatible with both binary layouts
