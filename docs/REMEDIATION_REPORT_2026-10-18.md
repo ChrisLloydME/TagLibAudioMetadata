@@ -1,4 +1,6 @@
-# Audit Remediation Report — 2026-10-18
+# Maintenance Results Report — Audit Remediation — 2026-10-18
+
+**Handover edition for independent Codex audit.**
 
 **Scope:** `TagLibAudioMetadata` repository at audit commit `03473c9`.
 **Remediation branch:** `fix/comprehensive-audit-remediation` (created from `main`; `main` was not modified).
@@ -9,7 +11,7 @@
 
 ## A. Executive Summary
 
-The audit identified 14 production findings, 8 lower-priority production observations, 12 public-API/compatibility findings, 15 test findings, and 15 documentation findings. I revalidated each finding against source and runtime probes before changing code. The remediation branch implements concrete preservation, verification, capability, artwork, WAV/RIFF, ASF, number-pair, ALAC, and error-typing fixes, adds independent WAV/RIFF regression coverage and generated format fixtures, and updates the public documentation to match actual behavior.
+The audit identified 14 production findings, 8 lower-priority production observations, 12 public-API/compatibility findings, 15 test findings, and 15 documentation findings. I revalidated each finding against source and runtime probes before changing code. The remediation branch implements concrete preservation, verification, capability, artwork, WAV/RIFF, ASF, number-pair, ALAC, and error-typing fixes, adds independent WAV/RIFF and ID3v2 regression coverage plus generated format fixtures, and updates the public documentation to match actual behavior.
 
 The most important corrections are:
 
@@ -167,7 +169,7 @@ Legend: **FIXED** = confirmed defect corrected and covered by source/test eviden
 | Check | Result |
 |---|---|
 | Xcode Debug build | Succeeded, 0 errors |
-| SwiftPM Release build (`swift build -c release --disable-sandbox`) | Succeeded (`Build complete!`, 18.61 s) |
+| SwiftPM Release build (`swift build -c release --disable-sandbox`) | Succeeded (`Build complete!`, final rerun 32.33 s) |
 | `xcodebuild -configuration Release` | Blocked by sandbox access to SwiftPM manifest cache (`Operation not permitted`), not by source errors |
 
 No sanitizer, Thread Sanitizer, iOS device, or minimum-OS binary run was performed in this remediation.
@@ -186,20 +188,21 @@ New regression file: `Tests/TagLibAudioMetadataTests/Integration/AuditRemediatio
 1. structured property merge on M4A with hidden atoms/artwork;
 2. include-properties validation and key removal;
 3. collection-frame rejection and frame-list exclusion;
-4. full-date preservation and TYER absence;
+4. full-date preservation, independent ID3v2 TDRC/TYER parsing, and year-edit replacement;
 5. documented aliases/qualified people;
-6. NUL/role rejection without mutation;
-7. partial pair removal rejection and generic removal;
-8. canonical totals and WAV INFO preservation;
-9. raw merge preservation on M4A/WAV and raw replace atom behavior;
-10. MIME correction with identical bytes;
-11. `expectedVersion` rejection;
-12. RIFF `.preserveInfo`/`.id3v2Only`;
-13. AAC/ASF/TTA/WavPack/M4A/MP3 artwork and ASF attribute upsert;
-14. capability/ALAC/schema assertions;
-15. typed missing-file/read errors.
+6. NUL/role-qualified/empty-key rejection without mutation;
+7. Basic clearing preserves qualified and custom fields;
+8. partial pair removal rejection and generic removal;
+9. canonical totals and WAV INFO preservation;
+10. raw merge preservation on M4A/WAV and raw replace atom behavior;
+11. MIME correction with identical bytes;
+12. `expectedVersion` rejection, including the compatibility convenience writer;
+13. RIFF `.preserveInfo`/`.id3v2Only` with parser-independent chunk assertions;
+14. AAC/ASF/TTA/WavPack/M4A/MP3 artwork and ASF attribute upsert;
+15. capability/ALAC/schema assertions;
+16. typed missing-file/read errors.
 
-Independent oracle: the WAV tests parse RIFF chunks and INFO directly rather than relying on the package reader.
+Independent oracles: WAV tests parse RIFF chunks/INFO directly; the MP3 date test parses ID3v2 frames directly. Neither check uses the package reader as the expected-value source.
 
 ### D.3 Runtime probes used during investigation
 
@@ -229,6 +232,10 @@ Independent oracle: the WAV tests parse RIFF chunks and INFO directly rather tha
 | `47eb91b` | Document follow-up validation and version tokens |
 | `c42e822` | Verify ID3v2 dates with an independent parser |
 | `8cfa7d7` | Record independent ID3v2 verification |
+| `e3b0ba0` | Record follow-up commit history |
+| `04e538a` | Record final remediation test count |
+
+This handover update is committed after the listed commits; use `git log -1` to identify the exact HEAD.
 
 Representative source files:
 
@@ -255,7 +262,7 @@ New fixtures are documented with SHA-256 in `Tests/TagLibAudioMetadataTests/Audi
 1. **TagLib binary is unchanged.** Findings that require a different TagLib parser/serializer (for example arbitrary opaque native reconstruction) remain dependency-bound. No dependency upgrade was attempted.
 2. **Artwork coverage is fixture-limited.** AAC, ASF/WMA, TrueAudio, WavPack, M4A, and MP3 are covered; APE/Musepack use the shared APE path but have no repository fixture. Multiple-image APE/ASF behavior is restricted (one front cover for APE).
 3. **No sanitizer or platform matrix run.** Debug/Release local builds and macOS tests passed; iOS, watchOS, tvOS, visionOS, sanitizer, and power-loss behavior are not claimed.
-4. **No independent ID3v2/MP4/ASF oracle.** WAV uses an independent RIFF parser; other formats still use package/bridge readers for verification. New tests do compare public raw/structured outputs, but that is not a third-party oracle.
+4. **No independent MP4/ASF oracle.** WAV uses an independent RIFF parser and MP3 dates use an independent ID3v2 parser; MP4/ASF tests still use package/bridge readers for expected values. New tests compare public raw/structured outputs, but that is not a third-party oracle.
 5. **Capability model remains coarse.** `writeSupport(for:)`, `structuredWriteSupport`, `canWriteArtwork`, and `preservesMultiValueProperties` are family-level labels. The docs now say so; a per-API capability model was not introduced.
 6. **Basic display separators remain format-dependent.** Documented, not normalized; callers that split display strings can still corrupt multi-values.
 7. **Raw `.replace` is not byte-exact.** It owns the visible PropertyMap and can remove WAV INFO or opaque native data. `.merge`/`RawMetadataPatch` are the preservation-safe paths.
@@ -324,12 +331,87 @@ Existing suite also covers concurrency, transaction failure, hard links, malform
 
 ---
 
-## K. Conclusion and Audit Trail
+## K. Handover Checklist for Independent Codex Audit
+
+### K.1 Repository state to verify first
+
+```bash
+git status --short
+git branch --show-current
+git log --oneline --decorate main..HEAD
+git merge-base --is-ancestor main HEAD && echo "main is ancestor"
+git rev-parse --short main
+```
+
+Expected:
+
+- branch `fix/comprehensive-audit-remediation`;
+- `main` at `03473c9` and unchanged;
+- the commit containing this report is the branch HEAD;
+- no non-ignored modified or untracked files;
+- `AUDIT_REPORT.md` remains untracked and is listed in `.git/info/exclude`, not committed;
+- no merge commit, amend, rebase, or squash was used.
+
+If `git status` is not clean, inspect the files before doing anything; do not reset or discard them.
+
+### K.2 Commands used for final verification
+
+```bash
+# Debug build (Xcode workspace)
+# BuildProject in Xcode, or:
+xcodebuild -scheme TagLibAudioMetadata-Package -destination 'platform=macOS' build CODE_SIGNING_ALLOWED=NO
+
+# Release build (SwiftPM; the xcodebuild Release path was blocked by a
+# sandboxed SwiftPM manifest-cache permission error in this environment)
+swift build -c release --disable-sandbox
+
+# Tests: RunAllTests in Xcode / XCTest runner.
+# Final result bundle:
+# Test-TagLibAudioMetadata-Package-2026.10.18_18-58-24-+0800.xcresult
+```
+
+The test environment reported **153 tests: 151 passed, 2 skipped, 0 failed**. The two skips are the existing opt-in external-corpus and throughput tests. Do not treat skipped tests as executed evidence.
+
+### K.3 Audit focus for Codex
+
+1. Re-read `AUDIT_REPORT.md` and independently confirm each `FIXED` claim against the diff and tests; do not accept this report as authority.
+2. Focus on the `PARTIALLY FIXED` set: raw `.replace` native/hidden-data limits, family-level capability granularity, low-level `writeTagMetadata` bridge-type exposure, and the remaining test-oracle gaps.
+3. Re-run the independent RIFF/INFO and ID3v2 parsers against the new fixtures; confirm they are not simply reusing package readers.
+4. Check that APE/Musepack, MP4, and ASF behavior is not overclaimed beyond available fixtures.
+5. Confirm `.warn` is source-compatible but still cannot bypass verification.
+6. Confirm `F_FULLFSYNC` is attempted with the documented fallback; do not claim power-loss durability.
+7. Verify that no changes were made on `main` and that the audit report remains intentionally uncommitted.
+8. Treat generated ALAC/WMA/TTA/WavPack fixtures as test data; their hashes and origins are in `Tests/TagLibAudioMetadataTests/Audio/README.md`.
+
+### K.4 Artifacts intentionally present
+
+| Artifact | State |
+|---|---|
+| `docs/REMEDIATION_REPORT_2026-10-18.md` | Committed handover report |
+| `AUDIT_REPORT.md` | Untracked, local exclude, not committed |
+| `Tests/TagLibAudioMetadataTests/Integration/AuditRemediationRegressionTests.swift` | Committed regression coverage |
+| `Tests/TagLibAudioMetadataTests/Audio/testAudioFile-alac.m4a` | Committed generated fixture |
+| `Tests/TagLibAudioMetadataTests/Audio/testAudioFile.wma` | Committed generated fixture |
+| `Tests/TagLibAudioMetadataTests/Audio/testAudioFile.tta` | Committed generated fixture |
+| `Tests/TagLibAudioMetadataTests/Audio/testAudioFile.wv` | Committed generated fixture |
+
+### K.5 Known environment limits
+
+- `xcodebuild -configuration Release` failed while resolving the package because the sandbox denied writing a SwiftPM manifest diagnostic cache; the SwiftPM Release build succeeded.
+- No sanitizer, Thread Sanitizer, iOS device, watchOS/tvOS/visionOS, or power-loss test was run.
+- No APE/Musepack fixture exists in the repository; the shared APE path is covered indirectly by WavPack and by source review.
+- No independent MP4 or ASF oracle exists yet.
+
+---
+
+## L. Conclusion and Audit Trail
 
 The remediation fixes the confirmed high-impact data-loss and false-success paths and narrows or documents the remaining limitations. It does not claim that every audit observation is fully resolved: **39 findings are FIXED, 16 are PARTIALLY FIXED, 8 are IMPROVED, and 1 is DEFERRED**; all 64 matrix entries are accounted for. The working tree is clean; the intentionally untracked audit report is excluded locally rather than committed per the earlier instruction.
 
 **Branch:** `fix/comprehensive-audit-remediation`
 **Base:** `main` at `03473c9`
-**Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`, `09b6f7d`, `9adb715`, `a62ab1c`, `c1d726b`, `2f918ae`, `47eb91b`, `c42e822`, `8cfa7d7`
+**Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`, `09b6f7d`, `9adb715`, `a62ab1c`, `c1d726b`, `2f918ae`, `47eb91b`, `c42e822`, `8cfa7d7`, `e3b0ba0`, `04e538a`
 **Final validation:** Debug build pass; SwiftPM Release build pass; 153 tests, 151 pass, 2 skips, 0 failures (plus focused tests for the follow-up commits).
 **Audit report:** `AUDIT_REPORT.md` (untracked, local exclude; not committed).
+
+---
