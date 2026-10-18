@@ -39,7 +39,7 @@ const TLFormatCapabilityDescriptor kDescriptors[] = {
     { TLTagFileFormatMPC, "musepack", "Musepack", "Musepack", kMPCExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
     { TLTagFileFormatWAV, "wav", "WAV / RIFF", "WAV", kWAVExtensions, "container", "container", true, true, true, nullptr, "Structured writes use ID3v2; preserveInfo keeps RIFF INFO, id3v2Only removes it." },
     { TLTagFileFormatAIFF, "aiff", "AIFF", "AIFF", kAIFFExtensions, "container", "container", true, true, true, nullptr, "Structured writes use ID3v2." },
-    { TLTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "propertyMap", true, true, true, nullptr, "Structured reads expose the ID3v2 tag; structured writes support PropertyMap deltas and complex-property artwork." },
+    { TLTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "container", true, true, true, nullptr, "Structured reads and writes support ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas." },
     { TLTagFileFormatASF, "asf", "ASF / WMA", "WMA", kASFExtensions, "container", "container", true, true, true, nullptr, "ASF attributes are exposed for structured editing." },
     { TLTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "DSF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork." },
     { TLTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "DSDIFF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork." },

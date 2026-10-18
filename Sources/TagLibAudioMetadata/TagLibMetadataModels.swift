@@ -390,7 +390,10 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
         case .embeddedNull(let location):
             return "\(location) contains an embedded null character, which cannot be represented safely."
         case .unsupportedID3v2FrameType(let type):
-            return "ID3v2 frame type '\(type)' must be edited through the dedicated artwork, comments, or lyrics collection."
+            if ["artwork", "comment", "lyrics"].contains(type) {
+                return "ID3v2 frame type '\(type)' must be edited through the dedicated artwork, comments, or lyrics collection."
+            }
+            return "ID3v2 frame type '\(type)' is read-only or unsupported; omit inspection-only frames when writing."
         case .knownFieldRequiresRawAPI(let key):
             return "Custom key '\(key)' is a schema-known field; use RawMetadataPatch or StructuredMetadata instead."
         case .invalidCustomFieldKey(let key):
