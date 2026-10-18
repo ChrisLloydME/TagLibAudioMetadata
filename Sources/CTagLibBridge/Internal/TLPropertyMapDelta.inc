@@ -216,6 +216,8 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                                                     toURL:(NSURL *)fileURL
                                                     error:(NSError **)error
 {
+    try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
     if (DetectTagFileFormat(fileURL.pathExtension) != TLTagFileFormatWAV) {
         return [self applyPropertyMapValuesInPlace:valuesToSet removingKeys:keysToRemove toURL:fileURL error:error];
     }
@@ -256,6 +258,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return NO;
     }
     return YES;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"INFO-preserving property-map mutation", NO)
 }
 
 + (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
