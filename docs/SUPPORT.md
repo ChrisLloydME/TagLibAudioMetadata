@@ -758,9 +758,12 @@ level still permits artwork through the structured artwork collection when
 - `.syncBasicFieldsToInfo`: reserved but not implemented; selection fails before
   a staging transaction begins with `unsupportedWritePolicy`.
 
-WAV PropertyMap writes target the surface that owns each key: INFO keys update
-RIFF INFO, ID3v2 keys update ID3v2, and new keys go to ID3v2. Basic WAV writes
-target ID3v2 and leave INFO untouched.
+Raw WAV PropertyMap deltas target the surface that owns each key: INFO keys
+update RIFF INFO, ID3v2 keys update ID3v2, and new keys go to ID3v2. Basic, typed
+Patch, and structured WAV writes target ID3v2 and leave INFO untouched unless
+structured `riffPolicy: .id3v2Only` is selected. A verified deletion that would
+expose a retained INFO fallback is rejected; use raw deletion to clear both
+surfaces.
 
 ## Erasing Metadata
 

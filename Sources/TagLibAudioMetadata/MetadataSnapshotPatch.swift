@@ -559,11 +559,20 @@ extension TagLibMetadataManager {
             }
 
             if !propertyValues.isEmpty || !keysToRemove.isEmpty {
-                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                    propertyValues,
-                    removingKeys: Array(keysToRemove),
-                    to: mutationURL
-                )
+                if ext == "wav" {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
+                        propertyValues,
+                        removingKeys: Array(keysToRemove),
+                        preserveInfoOnlyValues: false,
+                        to: mutationURL
+                    )
+                } else {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                        propertyValues,
+                        removingKeys: Array(keysToRemove),
+                        to: mutationURL
+                    )
+                }
             }
 
             switch patch.artwork {

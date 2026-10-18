@@ -213,6 +213,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
 
 + (BOOL)applyPropertyMapValuesPreservingInfoSurfaceInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
                                              removingKeys:(NSArray<NSString *> *)keysToRemove
+                                   preserveInfoOnlyValues:(BOOL)preserveInfoOnlyValues
                                                     toURL:(NSURL *)fileURL
                                                     error:(NSError **)error
 {
@@ -239,7 +240,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         TagLib::String tagKey = NSStringToTagString(trimmedKey);
         // RIFF INFO is already preserved by the Basic writer leaving that
         // surface untouched. Do not copy INFO-only values into ID3.
-        if (info.contains(tagKey) && !id3.contains(tagKey)) {
+        if (preserveInfoOnlyValues && info.contains(tagKey) && !id3.contains(tagKey)) {
             continue;
         }
         TagLib::StringList values;

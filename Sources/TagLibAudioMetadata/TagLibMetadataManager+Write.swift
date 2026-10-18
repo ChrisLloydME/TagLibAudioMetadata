@@ -926,7 +926,7 @@ extension TagLibMetadataManager {
                 // can resurface when the canonical field is later cleared.
                 if ext == "wav" {
                     try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
-                        [:], removingKeys: editedTextKeys, to: mutationURL
+                        [:], removingKeys: editedTextKeys, preserveInfoOnlyValues: true, to: mutationURL
                     )
                 } else {
                     try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
@@ -951,6 +951,7 @@ extension TagLibMetadataManager {
                     try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
                         preservation.values,
                         removingKeys: Array(preservation.aliases),
+                        preserveInfoOnlyValues: true,
                         to: mutationURL
                     )
                 } else {
