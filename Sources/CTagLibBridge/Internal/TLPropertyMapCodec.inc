@@ -934,14 +934,15 @@ static TagLib::List<TagLib::VariantMap> MergingBasicPictureComplexProperties(
 
         replacedPrimary = true;
         TagLib::ByteVector existingData = existing.value("data").value<TagLib::ByteVector>();
-        TagLib::String existingMime = existing.value("mimeType").value<TagLib::String>();
-        TagLib::String replacementMime = replacement.value("mimeType").value<TagLib::String>();
-        // An unchanged Basic projection must not rewrite artwork bytes, but a
-        // caller-requested MIME correction must still be applied when the
-        // bytes are identical.
-        pictures.append(existingData == replacementData && existingMime == replacementMime
-                            ? existing
-                            : replacement);
+        if (existingData == replacementData) {
+            // Basic cannot express captions, dimensions, or native picture
+            // attributes. A MIME-only correction must retain those values.
+            TagLib::VariantMap corrected = existing;
+            corrected.insert("mimeType", replacement.value("mimeType"));
+            pictures.append(corrected);
+        } else {
+            pictures.append(replacement);
+        }
     }
 
     if (!replacedPrimary) pictures.prepend(replacement);
