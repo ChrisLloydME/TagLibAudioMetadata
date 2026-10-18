@@ -868,6 +868,28 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         return YES;
     }
 
+    if (format == TLTagFileFormatTTA) {
+        if (mp4Atoms || asfAttributes) {
+            return SetStructuredPayloadValidationError(error, @"TrueAudio supports ID3v2 collections only");
+        }
+        TagLib::TrueAudio::File file(filePath);
+        if (!file.isValid()) {
+            return SetStructuredPayloadValidationError(error, @"Unable to open TrueAudio file for structured metadata editing");
+        }
+        if (propertyValues) {
+            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+        }
+        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+        UpsertID3v2StructuredFrames(tag, frames);
+        ReplaceID3v2Comments(tag, comments);
+        ReplaceID3v2Lyrics(tag, lyrics);
+        ReplaceID3v2Artwork(tag, artwork);
+        if (!file.save()) {
+            return SetStructuredPayloadValidationError(error, @"TagLib failed to save structured TrueAudio metadata");
+        }
+        return YES;
+    }
+
     if (format == TLTagFileFormatAPE ||
         format == TLTagFileFormatWavPack ||
         format == TLTagFileFormatMPC) {
