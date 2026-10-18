@@ -175,11 +175,14 @@ Use `writeTrackNumberText` when formatted number text itself is the intentional
 input; new exact-text writes use the package-neutral namespace.
 
 `BasicMetadata` remains a convenient normalized projection, but it is not a
-lossless editing document. Values read from a file retain a separate raw
+lossless editing document. Multi-value scalar fields such as `artist` and
+`genre` are display strings with a format-dependent separator (`", "` on
+ID3/MP4, `"; "` on generic/Xiph paths); use raw or structured metadata when the
+array is authoritative. Values read from a file retain a separate raw
 cardinality/provenance baseline, so unrelated Basic edits preserve untouched
-standard multi-values, schema-known fields Basic cannot model, and custom fields
-without splitting display strings on semicolons. Removing a key from
-`BasicMetadata.customFields` is not a deletion tombstone; use
+standard multi-values, full recording dates, documented aliases, qualified
+people fields, and custom fields without splitting display strings. Removing a
+key from `BasicMetadata.customFields` is not a deletion tombstone; use
 `MetadataPatchValue.remove` for explicit deletion.
 
 For professional editors, read `MetadataSnapshot` and write
@@ -196,8 +199,10 @@ print(capability.supportLevel)
 print(capability.writeSupport(for: .artwork))
 ```
 
-Use `capability(forExtension:)` only for declared-format discovery where no
-concrete file exists yet. It does not open or validate audio content.
+`probeFile` validates readability with the selected parser; it does not test
+POSIX write permission, ACLs, disk space, or sandbox access. Use
+`capability(forExtension:)` only for declared-format discovery where no concrete
+file exists yet. It does not open or validate audio content.
 
 Support levels are `fixtureCovered`, `experimental`, `upstreamSupported`,
 `readOnly`, and `unsupported`. These are configured coverage/implementation
@@ -210,8 +215,10 @@ returned by capability lookup.
 Reads reject files the selected TagLib parser cannot read. This is not a promise
 to detect every malformed file. Snapshot reads require a regular file (not a final
 symlink), bracket extraction with file-version checks, and return `fileVersion`.
-Pass that token as `expectedVersion` to a typed or raw patch to reject stale edits
-after acquiring the transaction lock and before creating the temporary copy.
+Pass that token as `expectedVersion` to typed/raw patches, raw whole-map writes,
+structured writes, or `writeTagMetadata` to reject stale edits after acquiring
+the transaction lock and before creating the temporary copy. Versionless calls
+target the current state.
 
 Transactional facade and public low-level bridge writes:
 
@@ -219,15 +226,18 @@ Transactional facade and public low-level bridge writes:
 2. make one sibling, same-volume copy-on-write clone when supported, with an
    automatic ordinary-copy fallback;
 3. mutates and verifies the copy;
-4. flushes the copy, rechecks destination identity, atomically renames it, and
-   flushes the parent directory.
+4. requests `F_FULLFSYNC` on the copy (falling back to `fsync` where the
+   filesystem rejects it), rechecks destination identity, atomically renames it,
+   and syncs the parent directory.
 
 A failure before rename leaves the original pathname and bytes unchanged and
 cleans up the temporary copy. Hard links are rejected because replacement would
 split their identity. If the final directory flush fails, the rename has
 already committed. High-level manager writes return
 `MetadataWriteResult.commitStatus == .durabilityUncertain(...)` so callers can
-report committed state without inviting a blind retry. The lower-level/internal
+report committed state without inviting a blind retry. `.durable` means the
+requested OS-level flush completed; it is not a hardware or power-loss
+guarantee. The lower-level/internal
 transaction helper retains `TagLibManagerError.committedButDurabilityUncertain`
 for compatibility.
 Sibling-copy creation also requires write access to the parent directory.
@@ -252,9 +262,12 @@ visible PropertyMap values before commit; typed patches compare unedited visible
 properties and artwork as well as requested changes. Neither comparison is a
 lossless oracle for opaque native metadata that TagLib does not expose. Empty
 FLAC comment values that TagLib drops are rejected by exact-value verification.
-Verification mismatches always throw before commit; `.warn` is unavailable
-because committing a result that failed verification would violate the transaction contract.
-Numeric-equivalent track/disc formatting is accepted. Legacy
+Verification mismatches always throw before commit. `VerificationFailurePolicy.warn`
+is deprecated and has no bypass effect; it remains compilable for source
+compatibility.
+Numeric-equivalent track/disc formatting is accepted, but a paired first
+component cannot be removed while retaining its total on ID3/MP4 because zero is
+not a missing component; remove both components to clear the pair. Legacy
 whole-object and whole-PropertyMap replacement APIs are not edit-session models;
 avoid them for changes intended to touch only selected fields.
 
@@ -264,10 +277,10 @@ The registry contains 22 families and 37 extensions.
 
 | Level | Families/extensions |
 | --- | --- |
-| Fixture-covered | MP3, M4A, FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM |
+| Fixture-covered | MP3, M4A (AAC and ALAC fixtures), FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM, TrueAudio, WavPack, ASF/WMA |
 | Experimental | S3M, Impulse Tracker |
 | Read-only | MOD family and Shorten |
-| Upstream-supported | Untested aliases and the remaining TagLib families, including Opus, Speex, APE, WavPack, Musepack, AIFF, TrueAudio, ASF/WMA, DSF, and DSDIFF |
+| Upstream-supported | Untested aliases and the remaining TagLib families, including Opus, Speex, APE, Musepack, AIFF, DSF, and DSDIFF |
 
 Fixture-covered means the repository has a licensed fixture and relevant read/write
 round-trip regression coverage. It does not imply that every alias or every

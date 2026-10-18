@@ -1,6 +1,23 @@
 # Maintenance Progress
 
-Last updated: 2026-09-22
+Last updated: 2026-10-18
+
+## Current task — comprehensive audit remediation
+
+- Validated the independent audit findings against source and runtime probes,
+  then implemented focused fixes on `fix/comprehensive-audit-remediation`.
+- Structured PropertyMap writes now merge; Basic writes preserve full dates,
+  aliases, qualified keys, and described comments/lyrics; NUL and unsupported
+  role/collection-frame inputs fail before mutation.
+- Raw merge preserves hidden MP4 atoms and WAV INFO; WAV INFO/ID3 surfaces and
+  RIFF `.id3v2Only` are implemented.
+- Number totals, partial pair removal, ALAC codec/bit-depth, multi-value flags,
+  artwork across AAC/ASF/APE-family/TrueAudio, ASF attributes, and typed errors
+  were remediated.
+- Added regression coverage and generated fixtures for ALAC, ASF/WMA, TrueAudio,
+  and WavPack. Current suite: 152 tests, 150 passed, 2 opt-in skips, 0 failures.
+- Documentation, changelog, and the dated remediation report are being updated;
+  remaining dependency/deferred items are listed in the report.
 
 ## Current task — next-release documentation readiness
 
@@ -398,8 +415,9 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
   bridge, with ordered cross-language schema assertions.
 - Added `.replace`/`.merge` mode to multi-value raw writes and complete-map
   replacement verification, including stale omitted-key detection.
-- Made `.warn` unavailable and made unsupported RIFF INFO synchronization fail
-  before staging begins with `unsupportedWritePolicy`.
+- Curated 0.5.x made `.warn` unavailable; the 2026-10-18 remediation restored
+  the deprecated source spelling with no verification bypass. Unsupported RIFF
+  INFO synchronization still fails before staging with `unsupportedWritePolicy`.
 - Exported the low-level NSError domain and typed durability-uncertain code.
 - Removed the AudioMator-specific debug environment alias.
 - Consumer-contract corrections committed as `fa34ed4`.

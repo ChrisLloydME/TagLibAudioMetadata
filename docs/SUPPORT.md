@@ -201,9 +201,17 @@ let capability = TagLibMetadataManager.capability(forExtension: ext)
 ```
 
 These APIs describe a declared extension; they do not open a file. Use
-`probeFile(at:)` for editability decisions about a concrete user file. It reads
-the file and throws if the selected parser cannot validate it, then returns the
-corresponding capability. `capability(forExtension:)` reports the format family,
+`probeFile(at:)` for parser validation of a concrete user file. It reads the
+file and throws if the selected parser cannot validate it, then returns the
+corresponding capability. It does not test POSIX write permission, ACLs, disk
+space, or sandbox access; attempt a write or check those separately when an
+editability decision depends on them.
+
+Capability fields answer different questions. `writeSupport(for:)` is the
+field-level Basic/typed surface, `structuredWriteSupport` describes non-artwork
+structured data, `canWriteArtwork` is separate, and `preservesMultiValueProperties`
+is a family-level property. Do not infer one from another; query the exact API
+path and run a concrete-file probe plus a write when the decision is important. `capability(forExtension:)` reports the format family,
 all extension aliases, metadata containers, artwork support, multi-value support,
 structured support, read-only caveats, and evidence level. `fixtureCovered` is
 backed by a repository fixture and round-trip tests; `experimental` exposes incomplete
@@ -238,13 +246,19 @@ values, artwork as `Data?`, and unknown custom fields as `[String: String]`.
 
 It is a normalized projection, not a lossless document. It can flatten
 multi-value properties and cannot represent every frame, atom, attribute,
-comment, lyric, or artwork record. Reads retain the original raw arrays and the
-corresponding normalized scalar projections for known multi-value fields such as
-`ARTIST`, `COMPOSER`, `ALBUMARTIST`, and `GENRE`. An unrelated Basic edit restores
-those untouched arrays exactly; it never guesses cardinality by splitting a
-semicolon-bearing display string. The same schema-driven preservation retains
-known fields Basic cannot express (for example `PERFORMER`, `INVOLVEDPEOPLE`,
-and `TRACKERNAME`) and unknown custom fields.
+comment, lyric, or artwork record. Display separators are format-dependent:
+`", "` for ID3/MP4 and `"; "` for generic/Xiph paths. Do not split these strings
+to reconstruct arrays; use raw or structured metadata.
+
+Reads retain the original raw arrays and corresponding normalized scalar
+projections for known multi-value fields such as `ARTIST`, `COMPOSER`,
+`ALBUMARTIST`, and `GENRE`. An unrelated Basic edit restores those untouched
+arrays exactly, preserves full recording dates and documented aliases (for
+example `PUBLISHER`, `CATALOG`, `ORIGINAL YEAR`, and MusicBrainz space forms), and
+retains qualified people keys such as `PERFORMER:GUITAR`. It never guesses
+cardinality by splitting a display string. The same schema-driven preservation
+retains known fields Basic cannot express (for example `PERFORMER`,
+`INVOLVEDPEOPLE`, and `TRACKERNAME`) and unknown custom fields.
 
 Removing an entry from `BasicMetadata.customFields` does not delete it on disk;
 absence means the normalized Basic projection is not making a deletion request.
@@ -519,8 +533,11 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
 )
 ```
 
-`RawPropertyMapWriteMode.replace` writes exactly the provided map.
-Use it for a full editor save where the UI owns the complete property map.
+`RawPropertyMapWriteMode.replace` replaces the visible TagLib PropertyMap with
+the provided keys. It is not a byte-level or opaque-native replacement: WAV INFO
+can be removed, and native data that TagLib does not expose through
+`properties()` is not reconstructed. Empty values are trimmed/removed. Use it
+for a full editor save where the UI owns the complete visible map.
 
 ```swift
 try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
@@ -533,9 +550,10 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
 )
 ```
 
-`RawPropertyMapWriteMode.merge` starts from the current property map, applies
-the supplied keys, and removes a key when the supplied value is empty. Existing
-multi-value arrays on untouched keys remain arrays during the merge.
+`RawPropertyMapWriteMode.merge` applies a delta to the current map, preserves
+omitted visible keys, hidden MP4 freeform atoms, and WAV INFO, and removes a key
+when the supplied value is empty. New WAV keys are created in ID3v2; existing
+INFO keys update INFO. Both modes accept `expectedVersion`.
 
 Use `writeRawMetadataPropertyMapValuesWithVerification` when the container can
 preserve arrays. Its default `.replace` mode owns the complete visible PropertyMap
@@ -549,7 +567,10 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
 )
 ```
 
-This is the better API for Xiph/Vorbis-style multi-value fields.
+This is the better API for Xiph/Vorbis-style multi-value fields. `.replace`
+writes only the supplied visible map and can remove opaque native fields;
+`.merge` preserves untouched keys and hidden data. Neither mode injects private
+number-formatting atoms.
 
 For precise partial edits, prefer `RawMetadataPatch`. It retains exact arrays,
 uses explicit removals, verifies the complete visible PropertyMap, and accepts
@@ -652,9 +673,12 @@ let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-`includeProperties` controls whether `StructuredMetadata.properties` is included
-in the bridge payload. Leave it `false` when you only want to edit frames, atoms,
-attributes, artwork, comments, or lyrics.
+`includeProperties` controls whether `StructuredMetadata.properties` participates.
+When `true`, supplied properties are applied as a **delta**: omitted keys and
+native structures are preserved, and an empty `values` array removes that key.
+When `false`, a non-empty `properties` array is rejected rather than silently
+ignored. Leave it `false` when you only want to edit frames, atoms, attributes,
+artwork, comments, or lyrics.
 
 Non-empty artwork, lyrics, and comments arrays use replace-all semantics. Empty
 arrays are omitted by default so a partial edit does not erase existing data. To
@@ -701,28 +725,34 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-Top-level structured artwork replacement is supported for ID3v2, MP4, and ASF
-containers, including multiple images. FLAC/Xiph structured writes are limited
-to PropertyMap values; use `BasicMetadata.artworkData` for artwork changes in
-those formats.
+Top-level structured artwork replacement is supported for ID3v2, MP4, ASF,
+FLAC/Xiph, and APE-family containers (TrueAudio and WavPack are covered by
+fixtures; Musepack uses the same APE path). `StructuredArtwork.container` is
+informational: the writer selects the destination container from the file
+format, so verification compares payload, MIME type, and applicable picture
+metadata rather than requiring the caller to guess the container name.
 
 Picture type code `0` is valid and means `Other`; it is preserved rather than
-treated as a missing type. When no picture type is supplied, the ID3v2/ASF
-structured writer defaults to Front Cover (`3`). Verification compares image
-data and MIME type for every supported artwork container, plus picture type and
-description for ID3v2/ASF. MP4 `covr` does not serialize those latter fields, so
-they are not part of MP4 post-write verification.
+treated as a missing type. When no picture type is supplied, the writer defaults
+to Front Cover (`3`). APE-family writes support one front-cover image; ID3v2,
+MP4, ASF, FLAC, and Xiph paths support the entries those containers can store.
+Verification compares image data and MIME type, plus picture type and description
+where the container serializes them.
 
-TrueAudio/TTA Structured reads expose its ID3v2 metadata, but its current
-Structured mutation route is limited to PropertyMap values. Accordingly,
-`structuredWriteSupport` reports `.propertyMap`, not `.container`.
+`structuredWriteSupport` describes non-artwork structured mutation. A `.propertyMap`
+level still permits artwork through the structured artwork collection when
+`canWriteArtwork` is true.
 
 `RIFFMetadataWritePolicy` applies to WAV/AIFF-style containers:
 
-- `.id3v2Only`: write structured ID3v2 data only.
-- `.preserveInfo`: keep existing RIFF INFO fields.
+- `.id3v2Only`: write structured ID3v2 data, then remove RIFF INFO.
+- `.preserveInfo` (default): keep existing RIFF INFO fields.
 - `.syncBasicFieldsToInfo`: reserved but not implemented; selection fails before
   a staging transaction begins with `unsupportedWritePolicy`.
+
+WAV PropertyMap writes target the surface that owns each key: INFO keys update
+RIFF INFO, ID3v2 keys update ID3v2, and new keys go to ID3v2. Basic WAV writes
+target ID3v2 and leave INFO untouched.
 
 ## Erasing Metadata
 
@@ -757,7 +787,10 @@ advisories after a successful verification. A requested value that is missing,
 different, unsupported by the actual write path, or otherwise unconfirmed is a
 verification failure: it throws and the staged file is not committed. Number
 format normalization is accepted only where the verifier establishes semantic
-numeric equivalence.
+numeric equivalence and the container can represent the requested state. A
+paired first component cannot be removed while retaining its total on ID3/MP4;
+that partial operation is rejected, while removing both components clears the
+pair.
 
 Structured readers can report container advisories that do not contradict the
 requested mutation. Those advisories remain visible in
@@ -775,10 +808,11 @@ Read-back verification differences always abort before commit.
 
 Basic verification requests Basic+PropertyMap together and derives both checks
 from one TagLib extraction without enumerating raw ID3 frame summaries. Patch
-verification uses the same one-session approach and requests structured
-projection work only when artwork verification needs it. Raw inspectors still
-request PropertyMap and raw-frame extraction; full snapshots request every
-projection in one parser session.
+verification requests the complete projection set because it compares both
+unedited PropertyMap fields and unedited artwork; it does not switch projection
+work on only when artwork changes. Raw inspectors request PropertyMap and
+raw-frame extraction; full snapshots request every projection in one parser
+session.
 
 Structured-only calls return only the structured projection, although the
 current unified Objective-C++ traversal still constructs an internal Basic
@@ -789,10 +823,11 @@ performance follow-ups rather than semantic limitations.
 ## Transaction Outcomes
 
 Facade writes validate the original, create one same-directory staging copy,
-mutate and verify that copy, flush it, recheck destination identity, atomically
-rename it, and then `fsync` the parent directory. Staging requests a copy-on-write
-clone and automatically falls back to an ordinary copy when the filesystem does
-not support cloning. Failures before rename leave the original pathname unchanged.
+mutate and verify that copy, request `F_FULLFSYNC` on the copy (falling back to
+`fsync` where unsupported), recheck destination identity, atomically rename it,
+and sync the parent directory. Staging requests a copy-on-write clone and
+automatically falls back to an ordinary copy when the filesystem does not
+support cloning. Failures before rename leave the original pathname unchanged.
 
 If the final directory `fsync` fails, rename has already committed. High-level
 manager writes return `.durabilityUncertain(detail)` in
@@ -949,7 +984,7 @@ fields, artwork, and custom fields back to the bridge model.
 `TagLibManagerError` can report:
 
 - `invalidFile`: the URL is not an existing regular file or is a final symbolic
-  link.
+  link. Read and write entry points use this consistently for a missing path.
 - `fileChanged`: the optimistic version or destination identity became stale.
 - `hardLinkedFile`: atomic replacement would split a hard-linked file identity.
 - `unsupportedFormat`: the URL has no extension or the bridge does not support it.
@@ -959,6 +994,15 @@ fields, artwork, and custom fields back to the bridge model.
 - `verificationFailed([String])`: verification produced failures and the caller
   cannot safely commit the staged replacement. Structured container advisories
   can still be returned as warnings without triggering this error.
+- `operationFailed(String)`: a bridge or filesystem operation failed; the
+  underlying private-domain `NSError` is converted at the manager boundary.
+- `MetadataValidationError`: embedded NULs, structured properties outside
+  `includeProperties`, unsupported ID3 frame types, or schema-known keys placed
+  in Basic custom fields.
+- `MetadataPatchValidationError`: typed patch validation, including
+  `roleQualifiedFieldRequiresRawAPI` and
+  `unsupportedPartialPairRemoval(field:format:)`.
+- `RawMetadataPatchError`: raw key/value validation and exact-delta failures.
 - `committedButDurabilityUncertain(String)`: compatibility/internal transaction
   code observed parent-directory sync failure after rename. High-level manager
   writes represent this committed state in `MetadataWriteResult.commitStatus`.
@@ -983,8 +1027,10 @@ Facade clients migrating direct bridge calls must add the low-level product and
 explicit module import.
 
 `TagLibAudioMetadata` is an Objective-C class with nullable properties. It maps
-closely to the bridge writer. It is a full replacement model, so first read the
-current values when you intend to change only selected fields:
+closely to the bridge writer. It is a full replacement model for fields the
+bridge writer explicitly maps; structured PropertyMap writes use delta
+semantics and Basic writes preserve unmodified schema/raw fields. Read the
+current values when you intend to change only selected bridge fields:
 
 ```swift
 let metadata = try TagLibMetadataExtractor.extractMetadata(from: url)
@@ -996,8 +1042,12 @@ metadata.trackNumberText = "01/10"
 try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
 ```
 
-A sparsely populated instance clears other writable fields where the container
-permits; it is not a patch object.
+A sparsely populated instance replaces the bridge writer's mapped fields and
+clears them where the container permits; omitted custom fields are preserved,
+not treated as deletion requests. It is not a general patch object. Pass
+`expectedVersion` to reject a concurrent change. Clients must import
+`CTagLibBridge` to name the `TagLibAudioMetadata` parameter type; facade-only
+clients should use `replaceBasicMetadata` or `updateBasicMetadata`.
 
 `TagLibMetadataExtractor` exposes bridge methods such as:
 
@@ -1138,7 +1188,8 @@ Treat a successful write with warnings as a verified commit with non-fatal
 container advisories. A mismatch in requested metadata throws before commit;
 warnings must not be described as silent write failure. Handle
 `commitStatus == .durabilityUncertain` separately because the rename committed
-even though the final directory sync failed.
+even though the final directory sync failed. `.durable` means the requested
+OS-level flush completed; it is not a hardware or power-loss guarantee.
 
 Do not assume that a field maps to the same storage key in every container. Use
 `MetadataFieldRegistry` to show mappings and `FormatCapability` to decide which

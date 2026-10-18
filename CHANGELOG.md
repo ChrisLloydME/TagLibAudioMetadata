@@ -7,6 +7,46 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Remediation — 2026-10-18
+
+- Fixed structured `properties` writes to merge into the current PropertyMap
+  instead of replacing omitted metadata; non-empty properties now require
+  `includeProperties: true`, empty value arrays delete one key, and write
+  verification compares the requested values.
+- Fixed Basic round trips to preserve full recording dates, documented aliases
+  (`PUBLISHER`, `CATALOG`, `ORIGINAL YEAR`, MusicBrainz space forms), qualified
+  people keys, and multiple described comments/lyrics. ID3 no longer duplicates
+  TDRC with legacy TYER or writes ID3v1 joined projections during an ID3v2 update.
+- Rejected embedded NULs and role-qualified typed Patch fields before mutation;
+  Basic custom-field verification now compares values rather than key presence.
+- Structured ID3 collection frames (APIC/COMM/USLT) are no longer returned in
+  `id3v2Frames` and are rejected in that collection; use artwork/comments/lyrics.
+- Raw whole-map `.merge` now applies a delta and preserves MP4 hidden atoms and
+  WAV INFO; `.replace` no longer injects private number-formatting atoms.
+- Corrected WAV INFO/ID3 surface handling, implemented `.id3v2Only` stripping,
+  and made Basic WAV writes target ID3v2 without copying INFO values.
+- Added dedicated Structured artwork paths for raw AAC, APE/WavPack/Musepack,
+  ASF, and TrueAudio; artwork verification no longer requires a caller-supplied
+  container name. ASF structured attributes now upsert without clearing siblings.
+- Fixed number-total canonical keys, MP3/WAV stale total frames, and partial
+  paired-component removal; unrepresentable partial removal is rejected.
+- Corrected ALAC codec/bit-depth reporting, multi-value capability flags, MP4
+  date schema filtering, AAC artwork, and ASF Basic custom/advisory persistence.
+- Added `expectedVersion` to structured, whole-map raw, and low-level tag writes.
+- Added `MetadataValidationError`, `operationFailed`, role-qualified and
+  partial-pair Patch errors, and `ArtworkVerificationExpectation.skip`; restored
+  the deprecated `.warn` source spelling with no verification bypass.
+- Added `F_FULLFSYNC` with `fsync` fallback and clarified that `.durable` is an
+  OS-level flush, not a hardware/power-loss guarantee.
+- Added regression coverage and generated fixtures for ALAC, ASF/WMA, TrueAudio,
+  and WavPack, plus independent RIFF INFO parsing and WAV policy tests.
+
+### Release-note gap
+
+Detailed 0.5.1–0.5.3 release notes were not recorded separately at release time.
+The contemporaneous work is summarized in `MAINTENANCE_PROGRESS.md`; this
+changelog does not invent dates or retroactive release boundaries.
+
 ### Fixed
 
 - Made high-level writes return committed parent-directory durability uncertainty

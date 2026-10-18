@@ -53,16 +53,18 @@ unused structured/container inspector models.
 
 Callers that split read and write across UI events should retain the token and
 pass it to `applyMetadataPatch`, `applyRawMetadataPatch`,
-`replaceBasicMetadata`, or another version-aware entry point. Without an
-`expectedVersion`, a write intentionally targets the file state current when its
-transaction begins rather than the state previously shown to the user.
+`replaceBasicMetadata`, `writeStructuredMetadataWithVerification`, whole-map raw
+writes, or `writeTagMetadata`. Without an `expectedVersion`, a write
+intentionally targets the file state current when its transaction begins rather
+than the state previously shown to the user.
 
 ## Write pipeline
 
 The facade transaction coordinator creates one same-directory copy, takes one
 initial snapshot where needed, performs in-place bridge mutations on that copy,
-reads a verification snapshot, flushes the file, rechecks original identity,
-renames atomically, and flushes the parent directory. Public bridge mutators use
+reads a verification snapshot, requests `F_FULLFSYNC` on the file (falling back
+to `fsync` when unsupported), rechecks original identity, renames atomically, and
+flushes the parent directory. Public bridge mutators use
 the same transaction principles when called directly.
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged,
@@ -70,7 +72,10 @@ the same transaction principles when called directly.
 and artwork distinguishes unchanged, replacement, and removal. Typed fields are
 validated for kind and numeric range against `MetadataFieldRegistry` before
 staging. Schema-known keys are rejected from `customFields`, including aliases
-and case variants. Text-backed booleans encode false as `"0"`, while `.remove`
+and case variants. Role-qualified fields such as `.performer` are rejected by the
+typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are
+part of the key. Partial removal of a paired first component is rejected on
+ID3/MP4 when a retained total cannot be represented. Text-backed booleans encode false as `"0"`, while `.remove`
 makes the field absent. Most property changes are applied as a bridge delta to
 the current `PropertyMap`; MP4 track/disc pairs and advisory data use native
 `trkn`, `disk`, and `rtng` mutation, while ID3 advisory uses the supported TXXX
@@ -94,9 +99,14 @@ from their payload arrays. Structured verification compares those arrays
 element-by-element. Artwork verification compares the semantic fields supported
 by each container: bytes and MIME type everywhere, plus picture type and
 description for ID3v2/ASF. Valid ID3/ASF picture type `0` (`Other`) is distinct
-from an omitted type, which defaults to Front Cover. TTA exposes container-level
-Structured reads but advertises only PropertyMap-level Structured writes because
-that is the implemented mutation route.
+from an omitted type, which defaults to Front Cover. Structured artwork writes
+use dedicated ID3v2, MP4, ASF, FLAC/Xiph, and APE-family paths; the caller's
+`container` value is informational because the destination follows the file
+format. `structuredWriteSupport` describes non-artwork structured data, so a
+PropertyMap-level format can still support artwork when `canWriteArtwork` is
+true. Structured PropertyMap values are applied as a delta: omitted keys remain,
+empty value arrays remove one key, and non-empty properties with
+`includeProperties == false` are rejected.
 ID3 uses combined `TRCK`/`TPOS`, MP4 uses native `trkn`/`disk`, and ID3 movement
 number/count uses combined `MVIN`; pair mutations preserve an omitted component.
 Track/disc integers begin at one, while `.remove` unsets a component. MP4
@@ -119,8 +129,10 @@ representation. Readers accept documented legacy aliases, including MP4 value
 `isExplicit` compatibility projection cannot express all four states.
 
 `BasicMetadata` has replacement semantics only for fields it explicitly
-models. Schema-known non-Basic fields and custom fields absent from its
-projection are restored from read provenance. Removing a custom dictionary key
+models. Schema-known non-Basic fields, full recording dates, documented aliases,
+qualified people keys, and custom fields absent from its projection are restored
+from the current raw state. Basic multi-value scalars are display strings with
+format-dependent separators and are not a lossless array representation. Removing a custom dictionary key
 does not request deletion; callers use `MetadataPatchValue.remove`. Preservation
 bookkeeping is publicly readable for compatibility but writable only inside the
 module.
@@ -128,15 +140,18 @@ module.
 Atomic rename provides a pathname-level all-or-nothing commit on one volume. It
 does not preserve inode identity or update sibling hard links. Staging uses
 `copyfile(COPYFILE_CLONE | COPYFILE_ACL)`: macOS attempts a same-volume
-copy-on-write clone and automatically falls back to an ordinary copy. Existing
-transaction checks still verify preserved ACLs, extended attributes, flags,
-permissions, and payload bytes, but clients with deployment-specific quarantine,
-immutable-flag, or security-scoped requirements must validate their environment.
+copy-on-write clone and automatically falls back to an ordinary copy. The
+staging flags request ACL preservation; tests validate ACLs, extended
+attributes, flags, permissions, and payload bytes. Production does not run a
+separate metadata-preservation audit, so clients with deployment-specific
+quarantine, immutable-flag, or security-scoped requirements must validate their
+environment.
 The caller needs read access to the file and create/rename access in its parent
 directory.
 
-If rename succeeds but the final parent-directory `fsync` fails, the new file is
-already committed. High-level Swift writes return a
+If rename succeeds but the final parent-directory sync fails, the new file is
+already committed. `.durable` means the requested OS-level flush completed, not
+that data reached stable media through a hardware cache flush. High-level Swift writes return a
 `MetadataWriteResult` whose commit status is `durabilityUncertain`; they do not
 attempt rollback, and consumers must not blindly repeat the operation. The
 lower-level/internal transaction helper retains the historical typed error.
