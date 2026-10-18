@@ -310,7 +310,11 @@ extension TagLibMetadataManager {
                     $0.key.caseInsensitiveCompare(key) == .orderedSame
                 }?.value
                 if let expected = verification.customFieldValues[key] {
-                    if !rawValues.contains(expected) && basicValue != expected {
+                    if normalizedTrimmed(expected).isEmpty {
+                        if !rawValues.isEmpty || basicValue != nil {
+                            warnings.append("Custom field \"\\(key)\" was expected to be removed after save.")
+                        }
+                    } else if !rawValues.contains(expected) && basicValue != expected {
                         warnings.append(
                             "Custom field \"\(key)\" differs after save (expected \"\(expected)\", got \"\(basicValue ?? rawValues.joined(separator: "; "))\")."
                         )
