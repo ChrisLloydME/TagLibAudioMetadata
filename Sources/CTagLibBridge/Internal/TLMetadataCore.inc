@@ -23,6 +23,11 @@ static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
         // WAV's default save may strip INFO while writing ID3v2.
         return wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
     }
+    if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) {
+        // A delta must not duplicate the ID3v2 projection into ID3v1.
+        return mpeg->save(TagLib::MPEG::File::ID3v2, TagLib::File::StripNone,
+                          TagLib::ID3v2::v4, TagLib::File::DoNotDuplicate);
+    }
     return file->save();
 }
 

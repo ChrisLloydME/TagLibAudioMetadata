@@ -132,7 +132,8 @@ extension TagLibMetadataManager {
     nonisolated static func preservedStandardValues(
         desired: BasicMetadata,
         current: BasicMetadata,
-        rawDump: RawMetadataDump
+        rawDump: RawMetadataDump,
+        isMP4: Bool
     ) -> (values: [String: [String]], aliases: Set<String>) {
         var values: [String: [String]] = [:]
         var aliases: Set<String> = []
@@ -155,10 +156,9 @@ extension TagLibMetadataManager {
             } else if fieldsHandledByTypedWriters.contains(schema.key) {
                 shouldPreserve = false
             } else if schema.key == .date {
-                // The full recording date is carried through the Basic writer
-                // above; reapplying the raw DATE would be redundant and can be
-                // overridden by a lower-fidelity surface such as ID3v1.
-                shouldPreserve = false
+                // The scalar year cannot express date cardinality or aliases.
+                // Restore all original entries when that projection is unchanged.
+                shouldPreserve = !isMP4 && desired.year == current.year
             } else if let desiredValue = basicProjectionValue(for: schema.key, metadata: desired),
                       let currentValue = basicProjectionValue(for: schema.key, metadata: current) {
                 shouldPreserve = desiredValue == currentValue
@@ -885,8 +885,20 @@ extension TagLibMetadataManager {
             let preservation = preservedStandardValues(
                 desired: meta,
                 current: current.metadata,
-                rawDump: current.raw
+                rawDump: current.raw,
+                isMP4: isMP4Family
             )
+            if !isMP4Family && meta.year != current.metadata.year {
+                let dateKeys = current.raw.properties.compactMap { entry in
+                    MetadataFieldRegistry.schema(forPropertyMapKey: entry.key)?.key == .date
+                        ? entry.key : nil
+                }
+                if !dateKeys.isEmpty {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                        [:], removingKeys: dateKeys, to: mutationURL
+                    )
+                }
+            }
             // Keep a full recording date when the caller did not change the
             // Basic year projection. The Basic model exposes only the year,
             // but the underlying tag can carry a complete ISO date.
