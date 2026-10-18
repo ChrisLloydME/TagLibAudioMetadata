@@ -986,7 +986,8 @@ fields, artwork, and custom fields back to the bridge model.
 `TagLibManagerError` can report:
 
 - `invalidFile`: the URL is not an existing regular file or is a final symbolic
-  link. Read and write entry points use this consistently for a missing path.
+  link on read. Writes reject missing paths before staging and retain the
+  transaction failure as `operationFailedWithUnderlying`.
 - `fileChanged`: the optimistic version or destination identity became stale.
 - `hardLinkedFile`: atomic replacement would split a hard-linked file identity.
 - `unsupportedFormat`: the URL has no extension or the bridge does not support it.
@@ -996,8 +997,10 @@ fields, artwork, and custom fields back to the bridge model.
 - `verificationFailed([String])`: verification produced failures and the caller
   cannot safely commit the staged replacement. Structured container advisories
   can still be returned as warnings without triggering this error.
-- `operationFailed(String)`: a bridge or filesystem operation failed; the
-  underlying private-domain `NSError` is converted at the manager boundary.
+- `operationFailedWithUnderlying(NSError)`: a bridge or filesystem operation
+  failed before commit. Inspect `underlyingError` for the original domain, code,
+  and nested `NSUnderlyingErrorKey` (for example a POSIX error). The message-only
+  `operationFailed(String)` case remains available for source compatibility.
 - `MetadataValidationError`: embedded NULs, structured properties outside
   `includeProperties`, unsupported ID3 frame types, or schema-known keys placed
   in Basic custom fields.
