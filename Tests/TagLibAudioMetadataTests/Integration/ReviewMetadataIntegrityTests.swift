@@ -113,6 +113,21 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func basicCustomEmptyValueExplicitlyDeletesField() throws {
+        for ext in ["mp3", "m4a", "flac", "ogg", "wma", "wv", "tta", "aac"] {
+            try withFixture(ext) { url in
+                var seed = BasicMetadata.empty
+                seed.customFields = ["REVIEW_CUSTOM": "Delete me", "KEEP_CUSTOM": "Keep me"]
+                try TagLibMetadataManager.replaceBasicMetadata(seed, to: url)
+                #expect(try TagLibMetadataManager.readMetadataResult(from: url).customFields["REVIEW_CUSTOM"] == "Delete me")
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.customFields["REVIEW_CUSTOM"] = "" }
+                let after = try TagLibMetadataManager.readMetadataResult(from: url)
+                #expect(after.customFields["REVIEW_CUSTOM"] == nil)
+                #expect(after.customFields["KEEP_CUSTOM"] == "Keep me")
+            }
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()

@@ -861,7 +861,7 @@ extension TagLibMetadataManager {
                     "isCompilation": String(meta.isCompilation),
                 ],
                 expectedExplicitAdvisory: meta.explicitAdvisory,
-                customFieldValues: meta.customFields.filter { !$0.value.isEmpty }
+                customFieldValues: meta.customFields
             )
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
