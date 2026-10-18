@@ -252,6 +252,22 @@ struct HardeningASFTests {
         }
     }
 
+    @Test func unsupportedGUIDMutationRejectsEvenWithoutReadbackVerification() throws {
+        try HardeningFixture.withCopy("wma", name: "testAudioFile") { url in
+            try IndependentASF.seed([
+                .init(name: "HARDEN_GUID", type: 6, language: 0, stream: 0, value: Data(0..<16))
+            ], at: url)
+            let bytes = try Data(contentsOf: url)
+            #expect(try IndependentASF.attributes(bytes).contains { $0.name == "HARDEN_GUID" && $0.type == 6 })
+            #expect(throws: (any Error).self) {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(asfAttributes: [
+                    .init(key: "HARDEN_GUID", type: "guid", data: Data(16..<32))
+                ]), to: url, verifyAfterWrite: false)
+            }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
     @Test func ambiguousIntegerWidthsRejectBeforeCommit() throws {
         try HardeningFixture.withCopy("wma", name: "testAudioFile") { url in
             try IndependentASF.seed([
