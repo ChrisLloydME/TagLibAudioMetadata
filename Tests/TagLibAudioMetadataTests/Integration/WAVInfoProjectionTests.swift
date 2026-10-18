@@ -11,9 +11,11 @@ final class WAVInfoProjectionTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("audio.wav")
         try FileManager.default.copyItem(at: source, to: url)
+        try seedInfoTitle("Independent INFO title", at: url)
         let info = try infoChunks(Data(contentsOf: url))
         XCTAssertFalse(info.isEmpty)
         let before = try TagLibMetadataManager.readSnapshot(from: url)
+        XCTAssertEqual(before.basic.title, "Independent INFO title")
         let encoding = try XCTUnwrap(before.raw.properties.first { $0.key == "ENCODING" }?.values)
         XCTAssertFalse(encoding.isEmpty)
         try TagLibMetadataManager.applyMetadataPatch(MetadataPatch(fields: [.track: .integer(3)]), to: url)
@@ -36,6 +38,7 @@ final class WAVInfoProjectionTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("audio.wav")
         try FileManager.default.copyItem(at: source, to: url)
+        try seedInfoTitle("Independent INFO title", at: url)
         let info = try infoChunks(Data(contentsOf: url))
 
         try TagLibMetadataManager.applyMetadataPatch(
@@ -68,6 +71,33 @@ final class WAVInfoProjectionTests: XCTestCase {
         XCTAssertEqual(snapshot.basic.movementCount, 4)
         XCTAssertEqual(try infoChunks(Data(contentsOf: url)), info)
         XCTAssertGreaterThan(snapshot.basic.duration, 0)
+    }
+
+    private func seedInfoTitle(_ title: String, at url: URL) throws {
+        var data = try Data(contentsOf: url)
+        func littleEndian(_ value: Int) -> Data {
+            Data((0..<4).map { UInt8((value >> ($0 * 8)) & 0xff) })
+        }
+        var text = Data(title.utf8)
+        text.append(0)
+        var item = Data("INAM".utf8) + littleEndian(text.count) + text
+        if text.count % 2 != 0 { item.append(0) }
+        var offset = 12
+        while offset + 8 <= data.count {
+            let length = (0..<4).reduce(0) { $0 | Int(data[offset + 4 + $1]) << ($1 * 8) }
+            let start = offset + 8
+            guard length <= data.count - start else { throw ParseError.invalidRIFF }
+            if data[offset..<(offset + 4)] == Data("LIST".utf8), length >= 4,
+               data[start..<(start + 4)] == Data("INFO".utf8) {
+                data.insert(contentsOf: item, at: start + length)
+                data.replaceSubrange((offset + 4)..<(offset + 8), with: littleEndian(length + item.count))
+                data.replaceSubrange(4..<8, with: littleEndian(data.count - 8))
+                try data.write(to: url)
+                return
+            }
+            offset = start + length + (length % 2)
+        }
+        throw ParseError.invalidRIFF
     }
 
     private func infoChunks(_ data: Data) throws -> [Data] {
