@@ -87,7 +87,7 @@ public struct TagLibMetadataManager {
     nonisolated static func withAtomicFileMutation<Result>(
         at url: URL,
         expectedVersion: MetadataFileVersion? = nil,
-        directorySync: @escaping (Int32) -> Int32 = Darwin.fsync,
+        directorySync: @escaping (Int32) -> Int32 = TagLibMetadataManager.fullSync,
         afterFinalValidation: @escaping () throws -> Void = {},
         _ operation: @escaping (URL) throws -> Result
     ) throws -> Result {
@@ -111,7 +111,7 @@ public struct TagLibMetadataManager {
     nonisolated static func withAtomicMetadataWriteMutation(
         at url: URL,
         expectedVersion: MetadataFileVersion? = nil,
-        directorySync: @escaping (Int32) -> Int32 = Darwin.fsync,
+        directorySync: @escaping (Int32) -> Int32 = TagLibMetadataManager.fullSync,
         _ operation: @escaping (URL) throws -> MetadataWriteResult
     ) throws -> MetadataWriteResult {
         let outcome = try withAtomicFileMutationOutcome(
@@ -128,6 +128,20 @@ public struct TagLibMetadataManager {
             result.commitStatus = .durabilityUncertain(detail)
         }
         return result
+    }
+
+    /// Prefer macOS `F_FULLFSYNC` so `.durable` reflects a requested hardware
+    /// cache flush. Filesystems that reject the request fall back to `fsync`;
+    /// the commit status documentation still describes that weaker guarantee.
+    nonisolated static func fullSync(_ descriptor: Int32) -> Int32 {
+        guard descriptor >= 0 else { return -1 }
+        if fcntl(descriptor, F_FULLFSYNC) == 0 {
+            return 0
+        }
+        if errno == EINVAL || errno == ENOTSUP || errno == ENOTTY {
+            return Darwin.fsync(descriptor)
+        }
+        return -1
     }
 
     nonisolated private static func withAtomicFileMutationOutcome<Result>(
@@ -157,7 +171,15 @@ public struct TagLibMetadataManager {
                 }
             }
         } catch {
-            throw operationError ?? error
+            let underlying = operationError ?? error
+            if let typed = underlying as? TagLibManagerError {
+                throw typed
+            }
+            let nsError = underlying as NSError
+            if nsError.domain == "TagLibMetadataExtractor" || nsError.domain == "TagLibMetadataManager" {
+                throw TagLibManagerError.operationFailed(nsError.localizedDescription)
+            }
+            throw underlying
         }
 
         guard let outcome else {
@@ -276,7 +298,7 @@ public struct TagLibMetadataManager {
             )
         }
 
-        guard Darwin.fsync(temporaryDescriptor) == 0 else {
+        guard fullSync(temporaryDescriptor) == 0 else {
             let syncErrorCode = errno
             Darwin.close(temporaryDescriptor)
             throw mutationError(
@@ -349,6 +371,9 @@ public struct TagLibMetadataManager {
     ]
 
     public enum ArtworkVerificationExpectation: Sendable {
+        /// Skip artwork verification. This is the default.
+        case skip
+        @available(*, deprecated, renamed: "skip")
         case unchanged
         case present
         case absent
@@ -365,6 +390,13 @@ public struct TagLibMetadataManager {
         public var expectedExplicitAdvisory: ExplicitAdvisory?
         public var artworkExpectation: ArtworkVerificationExpectation
         public var customFieldKeys: [String]
+        /// Expected custom-field values keyed by custom field name. When
+        /// present, verification compares the value instead of only checking
+        /// that the key still exists.
+        public var customFieldValues: [String: String]
+        /// Supported keys are the camel-case names in `textFieldValue`, such as
+        /// `title`, `artist`, `encodedBy`, and `encoderSettings`. Passing a raw
+        /// PropertyMap key such as `TITLE` produces a false mismatch.
         public var expectedTextFields: [String: String]
 
         public init(
@@ -378,7 +410,8 @@ public struct TagLibMetadataManager {
             artworkExpectation: ArtworkVerificationExpectation,
             customFieldKeys: [String],
             expectedTextFields: [String: String] = [:],
-            expectedExplicitAdvisory: ExplicitAdvisory? = nil
+            expectedExplicitAdvisory: ExplicitAdvisory? = nil,
+            customFieldValues: [String: String] = [:]
         ) {
             self.expectedTrackNumber = expectedTrackNumber
             self.expectedTrackTotal = expectedTrackTotal
@@ -390,6 +423,7 @@ public struct TagLibMetadataManager {
             self.expectedExplicitAdvisory = expectedExplicitAdvisory
             self.artworkExpectation = artworkExpectation
             self.customFieldKeys = customFieldKeys
+            self.customFieldValues = customFieldValues
             self.expectedTextFields = expectedTextFields
         }
 
@@ -401,14 +435,17 @@ public struct TagLibMetadataManager {
             expectedDiscTotal: nil,
             expectedDiscNumberText: nil,
             expectedExplicitContent: nil,
-            artworkExpectation: .unchanged,
+            artworkExpectation: .skip,
             customFieldKeys: [],
-            expectedTextFields: [:]
+            expectedTextFields: [:],
+            customFieldValues: [:]
         )
     }
 
     public enum MetadataCommitStatus: Equatable, Sendable {
-        /// Atomic replacement and the parent-directory durability sync completed.
+        /// Atomic replacement and a requested `F_FULLFSYNC` (or `fsync` fallback)
+        /// of the staged file plus the parent-directory sync completed. This is
+        /// an OS-level flush, not a hardware/power-loss guarantee.
         case durable
 
         /// Atomic replacement completed and the new metadata is visible, but the
@@ -431,18 +468,20 @@ public struct TagLibMetadataManager {
     }
 
     public enum RawPropertyMapWriteMode: Sendable {
-        /// Replace the file's TagLib PropertyMap with exactly the provided key/value pairs.
+        /// Replace the file's visible TagLib PropertyMap with the provided keys.
+        /// Opaque native structures are not reconstructed by this operation; for
+        /// WAV, replacing the map can remove RIFF INFO fields. Use `.merge` to
+        /// preserve omitted visible keys and native data.
         case replace
 
-        /// Merge the provided key/value pairs into the current TagLib PropertyMap.
-        ///
-        /// Empty values remove matching keys, mirroring the bridge's existing trimming behavior.
+        /// Apply a delta to the current TagLib PropertyMap. Omitted keys and
+        /// native structures are preserved. Empty values remove matching keys.
         case merge
     }
 
     @available(*, deprecated, message: "Verification mismatches always abort the transaction. Omit the obsolete failurePolicy parameter.")
     public enum VerificationFailurePolicy: Sendable {
-        @available(*, unavailable, message: "Verification mismatches invalidate the transaction and always throw. Use .throw.")
+        @available(*, deprecated, message: "Warnings do not bypass verification; mismatches always throw. Use .throw.")
         case warn
         case `throw`
     }

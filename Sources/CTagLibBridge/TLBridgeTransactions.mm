@@ -12,6 +12,20 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+static int TLBridgeFullSync(int descriptor) {
+    if (descriptor < 0) {
+        errno = EBADF;
+        return -1;
+    }
+    if (fcntl(descriptor, F_FULLFSYNC) == 0) {
+        return 0;
+    }
+    if (errno == EINVAL || errno == ENOTSUP || errno == ENOTTY) {
+        return fsync(descriptor);
+    }
+    return -1;
+}
+
 NSErrorDomain const TagLibMetadataErrorDomain = @"TagLibMetadataExtractor";
 
 // Simple logging helper for TagLib debugging
@@ -316,7 +330,7 @@ static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
     }
 
     int temporaryDescriptor = open(temporaryURL.path.fileSystemRepresentation, O_RDONLY);
-    if (temporaryDescriptor < 0 || fsync(temporaryDescriptor) != 0) {
+    if (temporaryDescriptor < 0 || TLBridgeFullSync(temporaryDescriptor) != 0) {
         int syncErrorCode = errno;
         if (temporaryDescriptor >= 0) {
             close(temporaryDescriptor);
@@ -382,7 +396,7 @@ static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
         return NO;
     }
 
-    if (fsync(parentDescriptor) != 0) {
+    if (TLBridgeFullSync(parentDescriptor) != 0) {
         int syncErrorCode = errno;
         close(parentDescriptor);
         if (error) {

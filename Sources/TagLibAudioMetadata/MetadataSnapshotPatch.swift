@@ -69,6 +69,9 @@ public enum MetadataPatchValue: Hashable, Sendable {
     /// One or more non-empty values. Each value is trimmed before mutation.
     case values([String])
     /// Explicitly removes the field. Empty text and value arrays are not deletion aliases.
+    /// For paired track/disc first components, removal is rejected when the
+    /// retained total cannot be represented without a zero first component
+    /// (for example MP3/M4A). Remove both components to clear the pair.
     case remove
 
     nonisolated var kind: MetadataPatchValueKind? {
@@ -98,6 +101,9 @@ public enum MetadataPatchValue: Hashable, Sendable {
             guard !trimmed.isEmpty else {
                 throw MetadataPatchValidationError.emptyText(location: location)
             }
+            if trimmed.contains("\0") {
+                throw MetadataValidationError.embeddedNull(location: location)
+            }
             return .text(trimmed)
         case .values(let values):
             guard !values.isEmpty else {
@@ -109,6 +115,9 @@ public enum MetadataPatchValue: Hashable, Sendable {
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else {
                     throw MetadataPatchValidationError.emptyValue(location: location, index: index)
+                }
+                if trimmed.contains("\0") {
+                    throw MetadataValidationError.embeddedNull(location: "\(location)[\(index)]")
                 }
                 normalizedValues.append(trimmed)
             }
@@ -136,6 +145,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case emptyValueList(location: String)
     case emptyValue(location: String, index: Int)
     case conflictingNumberRepresentations
+    case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
+    case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
 
     public var errorDescription: String? {
         switch self {
@@ -164,6 +175,10 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(location) contains an empty value at index \(index); use .remove to delete the field."
         case .conflictingNumberRepresentations:
             return "Use either formatted number text or typed track/disc fields in one patch, not both."
+        case .roleQualifiedFieldRequiresRawAPI(let field):
+            return "\(field.rawValue) requires a role-qualified key; use RawMetadataPatch or StructuredMetadata instead of the typed Patch field."
+        case .unsupportedPartialPairRemoval(let field, let format):
+            return "Removing \(field.rawValue) while retaining its paired total is not representable for \(format); use .remove for both components or edit the total separately."
         }
     }
 }
@@ -296,11 +311,17 @@ extension TagLibMetadataManager {
                     actual: integer
                 )
             }
+            if schema.isRoleQualified {
+                throw MetadataPatchValidationError.roleQualifiedFieldRequiresRawAPI(field)
+            }
             normalizedFields[field] = try value.normalized(location: field.rawValue)
         }
 
         var normalizedCustomFields: [String: MetadataPatchValue] = [:]
         for (key, value) in patch.customFields {
+            if key.contains("\0") {
+                throw MetadataValidationError.embeddedNull(location: "customFields key")
+            }
             let normalizedKey = MetadataFieldRegistry.normalizePropertyMapKey(key)
             guard !normalizedKey.isEmpty else {
                 throw MetadataPatchValidationError.invalidCustomFieldKey(key)
@@ -311,6 +332,9 @@ extension TagLibMetadataManager {
                         field: schema.key,
                         customKey: key
                     )
+                }
+                if schema.isRoleQualified {
+                    throw MetadataPatchValidationError.roleQualifiedFieldRequiresRawAPI(schema.key)
                 }
                 throw MetadataPatchValidationError.knownFieldRequiresTypedAPI(
                     customKey: key,
@@ -433,6 +457,26 @@ extension TagLibMetadataManager {
                 let updatesTrackPair = validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil
                 let updatesDiscPair = validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil
                 let updatesMovementPair = validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil
+                let formatIdentifier = capability(forExtension: ext)?.identifier ?? ext
+                let requiresRepresentableFirstComponent =
+                    ["mpeg-id3", "mpeg-aac", "mp4"].contains(formatIdentifier)
+                if requiresRepresentableFirstComponent,
+                   case .remove = validatedPatch.fields[.track],
+                   track <= 0, trackTotal > 0 {
+                    throw MetadataPatchValidationError.unsupportedPartialPairRemoval(
+                        field: .track,
+                        format: formatIdentifier
+                    )
+                }
+                if requiresRepresentableFirstComponent,
+                   case .remove = validatedPatch.fields[.disc],
+                   disc <= 0, discTotal > 0 {
+                    throw MetadataPatchValidationError.unsupportedPartialPairRemoval(
+                        field: .disc,
+                        format: formatIdentifier
+                    )
+                }
+
                 if updatesTrackPair {
                     expectedNumberPairs[.track] = track
                     expectedNumberPairs[.trackTotal] = trackTotal
@@ -533,14 +577,16 @@ extension TagLibMetadataManager {
                 let payload = bridgePayload(
                     from: StructuredMetadata(artwork: artwork),
                     includeProperties: false,
-                    replacingCollections: [.artwork]
+                    replacingCollections: [.artwork],
+                    riffPolicy: .preserveInfo
                 )
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             case .removeAll:
                 let payload = bridgePayload(
                     from: StructuredMetadata(),
                     includeProperties: false,
-                    replacingCollections: [.artwork]
+                    replacingCollections: [.artwork],
+                    riffPolicy: .preserveInfo
                 )
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }

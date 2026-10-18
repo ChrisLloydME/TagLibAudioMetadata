@@ -30,6 +30,7 @@ public enum MetadataFieldFormat: String, CaseIterable, Hashable, Sendable {
     case ape
     case asf
     case flac
+    /// Reserved for a future Matroska family; no family is registered.
     case matroska
 }
 
@@ -42,6 +43,7 @@ public enum MetadataFieldStorageKind: String, Hashable, Sendable {
     case mp4Freeform
     case complexProperty
     case binary
+    /// Reserved for future pattern-based fields; no schema currently uses it.
     case pattern
 }
 
@@ -247,6 +249,7 @@ public enum MetadataFieldRegistry {
                 .init(format: .mp4, storageKind: .binary, keys: ["covr"]),
                 .init(format: .flac, storageKind: .complexProperty, keys: ["PICTURE"]),
                 .init(format: .xiph, storageKind: .complexProperty, keys: ["PICTURE"]),
+                .init(format: .ape, storageKind: .complexProperty, keys: ["PICTURE"]),
                 .init(format: .asf, storageKind: .complexProperty, keys: ["PICTURE", "WM/Picture"]),
             ],
             isArtworkField: true
@@ -364,8 +367,15 @@ public enum MetadataFieldRegistry {
 
     public nonisolated static func schema(forPropertyMapKey key: String) -> MetadataFieldSchema? {
         let normalized = normalizePropertyMapKey(key)
-        if normalized.hasPrefix("PERFORMER:") {
-            return schemasByKey[.performer]
+        let qualifiedPrefixes: [(String, MetadataFieldKey)] = [
+            ("PERFORMER:", .performer),
+            ("INVOLVEDPEOPLE:", .involvedPeople),
+            ("MUSICIANCREDITS:", .musicianCredits),
+            ("COMMENT:", .comment),
+            ("LYRICS:", .lyrics),
+        ]
+        for (prefix, owner) in qualifiedPrefixes where normalized.hasPrefix(prefix) {
+            return schemasByKey[owner]
         }
         guard let owners = propertyMapKeyOwners[normalized] else { return nil }
         let owner = owners.count == 1 ? owners.first : preferredSharedPropertyMapKeyOwner[normalized]
@@ -395,6 +405,12 @@ public enum MetadataFieldRegistry {
             if let writableFields = capability.writableFields, !writableFields.contains(schema.key) {
                 return false
             }
+            if capability.identifier == "mp4", schema.key == .date {
+                return false
+            }
+            if schema.isArtworkField, !capability.canWriteArtwork {
+                return false
+            }
             return schema.mappings.contains { formats.contains($0.format) }
         }
     }
@@ -405,7 +421,10 @@ public enum MetadataFieldRegistry {
 
     public nonisolated static func shouldDisplayRawPropertyAsMultiValue(_ key: String) -> Bool {
         let normalized = normalizePropertyMapKey(key)
-        return normalized.hasPrefix("PERFORMER:")
+        let qualifiedPrefixes = [
+            "PERFORMER:", "INVOLVEDPEOPLE:", "MUSICIANCREDITS:", "COMMENT:", "LYRICS:"
+        ]
+        return qualifiedPrefixes.contains(where: normalized.hasPrefix)
             || multiValuePropertyMapKeys.contains(normalized)
     }
 

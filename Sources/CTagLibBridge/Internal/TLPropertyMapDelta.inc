@@ -30,6 +30,46 @@ static void RemoveRecognizedMP4AdvisoryFreeformItems(TagLib::MP4::Tag *tag)
     }
 }
 
+static void RemoveID3v2ExplicitAdvisoryAliases(TagLib::ID3v2::Tag *tag)
+{
+    if (!tag) return;
+    TagLib::ID3v2::FrameList frames = tag->frameList("TXXX");
+    for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) {
+        auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(*iterator);
+        if (!userText) continue;
+        NSString *description = [TagStringToNSString(userText->description()) uppercaseString];
+        if ([description isEqualToString:@"ITUNESADVISORY"] ||
+            [description isEqualToString:@"ADVISORY"] ||
+            [description isEqualToString:@"EXPLICITCONTENT"] ||
+            [description isEqualToString:@"EXPLICIT"]) {
+            tag->removeFrame(*iterator);
+        }
+    }
+}
+
+static void RemoveID3v2UserTextFrames(TagLib::ID3v2::Tag *tag,
+                                        NSArray<NSString *> *descriptions)
+{
+    if (!tag || descriptions.count == 0) return;
+    TagLib::ID3v2::FrameList frames = tag->frameList("TXXX");
+    for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) {
+        auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(*iterator);
+        if (!userText) continue;
+        NSString *description = [TagStringToNSString(userText->description()) uppercaseString];
+        if (description && [descriptions containsObject:description]) {
+            tag->removeFrame(*iterator);
+        }
+    }
+}
+
+static void ApplyCanonicalID3v2Advisory(TagLib::ID3v2::Tag *tag,
+                                        TagLibExplicitAdvisory advisory)
+{
+    if (!tag) return;
+    RemoveID3v2ExplicitAdvisoryAliases(tag);
+    SetID3v2UserTextFrame(tag, "ITUNESADVISORY", SerializedExplicitAdvisoryValue(advisory));
+}
+
 static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                                       TagLibExplicitAdvisory advisory)
 {
@@ -83,6 +123,61 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return NO;
     }
 
+    // WAV exposes RIFF INFO and ID3v2 through the same file-level
+    // PropertyMap. Applying a file-level setProperties call writes everything
+    // into ID3v2 and duplicates INFO values. Apply the delta to the surface(s)
+    // that actually own each key, and create new keys in ID3v2.
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
+        TagLib::PropertyMap info = wav->InfoTag()->properties();
+        TagLib::PropertyMap id3 = wav->ID3v2Tag()->properties();
+        bool infoChanged = false;
+        bool id3Changed = false;
+
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *trimmedKey = TrimmedStringOrNil(key);
+            if (!trimmedKey) continue;
+            TagLib::String tagKey = NSStringToTagString(trimmedKey);
+            if (info.contains(tagKey)) { info.erase(tagKey); infoChanged = true; }
+            if (id3.contains(tagKey)) { id3.erase(tagKey); id3Changed = true; }
+        }
+
+        for (NSString *key in valuesToSet ?: @{}) {
+            NSString *trimmedKey = TrimmedStringOrNil(key);
+            if (!trimmedKey) continue;
+            TagLib::String tagKey = NSStringToTagString(trimmedKey);
+            TagLib::StringList values;
+            for (NSString *value in valuesToSet[key]) {
+                values.append(NSStringToTagString(value));
+            }
+            const bool inInfo = info.contains(tagKey);
+            const bool inID3 = id3.contains(tagKey);
+            if (inInfo) { info.replace(tagKey, values); infoChanged = true; }
+            if (inID3 || !inInfo) { id3.replace(tagKey, values); id3Changed = true; }
+        }
+
+        wav->InfoTag()->setProperties(info);
+        wav->ID3v2Tag()->setProperties(id3);
+        if (infoChanged &&
+            !wav->save(TagLib::RIFF::WAV::File::Info, TagLib::File::StripNone)) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:9253
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib could not save RIFF INFO metadata changes" }];
+            }
+            return NO;
+        }
+        if (id3Changed &&
+            !wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:9253
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib could not save ID3v2 metadata changes" }];
+            }
+            return NO;
+        }
+        return YES;
+    }
+
     TagLib::PropertyMap properties = file->properties();
     for (NSString *key in keysToRemove ?: @[]) {
         NSString *trimmedKey = TrimmedStringOrNil(key);
@@ -114,6 +209,53 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
     return YES;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Targeted property-map mutation", NO)
+}
+
++ (BOOL)applyPropertyMapValuesPreservingInfoSurfaceInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
+                                             removingKeys:(NSArray<NSString *> *)keysToRemove
+                                                    toURL:(NSURL *)fileURL
+                                                    error:(NSError **)error
+{
+    if (DetectTagFileFormat(fileURL.pathExtension) != TLTagFileFormatWAV) {
+        return [self applyPropertyMapValuesInPlace:valuesToSet removingKeys:keysToRemove toURL:fileURL error:error];
+    }
+    TagLib::RIFF::WAV::File wav(fileURL.path.UTF8String);
+    if (!wav.isValid()) {
+        return [self applyPropertyMapValuesInPlace:valuesToSet removingKeys:keysToRemove toURL:fileURL error:error];
+    }
+
+    TagLib::PropertyMap info = wav.InfoTag()->properties();
+    TagLib::PropertyMap id3 = wav.ID3v2Tag()->properties();
+    for (NSString *key in keysToRemove ?: @[]) {
+        NSString *trimmedKey = TrimmedStringOrNil(key);
+        if (!trimmedKey) continue;
+        id3.erase(NSStringToTagString(trimmedKey));
+    }
+    for (NSString *key in valuesToSet ?: @{}) {
+        NSString *trimmedKey = TrimmedStringOrNil(key);
+        if (!trimmedKey) continue;
+        TagLib::String tagKey = NSStringToTagString(trimmedKey);
+        // RIFF INFO is already preserved by the Basic writer leaving that
+        // surface untouched. Do not copy INFO-only values into ID3.
+        if (info.contains(tagKey) && !id3.contains(tagKey)) {
+            continue;
+        }
+        TagLib::StringList values;
+        for (NSString *value in valuesToSet[key]) {
+            values.append(NSStringToTagString(value));
+        }
+        id3.replace(tagKey, values);
+    }
+    wav.ID3v2Tag()->setProperties(id3);
+    if (!wav.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9254
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"TagLib could not save ID3v2 metadata changes" }];
+        }
+        return NO;
+    }
+    return YES;
 }
 
 + (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
@@ -265,11 +407,13 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
             for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
             SetID3v2TextFrame(tag, "TRCK", trackText);
+            RemoveID3v2UserTextFrames(tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
         }
         if (updateDiscPair) {
             TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
             for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
             SetID3v2TextFrame(tag, "TPOS", discText);
+            RemoveID3v2UserTextFrames(tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
         }
         if (updateMovementPair) {
             TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
@@ -294,11 +438,13 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
             for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
             SetID3v2TextFrame(tag, "TRCK", trackText);
+            RemoveID3v2UserTextFrames(tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
         }
         if (updateDiscPair) {
             TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
             for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
             SetID3v2TextFrame(tag, "TPOS", discText);
+            RemoveID3v2UserTextFrames(tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
         }
         if (updateMovementPair) {
             TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
