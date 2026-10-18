@@ -178,7 +178,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
         case .roleQualifiedFieldRequiresRawAPI(let field):
             return "\(field.rawValue) requires a role-qualified key; use RawMetadataPatch or StructuredMetadata instead of the typed Patch field."
         case .unsupportedPartialPairRemoval(let field, let format):
-            return "Removing \(field.rawValue) while retaining its paired total is not representable for \(format); use .remove for both components or edit the total separately."
+            return "\(field.rawValue) requires a positive number when its paired total is present for \(format); set the number or remove both components."
         }
     }
 }
@@ -235,6 +235,15 @@ public struct MetadataPatch: Hashable, Sendable {
 }
 
 extension TagLibMetadataManager {
+    nonisolated static func validateNativeNumberPair(
+        number: Int, total: Int, field: MetadataFieldKey, for url: URL
+    ) throws {
+        let format = capability(forExtension: url.pathExtension)?.identifier ?? url.pathExtension
+        if ["mpeg-id3", "mpeg-aac", "mp4", "wav"].contains(format), number == 0, total > 0 {
+            throw MetadataPatchValidationError.unsupportedPartialPairRemoval(field: field, format: format)
+        }
+    }
+
     /// Captures a regular-file version without following a final symbolic link.
     public nonisolated static func fileVersion(at url: URL) throws -> MetadataFileVersion {
         guard url.isFileURL, let identity = regularFileIdentity(at: url) else {
@@ -457,24 +466,11 @@ extension TagLibMetadataManager {
                 let updatesTrackPair = validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil
                 let updatesDiscPair = validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil
                 let updatesMovementPair = validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil
-                let formatIdentifier = capability(forExtension: ext)?.identifier ?? ext
-                let requiresRepresentableFirstComponent =
-                    ["mpeg-id3", "mpeg-aac", "mp4"].contains(formatIdentifier)
-                if requiresRepresentableFirstComponent,
-                   case .remove = validatedPatch.fields[.track],
-                   track <= 0, trackTotal > 0 {
-                    throw MetadataPatchValidationError.unsupportedPartialPairRemoval(
-                        field: .track,
-                        format: formatIdentifier
-                    )
+                if updatesTrackPair {
+                    try validateNativeNumberPair(number: track, total: trackTotal, field: .track, for: url)
                 }
-                if requiresRepresentableFirstComponent,
-                   case .remove = validatedPatch.fields[.disc],
-                   disc <= 0, discTotal > 0 {
-                    throw MetadataPatchValidationError.unsupportedPartialPairRemoval(
-                        field: .disc,
-                        format: formatIdentifier
-                    )
+                if updatesDiscPair {
+                    try validateNativeNumberPair(number: disc, total: discTotal, field: .disc, for: url)
                 }
 
                 if updatesTrackPair {
