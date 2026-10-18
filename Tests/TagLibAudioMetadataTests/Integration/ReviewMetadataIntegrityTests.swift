@@ -342,6 +342,26 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func unrelatedBasicEditDoesNotDuplicateBackOnlyArtwork() throws {
+        let data = try coverData()
+        for ext in ["mp3", "flac", "ogg", "wav", "tta", "wma"] {
+            try withFixture(ext) { url in
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(artwork: [
+                        .init(container: "", pictureType: "Back Cover", pictureTypeCode: 4,
+                              mimeType: "image/jpeg", description: "Back only", data: data)
+                    ]), to: url
+                )
+                let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url).artwork
+                #expect(before.count == 1 && before.first?.pictureType == "Back Cover")
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Unrelated title" }
+                let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url).artwork
+                #expect(after == before, "\(ext) duplicated or changed the fallback picture")
+                #expect(try TagLibMetadataManager.readMetadataResult(from: url).title == "Unrelated title")
+            }
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()
