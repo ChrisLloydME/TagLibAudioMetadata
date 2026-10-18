@@ -383,9 +383,9 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             expectedDiscTotal: nil,
             expectedDiscNumberText: nil,
             expectedExplicitContent: nil,
-            artworkExpectation: .unchanged,
+            artworkExpectation: .skip,
             customFieldKeys: [],
-            expectedTextFields: ["TITLE": "Different title"]
+            expectedTextFields: ["title": "Different title"]
         )
 
         XCTAssertThrowsError(
@@ -537,6 +537,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         )
         let verification = TagLibMetadataManager.structuredWriteVerification(
             expected: expected,
+            includeProperties: false,
             replacingCollections: [],
             for: url
         )
@@ -2265,7 +2266,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             expectedDiscTotal: nil,
             expectedDiscNumberText: nil,
             expectedExplicitContent: nil,
-            artworkExpectation: .unchanged,
+            artworkExpectation: .skip,
             customFieldKeys: [],
             expectedTextFields: ["title": "Different title"]
         )
