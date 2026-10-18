@@ -940,8 +940,12 @@ extension TagLibMetadataManager {
     /// - `publisher` is mapped to TagLib's `label` field.
     @discardableResult
     @available(*, deprecated, message: "This replaces the complete Basic projection. Use replaceBasicMetadata(_:to:expectedVersion:) or updateBasicMetadata(at:_:).")
-    public nonisolated static func writeMetadata(_ meta: BasicMetadata, to url: URL) throws -> Bool {
-        _ = try replaceBasicMetadata(meta, to: url)
+    public nonisolated static func writeMetadata(
+        _ meta: BasicMetadata,
+        to url: URL,
+        expectedVersion: MetadataFileVersion? = nil
+    ) throws -> Bool {
+        _ = try replaceBasicMetadata(meta, to: url, expectedVersion: expectedVersion)
         return true
     }
 
@@ -949,14 +953,20 @@ extension TagLibMetadataManager {
     public nonisolated static func writeRawMetadataPropertyMap(
         _ properties: [String: String],
         to url: URL,
-        mode: RawPropertyMapWriteMode = .replace
+        mode: RawPropertyMapWriteMode = .replace,
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> Bool {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        _ = try writeRawMetadataPropertyMapWithVerification(properties, to: url, mode: mode)
+        _ = try writeRawMetadataPropertyMapWithVerification(
+            properties,
+            to: url,
+            mode: mode,
+            expectedVersion: expectedVersion
+        )
         return true
     }
 
