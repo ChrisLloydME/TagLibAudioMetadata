@@ -289,14 +289,20 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"DSF";
-            if (auto *tag = dynamic_cast<TagLib::ID3v2::Tag *>(file->tag())) ExtractID3v2Metadata(tag, basic);
+            if (auto *tag = dynamic_cast<TagLib::ID3v2::Tag *>(file->tag())) {
+                ExtractID3v2Metadata(tag, basic);
+                if (wantsStructured) AppendStructuredID3v2(tag, structuredFramesOut, artworkOut, lyricsOut, commentsOut);
+            }
         }
     } else if (format == TLTagFileFormatDSDIFF) {
         if (auto *file = dynamic_cast<TagLib::DSDIFF::File *>(baseFile)) {
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"DSDIFF";
-            if (file->hasID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
+            if (file->hasID3v2Tag()) {
+                ExtractID3v2Metadata(file->ID3v2Tag(), basic);
+                if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
+            }
         }
     } else if (format == TLTagFileFormatShorten) {
         if (auto *file = dynamic_cast<TagLib::Shorten::File *>(baseFile)) {
