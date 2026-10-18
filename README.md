@@ -279,10 +279,10 @@ The registry contains 22 families and 37 extensions.
 
 | Level | Families/extensions |
 | --- | --- |
-| Fixture-covered | MP3, M4A (AAC and ALAC fixtures), FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM, TrueAudio, WavPack, ASF/WMA |
+| Fixture-covered | MP3, M4A (AAC and ALAC fixtures), FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM, TrueAudio, WavPack, ASF/WMA, APE, Musepack, DSF, DSDIFF, Opus |
 | Experimental | S3M, Impulse Tracker |
 | Read-only | MOD family and Shorten |
-| Upstream-supported | Untested aliases and the remaining TagLib families, including Opus, Speex, APE, Musepack, AIFF, DSF, and DSDIFF |
+| Upstream-supported | Untested aliases and the remaining TagLib families, including Speex and AIFF |
 
 Fixture-covered means the repository has a licensed fixture and relevant read/write
 round-trip regression coverage. It does not imply that every alias or every

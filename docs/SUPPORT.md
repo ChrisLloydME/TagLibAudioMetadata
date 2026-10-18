@@ -741,8 +741,9 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 ```
 
 Top-level structured artwork replacement is supported for ID3v2, MP4, ASF,
-FLAC/Xiph, and APE-family containers (TrueAudio and WavPack are covered by
-fixtures; Musepack uses the same APE path). `StructuredArtwork.container` is
+FLAC/Xiph, and APE-family containers. TrueAudio, WavPack, APE, Musepack,
+DSF, and DSDIFF now have genuine runtime fixtures; DSD structured collection
+reads are tested independently from their more limited write support. `StructuredArtwork.container` is
 informational: the writer selects the destination container from the file
 format, so verification compares payload, MIME type, and applicable picture
 metadata rather than requiring the caller to guess the container name.
@@ -810,7 +811,7 @@ numeric equivalence and the container can represent the requested state. A
 paired first component cannot be removed while retaining its total on ID3/MP4;
 that partial operation is rejected, while removing both components clears the
 pair. The same validation applies to total-only Basic/typed requests on
-MP3/AAC, MP4, and WAV: set a positive number with the total. Raw and native APIs
+MP3/AAC, MP4, WAV, and ASF: set a positive number with the total. Raw and native APIs
 may expose container representations outside this normalized contract. Formats
 with independent total fields, such as FLAC/Ogg, still permit total-only edits.
 
@@ -1251,3 +1252,52 @@ When distributing an app, verify that the final product embeds and signs
 resolution links the framework; the final application target remains
 responsible for a valid embedded, signed copy.
 See [INSTALLATION.md](INSTALLATION.md).
+
+## Verification-hardening evidence
+
+See [the verification-hardening report](VERIFICATION_HARDENING_2026-10-18.md)
+for the runtime matrix and its limits. Genuine pinned upstream DSF/DSDIFF, APE,
+and Musepack files are copied before testing. Native ID3, APEv2, bounded ASF
+header inspection, and encoded audio comparisons provide evidence beyond
+same-library readback. A fixture-covered label does not imply universal codec
+or native metadata conformance.
+
+DSF/DSDIFF support native structured ID3 collection **reading**, PropertyMap
+changes, Basic writes on representable projections, and artwork changes.
+Native frame/comment/lyric collection replacement remains unsupported. A Basic
+edit that requires replaying existing DSD comments/lyrics safely rejects rather
+than normalizing that information; use a raw delta for an unrelated field.
+APE-family artwork writes support one front image; existing back artwork is
+read and preserved during unrelated edits, and removeAll clears both roles.
+
+ASF structured attributes preserve name/type/language/stream identity. The
+public `int` type projects WORD and DWORD: an update retains an existing
+unambiguous native width, a new attribute uses DWORD, and a WORD overflow or
+ambiguous same-identity WORD/DWORD update rejects. GUID attributes are
+inspection-only with the pinned encoder: omit them from write payloads to
+preserve them. They are never silently encoded as binary attributes.
+Normalized ASF number writers persist totals inside WM/TrackNumber and
+WM/PartOfSet text pairs; exact raw-map writes retain their distinct contract.
+
+### Reproducing the opt-in checks
+
+```sh
+# The output directory must not already exist. Requires Python 3 and FFmpeg
+# with the listed encoders (including experimental native Vorbis/Opus).
+python3 scripts/make-preservation-corpus.py /tmp/taglib-preservation-corpus
+TAGLIB_PRESERVATION_CORPUS=/tmp/taglib-preservation-corpus \
+  swift test --disable-sandbox --filter ExternalCorpusPreservationTests
+TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
+  --filter SnapshotThroughputBenchmarkTests
+```
+
+The generated corpus has eight valid tone containers with known metadata.
+FFmpeg emits APEv2 on TTA, while the pinned TTA reader projects ID3; the generator
+also independently seeds ID3v2 on that file so the visible-map preservation
+assertion is meaningful. This is a controlled generated corpus, not an
+independently curated application or user-library corpus.
+
+The benchmark keeps fixture setup outside timing and prints warmed snapshot
+throughput, twelve-write batches for raw deltas versus Basic native
+preservation, and dirty-file fsync/fullSync samples. It has no performance
+threshold. Both facilities remain opt-in; ordinary runs intentionally skip them.
