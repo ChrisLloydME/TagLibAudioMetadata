@@ -1,7 +1,3 @@
-static bool IsMP4LikeExtension(NSString * _Nullable ext) {
-    return DetectTagFileFormat(ext) == TLTagFileFormatMP4;
-}
-
 static void SetMP4TextItem(TagLib::MP4::Tag *tag,
                            const char *key,
                            NSString * _Nullable value)
@@ -306,14 +302,19 @@ static void SetParsedExplicitAdvisory(TagLibAudioMetadata *metadata,
     metadata.explicitAdvisory = advisory;
 }
 
-static NSString * _Nullable SerializedExplicitAdvisory(TagLibAudioMetadata *metadata)
+static NSString * _Nullable SerializedExplicitAdvisoryValue(TagLibExplicitAdvisory advisory)
 {
-    switch (metadata.explicitAdvisory) {
+    switch (advisory) {
         case TagLibExplicitAdvisoryNotExplicit: return @"0";
         case TagLibExplicitAdvisoryExplicit: return @"1";
         case TagLibExplicitAdvisoryClean: return @"2";
         case TagLibExplicitAdvisoryUnspecified: return nil;
     }
+}
+
+static NSString * _Nullable SerializedExplicitAdvisory(TagLibAudioMetadata *metadata)
+{
+    return SerializedExplicitAdvisoryValue(metadata.explicitAdvisory);
 }
 
 static void ApplyExplicitPropertyKeys(const TagLib::PropertyMap &properties,
@@ -480,7 +481,8 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
-    if ([normalizedKey isEqualToString:@"LABEL"]) {
+    if ([normalizedKey isEqualToString:@"LABEL"] ||
+        [normalizedKey isEqualToString:@"PUBLISHER"]) {
         metadata.label = trimmedValue;
         return true;
     }
@@ -734,8 +736,6 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     }
     if (!metadata) return properties;
 
-    NSString *yearValue = TrimmedStringOrNil(metadata.year);
-
     SetPropertyMapString(properties, "TITLE", metadata.title);
     SetPropertyMapString(properties, "ARTIST", metadata.artist);
     SetPropertyMapString(properties, "ALBUM", metadata.album);
@@ -744,7 +744,6 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "COMMENT", metadata.comment);
     SetPropertyMapString(properties, "ALBUMARTIST", metadata.albumArtist);
     SetPropertyMapString(properties, "DATE", metadata.year);
-    SetPropertyMapString(properties, "YEAR", yearValue);
     SetPropertyMapString(properties, "RELEASEDATE", metadata.releaseDate);
     SetPropertyMapString(properties, "ORIGINALDATE", metadata.originalReleaseDate);
     SetPropertyMapString(properties, "COPYRIGHT", metadata.copyright);
@@ -935,8 +934,14 @@ static TagLib::List<TagLib::VariantMap> MergingBasicPictureComplexProperties(
 
         replacedPrimary = true;
         TagLib::ByteVector existingData = existing.value("data").value<TagLib::ByteVector>();
-        // An unchanged Basic projection must not rewrite or discard any artwork entry.
-        pictures.append(existingData == replacementData ? existing : replacement);
+        TagLib::String existingMime = existing.value("mimeType").value<TagLib::String>();
+        TagLib::String replacementMime = replacement.value("mimeType").value<TagLib::String>();
+        // An unchanged Basic projection must not rewrite artwork bytes, but a
+        // caller-requested MIME correction must still be applied when the
+        // bytes are identical.
+        pictures.append(existingData == replacementData && existingMime == replacementMime
+                            ? existing
+                            : replacement);
     }
 
     if (!replacedPrimary) pictures.prepend(replacement);
@@ -1028,6 +1033,53 @@ static void ExtractArtworkFromComplexProperties(ComplexPropertyTarget *target,
     }
 }
 
+static void ExtractASFPicture(TagLib::ASF::Tag *tag, TagLibAudioMetadata *metadata)
+{
+    if (!tag || !metadata || metadata.artworkData.length > 0) return;
+    TagLib::ASF::AttributeList pictures = tag->attribute("WM/Picture");
+    for (const auto &attribute : pictures) {
+        TagLib::ASF::Picture picture = attribute.toPicture();
+        if (!picture.isValid() || picture.picture().isEmpty()) continue;
+        metadata.artworkData = [NSData dataWithBytes:picture.picture().data() length:picture.picture().size()];
+        metadata.artworkMimeType = TagStringToNSString(picture.mimeType());
+        if (picture.type() == TagLib::ASF::Picture::FrontCover) {
+            return;
+        }
+    }
+}
+
+static void ExtractASFCustomAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadata *metadata)
+{
+    if (!tag || !metadata) return;
+    NSMutableDictionary<NSString *, NSString *> *custom = [NSMutableDictionary dictionary];
+    const TagLib::ASF::AttributeListMap &attributes = tag->attributeListMap();
+    for (auto it = attributes.begin(); it != attributes.end(); ++it) {
+        NSString *key = TagStringToNSString(it->first);
+        if (!key) continue;
+        NSString *normalized = key.uppercaseString;
+        for (const auto &attribute : it->second) {
+            if (attribute.type() != TagLib::ASF::Attribute::UnicodeType) continue;
+            NSString *value = TagStringToNSString(attribute.toString());
+            if (!value) continue;
+            if ([normalized isEqualToString:@"ITUNESADVISORY"] ||
+                [normalized isEqualToString:@"ADVISORY"] ||
+                [normalized isEqualToString:@"EXPLICITCONTENT"] ||
+                [normalized isEqualToString:@"EXPLICIT"]) {
+                TagLibExplicitAdvisory advisory = TagLibExplicitAdvisoryUnspecified;
+                if (ParseExplicitTagValue(attribute.toString(), advisory)) {
+                    SetParsedExplicitAdvisory(metadata, advisory);
+                }
+                continue;
+            }
+            if ([normalized hasPrefix:@"WM/"]) continue;
+            custom[key] = value;
+        }
+    }
+    if (custom.count > 0) {
+        metadata.customFields = [custom copy];
+    }
+}
+
 template <typename FileType>
 static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *metadata)
 {
@@ -1081,6 +1133,48 @@ static TagLib::PropertyMap BuildRawPropertyMapValues(NSDictionary<NSString *, NS
 
         if (!values.isEmpty()) {
             propertyMap.replace(NSStringToTagString(trimmedKey), values);
+        }
+    }
+
+    return propertyMap;
+}
+
+// Merge only explicitly supplied PropertyMap keys into an existing map.
+// Unlike BuildRawPropertyMapValues(), this preserves every omitted key,
+// including keys that are not surfaced by the package's visible projections.
+static TagLib::PropertyMap MergedRawPropertyMapValues(
+    const TagLib::PropertyMap &existing,
+    NSDictionary<NSString *, NSArray<NSString *> *> *properties)
+{
+    TagLib::PropertyMap propertyMap = existing;
+
+    if (!properties || properties.count == 0) {
+        return propertyMap;
+    }
+
+    for (NSString *key in properties) {
+        NSString *trimmedKey = TrimmedStringOrNil(key);
+        if (!trimmedKey || IsHiddenInternalMetadataFieldKey(trimmedKey)) {
+            continue;
+        }
+        if ([trimmedKey rangeOfString:@"\0"].location != NSNotFound) {
+            continue;
+        }
+
+        TagLib::StringList values;
+        for (NSString *value in properties[key] ?: @[]) {
+            NSString *trimmedValue = TrimmedStringOrNil(value);
+            if (!trimmedValue || [trimmedValue rangeOfString:@"\0"].location != NSNotFound) {
+                continue;
+            }
+            values.append(NSStringToTagString(trimmedValue));
+        }
+
+        TagLib::String tagKey = NSStringToTagString(trimmedKey);
+        if (values.isEmpty()) {
+            propertyMap.erase(tagKey);
+        } else {
+            propertyMap.replace(tagKey, values);
         }
     }
 

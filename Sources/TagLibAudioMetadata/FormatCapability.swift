@@ -159,6 +159,10 @@ public extension TagLibMetadataManager {
     ///
     /// Use this for editability decisions about user-selected files. A declared
     /// extension capability alone does not prove that the file is valid audio.
+    /// Reads and validates a concrete file with the selected parser, then
+    /// returns the declared family capability. This does not test POSIX write
+    /// permission, ACLs, disk space, or sandbox access; attempt a write or check
+    /// those separately when an editability decision depends on them.
     nonisolated static func probeFile(at url: URL) throws -> FormatCapability {
         guard let capability = capability(forExtension: url.pathExtension) else {
             throw TagLibManagerError.unsupportedFormat

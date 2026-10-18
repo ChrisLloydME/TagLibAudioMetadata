@@ -417,7 +417,12 @@ extension TagLibMetadataManager {
         )
     }
 
-    public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
+    nonisolated static func readBasicMetadataAndRaw(
+        from url: URL
+    ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump) {
+        guard regularFileIdentity(at: url) != nil else {
+            throw TagLibManagerError.invalidFile
+        }
         let identityBeforeRead = regularFileIdentity(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
@@ -431,11 +436,19 @@ extension TagLibMetadataManager {
                 "The audio file changed while metadata was being read."
             )
         }
-        return basicMetadata(
-            fromBridgeMetadata: bridgeBasic,
-            rawDump: rawMetadataDump(fromBridgeDictionary: bridgeRaw),
-            fileExtension: url.pathExtension
+        let raw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
+        return (
+            basicMetadata(
+                fromBridgeMetadata: bridgeBasic,
+                rawDump: raw,
+                fileExtension: url.pathExtension
+            ),
+            raw
         )
+    }
+
+    public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
+        try readBasicMetadataAndRaw(from: url).metadata
     }
 
     /// Reads normalized Basic metadata and the exact file version captured with it.
@@ -482,6 +495,9 @@ extension TagLibMetadataManager {
     }
 
     public nonisolated static func rawMetadataResult(from url: URL) throws -> RawMetadataDump {
+        guard regularFileIdentity(at: url) != nil else {
+            throw TagLibManagerError.invalidFile
+        }
         let identityBeforeRead = regularFileIdentity(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: .raw)
         guard let bridgeRaw = projections["raw"] as? [String: NSObject] else {

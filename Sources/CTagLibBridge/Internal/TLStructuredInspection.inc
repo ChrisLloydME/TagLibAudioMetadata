@@ -468,12 +468,14 @@ static void AppendStructuredID3v2(TagLib::ID3v2::Tag *tag,
             item[@"language"] = TagStringToNSString(comm->language()) ?: @"";
             item[@"text"] = TagStringToNSString(comm->text()) ?: @"";
             [commentsOut addObject:item];
+            continue;
         } else if (auto *uslt = dynamic_cast<TagLib::ID3v2::UnsynchronizedLyricsFrame *>(frame)) {
             item[@"type"] = @"lyrics";
             item[@"description"] = TagStringToNSString(uslt->description()) ?: @"";
             item[@"language"] = TagStringToNSString(uslt->language()) ?: @"";
             item[@"text"] = TagStringToNSString(uslt->text()) ?: @"";
             [lyricsOut addObject:item];
+            continue;
         } else if (auto *pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(frame)) {
             item[@"type"] = @"artwork";
             item[@"container"] = @"id3v2";
@@ -484,6 +486,7 @@ static void AppendStructuredID3v2(TagLib::ID3v2::Tag *tag,
             item[@"data"] = DataFromByteVector(pic->picture());
             item[@"byteCount"] = @(pic->picture().size());
             [artworkOut addObject:item];
+            continue;
         } else if (auto *chapter = dynamic_cast<TagLib::ID3v2::ChapterFrame *>(frame)) {
             item[@"type"] = @"chapter";
             item[@"elementID"] = StringFromByteVector(chapter->elementID());
@@ -635,6 +638,46 @@ static void AppendStructuredASF(TagLib::ASF::Tag *tag,
                 [artworkOut addObject:item];
             }
         }
+    }
+}
+
+static void AppendStructuredAPEPictures(TagLib::APE::Tag *tag,
+                                        NSMutableArray<NSDictionary<NSString *, NSObject *> *> *artworkOut)
+{
+    if (!tag || !artworkOut) return;
+    const TagLib::APE::ItemListMap &items = tag->itemListMap();
+    for (auto it = items.begin(); it != items.end(); ++it) {
+        NSString *key = TagStringToNSString(it->first) ?: @"";
+        if (![key.uppercaseString hasPrefix:@"COVER ART"]) continue;
+        if (it->second.type() != TagLib::APE::Item::Binary) continue;
+        TagLib::ByteVector itemData = it->second.binaryData();
+        if (itemData.isEmpty()) continue;
+
+        unsigned int separator = itemData.size();
+        for (unsigned int index = 0; index < itemData.size(); ++index) {
+            if (itemData[index] == 0) {
+                separator = index;
+                break;
+            }
+        }
+        const unsigned int imageOffset = separator < itemData.size() ? separator + 1 : 0;
+        const unsigned int imageLength = itemData.size() - imageOffset;
+        if (imageLength == 0) continue;
+        TagLib::ByteVector imageData(itemData.data() + imageOffset, imageLength);
+        NSData *data = DataFromByteVector(imageData);
+        NSString *description = separator < itemData.size()
+            ? StringFromByteVector(TagLib::ByteVector(itemData.data(), separator))
+            : @"";
+
+        [artworkOut addObject:@{
+            @"container": @"ape",
+            @"pictureType": @"Front Cover",
+            @"pictureTypeCode": @((int)TagLib::ID3v2::AttachedPictureFrame::FrontCover),
+            @"mimeType": NormalizedArtworkMimeType(nil, data) ?: @"image/jpeg",
+            @"description": description ?: @"",
+            @"data": data,
+            @"byteCount": @(data.length)
+        }];
     }
 }
 

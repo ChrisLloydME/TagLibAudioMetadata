@@ -63,15 +63,22 @@ extension TagLibMetadataManager {
             let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             guard !key.isEmpty else { return }
 
-            let mergedValues = (entry.values + [entry.value])
+            // `entry.value` is a display projection. When the bridge supplied
+            // per-value entries, appending the joined projection duplicates
+            // multi-value fields (for example "A; B" next to ["A", "B"]).
+            let sourceValues = entry.values.isEmpty ? [entry.value] : entry.values
+            let mergedValues = sourceValues
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
 
             guard !mergedValues.isEmpty else { return }
 
             var existing = result[key] ?? []
-            existing.append(contentsOf: mergedValues)
-            result[key] = Array(Set(existing))
+            var seen = Set(existing)
+            for value in mergedValues where seen.insert(value).inserted {
+                existing.append(value)
+            }
+            result[key] = existing
         }
     }
 
@@ -158,13 +165,13 @@ extension TagLibMetadataManager {
         }
 
         switch verification.artworkExpectation {
-        case .unchanged:
+        case .skip, .unchanged:
             break
         case .present, .absent:
             return true
         }
 
-        return !verification.customFieldKeys.isEmpty
+        return !verification.customFieldKeys.isEmpty || !verification.customFieldValues.isEmpty
     }
 
     nonisolated static func metadataWriteWarnings(
@@ -279,7 +286,7 @@ extension TagLibMetadataManager {
 
         if let afterWrite {
             switch verification.artworkExpectation {
-            case .unchanged:
+            case .skip, .unchanged:
                 break
             case .present:
                 if afterWrite.artworkData == nil {
@@ -292,14 +299,25 @@ extension TagLibMetadataManager {
             }
         }
 
-        if !verification.customFieldKeys.isEmpty {
-            guard let rawDump else {
-                warnings.append("Could not verify custom field preservation after save.")
-                return warnings
-            }
-
-            for key in verification.customFieldKeys where !rawContainsCustomKey(key, dump: rawDump) {
-                warnings.append("Custom field \"\(key)\" could not be confirmed after save.")
+        let customKeys = Set(verification.customFieldKeys)
+            .union(verification.customFieldValues.keys)
+        if !customKeys.isEmpty {
+            let lookup = rawDump.map(rawPropertiesLookup) ?? [:]
+            for key in customKeys.sorted() {
+                let normalized = key.uppercased()
+                let rawValues = lookup[normalized] ?? []
+                let basicValue = afterWrite?.customFields.first {
+                    $0.key.caseInsensitiveCompare(key) == .orderedSame
+                }?.value
+                if let expected = verification.customFieldValues[key] {
+                    if !rawValues.contains(expected) && basicValue != expected {
+                        warnings.append(
+                            "Custom field \"\(key)\" differs after save (expected \"\(expected)\", got \"\(basicValue ?? rawValues.joined(separator: "; "))\")."
+                        )
+                    }
+                } else if rawValues.isEmpty && basicValue == nil {
+                    warnings.append("Custom field \"\(key)\" could not be confirmed after save.")
+                }
             }
         }
 
@@ -459,6 +477,12 @@ extension TagLibMetadataManager {
             let propertyKey = uppercased.hasPrefix(prefix)
                 ? String(uppercased.dropFirst(prefix.count))
                 : uppercased
+            let qualifiedPrefixes = [
+                "COMMENT:", "LYRICS:", "PERFORMER:", "INVOLVEDPEOPLE:", "MUSICIANCREDITS:"
+            ]
+            if qualifiedPrefixes.contains(where: propertyKey.hasPrefix) {
+                return propertyKey
+            }
             return MetadataFieldRegistry.schema(forPropertyMapKey: propertyKey)?
                 .propertyMapKeys.first?.uppercased() ?? propertyKey
         }

@@ -27,13 +27,41 @@ extension TagLibMetadataManager {
         }
     }
 
-    nonisolated private static func basicProjectionValue(
+    nonisolated static func validateBasicMetadataForWrite(_ metadata: BasicMetadata) throws {
+        for (key, value) in metadata.customFields {
+            if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw MetadataValidationError.knownFieldRequiresRawAPI(key)
+            }
+            if key.contains("\0") {
+                throw MetadataValidationError.embeddedNull(location: "customFields key")
+            }
+            if value.contains("\0") {
+                throw MetadataValidationError.embeddedNull(location: "customFields[\(key)]")
+            }
+            if MetadataFieldRegistry.schema(forHighLevelCustomKey: key) != nil {
+                throw MetadataValidationError.knownFieldRequiresRawAPI(key)
+            }
+        }
+    }
+
+    nonisolated static func basicProjectionValue(
         for field: MetadataFieldKey,
         metadata: BasicMetadata
     ) -> String? {
         switch field {
+        case .title: metadata.title
         case .artist: metadata.artist
+        case .album: metadata.album
         case .albumArtist: metadata.albumArtist
+        case .date: metadata.year
+        case .releaseDate: metadata.releaseDate
+        case .originalReleaseDate: metadata.originalReleaseDate
+        case .track: String(metadata.track)
+        case .trackTotal: String(metadata.trackTotal)
+        case .disc: String(metadata.disc)
+        case .discTotal: String(metadata.discTotal)
+        case .lyrics: metadata.lyrics
+        case .comment: metadata.comment
         case .genre: metadata.genre
         case .composer: metadata.composer
         case .conductor: metadata.conductor
@@ -41,18 +69,138 @@ extension TagLibMetadataManager {
         case .producer: metadata.producer
         case .engineer: metadata.engineer
         case .lyricist: metadata.lyricist
+        case .publisher: metadata.publisher
+        case .copyright: metadata.copyright
+        case .encodedBy: metadata.encodedBy
+        case .encoderSettings: metadata.encoderSettings
+        case .isrc: metadata.isrc
+        case .barcode: metadata.barcode
+        case .catalogNumber: metadata.catalogNumber
+        case .asin: metadata.asin
+        case .releaseType: metadata.releaseType
+        case .releaseStatus: metadata.releaseStatus
+        case .releaseCountry: metadata.releaseCountry
+        case .mediaType: metadata.mediaType
+        case .work: metadata.work
+        case .movement: metadata.movement
+        case .movementNumber: String(metadata.movementNumber)
+        case .movementCount: String(metadata.movementCount)
+        case .discSubtitle: metadata.discSubtitle
+        case .subtitle: metadata.subtitle
         case .grouping: metadata.grouping
         case .mood: metadata.mood
         case .language: metadata.language
+        case .musicalKey: metadata.musicalKey
+        case .bpm: String(metadata.bpm)
+        case .compilation: metadata.isCompilation ? "1" : "0"
+        case .sortTitle: metadata.sortTitle
+        case .sortArtist: metadata.sortArtist
+        case .sortAlbum: metadata.sortAlbum
+        case .sortAlbumArtist: metadata.sortAlbumArtist
+        case .sortComposer: metadata.sortComposer
+        case .musicBrainzArtistID: metadata.musicBrainzArtistID
+        case .musicBrainzAlbumID: metadata.musicBrainzAlbumID
+        case .musicBrainzAlbumArtistID: metadata.musicBrainzAlbumArtistID
+        case .musicBrainzTrackID: metadata.musicBrainzTrackID
+        case .musicBrainzReleaseGroupID: metadata.musicBrainzReleaseGroupID
+        case .musicBrainzReleaseTrackID: metadata.musicBrainzReleaseTrackID
+        case .musicBrainzWorkID: metadata.musicBrainzWorkID
+        case .acoustID: metadata.acoustID
+        case .acoustIDFingerprint: metadata.acoustIDFingerprint
+        case .musicIPPUID: metadata.musicIPPUID
+        case .replayGainTrackGain: metadata.replayGainTrack
+        case .replayGainAlbumGain: metadata.replayGainAlbum
+        case .itunesAlbumID: metadata.itunesAlbumID
+        case .itunesArtistID: metadata.itunesArtistID
+        case .itunesCatalogID: metadata.itunesCatalogID
+        case .itunesGenreID: metadata.itunesGenreID
+        case .itunesMediaType: metadata.itunesMediaType
+        case .itunesPurchaseDate: metadata.itunesPurchaseDate
+        case .itunesNorm: metadata.itunesNorm
+        case .itunesSMPB: metadata.itunesSMPB
+        case .originalAlbum: metadata.originalAlbum
         case .originalArtist: metadata.originalArtist
-        default: nil
+        case .artistType: metadata.artistType
+        case .artwork, .performer, .involvedPeople, .musicianCredits,
+             .explicitContent, .trackerName, .custom:
+            nil
         }
     }
 
+    /// Raw PropertyMap entries that should be restored after a Basic write
+    /// because the corresponding Basic projection was not intentionally edited.
+    nonisolated static func preservedStandardValues(
+        desired: BasicMetadata,
+        current: BasicMetadata,
+        rawDump: RawMetadataDump
+    ) -> (values: [String: [String]], aliases: Set<String>) {
+        var values: [String: [String]] = [:]
+        var aliases: Set<String> = []
+        let fieldsHandledByTypedWriters: Set<MetadataFieldKey> = [
+            .track, .trackTotal, .disc, .discTotal,
+            .movementNumber, .movementCount, .bpm, .compilation,
+        ]
+
+        for entry in rawDump.properties where !entry.values.isEmpty {
+            guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key) else {
+                continue
+            }
+            guard schema.key != .artwork && schema.key != .custom && schema.key != .explicitContent else {
+                continue
+            }
+
+            let shouldPreserve: Bool
+            if !BasicMetadata.editableFieldKeys.contains(schema.key) {
+                shouldPreserve = true
+            } else if fieldsHandledByTypedWriters.contains(schema.key) {
+                shouldPreserve = false
+            } else if schema.key == .date {
+                // The full recording date is carried through the Basic writer
+                // above; reapplying the raw DATE would be redundant and can be
+                // overridden by a lower-fidelity surface such as ID3v1.
+                shouldPreserve = false
+            } else if let desiredValue = basicProjectionValue(for: schema.key, metadata: desired),
+                      let currentValue = basicProjectionValue(for: schema.key, metadata: current) {
+                shouldPreserve = desiredValue == currentValue
+            } else {
+                shouldPreserve = false
+            }
+
+            guard shouldPreserve else { continue }
+            values[entry.key] = entry.values
+            aliases.formUnion(schema.propertyMapKeys)
+        }
+
+        return (values, aliases)
+    }
+
+    nonisolated static func preservedRawValueWarnings(
+        _ preservedValues: [String: [String]],
+        for url: URL
+    ) -> [String] {
+        guard !preservedValues.isEmpty,
+              let dump = try? rawMetadataResult(from: url) else {
+            return []
+        }
+        let actual = rawPropertiesLookup(dump)
+        return preservedValues.keys.sorted().compactMap { key in
+            let expected = preservedValues[key] ?? []
+            let observed = actual[key.uppercased()] ?? []
+            return observed == expected
+                ? nil
+                : "Preserved metadata field \(key) differs after save (expected \(expected), got \(observed))."
+        }
+    }
+
+    /// Low-level bridge entry point. Its parameter type comes from the
+    /// `CTagLibBridge` module, so clients must import that module (or use the
+    /// `TagLibAudioMetadataLowLevel` product) to name it. Prefer
+    /// `replaceBasicMetadata` or `updateBasicMetadata` in facade-only clients.
     public nonisolated static func writeTagMetadata(
         _ metadata: TagLibAudioMetadata,
         to url: URL,
-        verification: MetadataWriteVerificationContext = .none
+        verification: MetadataWriteVerificationContext = .none,
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -64,7 +212,7 @@ extension TagLibMetadataManager {
             for: url
         )
 
-        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             try throwOnVerificationFailures(warnings)
@@ -77,9 +225,15 @@ extension TagLibMetadataManager {
         _ metadata: TagLibAudioMetadata,
         to url: URL,
         verification: MetadataWriteVerificationContext = .none,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy
     ) throws -> MetadataWriteResult {
-        try writeTagMetadata(metadata, to: url, verification: verification)
+        try writeTagMetadata(
+            metadata,
+            to: url,
+            verification: verification,
+            expectedVersion: expectedVersion
+        )
     }
 
     /// Intentionally writes formatted track/disc number text. Unlike an ordinary
@@ -124,7 +278,7 @@ extension TagLibMetadataManager {
                     expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
                     expectedDiscNumberText: verifiesExactDiscText ? discNumberText : nil,
                     expectedExplicitContent: nil,
-                    artworkExpectation: .unchanged,
+                    artworkExpectation: .skip,
                     customFieldKeys: []
                 )
             )
@@ -157,38 +311,54 @@ extension TagLibMetadataManager {
         _ properties: [String: String],
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
-        verifyAfterWrite: Bool = true
+        verifyAfterWrite: Bool = true,
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
                 try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
-            case .merge:
-                let resolvedProperties = try resolvedRawPropertyMapValuesForMerge(properties, to: mutationURL)
-                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(resolvedProperties, to: mutationURL)
-            }
-
-            let warnings: [String]
-            if !verifyAfterWrite {
-                warnings = []
-            } else {
-                switch mode {
-                case .replace:
-                    warnings = rawPropertyMapReplacementWarnings(
+                let warnings = verifyAfterWrite
+                    ? rawPropertyMapReplacementWarnings(
                         expectedProperties: properties.mapValues { [$0] },
                         for: mutationURL
                     )
-                case .merge:
-                    warnings = rawPropertyMapWriteWarnings(requestedProperties: properties, for: mutationURL)
+                    : []
+                try throwOnVerificationFailures(warnings)
+                return MetadataWriteResult(warnings: warnings)
+            case .merge:
+                var replacements: [String: [String]] = [:]
+                var removals: Set<String> = []
+                for (rawKey, rawValue) in properties {
+                    let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !key.isEmpty else { continue }
+                    let normalized = key.uppercased()
+                    guard !hiddenInternalRawFieldKeys.contains(normalized) else {
+                        throw RawMetadataPatchError.invalidKey(rawKey)
+                    }
+                    guard !key.contains("\0"), !rawValue.contains("\0") else {
+                        throw RawMetadataPatchError.embeddedNull(rawKey)
+                    }
+                    let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if value.isEmpty {
+                        removals.insert(key)
+                    } else {
+                        replacements[key] = [value]
+                    }
                 }
+                try applyRawMetadataDeltaInPlace(
+                    replacements,
+                    removingKeys: removals,
+                    verify: verifyAfterWrite,
+                    to: mutationURL
+                )
+                return MetadataWriteResult(warnings: [])
             }
-            try throwOnVerificationFailures(warnings)
-            return MetadataWriteResult(warnings: warnings)
         }
     }
 
@@ -199,13 +369,15 @@ extension TagLibMetadataManager {
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
         verifyAfterWrite: Bool = true,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy
     ) throws -> MetadataWriteResult {
         try writeRawMetadataPropertyMapWithVerification(
             properties,
             to: url,
             mode: mode,
-            verifyAfterWrite: verifyAfterWrite
+            verifyAfterWrite: verifyAfterWrite,
+            expectedVersion: expectedVersion
         )
     }
 
@@ -216,43 +388,57 @@ extension TagLibMetadataManager {
         _ properties: [String: [String]],
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
-        verifyAfterWrite: Bool = true
+        verifyAfterWrite: Bool = true,
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
-            let resolvedProperties: [String: [String]]
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
-                resolvedProperties = properties
-            case .merge:
-                resolvedProperties = try resolvedRawPropertyMapValuesForMerge(properties, to: mutationURL)
-            }
-            try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(resolvedProperties, to: mutationURL)
-
-            let warnings: [String]
-            if verifyAfterWrite {
-                switch mode {
-                case .replace:
-                    warnings = rawPropertyMapReplacementWarnings(
+                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
+                let warnings = verifyAfterWrite
+                    ? rawPropertyMapReplacementWarnings(
                         expectedProperties: properties,
                         for: mutationURL
                     )
-                case .merge:
-                    warnings = rawPropertyMapReplacementWarnings(
-                        expectedProperties: resolvedProperties,
-                        for: mutationURL
-                    )
+                    : []
+                try throwOnVerificationFailures(warnings)
+                return MetadataWriteResult(warnings: warnings)
+            case .merge:
+                var replacements: [String: [String]] = [:]
+                var removals: Set<String> = []
+                for (rawKey, rawValues) in properties {
+                    let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !key.isEmpty else { continue }
+                    let normalized = key.uppercased()
+                    guard !hiddenInternalRawFieldKeys.contains(normalized) else {
+                        throw RawMetadataPatchError.invalidKey(rawKey)
+                    }
+                    guard !key.contains("\0"),
+                          rawValues.allSatisfy({ !$0.contains("\0") }) else {
+                        throw RawMetadataPatchError.embeddedNull(rawKey)
+                    }
+                    let values = rawValues
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                    if values.isEmpty {
+                        removals.insert(key)
+                    } else {
+                        replacements[key] = values
+                    }
                 }
-            } else {
-                warnings = []
+                try applyRawMetadataDeltaInPlace(
+                    replacements,
+                    removingKeys: removals,
+                    verify: verifyAfterWrite,
+                    to: mutationURL
+                )
+                return MetadataWriteResult(warnings: [])
             }
-
-            try throwOnVerificationFailures(warnings)
-            return MetadataWriteResult(warnings: warnings)
         }
     }
 
@@ -263,13 +449,15 @@ extension TagLibMetadataManager {
         to url: URL,
         mode: RawPropertyMapWriteMode = .replace,
         verifyAfterWrite: Bool = true,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy
     ) throws -> MetadataWriteResult {
         try writeRawMetadataPropertyMapValuesWithVerification(
             properties,
             to: url,
             mode: mode,
-            verifyAfterWrite: verifyAfterWrite
+            verifyAfterWrite: verifyAfterWrite,
+            expectedVersion: expectedVersion
         )
     }
 
@@ -454,6 +642,7 @@ extension TagLibMetadataManager {
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
+        try validateBasicMetadataForWrite(meta)
         try validateDateStorageCompatibility(
             year: meta.year,
             releaseDate: meta.releaseDate,
@@ -569,26 +758,6 @@ extension TagLibMetadataManager {
         m.artworkData = meta.artworkData
         m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
 
-        var preservedStandardValues: [String: [String]] = [:]
-        var preservedStandardAliases: Set<String> = []
-        for (rawKey, values) in meta.originalStandardFieldValues {
-            guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: rawKey) else {
-                continue
-            }
-
-            if BasicMetadata.editableFieldKeys.contains(schema.key) {
-                guard let originalProjection = meta.originalStandardFieldProjection.first(where: {
-                    $0.key.caseInsensitiveCompare(rawKey) == .orderedSame
-                })?.value,
-                basicProjectionValue(for: schema.key, metadata: meta) == originalProjection else {
-                    continue
-                }
-            }
-
-            preservedStandardValues[rawKey] = values
-            preservedStandardAliases.formUnion(schema.propertyMapKeys)
-        }
-
         let isMP4Family = capability(forExtension: ext)?.identifier == "mp4"
         let expectedTrackNumberText = isMP4Family
             ? numberTextPreservingFormatting(
@@ -604,6 +773,12 @@ extension TagLibMetadataManager {
                 total: meta.discTotal
             )
             : meta.discNumberText
+        let expectedYear: String
+        if isMP4Family && normalizedTrimmed(meta.year).isEmpty && !normalizedTrimmed(meta.releaseDate).isEmpty {
+            expectedYear = String(normalizedTrimmed(meta.releaseDate).prefix(4))
+        } else {
+            expectedYear = meta.year
+        }
 
         let verification = MetadataWriteVerificationContext(
                 expectedTrackNumber: meta.track,
@@ -613,7 +788,7 @@ extension TagLibMetadataManager {
                 expectedDiscTotal: meta.discTotal,
                 expectedDiscNumberText: expectedDiscNumberText,
                 expectedExplicitContent: meta.explicitAdvisory == .unspecified ? nil : meta.isExplicit,
-                artworkExpectation: meta.artworkData == nil ? .unchanged : .present,
+                artworkExpectation: meta.artworkData == nil ? .skip : .present,
                 customFieldKeys: Array(meta.customFields.keys),
                 expectedTextFields: [
                     "title": meta.title,
@@ -623,7 +798,7 @@ extension TagLibMetadataManager {
                     "genre": meta.genre,
                     "comment": meta.comment,
                     "lyrics": meta.lyrics,
-                    "year": meta.year,
+                    "year": expectedYear,
                     "albumArtist": meta.albumArtist,
                     "releaseDate": meta.releaseDate,
                     "originalReleaseDate": meta.originalReleaseDate,
@@ -685,19 +860,46 @@ extension TagLibMetadataManager {
                     "bpm": String(meta.bpm),
                     "isCompilation": String(meta.isCompilation),
                 ],
-                expectedExplicitAdvisory: meta.explicitAdvisory
+                expectedExplicitAdvisory: meta.explicitAdvisory,
+                customFieldValues: meta.customFields.filter { !$0.value.isEmpty }
             )
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
-            try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
-            if !preservedStandardValues.isEmpty {
-                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                    preservedStandardValues,
-                    removingKeys: Array(preservedStandardAliases),
-                    to: mutationURL
-                )
+            let current = try readBasicMetadataAndRaw(from: mutationURL)
+            let preservation = preservedStandardValues(
+                desired: meta,
+                current: current.metadata,
+                rawDump: current.raw
+            )
+            // Keep a full recording date when the caller did not change the
+            // Basic year projection. The Basic model exposes only the year,
+            // but the underlying tag can carry a complete ISO date.
+            if normalizedTrimmed(meta.year) == normalizedTrimmed(current.metadata.year),
+               let fullDate = current.raw.properties.first(where: {
+                   $0.key.caseInsensitiveCompare("DATE") == .orderedSame
+               })?.values.first,
+               !normalizedTrimmed(fullDate).isEmpty {
+                m.year = fullDate
             }
-            let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
+
+            try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
+            if !preservation.values.isEmpty {
+                if ext == "wav" {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
+                        preservation.values,
+                        removingKeys: Array(preservation.aliases),
+                        to: mutationURL
+                    )
+                } else {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                        preservation.values,
+                        removingKeys: Array(preservation.aliases),
+                        to: mutationURL
+                    )
+                }
+            }
+            var warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
+            warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }

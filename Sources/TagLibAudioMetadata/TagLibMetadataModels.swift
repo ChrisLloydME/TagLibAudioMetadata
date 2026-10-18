@@ -92,6 +92,12 @@ public enum ExplicitAdvisory: String, Hashable, Sendable {
 /// Fields this model cannot express, including raw cardinality and supported
 /// container-specific entries, are preservation data rather than editable
 /// properties. Use `MetadataPatch`, Raw, or Structured APIs for precise edits.
+/// Normalized scalar projection of tag metadata.
+///
+/// Multi-value fields such as `artist` and `genre` are display strings, not a
+/// stable array representation. Their separator is format-dependent
+/// (`", "` for ID3/MP4, `"; "` for generic/Xiph paths). Use `RawMetadataDump`
+/// or `StructuredMetadata` for lossless multi-value editing.
 public struct BasicMetadata: Sendable {
     /// Schema fields that this normalized projection can explicitly edit.
     /// Fields outside this set are preservation-only during a Basic round trip.
@@ -325,6 +331,7 @@ public struct RawMetadataDump: Hashable, Sendable {
 public struct RawPropertyEntry: Identifiable, Hashable, Sendable {
     @SemanticIdentityExcluded public var id = UUID()
     public var key: String
+    /// Joined display projection. `values` is authoritative for multi-value data.
     public var value: String
     public var values: [String]
     public var count: Int
@@ -368,6 +375,27 @@ public enum RIFFMetadataWritePolicy: String, Hashable, Sendable {
     case syncBasicFieldsToInfo
 }
 
+/// Validation failures that apply to structured metadata payloads before staging.
+public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError {
+    case propertiesRequireIncludeProperties
+    case embeddedNull(location: String)
+    case unsupportedID3v2FrameType(String)
+    case knownFieldRequiresRawAPI(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .propertiesRequireIncludeProperties:
+            return "Structured properties were supplied while includeProperties is false."
+        case .embeddedNull(let location):
+            return "\(location) contains an embedded null character, which cannot be represented safely."
+        case .unsupportedID3v2FrameType(let type):
+            return "ID3v2 frame type '\(type)' must be edited through the dedicated artwork, comments, or lyrics collection."
+        case .knownFieldRequiresRawAPI(let key):
+            return "Custom key '\(key)' is a schema-known field; use RawMetadataPatch or StructuredMetadata instead."
+        }
+    }
+}
+
 /// Structured collections whose bridge representation has replace-all semantics.
 /// Include an empty collection here to remove every existing entry of that kind.
 public enum StructuredMetadataReplaceableCollection: String, Hashable, Sendable {
@@ -398,6 +426,8 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
     public var url: String?
     public var owner: String?
     public var data: Data?
+    /// Reserved for future structured frame fields. The bridge currently
+    /// leaves this empty; use `values`, `data`, and the typed properties.
     public var fields: [String: String]
     public var elementID: String?
     public var startTimeMilliseconds: Int?
@@ -584,6 +614,7 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
     case failedToRead
     case failedToReadWithUnderlying(String)
     case verificationFailed([String])
+    case operationFailed(String)
     /// Atomic rename completed, but the parent-directory fsync failed.
     /// The new file is already visible and callers must not treat this as a pre-commit failure.
     case committedButDurabilityUncertain(String)
@@ -598,6 +629,7 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
         case .failedToRead: "The audio metadata could not be read."
         case .failedToReadWithUnderlying(let detail): "The audio metadata could not be read: \(detail)"
         case .verificationFailed(let details): "Metadata verification failed before commit: \(details.joined(separator: "; "))"
+        case .operationFailed(let detail): "The metadata operation failed: \(detail)"
         case .committedButDurabilityUncertain(let detail): "Metadata was committed, but durability is uncertain: \(detail)"
         }
     }

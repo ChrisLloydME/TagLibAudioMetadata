@@ -271,6 +271,8 @@ static BOOL StripAllTagsAndSave(FileType &file,
             return NO;
         }
 
+        RemoveRecognizedMP4NumberPairFreeformItems(mp4Tag, true, true);
+
         if (trackNumber > 0) {
             mp4Tag->setTrack((unsigned int)trackNumber);
         } else {
@@ -394,15 +396,22 @@ static BOOL StripAllTagsAndSave(FileType &file,
         }
     } else if (format == TLTagFileFormatWAV) {
         TagLib::RIFF::WAV::File wavFile(filePath);
-        if (!WritePropertyMapNumberTextToFile(wavFile,
-                                              BuildTRCKString(trackNumber, totalTracks, padWidth),
-                                              nil,
-                                              error,
-                                              60,
-                                              @"Unable to open WAV file for writing track numbers",
-                                              61,
-                                              @"TagLib failed to save WAV track numbers",
-                                              [NSString stringWithFormat:@"WAV '%@'", fileURL.lastPathComponent])) {
+        if (!wavFile.isValid()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:60
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open WAV file for writing track numbers" }];
+            }
+            return NO;
+        }
+        TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
+        SetID3v2TextFrame(id3v2Tag, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth));
+        if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:61
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save WAV track numbers" }];
+            }
             return NO;
         }
     } else if (format == TLTagFileFormatAIFF) {

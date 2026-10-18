@@ -257,8 +257,12 @@ static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError 
         }
     }
 
+    NSString *validatedYear = TagStringToNSString(NSStringToTagString(metadata.year));
+    if (validatedYear.length > 4 && [validatedYear containsString:@"-"]) {
+        validatedYear = [validatedYear substringToIndex:4];
+    }
     unsigned long long ignoredYear = 0;
-    if (!ParseUnsignedDecimalString(metadata.year,
+    if (!ParseUnsignedDecimalString(validatedYear,
                                     std::numeric_limits<unsigned int>::max(),
                                     ignoredYear)) {
         return SetNumericValidationError(
@@ -283,8 +287,12 @@ static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError 
 
 static unsigned int ValidatedBasicYearValue(NSString * _Nullable year)
 {
+    NSString *trimmed = TrimmedStringOrNil(year);
+    if (trimmed.length > 4 && [trimmed containsString:@"-"]) {
+        trimmed = [trimmed substringToIndex:4];
+    }
     unsigned long long parsed = 0;
-    bool valid = ParseUnsignedDecimalString(year, std::numeric_limits<unsigned int>::max(), parsed);
+    bool valid = ParseUnsignedDecimalString(trimmed, std::numeric_limits<unsigned int>::max(), parsed);
     return valid ? static_cast<unsigned int>(parsed) : 0;
 }
 
@@ -344,7 +352,15 @@ static NSSet<NSString *> *KnownMetadataFieldKeys()
 static bool IsKnownMetadataFieldKey(NSString * _Nullable key)
 {
     NSString *normalizedKey = UppercaseTrimmedString(key);
-    return normalizedKey && [KnownMetadataFieldKeys() containsObject:normalizedKey];
+    if (!normalizedKey) {
+        return false;
+    }
+    for (NSString *prefix in @[ @"PERFORMER:", @"INVOLVEDPEOPLE:", @"MUSICIANCREDITS:", @"COMMENT:", @"LYRICS:" ]) {
+        if ([normalizedKey hasPrefix:prefix]) {
+            return true;
+        }
+    }
+    return [KnownMetadataFieldKeys() containsObject:normalizedKey];
 }
 
 static NSInteger NumberTextPreferenceScore(NSString * _Nullable value) {
@@ -391,8 +407,6 @@ static constexpr const char *kTagLibAudioMetadataMP4TrackNumberTextKey = "----:c
 static constexpr const char *kTagLibAudioMetadataMP4DiscNumberTextKey = "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT";
 static constexpr const char *kLegacyAudioMatorMP4TrackNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT";
 static constexpr const char *kLegacyAudioMatorMP4DiscNumberTextKey = "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT";
-
-static bool IsMP4LikeExtension(NSString * _Nullable ext);
 
 typedef struct {
     const char *canonicalPropertyKey;
@@ -686,32 +700,10 @@ static bool IsHiddenInternalMetadataFieldKey(NSString * _Nullable key)
     return normalizedKey && [HiddenInternalMetadataFieldKeys() containsObject:normalizedKey];
 }
 
-static NSString * _Nullable RawPropertyValueForCandidateKeys(NSDictionary<NSString *, NSString *> *properties,
-                                                             NSArray<NSString *> *candidateKeys)
-{
-    if (!properties || properties.count == 0 || candidateKeys.count == 0) {
-        return nil;
-    }
-
-    NSSet<NSString *> *normalizedCandidates = [NSSet setWithArray:candidateKeys];
-    for (NSString *rawKey in properties) {
-        NSString *normalizedKey = UppercaseTrimmedString(rawKey);
-        if (!normalizedKey || ![normalizedCandidates containsObject:normalizedKey]) {
-            continue;
-        }
-
-        NSString *value = TrimmedStringOrNil(properties[rawKey]);
-        if (value) {
-            return value;
-        }
-    }
-
-    return nil;
-}
-
 static NSDictionary<NSString *, NSString *> *NormalizedRawPropertiesForWrite(NSDictionary<NSString *, NSString *> *properties,
                                                                              NSString *ext)
 {
+    (void)ext;
     NSMutableDictionary<NSString *, NSString *> *normalizedProperties = [NSMutableDictionary dictionary];
 
     for (NSString *rawKey in properties ?: @{}) {
@@ -726,19 +718,6 @@ static NSDictionary<NSString *, NSString *> *NormalizedRawPropertiesForWrite(NSD
         }
 
         normalizedProperties[trimmedKey] = trimmedValue;
-    }
-
-    if (IsMP4LikeExtension(ext)) {
-        NSString *trackText = RawPropertyValueForCandidateKeys(normalizedProperties, @[ @"TRACKNUMBER", @"TRACK" ]);
-        NSString *discText = RawPropertyValueForCandidateKeys(normalizedProperties, @[ @"DISCNUMBER", @"DISC" ]);
-
-        if (trackText) {
-            normalizedProperties[@"TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT"] = trackText;
-        }
-
-        if (discText) {
-            normalizedProperties[@"TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT"] = discText;
-        }
     }
 
     return [normalizedProperties copy];

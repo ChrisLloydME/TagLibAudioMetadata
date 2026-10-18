@@ -31,6 +31,7 @@
 #include TL_TAGLIB_HEADER(podcastframe.h)
 
 #include TL_TAGLIB_HEADER(mp4file.h)
+#include TL_TAGLIB_HEADER(mp4properties.h)
 #include TL_TAGLIB_HEADER(mp4tag.h)
 #include TL_TAGLIB_HEADER(mp4item.h)
 #include TL_TAGLIB_HEADER(mp4coverart.h)
