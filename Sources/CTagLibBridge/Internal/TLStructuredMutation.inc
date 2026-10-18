@@ -225,8 +225,7 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
                 [type isEqualToString:@"ufid"] ||
                 [type isEqualToString:@"chapter"] ||
                 [type isEqualToString:@"tableOfContents"] ||
-                [type isEqualToString:@"podcast"] ||
-                [type isEqualToString:@"unknown"];
+                [type isEqualToString:@"podcast"];
             if (!supportedType) {
                 if ([type isEqualToString:@"artwork"] || [type isEqualToString:@"comment"] || [type isEqualToString:@"lyrics"]) {
                     return SetStructuredPayloadValidationError(
