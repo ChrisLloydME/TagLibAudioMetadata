@@ -77,7 +77,7 @@ Legend: **FIXED** = confirmed defect corrected and covered by source/test eviden
 
 | ID | Resolution | What changed / remaining |
 |---|---|---|
-| T-01 | PARTIALLY FIXED | Independent RIFF chunk/INFO parser added for WAV regression tests; no independent ID3v2, MP4, or ASF oracle. |
+| T-01 | PARTIALLY FIXED | Independent RIFF chunk/INFO and ID3v2 frame parsers added for date/WAV tests; no independent MP4 or ASF oracle. |
 | T-02 | PARTIALLY FIXED | The Basic round-trip warning assertion now requires an empty warning list; other older broad assertions were not all rewritten. |
 | T-03 | FIXED | Verification-failure test now uses recognized `title` rather than unrecognized `TITLE`. |
 | T-04 | PARTIALLY FIXED | New tests compare public raw/structured outputs and independent RIFF bytes; unified projection test itself remains path-vs-path. |
