@@ -205,6 +205,15 @@ final class AuditRemediationRegressionTests: XCTestCase {
         }
         XCTAssertEqual(try Data(contentsOf: url), before)
 
+        var emptyKey = BasicMetadata.empty
+        emptyKey.customFields = ["   ": "value"]
+        XCTAssertThrowsError(try TagLibMetadataManager.replaceBasicMetadata(emptyKey, to: url)) { error in
+            guard case MetadataValidationError.invalidCustomFieldKey = error else {
+                return XCTFail("Expected invalidCustomFieldKey, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: url), before)
+
         var role = BasicMetadata.empty
         role.customFields = ["PERFORMER:GUITAR": "Guitarist"]
         XCTAssertThrowsError(try TagLibMetadataManager.replaceBasicMetadata(role, to: url)) { error in

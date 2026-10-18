@@ -30,7 +30,7 @@ extension TagLibMetadataManager {
     nonisolated static func validateBasicMetadataForWrite(_ metadata: BasicMetadata) throws {
         for (key, value) in metadata.customFields {
             if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                throw MetadataValidationError.knownFieldRequiresRawAPI(key)
+                throw MetadataValidationError.invalidCustomFieldKey(key)
             }
             if key.contains("\0") {
                 throw MetadataValidationError.embeddedNull(location: "customFields key")

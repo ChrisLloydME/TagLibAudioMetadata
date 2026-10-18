@@ -381,6 +381,7 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
     case embeddedNull(location: String)
     case unsupportedID3v2FrameType(String)
     case knownFieldRequiresRawAPI(String)
+    case invalidCustomFieldKey(String)
 
     public var errorDescription: String? {
         switch self {
@@ -392,6 +393,8 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
             return "ID3v2 frame type '\(type)' must be edited through the dedicated artwork, comments, or lyrics collection."
         case .knownFieldRequiresRawAPI(let key):
             return "Custom key '\(key)' is a schema-known field; use RawMetadataPatch or StructuredMetadata instead."
+        case .invalidCustomFieldKey(let key):
+            return "Custom key '\(key)' is empty after trimming whitespace."
         }
     }
 }
