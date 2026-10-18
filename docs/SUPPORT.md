@@ -682,6 +682,12 @@ When `false`, a non-empty `properties` array is rejected rather than silently
 ignored. Leave it `false` when you only want to edit frames, atoms, attributes,
 artwork, comments, or lyrics.
 
+Opaque ID3v2 entries returned with `type == "unknown"` are inspection-only.
+Exclude them from `id3v2Frames` when writing; omitted opaque frames remain on
+disk. Supplying an opaque frame to the writer throws
+`unsupportedID3v2FrameType` because its display summary cannot reconstruct or
+verify a native payload.
+
 Non-empty artwork, lyrics, and comments arrays use replace-all semantics. Empty
 arrays are omitted by default so a partial edit does not erase existing data. To
 remove the final entries, name the collections explicitly:

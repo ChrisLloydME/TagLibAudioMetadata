@@ -170,6 +170,30 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func opaqueID3FramesCannotReportSuccessfulPayloadEdits() throws {
+        try withFixture("mp3") { url in
+            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+            let audio = try Data(contentsOf: url)
+            // Independently construct one valid v2.4 opaque frame.
+            let header = Data([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 13])
+            let frame = Data("XZZZ".utf8) + Data([0, 0, 0, 3, 0, 0, 1, 2, 3])
+            try (header + frame + audio).write(to: url)
+            #expect(try id3FramePayloads(at: url, frameID: "XZZZ") == [Data([1, 2, 3])])
+            let before = try Data(contentsOf: url)
+            var opaque = try #require(
+                TagLibMetadataManager.readStructuredMetadataResult(from: url).id3v2Frames.first { $0.frameID == "XZZZ" }
+            )
+            #expect(opaque.type == "unknown")
+            opaque.data = Data([4, 5, 6])
+            #expect(throws: MetadataValidationError.self) {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(id3v2Frames: [opaque]), to: url
+                )
+            }
+            #expect(try Data(contentsOf: url) == before)
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()
