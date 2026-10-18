@@ -42,7 +42,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                 to: url,
             )
             XCTAssertTrue(
-                writeResult.warnings.allSatisfy { $0.contains("formatting was normalized") },
+                writeResult.warnings.isEmpty,
                 "Unexpected verification warning for \(ext): \(writeResult.warnings)"
             )
 
