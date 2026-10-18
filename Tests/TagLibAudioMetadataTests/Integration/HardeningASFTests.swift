@@ -202,6 +202,45 @@ struct HardeningASFTests {
         }
     }
 
+    @Test func wordAttributeUpdateRetainsNativeTypeAndCardinality() throws {
+        try HardeningFixture.withCopy("wma", name: "testAudioFile") { url in
+            try IndependentASF.seed([
+                .init(name: "HARDEN_WORD", type: 5, language: 0, stream: 1, value: Data([42, 0]))
+            ], at: url)
+            let original = try IndependentASF.attributes(Data(contentsOf: url)).filter { $0.name == "HARDEN_WORD" }
+            #expect(original.count == 1 && original.first?.type == 5)
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(asfAttributes: [
+                .init(key: "HARDEN_WORD", type: "int", value: "7", language: 0, stream: 1)
+            ]), to: url)
+            let after = try IndependentASF.attributes(Data(contentsOf: url)).filter { $0.name == "HARDEN_WORD" }
+            #expect(after == [.init(name: "HARDEN_WORD", type: 5, language: 0, stream: 1, value: Data([7, 0]))])
+            let bytes = try Data(contentsOf: url)
+            #expect(throws: (any Error).self) {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(asfAttributes: [
+                    .init(key: "HARDEN_WORD", type: "int", value: "65536", language: 0, stream: 1)
+                ]), to: url, verifyAfterWrite: false)
+            }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
+    @Test func ambiguousIntegerWidthsRejectBeforeCommit() throws {
+        try HardeningFixture.withCopy("wma", name: "testAudioFile") { url in
+            try IndependentASF.seed([
+                .init(name: "HARDEN_INT", type: 5, language: 0, stream: 1, value: Data([42, 0])),
+                .init(name: "HARDEN_INT", type: 3, language: 0, stream: 1, value: Data([43, 0, 0, 0]))
+            ], at: url)
+            let bytes = try Data(contentsOf: url)
+            #expect(try IndependentASF.attributes(bytes).filter { $0.name == "HARDEN_INT" }.count == 2)
+            #expect(throws: (any Error).self) {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(asfAttributes: [
+                    .init(key: "HARDEN_INT", type: "int", value: "7", language: 0, stream: 1)
+                ]), to: url, verifyAfterWrite: false)
+            }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
     @Test func independentParserRejectsMalformedObjectAndRecordBounds() throws {
         let bytes = try Data(contentsOf: HardeningFixture.url("wma", name: "testAudioFile"))
         for length in [0, 15, 23, 29, bytes.count - 1] {
