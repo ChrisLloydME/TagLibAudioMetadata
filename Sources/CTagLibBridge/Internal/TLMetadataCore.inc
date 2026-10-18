@@ -64,6 +64,37 @@ static void ParseNumberPair(const TagLib::String& str, NSInteger& number, NSInte
     }
 }
 
+static bool MetadataObjectContainsNull(id value, NSUInteger depth = 0)
+{
+    // Bound recursion so a malformed/cyclic low-level payload cannot exhaust
+    // the stack. Binary buffers are intentionally not treated as text.
+    if (depth > 64) return true;
+    if ([value isKindOfClass:[NSString class]]) {
+        return [(NSString *)value rangeOfString:@"\0"].location != NSNotFound;
+    }
+    if ([value isKindOfClass:[NSArray class]]) {
+        for (id entry in (NSArray *)value) {
+            if (MetadataObjectContainsNull(entry, depth + 1)) return true;
+        }
+    } else if ([value isKindOfClass:[NSDictionary class]]) {
+        for (id key in (NSDictionary *)value) {
+            if (MetadataObjectContainsNull(key, depth + 1) ||
+                MetadataObjectContainsNull(((NSDictionary *)value)[key], depth + 1)) return true;
+        }
+    }
+    return false;
+}
+
+static BOOL ValidateMetadataObjectStrings(id value, NSError **error)
+{
+    if (!MetadataObjectContainsNull(value)) return YES;
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:245
+                                 userInfo:@{ NSLocalizedDescriptionKey : @"Metadata text contains an unsupported null character or excessive payload nesting" }];
+    }
+    return NO;
+}
+
 // Convert NSString to TagLib::String (UTF-8)
 static TagLib::String NSStringToTagString(NSString * _Nullable string) {
     if (!string || string.length == 0) {

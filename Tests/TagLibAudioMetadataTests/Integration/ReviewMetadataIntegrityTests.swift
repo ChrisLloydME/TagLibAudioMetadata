@@ -285,6 +285,42 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func rawAndDirectStructuredWritersRejectNullsEvenWithoutVerification() throws {
+        let operations: [(URL) throws -> Void] = [
+            { url in
+                _ = try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+                    ["TITLE": "Before\0After"], to: url, verifyAfterWrite: false
+                )
+            },
+            { url in
+                _ = try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                    ["TITLE": ["Before\0After"]], to: url, verifyAfterWrite: false
+                )
+            },
+            { url in _ = try TagLibMetadataExtractor.writeRawPropertyMap(["TITLE": "Before\0After"], to: url) },
+            { url in _ = try TagLibMetadataExtractor.writeRawPropertyMapValues(["TITLE": ["Before\0After"]], to: url) },
+            { url in
+                _ = try TagLibMetadataExtractor.writeStructuredMetadata([
+                    "properties": [["key": "TITLE", "values": ["Before\0After"]]] as NSArray
+                ], to: url)
+            }
+        ]
+        for operation in operations {
+            try withFixture("flac") { url in
+                let before = try Data(contentsOf: url)
+                do {
+                    try operation(url)
+                    Issue.record("Expected unsupported null input to fail")
+                } catch {
+                    let native = (error as? TagLibManagerError)?.underlyingError ?? (error as NSError)
+                    #expect(native.domain == "TagLibMetadataExtractor")
+                    #expect(native.code == 245)
+                }
+                #expect(try Data(contentsOf: url) == before)
+            }
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()
