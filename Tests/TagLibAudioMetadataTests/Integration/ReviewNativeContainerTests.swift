@@ -104,6 +104,35 @@ struct ReviewNativeContainerTests {
         }
     }
 
+    @Test func apeArtworkReaderDistinguishesNativeCoverRoles() throws {
+        try withFixture("wv") { url in
+            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+            let audio = try Data(contentsOf: url)
+            let coverURL = try #require(
+                Bundle.module.url(forResource: "testCover", withExtension: "jpg", subdirectory: "Artwork")
+                    ?? Bundle.module.url(forResource: "testCover", withExtension: "jpg")
+            )
+            let picture = try Data(contentsOf: coverURL)
+            func littleEndian(_ value: Int) -> Data {
+                Data((0..<4).map { UInt8((value >> ($0 * 8)) & 0xff) })
+            }
+            var items = Data()
+            for role in ["Front", "Back"] {
+                let value = Data("cover.jpg".utf8) + Data([0]) + picture
+                items += littleEndian(value.count) + littleEndian(2)
+                items += Data("Cover Art (\(role))".utf8) + Data([0]) + value
+            }
+            let footer = Data("APETAGEX".utf8) + littleEndian(2000)
+                + littleEndian(items.count + 32) + littleEndian(2)
+                + littleEndian(0) + Data(repeating: 0, count: 8)
+            try (audio + items + footer).write(to: url)
+            let pictures = try TagLibMetadataManager.readStructuredMetadataResult(from: url).artwork
+            #expect(pictures.count == 2)
+            #expect(Set(pictures.compactMap(\.pictureTypeCode)) == [3, 4])
+            #expect(pictures.allSatisfy { $0.data == picture })
+        }
+    }
+
     @Test func asfUpsertPreservesSiblingAttributePayloads() throws {
         try withFixture("wma") { url in
             let left = "Review left original 641903"

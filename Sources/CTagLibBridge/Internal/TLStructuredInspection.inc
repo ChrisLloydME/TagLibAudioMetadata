@@ -669,10 +669,16 @@ static void AppendStructuredAPEPictures(TagLib::APE::Tag *tag,
             ? StringFromByteVector(TagLib::ByteVector(itemData.data(), separator))
             : @"";
 
+        auto type = TagLib::ID3v2::AttachedPictureFrame::Other;
+        if ([key.uppercaseString isEqualToString:@"COVER ART (FRONT)"]) {
+            type = TagLib::ID3v2::AttachedPictureFrame::FrontCover;
+        } else if ([key.uppercaseString isEqualToString:@"COVER ART (BACK)"]) {
+            type = TagLib::ID3v2::AttachedPictureFrame::BackCover;
+        }
         [artworkOut addObject:@{
             @"container": @"ape",
-            @"pictureType": @"Front Cover",
-            @"pictureTypeCode": @((int)TagLib::ID3v2::AttachedPictureFrame::FrontCover),
+            @"pictureType": TagStringToNSString(TagLib::ID3v2::AttachedPictureFrame::typeToString(type)) ?: @"Other",
+            @"pictureTypeCode": @((int)type),
             @"mimeType": NormalizedArtworkMimeType(nil, data) ?: @"image/jpeg",
             @"description": description ?: @"",
             @"data": data,
