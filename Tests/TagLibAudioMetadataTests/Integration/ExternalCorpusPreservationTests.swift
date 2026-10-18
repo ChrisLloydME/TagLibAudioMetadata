@@ -1,8 +1,6 @@
 import Foundation
 import XCTest
 @testable import TagLibAudioMetadata
-import CTagLibBridge
-import CTagLibBridgeInternalAPI
 
 final class ExternalCorpusPreservationTests: XCTestCase {
     func testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus() throws {
@@ -18,19 +16,27 @@ final class ExternalCorpusPreservationTests: XCTestCase {
             XCTFail("The corpus directory contains no writable audio fixtures: \(path)")
             return
         }
+        print("PRESERVATION_CORPUS files=\(audioSources.count)")
         for source in audioSources {
+            print("PRESERVATION_CORPUS file=\(source.lastPathComponent)")
             let url = directory.appendingPathComponent(source.lastPathComponent)
             try FileManager.default.copyItem(at: source, to: url)
             var before = TagLibMetadataManager.exactPropertyValues(try TagLibMetadataManager.rawMetadataResult(from: url))
-            try TagLibMetadataExtractor.writeNumberPairsInPlace(
-                trackNumber: 3, totalTracks: 12, updateTrackPair: true,
-                discNumber: 0, totalDiscs: 0, updateDiscPair: false, to: url
+            let old = try TagLibMetadataManager.readBasicSnapshot(from: url)
+            let requestedTrack = old.metadata.track == 3 ? 4 : 3
+            try TagLibMetadataManager.applyMetadataPatch(
+                .init(fields: [.track: .integer(requestedTrack), .trackTotal: .integer(12)]),
+                to: url, expectedVersion: old.fileVersion
             )
+            let persisted = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertEqual(persisted.track, requestedTrack, source.lastPathComponent)
+            XCTAssertEqual(persisted.trackTotal, 12, source.lastPathComponent)
             var after = TagLibMetadataManager.exactPropertyValues(try TagLibMetadataManager.rawMetadataResult(from: url))
             for key in ["TRACKNUMBER", "TRACKTOTAL", "TOTALTRACKS", "TRACK"] {
                 before.removeValue(forKey: key)
                 after.removeValue(forKey: key)
             }
+            XCTAssertFalse(before.isEmpty, "Seed unrelated metadata in \(source.lastPathComponent)")
             XCTAssertEqual(after, before, source.lastPathComponent)
         }
     }
