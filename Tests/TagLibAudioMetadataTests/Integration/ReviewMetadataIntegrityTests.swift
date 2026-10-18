@@ -93,6 +93,26 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func basicUnrelatedEditPreservesDateArraysAndYearAlias() throws {
+        for dateFields in [
+            ["DATE": ["2021-07-15", "2022-08-16"]],
+            ["DATE": ["2021-07-15"], "YEAR": ["2021"]]
+        ] {
+            for ext in ["mp3", "flac", "ogg"] {
+                try withFixture(ext) { url in
+                    try TagLibMetadataManager.applyRawMetadataPatch(RawMetadataPatch(valuesToSet: dateFields), to: url)
+                    try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Unrelated" }
+                    let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+                    for (key, expected) in dateFields {
+                        #expect(raw.properties.first { $0.key == key }?.values == expected)
+                    }
+                    try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "" }
+                    #expect(try TagLibMetadataManager.readMetadataResult(from: url).year.isEmpty)
+                }
+            }
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()
