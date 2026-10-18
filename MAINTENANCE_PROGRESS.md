@@ -15,7 +15,7 @@ Last updated: 2026-10-18
   artwork across AAC/ASF/APE-family/TrueAudio, ASF attributes, and typed errors
   were remediated.
 - Added regression coverage and generated fixtures for ALAC, ASF/WMA, TrueAudio,
-  and WavPack. Current suite: 152 tests, 150 passed, 2 opt-in skips, 0 failures.
+  and WavPack. Current suite: 153 tests, 151 passed, 2 opt-in skips, 0 failures.
 - Documentation, changelog, and the dated remediation report are being updated;
   remaining dependency/deferred items are listed in the report.
 
