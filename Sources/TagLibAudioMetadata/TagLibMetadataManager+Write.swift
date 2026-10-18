@@ -338,6 +338,9 @@ extension TagLibMetadataManager {
                     let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !key.isEmpty else { continue }
                     let normalized = key.uppercased()
+                    guard replacements[normalized] == nil, !removals.contains(normalized) else {
+                        throw RawMetadataPatchError.conflictingKey(rawKey)
+                    }
                     guard !hiddenInternalRawFieldKeys.contains(normalized) else {
                         throw RawMetadataPatchError.invalidKey(rawKey)
                     }
@@ -346,9 +349,9 @@ extension TagLibMetadataManager {
                     }
                     let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
                     if value.isEmpty {
-                        removals.insert(key)
+                        removals.insert(normalized)
                     } else {
-                        replacements[key] = [value]
+                        replacements[normalized] = [value]
                     }
                 }
                 try applyRawMetadataDeltaInPlace(
@@ -415,6 +418,9 @@ extension TagLibMetadataManager {
                     let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !key.isEmpty else { continue }
                     let normalized = key.uppercased()
+                    guard replacements[normalized] == nil, !removals.contains(normalized) else {
+                        throw RawMetadataPatchError.conflictingKey(rawKey)
+                    }
                     guard !hiddenInternalRawFieldKeys.contains(normalized) else {
                         throw RawMetadataPatchError.invalidKey(rawKey)
                     }
@@ -426,9 +432,9 @@ extension TagLibMetadataManager {
                         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                         .filter { !$0.isEmpty }
                     if values.isEmpty {
-                        removals.insert(key)
+                        removals.insert(normalized)
                     } else {
-                        replacements[key] = values
+                        replacements[normalized] = values
                     }
                 }
                 try applyRawMetadataDeltaInPlace(
