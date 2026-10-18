@@ -221,6 +221,14 @@ Independent oracle: the WAV tests parse RIFF chunks and INFO directly rather tha
 | `d688437` | Add audit remediation regression coverage (tests + generated fixtures) |
 | `5f3a2a4` | Document audit remediation contracts and evidence |
 | `4cd96c1` | Add dated remediation report |
+| `09b6f7d` | Finalize report metadata |
+| `9adb715` | Clarify empty Basic custom-key validation |
+| `a62ab1c` | Cover Basic clearing preservation for qualified fields |
+| `c1d726b` | Assert Basic round trips emit no verification warnings |
+| `2f918ae` | Add version tokens to compatibility write APIs |
+| `47eb91b` | Document follow-up validation and version tokens |
+| `c42e822` | Verify ID3v2 dates with an independent parser |
+| `8cfa7d7` | Record independent ID3v2 verification |
 
 Representative source files:
 
@@ -322,6 +330,6 @@ The remediation fixes the confirmed high-impact data-loss and false-success path
 
 **Branch:** `fix/comprehensive-audit-remediation`
 **Base:** `main` at `03473c9`
-**Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`, `9adb715`, `a62ab1c`, `c1d726b`, `2f918ae`
+**Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`, `09b6f7d`, `9adb715`, `a62ab1c`, `c1d726b`, `2f918ae`, `47eb91b`, `c42e822`, `8cfa7d7`
 **Final validation:** Debug build pass; SwiftPM Release build pass; 152 tests, 150 pass, 2 skips, 0 failures (plus focused tests for the follow-up commits).
 **Audit report:** `AUDIT_REPORT.md` (untracked, local exclude; not committed).
