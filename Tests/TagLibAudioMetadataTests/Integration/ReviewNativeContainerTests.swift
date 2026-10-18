@@ -104,6 +104,28 @@ struct ReviewNativeContainerTests {
         }
     }
 
+    @Test func nativeASFCustomNamesDoNotBlockUnrelatedBasicEdits() throws {
+        try withFixture("wma") { url in
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(asfAttributes: [
+                    .init(key: "PUBLISHER", type: "string", value: "Native custom publisher")
+                ]), to: url
+            )
+            let before = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(before.customFields["PUBLISHER"] == "Native custom publisher")
+            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Unrelated edit" }
+            let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+            #expect(after.asfAttributes.contains { $0.key == "PUBLISHER" && $0.value == "Native custom publisher" })
+            let bytes = try Data(contentsOf: url)
+            var edit = try TagLibMetadataManager.readMetadataResult(from: url)
+            edit.customFields["PUBLISHER"] = "Ambiguous edit"
+            #expect(throws: MetadataValidationError.self) {
+                try TagLibMetadataManager.replaceBasicMetadata(edit, to: url)
+            }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
     @Test func apeArtworkReaderDistinguishesNativeCoverRoles() throws {
         try withFixture("wv") { url in
             try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
