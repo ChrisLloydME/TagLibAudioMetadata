@@ -221,6 +221,35 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func nativePairsRejectTotalOnlyTypedRequestsBeforeCommit() throws {
+        for ext in ["mp3", "m4a", "wav"] {
+            try withFixture(ext) { url in
+                try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+                let before = try Data(contentsOf: url)
+                #expect(throws: MetadataPatchValidationError.self) {
+                    try TagLibMetadataManager.applyMetadataPatch(
+                        MetadataPatch(fields: [.trackTotal: .integer(10)]), to: url
+                    )
+                }
+                #expect(try Data(contentsOf: url) == before)
+                var totalOnly = BasicMetadata.empty
+                totalOnly.trackTotal = 10
+                #expect(throws: MetadataPatchValidationError.self) {
+                    try TagLibMetadataManager.replaceBasicMetadata(totalOnly, to: url)
+                }
+                #expect(try Data(contentsOf: url) == before)
+            }
+        }
+        try withFixture("flac") { url in
+            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.trackTotal: .integer(10)]), to: url
+            )
+            let after = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(after.track == 0 && after.trackTotal == 10)
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()

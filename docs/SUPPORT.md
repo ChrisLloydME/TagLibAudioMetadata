@@ -798,7 +798,10 @@ format normalization is accepted only where the verifier establishes semantic
 numeric equivalence and the container can represent the requested state. A
 paired first component cannot be removed while retaining its total on ID3/MP4;
 that partial operation is rejected, while removing both components clears the
-pair.
+pair. The same validation applies to total-only Basic/typed requests on
+MP3/AAC, MP4, and WAV: set a positive number with the total. Raw and native APIs
+may expose container representations outside this normalized contract. Formats
+with independent total fields, such as FLAC/Ogg, still permit total-only edits.
 
 Structured readers can report container advisories that do not contradict the
 requested mutation. Those advisories remain visible in
