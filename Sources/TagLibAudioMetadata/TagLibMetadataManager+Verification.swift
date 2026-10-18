@@ -312,7 +312,7 @@ extension TagLibMetadataManager {
                 if let expected = verification.customFieldValues[key] {
                     if normalizedTrimmed(expected).isEmpty {
                         if !rawValues.isEmpty || basicValue != nil {
-                            warnings.append("Custom field \"\\(key)\" was expected to be removed after save.")
+                            warnings.append("Custom field \"\(key)\" was expected to be removed after save.")
                         }
                     } else if !rawValues.contains(expected) && basicValue != expected {
                         warnings.append(
