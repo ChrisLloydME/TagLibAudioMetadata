@@ -7,6 +7,32 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Independent remediation verification — 2026-10-18
+
+- Preserved omitted APE/ASF artwork in structured writes and retained native
+  picture attributes during MIME corrections; APE back covers now report their
+  correct role.
+- Preserved complete Basic recording-date arrays/aliases and native ID3 comment
+  and lyric languages/descriptions; intentional field edits clear stale aliases.
+- Repaired Basic custom-field deletion and preserved unchanged native attributes
+  whose names overlap the schema. Ambiguous new/edited custom names remain rejected.
+- Kept typed WAV edits on ID3v2 while raw deltas retain key-ownership behavior;
+  strengthened INFO tests with independently seeded title data. Added the missing
+  native lock/exception boundary and checked final RIFF policy persistence.
+- Rejected opaque ID3 frame edits and embedded NULs in Basic/bridge-model writes;
+  validated total-only normalized requests on native number-pair paths.
+- Normalized raw merge keys and rejected conflicting case variants.
+- Preserved underlying native/filesystem errors with
+  `operationFailedWithUnderlying` and `underlyingError`.
+- Retained legacy writer function-reference signatures through forwarding
+  overloads alongside version-aware APIs. `.warn` remains compilable and cannot
+  permit an unverified commit.
+- Added independent MP4 atom/audio checks, ASF sibling payload checks, constructed
+  APE/ID3 inputs, and source-compatibility coverage. TrueAudio structured ID3
+  collections now work and report `.container` support.
+- See `docs/INDEPENDENT_REVIEW_2026-10-18.md` for per-finding evidence, exact
+  verification results, limitations, and the merge assessment.
+
 ### Remediation — 2026-10-18
 
 - Fixed structured `properties` writes to merge into the current PropertyMap
@@ -140,7 +166,7 @@ changelog does not invent dates or retroactive release boundaries.
 - Structured ID3v2 and ASF artwork now preserve valid picture type code `0`
   (`Other`). Artwork verification checks container-supported MIME type, picture
   type, description, and image data rather than image bytes alone.
-- TrueAudio/TTA now advertises PropertyMap-level Structured write support, which
+- Earlier work advertised PropertyMap-level TrueAudio/TTA Structured writes, which
   matches its implemented mutation path; Structured reads continue to expose its
   ID3v2 container.
 - Preserved rich metadata omitted from basic writes, including raw multi-values,
