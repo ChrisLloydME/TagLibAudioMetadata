@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import TagLibAudioMetadata
+import CTagLibBridge
 
 struct ReviewMetadataIntegrityTests {
     private func withFixture(_ ext: String, _ body: (URL) throws -> Void) throws {
@@ -191,6 +192,32 @@ struct ReviewMetadataIntegrityTests {
                 )
             }
             #expect(try Data(contentsOf: url) == before)
+        }
+    }
+
+    @Test func bridgeModelWritesRejectEmbeddedNullsWithoutVerification() throws {
+        for configure in [
+            { (metadata: TagLibAudioMetadata) in metadata.title = "Before\0After" },
+            { (metadata: TagLibAudioMetadata) in metadata.musicBrainzArtistId = "Before\0After" },
+            { (metadata: TagLibAudioMetadata) in metadata.customFields = ["REVIEW": "Before\0After"] }
+        ] {
+            try withFixture("mp3") { url in
+                let before = try Data(contentsOf: url)
+                let metadata = TagLibAudioMetadata()
+                configure(metadata)
+                do {
+                    try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
+                    Issue.record("Expected null validation failure")
+                } catch let error as TagLibManagerError {
+                    #expect(error.underlyingError?.domain == "TagLibMetadataExtractor")
+                    #expect(error.underlyingError?.code == 245)
+                }
+                #expect(try Data(contentsOf: url) == before)
+                #expect(throws: NSError.self) {
+                    try TagLibMetadataExtractor.writeMetadata(metadata, to: url)
+                }
+                #expect(try Data(contentsOf: url) == before)
+            }
         }
     }
 

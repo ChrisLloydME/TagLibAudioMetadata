@@ -11,7 +11,7 @@
         }
         return NO;
     }
-    if (!ValidateBasicMetadataNumbers(metadata, error)) {
+    if (!ValidateWritableMetadataStrings(metadata, error) || !ValidateBasicMetadataNumbers(metadata, error)) {
         return NO;
     }
     if (TagLibAtomicMutationDepth == 0) {

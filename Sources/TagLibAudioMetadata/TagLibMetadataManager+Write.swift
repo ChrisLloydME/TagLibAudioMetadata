@@ -28,6 +28,16 @@ extension TagLibMetadataManager {
     }
 
     nonisolated static func validateBasicMetadataForWrite(_ metadata: BasicMetadata) throws {
+        for field in BasicMetadata.editableFieldKeys {
+            if basicProjectionValue(for: field, metadata: metadata)?.contains("\0") == true {
+                throw MetadataValidationError.embeddedNull(location: field.rawValue)
+            }
+        }
+        for value in [metadata.trackNumberText, metadata.discNumberText, metadata.artworkMIMEType ?? ""] {
+            if value.contains("\0") {
+                throw MetadataValidationError.embeddedNull(location: "number text or artwork MIME type")
+            }
+        }
         for (key, value) in metadata.customFields {
             if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 throw MetadataValidationError.invalidCustomFieldKey(key)

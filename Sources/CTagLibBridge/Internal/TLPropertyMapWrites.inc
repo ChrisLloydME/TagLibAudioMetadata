@@ -441,6 +441,34 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", GetReplayGainAlbum },
 };
 
+static BOOL ValidateWritableMetadataStrings(TagLibAudioMetadata *metadata, NSError **error)
+{
+    auto validate = [&](NSString *value) -> BOOL {
+        if (value && [value rangeOfString:@"\0"].location != NSNotFound) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:245
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Metadata text contains an unsupported null character" }];
+            }
+            return NO;
+        }
+        return YES;
+    };
+    for (NSString *value in @[metadata.title ?: @"", metadata.artist ?: @"",
+                              metadata.album ?: @"", metadata.genre ?: @"",
+                              metadata.comment ?: @"", metadata.lyrics ?: @"",
+                              metadata.trackNumberText ?: @"", metadata.discNumberText ?: @"",
+                              metadata.artworkMimeType ?: @""]) {
+        if (!validate(value)) return NO;
+    }
+    for (const auto &mapping : kWritableTextMappings) {
+        if (mapping.getter && !validate(mapping.getter(metadata))) return NO;
+    }
+    for (NSString *key in metadata.customFields ?: @{}) {
+        if (!validate(key) || !validate(metadata.customFields[key])) return NO;
+    }
+    return YES;
+}
+
 static void ApplyWritableTextMappingsToID3v2Tag(TagLib::ID3v2::Tag *tag,
                                                 TagLibAudioMetadata *metadata)
 {
