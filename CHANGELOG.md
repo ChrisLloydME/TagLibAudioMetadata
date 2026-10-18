@@ -7,6 +7,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Verification hardening — 2026-10-18
+
+— Added pinned, independently decoded DSF, DSDIFF, APE, and Musepack fixtures;
+  promoted their configured fixture coverage without expanding native write APIs.
+- Added independent native ASF type/language/stream/artwork checks, encoded audio
+  preservation across seven formats, and deterministic snapshot conflict tests.
+- Fixed ASF WORD updates adding conflicting DWORD siblings; reject ambiguous
+  widths and overflow. Unsupported GUID encoding now rejects before mutation.
+- Persisted ASF totals in native number/total text pairs across normalized writers.
+- Enabled and strengthened the corpus test with reproducible generated tones;
+  measured snapshot/write/flush costs through the existing opt-in benchmark.
+- Expanded legacy reader, erase, deprecated and version-aware source compilation.
+- See `docs/VERIFICATION_HARDENING_2026-10-18.md` for evidence and limitations.
+
 ### Independent remediation verification — 2026-10-18
 
 - Preserved omitted APE/ASF artwork in structured writes and retained native
@@ -67,11 +81,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added regression coverage and generated fixtures for ALAC, ASF/WMA, TrueAudio,
   and WavPack, plus independent RIFF INFO parsing and WAV policy tests.
 
-### Release-note gap
+### Historical release provenance
 
-Detailed 0.5.1–0.5.3 release notes were not recorded separately at release time.
-The contemporaneous work is summarized in `MAINTENANCE_PROGRESS.md`; this
-changelog does not invent dates or retroactive release boundaries.
+The 0.5.1–0.5.3 summaries below were reconstructed from existing tag boundaries
+during verification hardening. They are selected changes verified from commit
+history, not contemporaneous release announcements. Tag target commit dates
+are not asserted to be release publication dates; historical verification
+results and complete compatibility guarantees are not reconstructed.
 
 ### Fixed
 
@@ -125,6 +141,45 @@ changelog does not invent dates or retroactive release boundaries.
 - Made native MP4/M4A `trkn` and `disk` pairs authoritative over conflicting
   legacy freeform number aliases, and removed those aliases during number
   writes so totals cannot become stale.
+
+## [0.5.3] - reconstructed tag summary
+
+Tag target: `03473c9`; changes since `0.5.2` (`62dcf9b`).
+
+- Added focused Basic snapshots and used them for Basic updates (`5174cf0`,
+  `fdef171`); introduced copy-on-write staging (`2fb5597`).
+- Separated extension support from parser probing and clarified lossy read and
+  whole-Basic replacement APIs (`2ceac41`, `1eb4069`, `300f16d`).
+- Returned committed durability uncertainty and repaired independent formatted
+  number-patch outcomes (`1436956`).
+- Extracted the format registry and reorganized tests (`c5edb86`, `e1e54b7`).
+- Documentation and maintenance records completed at the tagged baseline.
+  The later audit/remediation fixes above were not included in this tag.
+
+## [0.5.2] — reconstructed tag summary
+
+Tag target: `62dcf9b`; changes since `0.5.1` (`cafcf40`).
+
+- Clarified write contracts and separated unsafe in-place bridge APIs into the
+  internal module (`fa34ed4`, `f6a314d`).
+- Distinguished read-content identity changes from status-only changes
+  (`f0ea153`); finalized the maintenance journal (`62dcf9b`).
+
+## [0.5.1] — reconstructed tag summary
+
+Tag target: `cafcf40`; changes since `0.5.0` (`283caba`).
+
+- Added exact raw deltas, stale-snapshot checks, stable same-entry coordination,
+  and precommit verification (`dcfa18a`, `7acb266`, `8adf4c4`, `683103d`).
+- Added content-based Ogg detection, bounded identification reads, transactional
+  FLAC artwork and WAV INFO preservation (`64daf83`, `e0ecf9b`,
+  `10a6eea`, `76b02ea`).
+- Added formatted number-patch support, exact WAV number text, and repairs for
+  split storage and preserved totals (`252c16d`, `514c7ef`, `42bc1c3`,
+  `b44bf4c`).
+- Added opt-in snapshot throughput and corpus checks and documented transaction
+  guarantees (`e18d823`, `73a5975`, `9e931a3`).
+- Separated recording and release date storage (`763e31f`).
 
 ## [0.5.0] - 2026-09-01
 
