@@ -220,7 +220,7 @@ Independent oracle: the WAV tests parse RIFF chunks and INFO directly rather tha
 | `ec47f2d` | Fix audit-confirmed metadata preservation defects (production sources) |
 | `d688437` | Add audit remediation regression coverage (tests + generated fixtures) |
 | `5f3a2a4` | Document audit remediation contracts and evidence |
-| *(this report commit)* | Add dated remediation report |
+| `4cd96c1` | Add dated remediation report |
 
 Representative source files:
 
@@ -322,6 +322,6 @@ The remediation fixes the confirmed high-impact data-loss and false-success path
 
 **Branch:** `fix/comprehensive-audit-remediation`
 **Base:** `main` at `03473c9`
-**Final code/test/docs commits:** `ec47f2d`, `d688437`, `5f3a2a4`
+**Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`
 **Final validation:** Debug build pass; SwiftPM Release build pass; 152 tests, 150 pass, 2 skips, 0 failures.
 **Audit report:** `AUDIT_REPORT.md` (untracked, local exclude; not committed).
