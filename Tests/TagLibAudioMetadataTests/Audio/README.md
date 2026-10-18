@@ -21,6 +21,10 @@ The AAC, FLAC, M4A, MP3, Ogg Vorbis, and WAV fixtures are locally generated
 | `testAudioFile.mp3` | `9db9e5033b1c6d4fea48dc2b13e606f0b70625f86391bcbf0b9044f72f2012dc` |
 | `testAudioFile.ogg` | `9901df8170531d790f421c69a864e57b53cfc921cf760cc267c46de25bcca6ad` |
 | `testAudioFile.wav` | `fce6f158bdc9bdd9a0f9e2092da3c5d4686540076177d20227b5059e9b2cf218` |
+| `testAudioFile-alac.m4a` | `e6e3917bbf65c13bcc52d711bb70465a99583556a3ee3f383f64d6db24e3422b` |
+| `testAudioFile.wma` | `91dcf4eeac98e5f5f129f9acc2dd52c3fb15a2abb43f5598e435b630b6d29e47` |
+| `testAudioFile.tta` | `a1eea3b528bbf5d37285b8fd7b4cf2bc089746c0b20a538cbefcb427bfb3eae3` |
+| `testAudioFile.wv` | `56c7cb56ebefd3411efadc4af2fc6904268e406f43c6dd9d1ab7eadf59def1b7` |
 
 `synthetic.opus` is a locally generated 0.1-second 440 Hz tone, with no
 third-party recording. Generated using FFmpeg's `sine` source at 48 kHz and
@@ -28,6 +32,11 @@ third-party recording. Generated using FFmpeg's `sine` source at 48 kHz and
 `df6216e78674e2c98206a744abbdd34c39aadf29425a4b92a7d8bcc8e9cbf3cd`.
 It covers identification and title/custom-property preservation when renamed to
 `.ogg`, `.oga`, and `.spx`; it is not a general Opus conformance corpus.
+
+The ALAC M4A, ASF/WMA, TrueAudio, and WavPack fixtures were generated locally
+from `testAudioFile.flac` with FFmpeg (ALAC, `wmav2`, `tta`, and `wavpack`
+encoders). They are short test tones without third-party recordings and exist
+only to exercise codec/artwork/attribute paths.
 
 `info-only.wav` is a locally generated 0.1-second 440 Hz tone at 8 kHz,
 encoded as PCM s16le by FFmpeg. It starts with RIFF INFO encoder metadata and
