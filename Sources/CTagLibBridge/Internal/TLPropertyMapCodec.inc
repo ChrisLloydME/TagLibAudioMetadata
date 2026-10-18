@@ -922,18 +922,27 @@ static TagLib::List<TagLib::VariantMap> MergingBasicPictureComplexProperties(
                                               (unsigned int)metadata.artworkData.length);
     TagLib::VariantMap replacement = BuildBasicPictureComplexProperty(metadata);
     bool replacedPrimary = false;
+    bool hasFrontCover = false;
+    for (const auto &picture : existingPictures) {
+        const auto type = picture.value("pictureType").value<TagLib::String>();
+        if (type.isEmpty() || type.upper() == "FRONT COVER") {
+            hasFrontCover = true;
+            break;
+        }
+    }
 
     for (const auto &existing : existingPictures) {
         TagLib::String pictureType = existing.value("pictureType").value<TagLib::String>();
+        TagLib::ByteVector existingData = existing.value("data").value<TagLib::ByteVector>();
         const bool isPrimary = !replacedPrimary &&
-            (pictureType.isEmpty() || pictureType.upper() == "FRONT COVER");
+            (pictureType.isEmpty() || pictureType.upper() == "FRONT COVER" ||
+             (!hasFrontCover && existingData == replacementData));
         if (!isPrimary) {
             pictures.append(existing);
             continue;
         }
 
         replacedPrimary = true;
-        TagLib::ByteVector existingData = existing.value("data").value<TagLib::ByteVector>();
         if (existingData == replacementData) {
             // Basic cannot express captions, dimensions, or native picture
             // attributes. A MIME-only correction must retain those values.
