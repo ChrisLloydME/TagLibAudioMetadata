@@ -23,6 +23,9 @@ final class WAVInfoProjectionTests: XCTestCase {
         XCTAssertEqual(try infoChunks(Data(contentsOf: url)), info, "Independent RIFF chunk bytes must remain unchanged.")
         try TagLibMetadataManager.applyMetadataPatch(MetadataPatch(fields: [.title: .text("Title only")]), to: url)
         XCTAssertEqual(try infoChunks(Data(contentsOf: url)), info, "A text delta must not rebuild unrelated INFO metadata.")
+        try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Basic title" }
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Basic title")
+        XCTAssertEqual(try infoChunks(Data(contentsOf: url)), info, "Basic edits must retain the separate INFO surface.")
     }
 
     func testFormattedTrackDiscAndMovementPatchPreservesMixedWAVInfoAndID3() throws {
