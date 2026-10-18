@@ -953,7 +953,17 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             ? (NSString *)metadata[@"riffPolicy"] : nil;
         if ([riffPolicy isEqualToString:@"id3v2Only"] && file.hasInfoTag()) {
             file.strip(TagLib::RIFF::WAV::File::Info);
-            file.save();
+            if (!file.save()) {
+                if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save the RIFF INFO removal" }];
+                return NO;
+            }
+            // strip() has no return value. Reopen to confirm its on-disk
+            // policy effect rather than trusting the in-memory tag state.
+            TagLib::RIFF::WAV::File saved(filePath);
+            if (!saved.isValid() || saved.hasInfoTag()) {
+                if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"RIFF INFO removal could not be confirmed after save" }];
+                return NO;
+            }
         }
         return YES;
     }
