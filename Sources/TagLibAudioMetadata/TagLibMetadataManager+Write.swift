@@ -906,14 +906,31 @@ extension TagLibMetadataManager {
                 rawDump: current.raw,
                 isMP4: isMP4Family
             )
-            if !isMP4Family && meta.year != current.metadata.year {
-                let dateKeys = current.raw.properties.compactMap { entry in
-                    MetadataFieldRegistry.schema(forPropertyMapKey: entry.key)?.key == .date
-                        ? entry.key : nil
-                }
-                if !dateKeys.isEmpty {
+            let numericFields: Set<MetadataFieldKey> = [
+                .track, .trackTotal, .disc, .discTotal,
+                .movementNumber, .movementCount, .bpm, .compilation
+            ]
+            let editedTextKeys = current.raw.properties.compactMap { entry -> String? in
+                guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key),
+                      BasicMetadata.editableFieldKeys.contains(schema.key),
+                      !numericFields.contains(schema.key) else { return nil }
+                let field: MetadataFieldKey = isMP4Family && schema.key == .date ? .releaseDate : schema.key
+                guard let desired = basicProjectionValue(for: field, metadata: meta),
+                      let original = basicProjectionValue(for: field, metadata: current.metadata),
+                      desired != original else { return nil }
+                return entry.key
+            }
+            if !editedTextKeys.isEmpty {
+                // Remove the complete represented alias/description group before
+                // emitting the caller's replacement. Otherwise old TXXX aliases
+                // can resurface when the canonical field is later cleared.
+                if ext == "wav" {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
+                        [:], removingKeys: editedTextKeys, to: mutationURL
+                    )
+                } else {
                     try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                        [:], removingKeys: dateKeys, to: mutationURL
+                        [:], removingKeys: editedTextKeys, to: mutationURL
                     )
                 }
             }

@@ -250,6 +250,41 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func explicitBasicEditsReplaceAndClearAliasGroups() throws {
+        for ext in ["mp3", "flac", "ogg"] {
+            try withFixture(ext) { url in
+                try TagLibMetadataManager.applyRawMetadataPatch(
+                    RawMetadataPatch(valuesToSet: [
+                        "PUBLISHER": ["Old publisher"], "CATALOG": ["Old catalog"],
+                        "COMMENT:REVIEW": ["Old comment"], "LYRICS:REVIEW": ["Old lyric"]
+                    ]), to: url
+                )
+                try TagLibMetadataManager.updateBasicMetadata(at: url) {
+                    $0.publisher = "New publisher"
+                    $0.catalogNumber = "New catalog"
+                    $0.comment = "New comment"
+                }
+                let updated = try TagLibMetadataManager.readMetadataResult(from: url)
+                #expect(updated.publisher == "New publisher")
+                #expect(updated.catalogNumber == "New catalog")
+                #expect(updated.comment == "New comment")
+                try TagLibMetadataManager.updateBasicMetadata(at: url) {
+                    $0.publisher = ""
+                    $0.catalogNumber = ""
+                    $0.comment = ""
+                    $0.lyrics = ""
+                }
+                let after = try TagLibMetadataManager.readMetadataResult(from: url)
+                #expect(after.publisher.isEmpty && after.catalogNumber.isEmpty)
+                #expect(after.comment.isEmpty && after.lyrics.isEmpty)
+                let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
+                #expect(!raw.properties.contains {
+                    ["LABEL", "PUBLISHER", "CATALOG", "CATALOGNUMBER", "COMMENT:REVIEW", "LYRICS:REVIEW"].contains($0.key)
+                })
+            }
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()
