@@ -720,10 +720,11 @@ static void ReplaceStructuredASFArtwork(TagLib::ASF::Tag *tag,
     }
 }
 
-static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
-                                         NSArray<NSDictionary<NSString *, NSObject *> *> *attributes)
+static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
+                                         NSArray<NSDictionary<NSString *, NSObject *> *> *attributes,
+                                         NSError **error)
 {
-    if (!tag || !attributes) return;
+    if (!tag || !attributes) return YES;
     for (NSDictionary<NSString *, NSObject *> *entry in attributes) {
         NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
         NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
@@ -752,7 +753,31 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             NSData *data = DataValueFromObject(entry[@"data"]);
             attribute = TagLib::ASF::Attribute(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
         } else {
-            attribute = TagLib::ASF::Attribute((unsigned int)IntegerValueFromObject(entry[@"value"]));
+            // The public "int" projection represents both WORD and DWORD.
+            // Retain an existing WORD's width instead of adding a DWORD sibling.
+            bool hasWord = false;
+            bool hasDWord = false;
+            for (const auto &existing : tag->attribute(NSStringToTagString(key))) {
+                if (existing.language() == IntegerValueFromObject(entry[@"language"]) &&
+                    existing.stream() == IntegerValueFromObject(entry[@"stream"])) {
+                    hasWord |= existing.type() == TagLib::ASF::Attribute::WordType;
+                    hasDWord |= existing.type() == TagLib::ASF::Attribute::DWordType;
+                }
+            }
+            if (hasWord && hasDWord) {
+                return SetStructuredPayloadValidationError(error,
+                    @"ASF int update is ambiguous between existing WORD and DWORD attributes");
+            }
+            const unsigned int value = (unsigned int)IntegerValueFromObject(entry[@"value"]);
+            if (hasWord) {
+                if (value > std::numeric_limits<unsigned short>::max()) {
+                    return SetStructuredPayloadValidationError(error,
+                        @"ASF WORD update requires an unsigned 16-bit value");
+                }
+                attribute = TagLib::ASF::Attribute((unsigned short)value);
+            } else {
+                attribute = TagLib::ASF::Attribute(value);
+            }
         }
         attribute.setLanguage((int)IntegerValueFromObject(entry[@"language"]));
         attribute.setStream((int)IntegerValueFromObject(entry[@"stream"]));
@@ -774,6 +799,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         }
         tag->setAttribute(tagKey, values);
     }
+    return YES;
 }
 
 + (BOOL)writeStructuredMetadata:(NSDictionary<NSString *, NSObject *> *)metadata
@@ -1043,7 +1069,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (propertyValues) {
             file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
-        ApplyStructuredASFAttributes(file.tag(), asfAttributes);
+        if (!ApplyStructuredASFAttributes(file.tag(), asfAttributes, error)) return NO;
         ReplaceStructuredASFArtwork(file.tag(), artwork);
         if (artwork.count > 0 && file.tag()->attribute("WM/Picture").isEmpty()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:299 userInfo:@{ NSLocalizedDescriptionKey : @"ASF picture attribute was not added" }];
