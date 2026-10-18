@@ -1037,6 +1037,12 @@ fields, artwork, and custom fields back to the bridge model.
   writes represent this committed state in `MetadataWriteResult.commitStatus`.
 - `failedToRead`: deprecated. Use `failedToReadWithUnderlying`.
 
+Error enums gained cases during remediation and review. Exhaustive client
+switches must handle the new cases (or use an appropriate `@unknown default`).
+In particular, native/filesystem failures now arrive as
+`operationFailedWithUnderlying`; the older message-only `operationFailed`
+constructor remains available but is no longer emitted for those failures.
+
 ## Low-Level Bridge API
 
 Bridge diagnostics can be enabled for troubleshooting with the
