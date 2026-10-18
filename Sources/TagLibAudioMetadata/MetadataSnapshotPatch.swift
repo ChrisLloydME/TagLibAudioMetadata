@@ -360,8 +360,17 @@ extension TagLibMetadataManager {
 
     /// Reads all public metadata representations while rejecting concurrent file changes.
     public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
+        try readSnapshot(from: url, afterExtraction: {})
+    }
+
+    // Internal, per-call seam for deterministic external-change tests. No global
+    // hook or public synchronization policy is added to the read API.
+    nonisolated static func readSnapshot(
+        from url: URL, afterExtraction: () throws -> Void
+    ) throws -> MetadataSnapshot {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjections(from: url)
+        try afterExtraction()
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
         let basic = basicMetadata(
             fromBridgeMetadata: projections.basic,
