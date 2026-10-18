@@ -138,14 +138,19 @@ final class AuditRemediationRegressionTests: XCTestCase {
             XCTAssertTrue(try values("YEAR", in: url).isEmpty, ext)
             XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).year, "2021", ext)
             if ext == "mp3" {
-                let frames = try TagLibMetadataManager.rawMetadataResult(from: url).id3v2Frames
-                XCTAssertEqual(frames.filter { $0.frameID == "TDRC" }.map(\.value), ["2021-07-15"])
-                XCTAssertFalse(frames.contains { $0.frameID == "TYER" })
+                let frames = try independentID3v2Frames(at: url)
+                XCTAssertEqual(frames["TDRC"], ["2021-07-15"])
+                XCTAssertNil(frames["TYER"])
             }
 
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "2020" }
             XCTAssertEqual(try values("DATE", in: url), ["2020"], ext)
             XCTAssertTrue(try values("YEAR", in: url).isEmpty, ext)
+            if ext == "mp3" {
+                let frames = try independentID3v2Frames(at: url)
+                XCTAssertEqual(frames["TDRC"], ["2020"])
+                XCTAssertNil(frames["TYER"])
+            }
         }
     }
 
@@ -536,6 +541,61 @@ final class AuditRemediationRegressionTests: XCTestCase {
                 }
             }
         }
+    }
+
+    // MARK: - Independent ID3v2 helper
+
+    private func independentID3v2Frames(at url: URL) throws -> [String: [String]] {
+        let data = try Data(contentsOf: url)
+        guard data.count >= 10,
+              String(data: data[0..<3], encoding: .ascii) == "ID3" else {
+            return [:]
+        }
+        let majorVersion = Int(data[3])
+        let tagSize = synchsafeInteger(data[6..<10])
+        let end = min(data.count, 10 + tagSize)
+        var offset = 10
+        var result: [String: [String]] = [:]
+
+        while offset + 10 <= end {
+            let frameID = String(data: data[offset..<offset + 4], encoding: .ascii) ?? ""
+            if frameID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { break }
+            let frameSize: Int
+            if majorVersion >= 4 {
+                frameSize = synchsafeInteger(data[offset + 4..<offset + 8])
+            } else {
+                frameSize = Int(data[offset + 4]) << 24
+                    | Int(data[offset + 5]) << 16
+                    | Int(data[offset + 6]) << 8
+                    | Int(data[offset + 7])
+            }
+            guard frameSize > 0, offset + 10 + frameSize <= data.count else { break }
+            let payload = data[(offset + 10)..<(offset + 10 + frameSize)]
+            if frameID.hasPrefix("T"), frameID != "TXXX", !payload.isEmpty {
+                let encoding = payload.first
+                let body = payload.dropFirst()
+                let text: String?
+                switch encoding {
+                case 1, 2:
+                    text = String(data: body, encoding: .utf16)
+                case 3:
+                    text = String(data: body, encoding: .utf8)
+                default:
+                    text = String(data: body, encoding: .isoLatin1)
+                }
+                if let text {
+                    result[frameID, default: []].append(
+                        text.trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
+                    )
+                }
+            }
+            offset += 10 + frameSize
+        }
+        return result
+    }
+
+    private func synchsafeInteger(_ bytes: Data.SubSequence) -> Int {
+        bytes.reduce(0) { ($0 << 7) | Int($1 & 0x7F) }
     }
 
     // MARK: - Independent RIFF helpers
