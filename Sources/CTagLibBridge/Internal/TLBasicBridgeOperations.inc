@@ -236,8 +236,9 @@ static BOOL StripAllTagsAndSave(FileType &file,
 
             TagLib::ID3v2::Tag *id3v2Tag = mpegFile.ID3v2Tag(true);
             SetID3v2TextFrame(id3v2Tag, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth));
+            RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
 
-            if (!mpegFile.save()) {
+            if (!SaveMetadataPreservingOtherTagSurfaces(&mpegFile)) {
                 if (error) {
                     *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                                  code:44
@@ -406,6 +407,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         }
         TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
         SetID3v2TextFrame(id3v2Tag, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth));
+        RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
         if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
