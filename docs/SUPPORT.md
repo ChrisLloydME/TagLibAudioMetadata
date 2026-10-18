@@ -208,7 +208,7 @@ space, or sandbox access; attempt a write or check those separately when an
 editability decision depends on them.
 
 Capability fields answer different questions. `writeSupport(for:)` is the
-field-level Basic/typed surface, `structuredWriteSupport` describes non-artwork
+field's declared storage mapping, `structuredWriteSupport` describes non-artwork
 structured data, `canWriteArtwork` is separate, and `preservesMultiValueProperties`
 is a family-level property. Do not infer one from another; query the exact API
 path and run a concrete-file probe plus a write when the decision is important. `capability(forExtension:)` reports the format family,
@@ -258,7 +258,12 @@ example `PUBLISHER`, `CATALOG`, `ORIGINAL YEAR`, and MusicBrainz space forms), a
 retains qualified people keys such as `PERFORMER:GUITAR`. It never guesses
 cardinality by splitting a display string. The same schema-driven preservation
 retains known fields Basic cannot express (for example `PERFORMER`,
-`INVOLVEDPEOPLE`, and `TRACKERNAME`) and unknown custom fields.
+`INVOLVEDPEOPLE`, and `TRACKERNAME`) and unknown custom fields. On ID3-backed
+MP3, WAV, AIFF, and TTA, unchanged native comment/lyric collections also retain
+their languages and descriptions; a PropertyMap projection alone cannot carry
+that information. Existing native custom attributes with schema-known names
+may be carried through unchanged, but editing or adding those names through
+Basic custom fields is rejected.
 
 Removing an entry from `BasicMetadata.customFields` does not delete it on disk;
 absence means the normalized Basic projection is not making a deletion request.
@@ -749,7 +754,8 @@ where the container serializes them.
 
 `structuredWriteSupport` describes non-artwork structured mutation. A `.propertyMap`
 level still permits artwork through the structured artwork collection when
-`canWriteArtwork` is true.
+`canWriteArtwork` is true. TrueAudio/TTA now supports its native ID3v2 frame,
+comment, and lyric collections as well and reports `.container` support.
 
 `RIFFMetadataWritePolicy` applies to WAV/AIFF-style containers:
 
@@ -1019,7 +1025,8 @@ fields, artwork, and custom fields back to the bridge model.
 - `MetadataPatchValidationError`: typed patch validation, including
   `roleQualifiedFieldRequiresRawAPI` and
   `unsupportedPartialPairRemoval(field:format:)`.
-- `RawMetadataPatchError`: raw key/value validation and exact-delta failures.
+- `RawMetadataPatchError`: raw key/value validation. Exact-delta persistence
+  mismatches throw `TagLibManagerError.verificationFailed`.
 - `committedButDurabilityUncertain(String)`: compatibility/internal transaction
   code observed parent-directory sync failure after rename. High-level manager
   writes represent this committed state in `MetadataWriteResult.commitStatus`.
@@ -1085,8 +1092,11 @@ clients should use `replaceBasicMetadata` or `updateBasicMetadata`.
 - `formatCapability(for:)`
 - `formatCapabilities()`
 
-The manager wraps these methods with Swift models, support checks, and
-verification. Prefer the manager unless you have a specific bridge-level need.
+Direct bridge writes are atomic and validate readability, but do not compare
+requested metadata after save. The manager's verified writers add semantic
+checks; `writeTagMetadata` performs only the checks supplied in its verification
+context, whose default `.none` checks no metadata values. Prefer Basic, typed
+Patch, or raw Patch verified APIs for normal editing.
 
 ## Practical Recipes
 

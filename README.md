@@ -225,7 +225,8 @@ Transactional facade and public low-level bridge writes:
 1. reject final symlinks and hard-linked files, and require an existing regular file;
 2. make one sibling, same-volume copy-on-write clone when supported, with an
    automatic ordinary-copy fallback;
-3. mutates and verifies the copy;
+3. mutate the copy; verified facade APIs compare requested metadata, while
+   direct bridge APIs check only that the staged file remains readable;
 4. requests `F_FULLFSYNC` on the copy (falling back to `fsync` where the
    filesystem rejects it), rechecks destination identity, atomically renames it,
    and syncs the parent directory.
@@ -265,7 +266,8 @@ FLAC comment values that TagLib drops are rejected by exact-value verification.
 Verification mismatches always throw before commit. `VerificationFailurePolicy.warn`
 is deprecated and has no bypass effect; it remains compilable for source
 compatibility.
-Numeric-equivalent track/disc formatting is accepted, but a paired first
+Basic and typed number checks accept numeric-equivalent formatting. Exact raw
+map verification compares strings and can reject normalized padding. A paired first
 component cannot be removed while retaining its total on ID3/MP4 because zero is
 not a missing component; remove both components to clear the pair. Legacy
 whole-object and whole-PropertyMap replacement APIs are not edit-session models;
