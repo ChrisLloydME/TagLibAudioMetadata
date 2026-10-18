@@ -3,8 +3,8 @@
                      error:(NSError **)error
 {
     try {
-
-    if (!ValidateMetadataObjectStrings(properties, error)) return NO;    if (TagLibAtomicMutationDepth == 0) {
+    if (!ValidateMetadataObjectStrings(properties, error)) return NO;
+    if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMap:properties toURL:temporaryURL error:mutationError];
         });
@@ -296,8 +296,8 @@
                             error:(NSError **)error
 {
     try {
-
-    if (!ValidateMetadataObjectStrings(properties, error)) return NO;    if (TagLibAtomicMutationDepth == 0) {
+    if (!ValidateMetadataObjectStrings(properties, error)) return NO;
+    if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw multi-value property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMapValues:properties toURL:temporaryURL error:mutationError];
         });
