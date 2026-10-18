@@ -679,6 +679,7 @@ static bool ReplaceStructuredAPEFrontArtwork(TagLib::APE::Tag *tag,
                                                 NSArray<NSDictionary<NSString *, NSObject *> *> *artwork)
 {
     if (!tag) return false;
+    if (!artwork) return true;
     if (artwork.count > 1) return false;
     TagLibAudioMetadata *temporary = [[TagLibAudioMetadata alloc] init];
     if (artwork.count == 0) {
@@ -706,7 +707,7 @@ static bool ReplaceStructuredAPEFrontArtwork(TagLib::APE::Tag *tag,
 static void ReplaceStructuredASFArtwork(TagLib::ASF::Tag *tag,
                                          NSArray<NSDictionary<NSString *, NSObject *> *> *artwork)
 {
-    if (!tag) return;
+    if (!tag || !artwork) return;
     tag->removeItem("WM/Picture");
     for (NSDictionary<NSString *, NSObject *> *entry in artwork ?: @[]) {
         NSData *data = DataValueFromObject(entry[@"data"]);
