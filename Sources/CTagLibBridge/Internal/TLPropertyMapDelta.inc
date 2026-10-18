@@ -503,6 +503,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             movementCount > 0 ? [NSString stringWithFormat:@"%ld", (long)movementCount] : nil
         );
     }
+    if (dynamic_cast<TagLib::ASF::File *>(file)) CombineASFNumberTotals(properties);
     file->setProperties(properties);
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9267, @"TagLib could not save number-pair changes");

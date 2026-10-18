@@ -1090,11 +1090,29 @@ static void ExtractASFCustomAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadat
     }
 }
 
+// ASF exposes number/total pairs through WM/TrackNumber and WM/PartOfSet;
+// TagLib does not persist separate TRACKTOTAL/DISCTOTAL PropertyMap keys.
+static void CombineASFNumberTotals(TagLib::PropertyMap &properties)
+{
+    for (const auto &keys : { std::pair{"TRACKNUMBER", "TRACKTOTAL"},
+                             std::pair{"DISCNUMBER", "DISCTOTAL"} }) {
+        NSString *total = FirstStringFromProperty(properties, { keys.second });
+        if (total) {
+            NSString *number = FirstStringFromProperty(properties, { keys.first }) ?: @"0";
+            NSString *first = [number componentsSeparatedByString:@"/"].firstObject;
+            SetPropertyMapDynamicString(properties, [NSString stringWithUTF8String:keys.first],
+                [NSString stringWithFormat:@"%@/%@", first, total]);
+        }
+        properties.erase(keys.second);
+    }
+}
+
 template <typename FileType>
 static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *metadata)
 {
     TagLib::PropertyMap existingProperties = file.properties();
     TagLib::PropertyMap properties = BuildGenericPropertyMap(metadata, &existingProperties);
+    if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
     file.setProperties(properties);
 }
 

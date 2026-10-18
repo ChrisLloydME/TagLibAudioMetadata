@@ -172,6 +172,7 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
             SetPropertyMapString(properties, "TOTALDISCS", nil);
         }
     }
+    if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
     file.setProperties(properties);
 
     if (!file.save()) {

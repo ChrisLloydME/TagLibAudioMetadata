@@ -224,6 +224,34 @@ struct HardeningASFTests {
         }
     }
 
+    @Test func normalizedNumberWritersPersistASFNativePairs() throws {
+        try HardeningFixture.withCopy("wma", name: "testAudioFile") { url in
+            let original = try Data(contentsOf: url)
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            basic.track = 3
+            basic.trackTotal = 12
+            basic.disc = 1
+            basic.discTotal = 2
+            try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).trackTotal == 12)
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.track: .integer(4)]), to: url)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).trackTotal == 12)
+            try TagLibMetadataManager.writeTrackNumberText("05/13", discNumberText: "02/03", to: url)
+            let pairs = try IndependentASF.attributes(Data(contentsOf: url))
+            #expect(pairs.contains { $0.name == "WM/TrackNumber" && $0.type == 0 && $0.value == IndependentASF.text("05/13") })
+            #expect(pairs.contains { $0.name == "WM/PartOfSet" && $0.type == 0 && $0.value == IndependentASF.text("02/3") })
+            #expect(try IndependentASF.headerState(Data(contentsOf: url)).tail == IndependentASF.headerState(original).tail)
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.trackTotal: .remove]), to: url)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).track == 5)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).trackTotal == 0)
+            let bytes = try Data(contentsOf: url)
+            #expect(throws: MetadataPatchValidationError.self) {
+                try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.track: .remove, .trackTotal: .integer(12)]), to: url)
+            }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+
     @Test func ambiguousIntegerWidthsRejectBeforeCommit() throws {
         try HardeningFixture.withCopy("wma", name: "testAudioFile") { url in
             try IndependentASF.seed([
