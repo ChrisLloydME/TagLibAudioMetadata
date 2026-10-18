@@ -25,6 +25,23 @@ struct ReviewMetadataIntegrityTests {
         return try Data(contentsOf: url)
     }
 
+    @Test func basicMIMECorrectionPreservesPictureDescription() throws {
+        try withFixture("flac") { url in
+            let data = try coverData()
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(artwork: [
+                    StructuredArtwork(container: "", pictureType: "Front Cover", pictureTypeCode: 3,
+                                      mimeType: "image/png", description: "Original cover caption", data: data)
+                ]), to: url
+            )
+            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.artworkMIMEType = "image/jpeg" }
+            let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+            #expect(after.artwork.first?.description == "Original cover caption")
+            #expect(after.artwork.first?.mimeType == "image/jpeg")
+            #expect(after.artwork.first?.data == data)
+        }
+    }
+
     @Test func structuredPropertyEditsPreserveOmittedArtwork() throws {
         let data = try coverData()
         for ext in ["wv", "wma"] {
