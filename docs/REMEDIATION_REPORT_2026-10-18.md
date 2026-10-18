@@ -78,7 +78,7 @@ Legend: **FIXED** = confirmed defect corrected and covered by source/test eviden
 | ID | Resolution | What changed / remaining |
 |---|---|---|
 | T-01 | PARTIALLY FIXED | Independent RIFF chunk/INFO parser added for WAV regression tests; no independent ID3v2, MP4, or ASF oracle. |
-| T-02 | DEFERRED | Existing broad warning assertions were not all rewritten; new regression tests assert specific success/error outcomes. |
+| T-02 | PARTIALLY FIXED | The Basic round-trip warning assertion now requires an empty warning list; other older broad assertions were not all rewritten. |
 | T-03 | FIXED | Verification-failure test now uses recognized `title` rather than unrecognized `TITLE`. |
 | T-04 | PARTIALLY FIXED | New tests compare public raw/structured outputs and independent RIFF bytes; unified projection test itself remains path-vs-path. |
 | T-05 | PARTIALLY FIXED | New delta/preservation tests cover the dangerous partial-map case; the old test was not rewritten. |
@@ -91,7 +91,7 @@ Legend: **FIXED** = confirmed defect corrected and covered by source/test eviden
 | T-12 | PARTIALLY FIXED | New tests assert typed errors; older string/throw-only assertions remain. |
 | T-13 | PARTIALLY FIXED | `.warn` is compilable again; no dedicated compile-only source-compatibility test was added. |
 | T-14 | DEFERRED | `expectedVersion` concurrency is tested; a deterministic end-to-end changed-during-read race test is not. |
-| T-15 | DEFERRED | Existing clearing tests were not rewritten to assert all unrelated preservation; new Basic preservation tests cover aliases/dates/custom fields. |
+| T-15 | PARTIALLY FIXED | New test clears a Basic projection and asserts qualified/custom fields survive; older clearing tests were not all rewritten. |
 
 ### Documentation findings
 
@@ -318,10 +318,10 @@ Existing suite also covers concurrency, transaction failure, hard links, malform
 
 ## K. Conclusion and Audit Trail
 
-The remediation fixes the confirmed high-impact data-loss and false-success paths and narrows or documents the remaining limitations. It does not claim that every audit observation is fully resolved: **39 findings are FIXED, 14 are PARTIALLY FIXED, 8 are IMPROVED, and 3 are DEFERRED**; all 64 matrix entries are accounted for. The working tree is clean; the intentionally untracked audit report is excluded locally rather than committed per the earlier instruction.
+The remediation fixes the confirmed high-impact data-loss and false-success paths and narrows or documents the remaining limitations. It does not claim that every audit observation is fully resolved: **39 findings are FIXED, 16 are PARTIALLY FIXED, 8 are IMPROVED, and 1 is DEFERRED**; all 64 matrix entries are accounted for. The working tree is clean; the intentionally untracked audit report is excluded locally rather than committed per the earlier instruction.
 
 **Branch:** `fix/comprehensive-audit-remediation`
 **Base:** `main` at `03473c9`
-**Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`
-**Final validation:** Debug build pass; SwiftPM Release build pass; 152 tests, 150 pass, 2 skips, 0 failures.
+**Final code/test/docs/report commits:** `ec47f2d`, `d688437`, `5f3a2a4`, `4cd96c1`, `9adb715`, `a62ab1c`, `c1d726b`, `2f918ae`
+**Final validation:** Debug build pass; SwiftPM Release build pass; 152 tests, 150 pass, 2 skips, 0 failures (plus focused tests for the follow-up commits).
 **Audit report:** `AUDIT_REPORT.md` (untracked, local exclude; not committed).

@@ -590,8 +590,10 @@ let result = try TagLibMetadataManager.applyRawMetadataPatch(
 )
 ```
 
-The compatibility convenience `writeRawMetadataPropertyMap(_:to:mode:)`
-returns only `Bool` and discards the richer write result:
+Both raw-mode functions and the compatibility
+`writeRawMetadataPropertyMap(_:to:mode:expectedVersion:)` accept
+`expectedVersion`. The convenience returns only `Bool` and discards the richer
+write result:
 
 ```swift
 try TagLibMetadataManager.writeRawMetadataPropertyMap(
