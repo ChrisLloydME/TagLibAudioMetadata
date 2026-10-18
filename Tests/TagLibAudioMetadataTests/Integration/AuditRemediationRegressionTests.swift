@@ -405,6 +405,18 @@ final class AuditRemediationRegressionTests: XCTestCase {
             }
         }
         XCTAssertEqual(try Data(contentsOf: url), before)
+
+        XCTAssertThrowsError(try TagLibMetadataManager.writeRawMetadataPropertyMap(
+            ["TITLE": "Stale convenience"],
+            to: url,
+            mode: .merge,
+            expectedVersion: version
+        )) { error in
+            guard case TagLibManagerError.fileChanged = error else {
+                return XCTFail("Expected fileChanged from convenience write, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: url), before)
     }
 
     func testRIFFPolicyPreservesOrRemovesINFO() throws {
