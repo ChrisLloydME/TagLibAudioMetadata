@@ -866,6 +866,22 @@ extension TagLibMetadataManager {
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let current = try readBasicMetadataAndRaw(from: mutationURL)
+            // A PropertyMap cannot carry ID3 comment/lyric languages or the
+            // original description spelling. Preserve the native collections
+            // when their scalar Basic projection was not edited.
+            var nativeCollections = StructuredMetadata()
+            var preservedCollections: Set<StructuredMetadataReplaceableCollection> = []
+            if capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
+                let native = try readStructuredMetadataResult(from: mutationURL)
+                if meta.comment == current.metadata.comment, !native.comments.isEmpty {
+                    nativeCollections.comments = native.comments
+                    preservedCollections.insert(.comments)
+                }
+                if meta.lyrics == current.metadata.lyrics, !native.lyrics.isEmpty {
+                    nativeCollections.lyrics = native.lyrics
+                    preservedCollections.insert(.lyrics)
+                }
+            }
             let preservation = preservedStandardValues(
                 desired: meta,
                 current: current.metadata,
@@ -897,6 +913,22 @@ extension TagLibMetadataManager {
                         to: mutationURL
                     )
                 }
+            }
+            if !preservedCollections.isEmpty {
+                let payload = bridgePayload(
+                    from: nativeCollections,
+                    includeProperties: false,
+                    replacingCollections: preservedCollections,
+                    riffPolicy: .preserveInfo
+                )
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
+                let nativeVerification = structuredWriteVerification(
+                    expected: nativeCollections,
+                    includeProperties: false,
+                    replacingCollections: preservedCollections,
+                    for: mutationURL
+                )
+                try throwOnVerificationFailures(nativeVerification.failures)
             }
             var warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))

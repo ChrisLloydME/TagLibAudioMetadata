@@ -25,6 +25,74 @@ struct ReviewMetadataIntegrityTests {
         return try Data(contentsOf: url)
     }
 
+    // This deliberately parses frame boundaries without using any bridge output.
+    private func id3FramePayloads(at url: URL, frameID: String) throws -> [Data] {
+        let data = try Data(contentsOf: url)
+        let header = try #require(
+            data.range(of: Data([0x49, 0x44, 0x33, 4, 0]))
+                ?? data.range(of: Data([0x49, 0x44, 0x33, 3, 0]))
+        ).lowerBound
+        #expect(data[header + 5] == 0) // Generated test tags have no extended header/unsynchronisation.
+        let version = data[header + 3]
+        #expect(version == 3 || version == 4)
+        func size(_ offset: Int, syncSafe: Bool) -> Int {
+            data[offset..<(offset + 4)].reduce(0) { ($0 << (syncSafe ? 7 : 8)) | Int($1) }
+        }
+        let end = header + 10 + size(header + 6, syncSafe: true)
+        try #require(end <= data.count)
+        var offset = header + 10
+        var payloads: [Data] = []
+        while offset + 10 <= end, data[offset] != 0 {
+            let length = size(offset + 4, syncSafe: version == 4)
+            try #require(length > 0 && length <= end - offset - 10)
+            if Data(data[offset..<(offset + 4)]) == Data(frameID.utf8) {
+                payloads.append(Data(data[(offset + 10)..<(offset + 10 + length)]))
+            }
+            offset += 10 + length
+        }
+        return payloads
+    }
+
+    @Test func basicTitleEditPreservesNativeCommentAndLyricLanguages() throws {
+        for ext in ["mp3", "wav", "tta"] {
+            try withFixture(ext) { url in
+                let comments = [
+                    StructuredComment(language: "deu", description: "review", text: "Kommentar"),
+                    StructuredComment(language: "fra", description: "notes", text: "Commentaire")
+                ]
+                let lyrics = [
+                    StructuredLyrics(language: "deu", description: "review", text: "Liedtext"),
+                    StructuredLyrics(language: "fra", description: "notes", text: "Paroles")
+                ]
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(lyrics: lyrics, comments: comments), to: url
+                )
+                let before = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+                #expect(Set(before.comments) == Set(comments))
+                #expect(Set(before.lyrics) == Set(lyrics))
+                let nativeComments = try id3FramePayloads(at: url, frameID: "COMM")
+                let nativeLyrics = try id3FramePayloads(at: url, frameID: "USLT")
+                #expect(nativeComments.count == 2)
+                #expect(nativeLyrics.count == 2)
+                #expect(nativeLyrics.map { String(decoding: $0[1..<4], as: UTF8.self) } == ["deu", "fra"])
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Unrelated title" }
+                let after = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+                #expect(Set(after.comments) == Set(comments))
+                #expect(Set(after.lyrics) == Set(lyrics))
+                #expect(try id3FramePayloads(at: url, frameID: "COMM") == nativeComments)
+                #expect(try id3FramePayloads(at: url, frameID: "USLT") == nativeLyrics)
+
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.lyrics = "Replacement" }
+                let replaced = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+                #expect(replaced.lyrics.count == 1)
+                #expect(replaced.lyrics.first?.text == "Replacement")
+                #expect(Set(replaced.comments) == Set(comments))
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.lyrics = "" }
+                #expect(try id3FramePayloads(at: url, frameID: "USLT").isEmpty)
+            }
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()
