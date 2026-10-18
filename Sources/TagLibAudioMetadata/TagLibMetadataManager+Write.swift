@@ -49,7 +49,15 @@ extension TagLibMetadataManager {
                 throw MetadataValidationError.embeddedNull(location: "customFields[\(key)]")
             }
             if MetadataFieldRegistry.schema(forHighLevelCustomKey: key) != nil {
-                throw MetadataValidationError.knownFieldRequiresRawAPI(key)
+                // Native containers can expose an unmapped attribute with a
+                // schema-known spelling. Preserve a read projection unchanged;
+                // new or edited values still require the raw/structured API.
+                let original = metadata.originalCustomFieldProjection.first {
+                    $0.key.caseInsensitiveCompare(key) == .orderedSame
+                }?.value
+                if original != value {
+                    throw MetadataValidationError.knownFieldRequiresRawAPI(key)
+                }
             }
         }
     }
