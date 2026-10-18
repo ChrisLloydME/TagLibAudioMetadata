@@ -321,6 +321,27 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
+    @Test func lowLevelTrackWritesRemoveStaleID3TotalAliases() throws {
+        for ext in ["mp3", "wav"] {
+            try withFixture(ext) { url in
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(id3v2Frames: [
+                        .init(frameID: "TXXX", type: "userText", values: ["15"], description: "TRACKTOTAL"),
+                        .init(frameID: "TXXX", type: "userText", values: ["15"], description: "TOTALTRACKS")
+                    ]), to: url
+                )
+                let seeded = try id3FramePayloads(at: url, frameID: "TXXX")
+                #expect(seeded.contains { $0.range(of: Data("TRACKTOTAL".utf8)) != nil })
+                try TagLibMetadataExtractor.writeTrackNumber(3, totalTracks: 10, padWidth: 0, to: url)
+                let after = try id3FramePayloads(at: url, frameID: "TXXX")
+                #expect(!after.contains {
+                    $0.range(of: Data("TRACKTOTAL".utf8)) != nil || $0.range(of: Data("TOTALTRACKS".utf8)) != nil
+                })
+                #expect(try TagLibMetadataManager.readMetadataResult(from: url).trackTotal == 10)
+            }
+        }
+    }
+
     @Test func basicMIMECorrectionPreservesPictureDescription() throws {
         try withFixture("flac") { url in
             let data = try coverData()

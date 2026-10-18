@@ -142,6 +142,7 @@
                     metadata.totalTracks
                 );
                 SetID3v2TextFrame(id3v2Tag, "TRCK", trackString);
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
 
                 NSString *discString = BuildNumberTextPreservingFormatting(
                     metadata.discNumberText,
@@ -149,6 +150,7 @@
                     metadata.totalDiscs
                 );
                 SetID3v2TextFrame(id3v2Tag, "TPOS", discString);
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
 
                 // ID3v2.4 carries the complete date in TDRC; writing legacy TYER
                 // as well produces duplicate year/date representations.

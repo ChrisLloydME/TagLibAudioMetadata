@@ -605,7 +605,13 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
                 }
             }
 
-            if (!mpegFile.save()) {
+            if (trackNumberText != nil) {
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+            }
+            if (discNumberText != nil) {
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+            }
+            if (!SaveMetadataPreservingOtherTagSurfaces(&mpegFile)) {
                 if (error) {
                     *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                                  code:54
@@ -815,9 +821,11 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
         TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
         if (trackNumberText != nil) {
             SetID3v2TextFrame(id3v2Tag, "TRCK", TrimmedStringOrNil(trackNumberText));
+            RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
         }
         if (discNumberText != nil) {
             SetID3v2TextFrame(id3v2Tag, "TPOS", TrimmedStringOrNil(discNumberText));
+            RemoveID3v2UserTextFrames(id3v2Tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
         }
         if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
