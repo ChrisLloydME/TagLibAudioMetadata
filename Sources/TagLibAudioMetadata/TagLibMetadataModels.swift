@@ -96,7 +96,8 @@ public enum ExplicitAdvisory: String, Hashable, Sendable {
 ///
 /// Multi-value fields such as `artist` and `genre` are display strings, not a
 /// stable array representation. Their separator is format-dependent
-/// (`", "` for ID3/MP4, `"; "` for generic/Xiph paths). Use `RawMetadataDump`
+/// (ID3 generally uses `", "`; MP4 artist/genre and generic/Xiph use `"; "`,
+/// while some MP4 native fields/freeforms use `", "`). Use `RawMetadataDump`
 /// or `StructuredMetadata` for lossless multi-value editing.
 public struct BasicMetadata: Sendable {
     /// Schema fields that this normalized projection can explicitly edit.
@@ -382,6 +383,7 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
     case unsupportedID3v2FrameType(String)
     case knownFieldRequiresRawAPI(String)
     case invalidCustomFieldKey(String)
+    case conflictingMP4Date(year: String, releaseDate: String)
 
     public var errorDescription: String? {
         switch self {
@@ -390,11 +392,16 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
         case .embeddedNull(let location):
             return "\(location) contains an embedded null character, which cannot be represented safely."
         case .unsupportedID3v2FrameType(let type):
-            return "ID3v2 frame type '\(type)' must be edited through the dedicated artwork, comments, or lyrics collection."
+            if ["artwork", "comment", "lyrics"].contains(type) {
+                return "ID3v2 frame type '\(type)' must be edited through the dedicated artwork, comments, or lyrics collection."
+            }
+            return "ID3v2 frame type '\(type)' is read-only or unsupported; omit inspection-only frames when writing."
         case .knownFieldRequiresRawAPI(let key):
             return "Custom key '\(key)' is a schema-known field; use RawMetadataPatch or StructuredMetadata instead."
         case .invalidCustomFieldKey(let key):
             return "Custom key '\(key)' is empty after trimming whitespace."
+        case .conflictingMP4Date(let year, let releaseDate):
+            return "MP4 year (\(year)) and releaseDate (\(releaseDate)) share ©day and must agree. Use updateBasicMetadata for a single-field edit, or set both projections consistently."
         }
     }
 }
@@ -617,7 +624,16 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
     case failedToRead
     case failedToReadWithUnderlying(String)
     case verificationFailed([String])
+    /// Compatibility case for callers constructing a message-only failure.
     case operationFailed(String)
+    /// A pre-commit native or filesystem failure, retaining domain, code, and
+    /// nested causes for recovery decisions.
+    case operationFailedWithUnderlying(NSError)
+
+    public var underlyingError: NSError? {
+        if case .operationFailedWithUnderlying(let error) = self { return error }
+        return nil
+    }
     /// Atomic rename completed, but the parent-directory fsync failed.
     /// The new file is already visible and callers must not treat this as a pre-commit failure.
     case committedButDurabilityUncertain(String)
@@ -633,6 +649,7 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
         case .failedToReadWithUnderlying(let detail): "The audio metadata could not be read: \(detail)"
         case .verificationFailed(let details): "Metadata verification failed before commit: \(details.joined(separator: "; "))"
         case .operationFailed(let detail): "The metadata operation failed: \(detail)"
+        case .operationFailedWithUnderlying(let error): "The metadata operation failed: \(error.localizedDescription)"
         case .committedButDurabilityUncertain(let detail): "Metadata was committed, but durability is uncertain: \(detail)"
         }
     }

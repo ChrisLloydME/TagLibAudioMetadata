@@ -17,11 +17,81 @@ static TagLib::PropertyMap VisibleMetadataProperties(TagLib::File *file)
     return file->properties();
 }
 
+// Creating a preferred tag must not shadow metadata that only exists in a
+// secondary tag. Promote the visible map once; keep the secondary bytes intact.
+static TagLib::ID3v2::Tag *PrepareMPEGID3v2Tag(TagLib::MPEG::File &file)
+{
+    if (file.hasID3v2Tag()) return file.ID3v2Tag();
+    const TagLib::PropertyMap legacy = file.properties();
+    TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+    if (!tag->setProperties(legacy).isEmpty()) {
+        throw std::runtime_error("Cannot faithfully promote legacy MPEG metadata to ID3v2");
+    }
+    return tag;
+}
+
+// The primary ID3 surface for every supported ID3-backed container. FLAC's
+// optional legacy ID3 tag is deliberately excluded: Xiph owns its writes.
+static void ValidateWritablePrimaryTagSurface(TagLib::File *file)
+{
+    if (!dynamic_cast<TagLib::TrueAudio::File *>(file)) return;
+    const auto position = file->tell();
+    auto end = file->length();
+    if (end >= 128) {
+        file->seek(end - 128);
+        if (file->readBlock(3) == TagLib::ByteVector("TAG", 3)) end -= 128;
+    }
+    bool hasAPE = false;
+    if (end >= 32) {
+        file->seek(end - 32);
+        hasAPE = file->readBlock(8) == TagLib::ByteVector("APETAGEX", 8);
+    }
+    bool hasUnmodeledFields = false;
+    if (hasAPE) {
+        TagLib::APE::Tag ape(file, end - 32);
+        for (const auto &[key, item] : ape.itemListMap()) {
+            // A muxer provenance marker is opaque and cannot shadow editable
+            // fields. Keep this common encoder-only footer byte-for-byte.
+            if (key.upper() != "ENCODER") hasUnmodeledFields = true;
+        }
+    }
+    file->seek(position);
+    if (hasUnmodeledFields) {
+        throw std::runtime_error("TrueAudio with APEv2 metadata is not writable: the pinned handler cannot reconcile APEv2 and ID3 surfaces");
+    }
+}
+
+static TagLib::ID3v2::Tag *NativeID3v2TagForWrite(TagLib::File *file)
+{
+    ValidateWritablePrimaryTagSurface(file);
+    if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) return PrepareMPEGID3v2Tag(*mpeg);
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) return wav->ID3v2Tag();
+    if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(file)) return aiff->tag();
+    if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(file)) {
+        if (tta->hasID3v2Tag()) return tta->ID3v2Tag();
+        const TagLib::PropertyMap legacy = tta->properties();
+        auto *tag = tta->ID3v2Tag(true);
+        if (!tag->setProperties(legacy).isEmpty()) {
+            throw std::runtime_error("Cannot faithfully promote legacy TrueAudio metadata to ID3v2");
+        }
+        return tag;
+    }
+    if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(file)) return dsf->tag();
+    if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(file)) return dff->ID3v2Tag(true);
+    return nullptr;
+}
+
 static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
 {
+    ValidateWritablePrimaryTagSurface(file);
     if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
         // WAV's default save may strip INFO while writing ID3v2.
         return wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
+    }
+    if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) {
+        // A delta must not duplicate the ID3v2 projection into ID3v1.
+        return mpeg->save(TagLib::MPEG::File::ID3v2, TagLib::File::StripNone,
+                          TagLib::ID3v2::v4, TagLib::File::DoNotDuplicate);
     }
     return file->save();
 }
@@ -57,6 +127,37 @@ static void ParseNumberPair(const TagLib::String& str, NSInteger& number, NSInte
     } else {
         number = str.toInt();
     }
+}
+
+static bool MetadataObjectContainsNull(id value, NSUInteger depth = 0)
+{
+    // Bound recursion so a malformed/cyclic low-level payload cannot exhaust
+    // the stack. Binary buffers are intentionally not treated as text.
+    if (depth > 64) return true;
+    if ([value isKindOfClass:[NSString class]]) {
+        return [(NSString *)value rangeOfString:@"\0"].location != NSNotFound;
+    }
+    if ([value isKindOfClass:[NSArray class]]) {
+        for (id entry in (NSArray *)value) {
+            if (MetadataObjectContainsNull(entry, depth + 1)) return true;
+        }
+    } else if ([value isKindOfClass:[NSDictionary class]]) {
+        for (id key in (NSDictionary *)value) {
+            if (MetadataObjectContainsNull(key, depth + 1) ||
+                MetadataObjectContainsNull(((NSDictionary *)value)[key], depth + 1)) return true;
+        }
+    }
+    return false;
+}
+
+static BOOL ValidateMetadataObjectStrings(id value, NSError **error)
+{
+    if (!MetadataObjectContainsNull(value)) return YES;
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:245
+                                 userInfo:@{ NSLocalizedDescriptionKey : @"Metadata text contains an unsupported null character or excessive payload nesting" }];
+    }
+    return NO;
 }
 
 // Convert NSString to TagLib::String (UTF-8)
@@ -482,7 +583,7 @@ static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "MUSICBRAINZ_ARTISTTYPE", { "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE", nullptr }, nullptr, "ARTISTTYPE", nullptr, "ARTISTTYPE", false, false, false },
     { "ACOUSTID_ID", { "ACOUSTID ID", nullptr }, nullptr, "Acoustid Id", nullptr, "Acoustid Id", false, false, false },
     { "ACOUSTID_FINGERPRINT", { "ACOUSTID FINGERPRINT", nullptr }, nullptr, "Acoustid Fingerprint", nullptr, "Acoustid Fingerprint", false, false, false },
-    { "MUSICIP_PUID", { nullptr }, nullptr, "MusicIP PUID", nullptr, "MusicIP PUID", false, false, false },
+    { "MUSICIP_PUID", { "MUSICIP PUID", nullptr }, nullptr, "MusicIP PUID", nullptr, "MusicIP PUID", false, false, false },
     { "REPLAYGAIN_TRACK_GAIN", { nullptr }, nullptr, "REPLAYGAIN_TRACK_GAIN", nullptr, "REPLAYGAIN_TRACK_GAIN", false, false, false },
     { "REPLAYGAIN_ALBUM_GAIN", { nullptr }, nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", false, false, false },
     { "ITUNESALBUMID", { nullptr }, nullptr, "ITUNESALBUMID", nullptr, "ITUNESALBUMID", false, false, false },
@@ -610,7 +711,8 @@ static TLMetadataContainerMask ContainerMaskForFormat(TLTagFileFormat format)
                  | TLMetadataContainerAPE;
         case TLTagFileFormatMPEGAAC:
             return TLMetadataContainerTag
-                 | TLMetadataContainerPropertyMap;
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerID3v2;
         case TLTagFileFormatMP4:
             return TLMetadataContainerTag
                  | TLMetadataContainerPropertyMap

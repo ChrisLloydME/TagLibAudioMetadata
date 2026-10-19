@@ -132,6 +132,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         return NO;
     }
 
+    ValidateWritablePrimaryTagSurface(&file);
     file.strip();
 
     if (!file.save()) {
@@ -193,61 +194,19 @@ static BOOL StripAllTagsAndSave(FileType &file,
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
     const char *filePath = fileURL.path.UTF8String;
-    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
-        TagLib::MPEG::File mpegFile(filePath);
-
-        if (format == TLTagFileFormatMPEGAAC) {
-            if (!WritePropertyMapNumberTextToFile(mpegFile,
-                                                  BuildTRCKString(trackNumber, totalTracks, padWidth),
-                                                  nil,
-                                                  error,
-                                                  42,
-                                                  @"Unable to open AAC file for writing track numbers",
-                                                  44,
-                                                  @"TagLib failed to save AAC track numbers",
-                                                  [NSString stringWithFormat:@"AAC '%@'", fileURL.lastPathComponent])) {
+    TagLib::FileRef nativeRef(filePath, true, TagLib::AudioProperties::Fast);
+    if (!nativeRef.isNull() && nativeRef.file()->isValid()) {
+        if (auto *id3 = NativeID3v2TagForWrite(nativeRef.file())) {
+            SetNativeID3NumberPair(id3, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth),
+                                  @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+            if (!SaveMetadataPreservingOtherTagSurfaces(nativeRef.file())) {
+                if (error) *error = PropertyMapDeltaError(44, @"TagLib failed to save native ID3 track number");
                 return NO;
             }
-        } else {
-            if (!mpegFile.isValid()) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:42
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open file for writing track numbers" }];
-                }
-                TLog(@"Failed to open '%@' for track renumbering", fileURL.lastPathComponent);
-                return NO;
-            }
-
-            TagLib::Tag *tag = mpegFile.tag();
-            if (!tag) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:43
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"No tag found to write track numbers into" }];
-                }
-                TLog(@"No tag object available for '%@' (track renumbering)", fileURL.lastPathComponent);
-                return NO;
-            }
-
-            if (trackNumber > 0) {
-                tag->setTrack((unsigned int)trackNumber);
-            }
-
-            TagLib::ID3v2::Tag *id3v2Tag = mpegFile.ID3v2Tag(true);
-            SetID3v2TextFrame(id3v2Tag, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth));
-
-            if (!mpegFile.save()) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:44
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save after writing track numbers" }];
-                }
-                TLog(@"TagLib save() failed after track renumbering for '%@'", fileURL.lastPathComponent);
-                return NO;
-            }
+            return YES;
         }
-    } else if (format == TLTagFileFormatMP4) {
+    }
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File mp4File(filePath);
 
         if (!mp4File.isValid()) {
@@ -271,7 +230,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
             return NO;
         }
 
-        RemoveRecognizedMP4NumberPairFreeformItems(mp4Tag, true, true);
+        RemoveRecognizedMP4NumberPairFreeformItems(mp4Tag, true, false);
 
         if (trackNumber > 0) {
             mp4Tag->setTrack((unsigned int)trackNumber);
@@ -406,6 +365,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         }
         TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
         SetID3v2TextFrame(id3v2Tag, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth));
+        RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
         if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

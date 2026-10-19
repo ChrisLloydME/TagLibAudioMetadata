@@ -225,8 +225,7 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
                 [type isEqualToString:@"ufid"] ||
                 [type isEqualToString:@"chapter"] ||
                 [type isEqualToString:@"tableOfContents"] ||
-                [type isEqualToString:@"podcast"] ||
-                [type isEqualToString:@"unknown"];
+                [type isEqualToString:@"podcast"];
             if (!supportedType) {
                 if ([type isEqualToString:@"artwork"] || [type isEqualToString:@"comment"] || [type isEqualToString:@"lyrics"]) {
                     return SetStructuredPayloadValidationError(
@@ -257,6 +256,15 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             !StructuredOptionalValueIsBooleanLike(entry, @"isOrdered") ||
             (entry[@"children"] && !StructuredValueIsStringArray(entry[@"children"]))) {
             return SetStructuredPayloadValidationError(error, @"ID3v2 frame fields have invalid value types");
+        }
+        if ([type isEqualToString:@"url"] &&
+            (![frameID hasPrefix:@"W"] || !TrimmedStringOrNil((NSString *)entry[@"url"]))) {
+            return SetStructuredPayloadValidationError(error, @"URL frames require a W-prefixed frame ID and a non-empty URL; empty payloads are not removal operations");
+        }
+        if ([type isEqualToString:@"ufid"] &&
+            (![frameID isEqualToString:@"UFID"] || !TrimmedStringOrNil((NSString *)entry[@"owner"]) ||
+             DataValueFromObject(entry[@"data"]).length == 0)) {
+            return SetStructuredPayloadValidationError(error, @"UFID requires an owner and non-empty identifier; empty payloads are not removal operations");
         }
         if (([type isEqualToString:@"chapter"] && ![frameID isEqualToString:@"CHAP"]) ||
             ([type isEqualToString:@"tableOfContents"] && ![frameID isEqualToString:@"CTOC"]) ||
@@ -301,6 +309,12 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             return SetStructuredPayloadValidationError(error, @"ASF attribute fields have invalid value types");
         }
         NSString *type = (NSString *)entry[@"type"];
+        if ([type isEqualToString:@"guid"]) {
+            // The pinned public Attribute API cannot construct GuidType.
+            // Encoding as BytesType would silently change native identity.
+            return SetStructuredPayloadValidationError(error,
+                @"ASF GUID attributes are inspection-only with the pinned TagLib encoder");
+        }
         if ([type isEqualToString:@"int64"]) {
             unsigned long long value = 0;
             if (!UnsignedLongLongValueFromObject(entry[@"value"], value)) {
@@ -679,6 +693,7 @@ static bool ReplaceStructuredAPEFrontArtwork(TagLib::APE::Tag *tag,
                                                 NSArray<NSDictionary<NSString *, NSObject *> *> *artwork)
 {
     if (!tag) return false;
+    if (!artwork) return true;
     if (artwork.count > 1) return false;
     TagLibAudioMetadata *temporary = [[TagLibAudioMetadata alloc] init];
     if (artwork.count == 0) {
@@ -706,7 +721,7 @@ static bool ReplaceStructuredAPEFrontArtwork(TagLib::APE::Tag *tag,
 static void ReplaceStructuredASFArtwork(TagLib::ASF::Tag *tag,
                                          NSArray<NSDictionary<NSString *, NSObject *> *> *artwork)
 {
-    if (!tag) return;
+    if (!tag || !artwork) return;
     tag->removeItem("WM/Picture");
     for (NSDictionary<NSString *, NSObject *> *entry in artwork ?: @[]) {
         NSData *data = DataValueFromObject(entry[@"data"]);
@@ -720,10 +735,11 @@ static void ReplaceStructuredASFArtwork(TagLib::ASF::Tag *tag,
     }
 }
 
-static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
-                                         NSArray<NSDictionary<NSString *, NSObject *> *> *attributes)
+static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
+                                         NSArray<NSDictionary<NSString *, NSObject *> *> *attributes,
+                                         NSError **error)
 {
-    if (!tag || !attributes) return;
+    if (!tag || !attributes) return YES;
     for (NSDictionary<NSString *, NSObject *> *entry in attributes) {
         NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
         NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
@@ -752,7 +768,31 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             NSData *data = DataValueFromObject(entry[@"data"]);
             attribute = TagLib::ASF::Attribute(TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length));
         } else {
-            attribute = TagLib::ASF::Attribute((unsigned int)IntegerValueFromObject(entry[@"value"]));
+            // The public "int" projection represents both WORD and DWORD.
+            // Retain an existing WORD's width instead of adding a DWORD sibling.
+            bool hasWord = false;
+            bool hasDWord = false;
+            for (const auto &existing : tag->attribute(NSStringToTagString(key))) {
+                if (existing.language() == IntegerValueFromObject(entry[@"language"]) &&
+                    existing.stream() == IntegerValueFromObject(entry[@"stream"])) {
+                    hasWord |= existing.type() == TagLib::ASF::Attribute::WordType;
+                    hasDWord |= existing.type() == TagLib::ASF::Attribute::DWordType;
+                }
+            }
+            if (hasWord && hasDWord) {
+                return SetStructuredPayloadValidationError(error,
+                    @"ASF int update is ambiguous between existing WORD and DWORD attributes");
+            }
+            const unsigned int value = (unsigned int)IntegerValueFromObject(entry[@"value"]);
+            if (hasWord) {
+                if (value > std::numeric_limits<unsigned short>::max()) {
+                    return SetStructuredPayloadValidationError(error,
+                        @"ASF WORD update requires an unsigned 16-bit value");
+                }
+                attribute = TagLib::ASF::Attribute((unsigned short)value);
+            } else {
+                attribute = TagLib::ASF::Attribute(value);
+            }
         }
         attribute.setLanguage((int)IntegerValueFromObject(entry[@"language"]));
         attribute.setStream((int)IntegerValueFromObject(entry[@"stream"]));
@@ -774,6 +814,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         }
         tag->setAttribute(tagKey, values);
     }
+    return YES;
 }
 
 + (BOOL)writeStructuredMetadata:(NSDictionary<NSString *, NSObject *> *)metadata
@@ -781,6 +822,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                           error:(NSError **)error
 {
     try {
+    if (!ValidateMetadataObjectStrings(metadata, error)) return NO;
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
@@ -843,7 +885,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    if (format == TLTagFileFormatMPEGID3) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:232 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MPEG file for structured metadata editing" }];
@@ -852,7 +894,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (propertyValues) {
             file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
+        TagLib::ID3v2::Tag *tag = PrepareMPEGID3v2Tag(file);
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
@@ -863,6 +905,28 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                        TagLib::File::DoNotDuplicate)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:233 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MPEG metadata" }];
             return NO;
+        }
+        return YES;
+    }
+
+    if (format == TLTagFileFormatTTA) {
+        if (mp4Atoms || asfAttributes) {
+            return SetStructuredPayloadValidationError(error, @"TrueAudio supports ID3v2 collections only");
+        }
+        TagLib::TrueAudio::File file(filePath);
+        if (!file.isValid()) {
+            return SetStructuredPayloadValidationError(error, @"Unable to open TrueAudio file for structured metadata editing");
+        }
+        if (propertyValues) {
+            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+        }
+        TagLib::ID3v2::Tag *tag = NativeID3v2TagForWrite(&file);
+        UpsertID3v2StructuredFrames(tag, frames);
+        ReplaceID3v2Comments(tag, comments);
+        ReplaceID3v2Lyrics(tag, lyrics);
+        ReplaceID3v2Artwork(tag, artwork);
+        if (!file.save()) {
+            return SetStructuredPayloadValidationError(error, @"TagLib failed to save structured TrueAudio metadata");
         }
         return YES;
     }
@@ -931,7 +995,17 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             ? (NSString *)metadata[@"riffPolicy"] : nil;
         if ([riffPolicy isEqualToString:@"id3v2Only"] && file.hasInfoTag()) {
             file.strip(TagLib::RIFF::WAV::File::Info);
-            file.save();
+            if (!file.save()) {
+                if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save the RIFF INFO removal" }];
+                return NO;
+            }
+            // strip() has no return value. Reopen to confirm its on-disk
+            // policy effect rather than trusting the in-memory tag state.
+            TagLib::RIFF::WAV::File saved(filePath);
+            if (!saved.isValid() || saved.hasInfoTag()) {
+                if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"RIFF INFO removal could not be confirmed after save" }];
+                return NO;
+            }
         }
         return YES;
     }
@@ -952,29 +1026,6 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Artwork(tag, artwork);
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:237 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured AIFF metadata" }];
-            return NO;
-        }
-        return YES;
-    }
-
-    if (format == TLTagFileFormatMPEGAAC) {
-        if (frames || mp4Atoms || asfAttributes || lyrics || comments) {
-            return SetStructuredPayloadValidationError(
-                error,
-                @"Raw AAC supports structured PropertyMap values and artwork only"
-            );
-        }
-        TagLib::MPEG::File file(filePath);
-        if (!file.isValid()) {
-            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:246 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open AAC file for structured metadata editing" }];
-            return NO;
-        }
-        if (propertyValues) {
-            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
-        }
-        ReplaceID3v2Artwork(file.ID3v2Tag(true), artwork);
-        if (!file.save()) {
-            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:248 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured AAC metadata" }];
             return NO;
         }
         return YES;
@@ -1010,7 +1061,7 @@ static void ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (propertyValues) {
             file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
-        ApplyStructuredASFAttributes(file.tag(), asfAttributes);
+        if (!ApplyStructuredASFAttributes(file.tag(), asfAttributes, error)) return NO;
         ReplaceStructuredASFArtwork(file.tag(), artwork);
         if (artwork.count > 0 && file.tag()->attribute("WM/Picture").isEmpty()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:299 userInfo:@{ NSLocalizedDescriptionKey : @"ASF picture attribute was not added" }];
