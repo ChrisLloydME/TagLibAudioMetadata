@@ -419,6 +419,30 @@ extension TagLibMetadataManager {
         to url: URL,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try applyMetadataPatchValidatingAudio(patch, to: url, expectedVersion: expectedVersion, expectedAudioContent: nil)
+    }
+
+    /// Applies a rebased patch only if the baseline audio still matches. Both
+    /// guards are required: audio identity allows metadata-only conflicts, while
+    /// expectedVersion binds the caller's merge decision to the exact current revision.
+    @discardableResult
+    public nonisolated static func applyMetadataPatch(
+        _ patch: MetadataPatch,
+        to url: URL,
+        expectedVersion: MetadataFileVersion,
+        expectedAudioContent: MetadataAudioContentIdentity
+    ) throws -> MetadataWriteResult {
+        try applyMetadataPatchValidatingAudio(
+            patch, to: url, expectedVersion: expectedVersion, expectedAudioContent: expectedAudioContent
+        )
+    }
+
+    nonisolated private static func applyMetadataPatchValidatingAudio(
+        _ patch: MetadataPatch,
+        to url: URL,
+        expectedVersion: MetadataFileVersion?,
+        expectedAudioContent: MetadataAudioContentIdentity?
+    ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
         let validatedPatch = try validate(patch)
         let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
@@ -457,6 +481,9 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            if let expectedAudioContent {
+                try requireAudioContent(at: mutationURL, matching: expectedAudioContent)
+            }
             let before = try readSnapshot(from: mutationURL)
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]

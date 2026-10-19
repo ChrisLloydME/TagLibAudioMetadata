@@ -81,6 +81,29 @@ extension TagLibMetadataManager {
         to url: URL,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try applyRawMetadataPatchValidatingAudio(patch, to: url, expectedVersion: expectedVersion, expectedAudioContent: nil)
+    }
+
+    /// Guards a rebased raw delta with the baseline audio identity and the exact
+    /// revision used to decide the merge. Missing identities require explicit reload.
+    @discardableResult
+    public nonisolated static func applyRawMetadataPatch(
+        _ patch: RawMetadataPatch,
+        to url: URL,
+        expectedVersion: MetadataFileVersion,
+        expectedAudioContent: MetadataAudioContentIdentity
+    ) throws -> MetadataWriteResult {
+        try applyRawMetadataPatchValidatingAudio(
+            patch, to: url, expectedVersion: expectedVersion, expectedAudioContent: expectedAudioContent
+        )
+    }
+
+    nonisolated private static func applyRawMetadataPatchValidatingAudio(
+        _ patch: RawMetadataPatch,
+        to url: URL,
+        expectedVersion: MetadataFileVersion?,
+        expectedAudioContent: MetadataAudioContentIdentity?
+    ) throws -> MetadataWriteResult {
         try validateRawPropertyMapKeyNames(Array(patch.valuesToSet.keys) + Array(patch.removingKeys))
         func validatedKey(_ key: String) throws -> String {
             let normalized = key.uppercased()
@@ -112,6 +135,9 @@ extension TagLibMetadataManager {
         let replacements = values
         let removals = removed
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { temporary in
+            if let expectedAudioContent {
+                try requireAudioContent(at: temporary, matching: expectedAudioContent)
+            }
             try applyRawMetadataDeltaInPlace(
                 replacements,
                 removingKeys: removals,

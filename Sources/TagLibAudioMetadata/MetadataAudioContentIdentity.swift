@@ -214,9 +214,8 @@ extension TagLibMetadataManager {
     }
 
     nonisolated static func requireAudioContent(
-        at url: URL, matching expected: MetadataAudioContentIdentity?
+        at url: URL, matching expected: MetadataAudioContentIdentity
     ) throws {
-        guard let expected else { return }
         let version = try fileVersion(at: url)
         guard let actual = try audioContentIdentity(at: url, version: version) else {
             throw MetadataAudioContentError.unavailable
