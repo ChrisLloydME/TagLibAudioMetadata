@@ -89,7 +89,7 @@ staging. Schema-known keys are rejected from `customFields`, including aliases
 and case variants. Role-qualified fields such as `.performer` are rejected by the
 typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are
 part of the key. Partial removal of a paired first component is rejected on
-ID3/MP4 when a retained total cannot be represented. Text-backed booleans encode false as `"0"`, while `.remove`
+native pair formats when a retained total cannot be represented. Text-backed booleans encode false as `"0"`, while `.remove`
 makes the field absent. Most property changes are applied as a bridge delta to
 the current `PropertyMap`; MP4 track/disc pairs and advisory data use native
 `trkn`, `disk`, and `rtng` mutation, while ID3 advisory uses the supported TXXX

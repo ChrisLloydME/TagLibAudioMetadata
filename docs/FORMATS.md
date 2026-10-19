@@ -49,7 +49,7 @@ The registry contains 22 families and 37 extensions. R/W means a save path exist
 | WavPack | `wv` | R/W | tag, PropertyMap, APE | propertyMap / propertyMap | fixture-covered | APE item metadata is surfaced through PropertyMap. |
 | Musepack | `mpc` | R/W | tag, PropertyMap, APE | propertyMap / propertyMap | fixture-covered | APE item metadata is surfaced through PropertyMap. |
 | WAV / RIFF | `wav` | R/W | tag, PropertyMap, ID3v2, RIFF INFO | container / container | fixture-covered | Structured writes use ID3v2. `preserveInfo` keeps RIFF INFO; `id3v2Only` removes it. |
-| AIFF / AIFF-C | `aiff`, `aif`, `aifc`, `afc` | R/W | tag, PropertyMap, ID3v2, RIFF INFO | container / container | upstream-supported, with a generated PCM fixture and selected tests | Structured writes use ID3v2. The configured evidence label remains upstream-supported because the family lacks broad runtime coverage. |
+| AIFF / AIFF-C | `aiff`, `aif`, `aifc`, `afc` | R/W | tag, PropertyMap, ID3v2 | container / container | upstream-supported, with a generated PCM fixture and selected tests | Structured writes use ID3v2. The capability registry's shared WAV/AIFF container mask labels `riffInfo`; the AIFF writer has no RIFF INFO surface, so treat `riffInfo` as WAV-specific. The configured evidence label remains upstream-supported because the family lacks broad runtime coverage. |
 | TrueAudio | `tta` | R/W | tag, PropertyMap, ID3v1, ID3v2 | container / container | fixture-covered | ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas. Mixed unmodeled APEv2 surfaces reject; see below. |
 | ASF / WMA | `wma`, `asf` | R/W | tag, PropertyMap, ASF | container / container | `wma` fixture-covered; `asf` upstream-supported | ASF attributes preserve name, type, language, and stream identity. GUID attributes are inspection-only. |
 | DSF | `dsf` | R/W | tag, PropertyMap, ID3v2 | container / propertyMap | fixture-covered | Structured reads expose native ID3 collections; structured writes are limited to PropertyMap deltas and artwork. |
@@ -60,7 +60,7 @@ The registry contains 22 families and 37 extensions. R/W means a save path exist
 | Impulse Tracker | `it` | R/W (title, comment) | tag, PropertyMap | propertyMap / propertyMap | experimental | No runtime fixture. Fixed-width tracker storage can normalize text. |
 | FastTracker Module | `xm` | R/W (title, comment, tracker name) | tag, PropertyMap | propertyMap / propertyMap | fixture-covered | Fixed-width instrument/sample fields can normalize comments and pad the tracker name. |
 
-The fixture-covered set is exactly: `mp3`, `m4a`, `flac`, `ogg`, `oga`, `wav`, `aac`, `xm`, `tta`, `wv`, `wma`, `ape`, `mpc`, `dsf`, `dff`, `opus`. The experimental set is `s3m` and `it`. `shn` and the MOD family are read-only. Everything else that the registry lists is upstream-supported.
+The fixture-covered set is exactly: `mp3`, `m4a`, `flac`, `ogg`, `oga`, `wav`, `aac`, `xm`, `tta`, `wv`, `wma`, `ape`, `mpc`, `dsf`, `dff`, `opus`. The experimental set is `s3m` and `it`. `shn` and `mod` (with its `module`, `nst`, and `wow` aliases) are read-only. Everything else that the registry lists is upstream-supported.
 
 ## Cross-format behavior
 
@@ -112,6 +112,7 @@ MP4 has one standard date atom. A typed `.date` patch for MP4 fails before stagi
 - Basic, typed Patch, and structured WAV writes target ID3v2 and leave RIFF INFO untouched unless `riffPolicy: .id3v2Only` is selected.
 - Raw PropertyMap edits follow key ownership: existing INFO keys update INFO, ID3v2 keys update ID3v2, and new keys go to ID3v2.
 - `.preserveInfo` is the default. `.id3v2Only` writes ID3v2 and then removes RIFF INFO. `.syncBasicFieldsToInfo` is reserved and rejects before staging.
+- AIFF/AIFF-C structured writes use ID3v2. They have no RIFF INFO surface, so `.id3v2Only` has no additional effect there. The shared capability container mask still lists `riffInfo`; treat that entry as WAV-specific.
 - A verified deletion that would expose retained INFO fallback is rejected; use a raw deletion to clear both surfaces.
 - AIFF/AIFF-C have a generated PCM fixture and focused tests, but the family label remains upstream-supported.
 

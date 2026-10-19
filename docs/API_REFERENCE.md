@@ -152,7 +152,7 @@ static func writeTagMetadata(
 ) throws -> MetadataWriteResult
 ```
 
-`writeTagMetadata` performs only the checks supplied in its verification context; the default `.none` checks no metadata values. Prefer the typed patch, raw patch, or Basic verified APIs for normal editing.
+`writeTagMetadata` performs only the checks supplied in its verification context; the default `.none` checks no metadata values. `expectedTextFields` keys are camel-case Basic field names such as `title` and `encodedBy`, not PropertyMap keys such as `TITLE`; passing a raw key produces a false mismatch. Prefer the typed patch, raw patch, or Basic verified APIs for normal editing.
 
 ## Erase
 

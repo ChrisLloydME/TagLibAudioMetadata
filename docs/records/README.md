@@ -17,6 +17,10 @@ Historical records are retained unchanged apart from relative-link repair after 
 
 Do not cite an old record's "fixed", "ready", or test-count statement as evidence about the current HEAD without checking the later records and current source.
 
+## Reading historical paths
+
+Records were written before the 2026-10-19 documentation restructuring. They may cite former paths such as `docs/SUPPORT.md`, `docs/THREAD_SAFETY.md`, or `MAINTENANCE_PROGRESS.md` in prose. Those are historical coordinates, not current links. Markdown link targets were repaired after relocation; prose path references were intentionally left unchanged so the original evidence is not rewritten. Use the index and the current [documentation hub](../README.md) to find the present location.
+
 ## Status vocabulary
 
 | Status | Meaning |

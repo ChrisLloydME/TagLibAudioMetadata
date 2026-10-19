@@ -406,9 +406,10 @@ let result = try TagLibMetadataManager.updateBasicMetadata(at: url) { metadata i
 Check `FormatCapability.canWriteArtwork` before enabling artwork editing. Some
 formats can read tags but cannot persist artwork.
 
-To remove artwork through the low-level bridge model:
+To remove artwork through the low-level bridge model, import the bridge module explicitly:
 
 ```swift
+import CTagLibBridge
 let bridgeMetadata = TagLibAudioMetadata()
 bridgeMetadata.removeArtwork = true
 
@@ -497,6 +498,8 @@ key is known. `shouldDisplayAsMultiValue` tells UI code whether to show the entr
 as a multi-value field.
 
 ### Writing Raw Property Maps
+
+Raw APIs use prefixless TagLib PropertyMap keys. Native MP4 `----:` atom identifiers are rejected with `RawMetadataPatchError.nativeKeyRequiresStructuredAPI`; use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys. This rejection applies even when verification is disabled.
 
 Use `writeRawMetadataPropertyMapWithVerification` when you edit flat
 `[String: String]` values:
@@ -733,7 +736,8 @@ level still permits artwork through the structured artwork collection when
 `canWriteArtwork` is true. TrueAudio/TTA now supports its native ID3v2 frame,
 comment, and lyric collections as well and reports `.container` support.
 
-`RIFFMetadataWritePolicy` applies to WAV/AIFF-style containers:
+`RIFFMetadataWritePolicy` applies to WAV. AIFF/AIFF-C structured writes use ID3v2
+and have no RIFF INFO surface, so `.id3v2Only` has no additional effect there.
 
 - `.id3v2Only`: write structured ID3v2 data, then remove RIFF INFO.
 - `.preserveInfo` (default): keep existing RIFF INFO fields.

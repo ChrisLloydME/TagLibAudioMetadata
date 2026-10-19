@@ -120,7 +120,7 @@ Prefer `RawMetadataPatch` for preservation-oriented partial edits.
 
 ### RIFF write policy
 
-`RIFFMetadataWritePolicy` applies to WAV/AIFF-style containers:
+`RIFFMetadataWritePolicy` applies to WAV. AIFF/AIFF-C structured writes use ID3v2 and have no RIFF INFO surface, so `.id3v2Only` has no additional effect there:
 
 - `.preserveInfo` (default): write structured data and keep existing RIFF INFO.
 - `.id3v2Only`: write structured ID3v2 data, then remove RIFF INFO.
@@ -155,6 +155,8 @@ Additional rules:
 - `.present` artwork verification is presence-only; `expectedArtworkData` and `expectedArtworkMIMEType` add exact checks.
 - Basic and typed number checks accept numeric-equivalent formatting. Exact raw map verification compares strings and can reject normalized padding.
 - Empty FLAC comment values that TagLib drops are rejected by exact-value verification.
+
+The raw whole-map writers and `writeStructuredMetadataWithVerification` expose a `verifyAfterWrite` parameter. Setting it to `false` opts out of readback comparison for that call; the transaction still stages and commits atomically, but the requested values are not verified. Do not describe such a write as verified.
 
 Verification is not a lossless oracle. Metadata that TagLib does not expose cannot be compared by these APIs.
 
