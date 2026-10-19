@@ -1250,7 +1250,7 @@ See [INSTALLATION.md](INSTALLATION.md).
 
 ## Verification-hardening evidence
 
-See [the verification-hardening report](VERIFICATION_HARDENING_2026-10-18.md)
+See [the verification-hardening report](records/verification/VER-2026-10-18-verification-hardening.md)
 for the runtime matrix and its limits. Genuine pinned upstream DSF/DSDIFF, APE,
 and Musepack files are copied before testing. Native ID3, APEv2, bounded ASF
 header inspection, and encoded audio comparisons provide evidence beyond

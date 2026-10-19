@@ -324,12 +324,12 @@ warnings-as-errors, sanitizer runs, concurrency stress, transaction failures,
 minimum deployment targets, release builds, and format-specific round trips.
 Those configured jobs are not evidence that an unrun commit passed. The latest
 completed validation for current `main` is recorded in
-[`MAINTENANCE_PROGRESS.md`](MAINTENANCE_PROGRESS.md); the older migration report
+[`MAINT-2026-10-19-progress-log.md`](docs/records/maintenance/MAINT-2026-10-19-progress-log.md); the older migration report
 is explicitly historical evidence.
 
 See [Architecture](docs/ARCHITECTURE.md), [Support](docs/SUPPORT.md),
 [Thread safety](docs/THREAD_SAFETY.md), and the
-[migration report](docs/MIGRATION_REPORT.md) for detailed contracts and
+[migration record](docs/records/migrations/MIG-2026-09-01-taglib-2.3.1.md) for detailed contracts and
 remaining risks.
 
 ## License
@@ -341,4 +341,4 @@ Boost Software License 1.0. Exact license texts and source revisions are in
 
 ## Clean-room remediation status (2026-10-19)
 
-The independent clean-room findings are resolved or explicitly bounded in [CLEAN_ROOM_REMEDIATION_2026-10-19.md](docs/CLEAN_ROOM_REMEDIATION_2026-10-19.md), which records the complete finding matrix, commits, verification evidence, and merge assessment. AIFF now has a generated PCM regression fixture; source-only families and uncommon aliases still lack runtime proof. Basic MP4 updates reconcile single-field year/releaseDate edits; full replacements must provide consistent projections. Native MP4 freeform keys require structured atoms. Mixed TrueAudio APEv2 metadata and setuid/setgid files reject safely before commit. Generic/Xiph number text normalizes display, and individual structured ASF/URL/UFID removal remains unsupported.
+The independent clean-room findings are resolved or explicitly bounded in [REM-2026-10-19-clean-room.md](docs/records/remediation/REM-2026-10-19-clean-room.md), which records the complete finding matrix, commits, verification evidence, and merge assessment. AIFF now has a generated PCM regression fixture; source-only families and uncommon aliases still lack runtime proof. Basic MP4 updates reconcile single-field year/releaseDate edits; full replacements must provide consistent projections. Native MP4 freeform keys require structured atoms. Mixed TrueAudio APEv2 metadata and setuid/setgid files reject safely before commit. Generic/Xiph number text normalizes display, and individual structured ASF/URL/UFID removal remains unsupported.
