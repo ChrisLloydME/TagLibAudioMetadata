@@ -26,9 +26,9 @@ struct CleanRoomMPEGTests {
     }
 
     @Test func firstID3v2PromotesLegacyFieldsWithoutChangingID3v1() throws {
-        for ext in ["mp3", "mp2"] {
+        for ext in ["mp3", "mp2", "tta"] {
             for operation in 0..<4 {
-                try HardeningFixture.withCopy("mp3", name: "testAudioFile") { source in
+                try HardeningFixture.withCopy(ext == "tta" ? "tta" : "mp3", name: "testAudioFile") { source in
                     let url = source.deletingPathExtension().appendingPathExtension(ext)
                     let payload = audio(try Data(contentsOf: source))
                     let legacy = legacyTag()

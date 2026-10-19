@@ -37,7 +37,15 @@ static TagLib::ID3v2::Tag *NativeID3v2TagForWrite(TagLib::File *file)
     if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) return PrepareMPEGID3v2Tag(*mpeg);
     if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) return wav->ID3v2Tag();
     if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(file)) return aiff->tag();
-    if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(file)) return tta->ID3v2Tag(true);
+    if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(file)) {
+        if (tta->hasID3v2Tag()) return tta->ID3v2Tag();
+        const TagLib::PropertyMap legacy = tta->properties();
+        auto *tag = tta->ID3v2Tag(true);
+        if (!tag->setProperties(legacy).isEmpty()) {
+            throw std::runtime_error("Cannot faithfully promote legacy TrueAudio metadata to ID3v2");
+        }
+        return tag;
+    }
     if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(file)) return dsf->tag();
     if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(file)) return dff->ID3v2Tag(true);
     return nullptr;

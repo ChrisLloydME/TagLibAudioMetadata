@@ -61,6 +61,10 @@ struct CleanRoomMP4Tests {
                             StructuredMetadata(mp4Atoms: [.init(key: key, type: "stringList", values: ["OLD"])]), to: url)
                     }
                     let before = try state(url)
+                    let fieldSchema = try #require(MetadataFieldRegistry.schema(for: field))
+                    let nativeAliases = Set(fieldSchema.propertyMapKeys.map { "----:COM.APPLE.ITUNES:" + $0.uppercased() })
+                        .union([key.uppercased(), field == .work ? "©WRK" : key.uppercased()])
+                    #expect(before.items.keys.filter { nativeAliases.contains($0.uppercased()) }.count == 1)
                     try TagLibMetadataManager.applyMetadataPatch(MetadataPatch(fields: [field: .text("NEW")]), to: url)
                     #expect(try TagLibMetadataManager.readMetadataResult(from: url)[keyPath: path] == "NEW")
                     let after = try state(url)
