@@ -110,6 +110,15 @@ but not raw/structured inspector models, can use `readBasicSnapshot(from:)`.
 Use the comprehensive `readSnapshot(from:)` only when those additional
 representations are actually needed.
 
+Automatic conflict rebasing also needs audio-content continuity. Opt in with
+`includingAudioContent: true` at the baseline and current read, compare non-nil
+`audioContentIdentity` values, and use the typed/raw patch overload requiring
+both `expectedVersion` and `expectedAudioContent`. WAV, AIFF/AIFF-C and native
+FLAC currently support this token; other formats require explicit reload.
+See [audio-content continuity](docs/AUDIO_CONTENT_CONTINUITY.md) for adoption,
+normalization, cost and concurrency limits. A dependency update alone does not
+change an application's conflict policy.
+
 Typed patch values are checked against `MetadataFieldRegistry` before staging.
 Known keys and aliases are rejected in `customFields`; use `fields` (or a
 dedicated patch property) for schema-known metadata. Unknown custom keys remain

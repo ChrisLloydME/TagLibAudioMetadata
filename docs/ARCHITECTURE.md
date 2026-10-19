@@ -58,6 +58,18 @@ writes, or `writeTagMetadata`. Without an `expectedVersion`, a write
 intentionally targets the file state current when its transaction begins rather
 than the state previously shown to the user.
 
+## Audio-content continuity
+
+Snapshots can additionally stream an opt-in `MetadataAudioContentIdentity`,
+independently of supported metadata regions, while retaining the same exact
+revision checks. Typed and raw delta overloads require both this baseline token
+and the current `MetadataFileVersion`; they compare the staged copy's audio
+before mutation and retain the original final commit guard. Availability is
+currently limited to WAVE, AIFF/AIFF-C and native FLAC; a missing token requires
+explicit reload. See [the contract and consumer migration](AUDIO_CONTENT_CONTINUITY.md).
+The scanner runs in Swift/CryptoKit outside the native parser lock, using bounded
+streaming reads without sample decoding.
+
 ## Write pipeline
 
 The facade transaction coordinator creates one same-directory copy, takes one
