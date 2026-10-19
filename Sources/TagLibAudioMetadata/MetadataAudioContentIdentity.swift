@@ -2,9 +2,10 @@ import Foundation
 import CryptoKit
 import Darwin
 
-/// An opaque SHA-256 identity of encoded audio and its interpretation parameters,
-/// independent of supported metadata edits. It is not a perceptual fingerprint,
-/// a filesystem revision, or a cross-format recording identifier.
+/// An opaque SHA-256 identity of encoded audio and its interpretation parameters.
+/// Known metadata is excluded, including WAVE `bext` / `iXML` and BWF time
+/// references; other ancillary changes can change the identity. It is not a
+/// perceptual fingerprint, a filesystem revision, or a cross-format recording identifier.
 ///
 /// Request it with `readSnapshot(from:includingAudioContent:)` or
 /// `readBasicSnapshot(from:includingAudioContent:)`. Availability is deliberately
@@ -125,7 +126,9 @@ nonisolated private struct AudioContentReader {
             }
             var isMetadata: Bool
             if littleEndian {
-                isMetadata = ["id3 ", "ID3 ", "JUNK", "PAD "].contains(name)
+                // TagLib can move BWF/iXML metadata across data during a tag save.
+                // Their contents (including BWF time references) are outside audio identity.
+                isMetadata = ["id3 ", "ID3 ", "JUNK", "PAD ", "bext", "iXML"].contains(name)
                 if name == "LIST" {
                     guard length >= 4 else { throw MetadataAudioContentError.unavailable }
                     isMetadata = try bytes(at: start, count: 4) == Data("INFO".utf8)
