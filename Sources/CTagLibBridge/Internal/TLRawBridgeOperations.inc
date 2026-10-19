@@ -4,6 +4,12 @@
 {
     try {
     if (!ValidateMetadataObjectStrings(properties, error)) return NO;
+    for (NSString *key in properties) {
+        if ([TrimmedStringOrNil(key) hasPrefix:@"----:"]) {
+            if (error) *error = PropertyMapDeltaError(9280, @"Native MP4 atom keys require structured mp4Atoms; raw APIs use prefixless PropertyMap keys");
+            return NO;
+        }
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMap:properties toURL:temporaryURL error:mutationError];
@@ -297,6 +303,12 @@
 {
     try {
     if (!ValidateMetadataObjectStrings(properties, error)) return NO;
+    for (NSString *key in properties) {
+        if ([TrimmedStringOrNil(key) hasPrefix:@"----:"]) {
+            if (error) *error = PropertyMapDeltaError(9280, @"Native MP4 atom keys require structured mp4Atoms; raw APIs use prefixless PropertyMap keys");
+            return NO;
+        }
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw multi-value property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMapValues:properties toURL:temporaryURL error:mutationError];

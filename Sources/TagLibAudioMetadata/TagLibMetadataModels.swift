@@ -382,6 +382,7 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
     case unsupportedID3v2FrameType(String)
     case knownFieldRequiresRawAPI(String)
     case invalidCustomFieldKey(String)
+    case conflictingMP4Date(year: String, releaseDate: String)
 
     public var errorDescription: String? {
         switch self {
@@ -398,6 +399,8 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
             return "Custom key '\(key)' is a schema-known field; use RawMetadataPatch or StructuredMetadata instead."
         case .invalidCustomFieldKey(let key):
             return "Custom key '\(key)' is empty after trimming whitespace."
+        case .conflictingMP4Date(let year, let releaseDate):
+            return "MP4 year (\(year)) and releaseDate (\(releaseDate)) share ©day and must agree. Use updateBasicMetadata for a single-field edit, or set both projections consistently."
         }
     }
 }
