@@ -169,7 +169,7 @@ Availability is limited to WAV, AIFF/AIFF-C, and native FLAC. WAVE `bext` and `i
 | Development and maintenance | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 | Historical audits, reviews, remediation | [docs/records/README.md](docs/records/README.md) |
 
-The CI configuration covers strict warnings-as-errors, tests, release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the current environment-dependent privilege-bit test, is in [Status](docs/STATUS.md). Historical assessments are preserved as records and are not current merge decisions.
+The CI configuration covers strict warnings-as-errors, tests, release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the command-line privilege-bit environment caveat, is in [Status](docs/STATUS.md). Historical assessments are preserved as records and are not current merge decisions.
 
 ## License
 

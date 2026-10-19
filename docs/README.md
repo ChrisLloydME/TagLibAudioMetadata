@@ -53,6 +53,7 @@ Records live under [docs/records/](records/README.md). They preserve audits, ind
 - [Finding dispositions](records/README.md#finding-disposition-summary)
 - [Open and bounded findings](records/README.md#open-and-bounded-findings)
 - [Record conventions](records/CONVENTIONS.md)
+- [Documentation restructuring report](DOCUMENTATION_RESTRUCTURING_REPORT.md) — what changed, why, and the remaining work.
 
 Do not silently update a historical record to match current code. Add an addendum or a superseding record, and update the index's relevance annotation.
 
