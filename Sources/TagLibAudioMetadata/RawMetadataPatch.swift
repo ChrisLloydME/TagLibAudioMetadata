@@ -16,11 +16,12 @@ public struct RawMetadataPatch: Sendable {
     }
 }
 
-public enum RawMetadataPatchError: Error, Sendable, LocalizedError {
+public enum RawMetadataPatchError: Error, Equatable, Sendable, LocalizedError {
     case invalidKey(String)
     case emptyArray(String)
     case conflictingKey(String)
     case embeddedNull(String)
+    case nativeKeyRequiresStructuredAPI(String)
 
     public var errorDescription: String? {
         switch self {
@@ -28,11 +29,18 @@ public enum RawMetadataPatchError: Error, Sendable, LocalizedError {
         case .emptyArray(let key): "Use explicit removal to delete \(key); an empty value array is ambiguous."
         case .conflictingKey(let key): "Multiple changes target PropertyMap key \(key)."
         case .embeddedNull(let key): "PropertyMap field \(key) contains an unsupported null character."
+        case .nativeKeyRequiresStructuredAPI(let key): "\(key) is a native MP4 atom key; use StructuredMetadata.mp4Atoms. Raw APIs require prefixless PropertyMap keys."
         }
     }
 }
 
 extension TagLibMetadataManager {
+    nonisolated static func validateRawPropertyMapKeyNames(_ keys: [String]) throws {
+        for key in keys where key.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("----:") {
+            throw RawMetadataPatchError.nativeKeyRequiresStructuredAPI(key)
+        }
+    }
+
     nonisolated static func exactPropertyValues(_ dump: RawMetadataDump) -> [String: [String]] {
         dump.properties.reduce(into: [:]) { result, entry in
             result[entry.key.uppercased(), default: []].append(contentsOf: entry.values)
@@ -73,6 +81,7 @@ extension TagLibMetadataManager {
         to url: URL,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(patch.valuesToSet.keys) + Array(patch.removingKeys))
         func validatedKey(_ key: String) throws -> String {
             let normalized = key.uppercased()
             guard !key.isEmpty,

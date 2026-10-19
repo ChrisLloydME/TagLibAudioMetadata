@@ -44,3 +44,32 @@ no ID3v2 tag. SHA-256:
 `73d5b6b95bf833e72711907be6d5d1d0d5bb80ed420396348af6d6bf4ae2109b`.
 It protects against INFO fields becoming invisible after adding ID3v2, and
 against targeted text writes stripping unrelated INFO chunks.
+
+## Verification-hardening fixtures
+
+The following genuine audio files are copied unchanged from [TagLib 2.3.1,
+commit 54ae7d8ac45755e286a5c574280f48d5bef93aef](https://github.com/taglib/taglib/tree/54ae7d8ac45755e286a5c574280f48d5bef93aef/tests/data).
+They use the same upstream LGPL 2.1 / MPL 1.1 distribution terms as the existing
+TagLib fixtures; license texts are retained in `ThirdParty/TagLib`.
+
+| Local name | Upstream name | SHA-256 |
+| --- | --- | --- |
+| `hardening.dsf` | `empty10ms.dsf` | `f3b2de2c2e783e887771a95aa302496eb3a82fcb606c3276d40650e887a6f9aa` |
+| `hardening.dff` | `empty10ms.dff` | `d7be2c9f3d539dffd49e73a9462a5daba3645ca4b20636f4518c8182ded8f8b5` |
+| `hardening.ape` | `mac-399.ape` | `8c851b4f52bbbd822262040ae8961b8c27f8f702d1be3fa50cca283d009aadea` |
+| `hardening.mpc` | `click.mpc` | `178f44eb55353512ef611ccca4d10557af7c2d329a6078a019a5d66d522d25ad` |
+
+All four were recognized by FFprobe and decoded to completion by FFmpeg without
+errors during acquisition. The upstream tests expect stereo DSD64 (2,822,400
+one-bit samples/s) for DSF/DSDIFF, and stereo 44,100 Hz for APE/Musepack. FFmpeg
+reports the packed DSD byte rate as 352,800 Hz; this is not a disagreement about
+the DSD64 bit rate. The Musepack duration differs between FFmpeg and TagLib
+because of decoder delay accounting; tests avoid claiming sample-exact agreement
+between those readers.
+
+These are small upstream test signals, not a codec conformance corpus.
+Tests copy them before independently seeding metadata. Native expected values
+and payload invariants are defined in the hardening tests rather than inferred
+from a same-library round trip.
+
+- `clean-room.aiff`: generated locally for clean-room remediation tests; AIFF COMM specifies 4,410 stereo 16-bit silent PCM frames at 44,100 Hz, with one SSND chunk. No external audio source or license applies.

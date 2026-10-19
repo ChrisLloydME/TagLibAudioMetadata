@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 // The public package currently consumes the legacy TagLib.framework release,
 // while the next binary revision uses a namespaced framework to avoid host-app
 // collisions. Keep the bridge source compatible with both binary layouts
@@ -48,16 +50,19 @@
 #include TL_TAGLIB_HEADER(oggflacfile.h)
 
 #include TL_TAGLIB_HEADER(apefile.h)
+#include TL_TAGLIB_HEADER(apeproperties.h)
 #include TL_TAGLIB_HEADER(apetag.h)
 
 #include TL_TAGLIB_HEADER(wavfile.h)
 #include TL_TAGLIB_HEADER(aifffile.h)
 #include TL_TAGLIB_HEADER(wavpackfile.h)
+#include TL_TAGLIB_HEADER(wavpackproperties.h)
 #include TL_TAGLIB_HEADER(trueaudiofile.h)
 
 #include TL_TAGLIB_HEADER(mpcfile.h)
 #include TL_TAGLIB_HEADER(speexfile.h)
 #include TL_TAGLIB_HEADER(asffile.h)
+#include TL_TAGLIB_HEADER(asfproperties.h)
 
 #include TL_TAGLIB_HEADER(dsffile.h)
 #include TL_TAGLIB_HEADER(dsdifffile.h)

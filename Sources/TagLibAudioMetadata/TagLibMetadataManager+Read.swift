@@ -454,8 +454,17 @@ extension TagLibMetadataManager {
     /// Reads normalized Basic metadata and the exact file version captured with it.
     /// This avoids constructing structured/container inspector models.
     public nonisolated static func readBasicSnapshot(from url: URL) throws -> BasicMetadataSnapshot {
+        try readBasicSnapshot(from: url, afterExtraction: {})
+    }
+
+    // Shares the public implementation while allowing a test to mutate the file
+    // after the real native extraction and before the final version validation.
+    nonisolated static func readBasicSnapshot(
+        from url: URL, afterExtraction: () throws -> Void
+    ) throws -> BasicMetadataSnapshot {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
+        try afterExtraction()
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
               let bridgeRaw = projections["raw"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(

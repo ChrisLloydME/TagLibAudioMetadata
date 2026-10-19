@@ -1,3 +1,6 @@
+static NSString * _Nullable BuildTRCKString(NSInteger number, NSInteger total, NSInteger padWidth);
+static NSString * _Nullable BuildNumberTextPreservingFormatting(NSString * _Nullable text, NSInteger number, NSInteger total);
+
 static void SetMP4TextItem(TagLib::MP4::Tag *tag,
                            const char *key,
                            NSString * _Nullable value)
@@ -63,13 +66,32 @@ static void SetMP4FreeformTextItem(TagLib::MP4::Tag *tag,
         return;
     }
 
-    NSString *fullKey = [@"----:com.apple.iTunes:" stringByAppendingString:trimmedDescription];
-    std::string key = fullKey.UTF8String ? fullKey.UTF8String : "";
-    if (key.empty()) {
-        return;
+    // Basic custom-field identity is case-insensitive, while native keys keep
+    // their original spelling. Collapse case aliases only for this edited key.
+    TagLib::String target = NSStringToTagString([@"----:com.apple.iTunes:" stringByAppendingString:trimmedDescription]);
+    TagLib::StringList matches;
+    for (const auto &[key, item] : tag->itemMap()) {
+        NSString *existing = MP4FreeformDescriptionForItemKey(key);
+        if (existing && [existing caseInsensitiveCompare:trimmedDescription] == NSOrderedSame) matches.append(key);
     }
+    if (!matches.isEmpty()) target = matches.front();
+    for (const auto &key : matches) tag->removeItem(key);
+    SetMP4TextItem(tag, target.to8Bit(true).c_str(), value);
+}
 
-    SetMP4TextItem(tag, key.c_str(), value);
+static bool MP4ItemMatchesField(const TagLib::String &key, const TLMetadataFieldMapping &mapping)
+{
+    if (mapping.mp4Atom && key == TagLib::String(mapping.mp4Atom, TagLib::String::Latin1)) return true;
+    // TagLib's native WORK representation is also an alias of our WORK freeform.
+    if (std::strcmp(mapping.canonicalPropertyKey, "WORK") == 0 && key == TagLib::String("\xA9" "wrk", TagLib::String::Latin1)) return true;
+    NSString *description = UppercaseTrimmedString(MP4FreeformDescriptionForItemKey(key));
+    if (!description) return false;
+    if ([description isEqualToString:@(mapping.canonicalPropertyKey)] ||
+        (mapping.mp4FreeformDescription && [description isEqualToString:[@(mapping.mp4FreeformDescription) uppercaseString]])) return true;
+    for (const char *alias : mapping.propertyAliases) {
+        if (alias && [description isEqualToString:@(alias)]) return true;
+    }
+    return false;
 }
 
 static bool IsMP4TrackNumberPairAlias(NSString * _Nullable description)
@@ -461,7 +483,7 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
-    if ([normalizedKey isEqualToString:@"MUSICIP_PUID"]) {
+    if ([normalizedKey isEqualToString:@"MUSICIP_PUID"] || [normalizedKey isEqualToString:@"MUSICIP PUID"]) {
         metadata.musicIpPuid = trimmedValue;
         return true;
     }
@@ -1082,6 +1104,13 @@ static void ExtractASFCustomAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadat
                 continue;
             }
             if ([normalized hasPrefix:@"WM/"]) continue;
+            // FFmpeg and other writers may duplicate common fields as custom
+            // attributes. They are semantic aliases, not editable custom keys.
+            if ([normalized isEqualToString:@"TITLE"]) { if (!metadata.title.length) metadata.title = value; continue; }
+            if ([normalized isEqualToString:@"ARTIST"]) { if (!metadata.artist.length) metadata.artist = value; continue; }
+            if ([normalized isEqualToString:@"ALBUM"]) { if (!metadata.album.length) metadata.album = value; continue; }
+            if ([normalized isEqualToString:@"COMMENT"]) { if (!metadata.comment.length) metadata.comment = value; continue; }
+            if ([normalized isEqualToString:@"GENRE"]) { if (!metadata.genre.length) metadata.genre = value; continue; }
             custom[key] = value;
         }
     }
@@ -1090,12 +1119,106 @@ static void ExtractASFCustomAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadat
     }
 }
 
+// ASF exposes number/total pairs through WM/TrackNumber and WM/PartOfSet;
+// TagLib does not persist separate TRACKTOTAL/DISCTOTAL PropertyMap keys.
+static void CombineASFNumberTotals(TagLib::PropertyMap &properties)
+{
+    for (const auto &keys : { std::pair{"TRACKNUMBER", "TRACKTOTAL"},
+                             std::pair{"DISCNUMBER", "DISCTOTAL"} }) {
+        NSString *total = FirstStringFromProperty(properties, { keys.second });
+        if (total) {
+            NSString *number = FirstStringFromProperty(properties, { keys.first }) ?: @"0";
+            NSString *first = [number componentsSeparatedByString:@"/"].firstObject;
+            SetPropertyMapDynamicString(properties, [NSString stringWithUTF8String:keys.first],
+                [NSString stringWithFormat:@"%@/%@", first, total]);
+        }
+        properties.erase(keys.second);
+    }
+}
+
+static void RemoveASFCommonAttributeAlias(TagLib::ASF::Tag *tag, const char *propertyKey)
+{
+    const auto attributes = tag->attributeListMap();
+    for (const auto &[key, values] : attributes) {
+        if (key.upper() == propertyKey) tag->removeItem(key);
+    }
+}
+
+// APE maps both native Date and Year to DATE. Replaying an unchanged map must
+// retain the original native spelling and complete date rather than migrate it.
+static void SetPropertiesPreservingNativeDates(TagLib::File *file, const TagLib::PropertyMap &properties)
+{
+    TagLib::APE::Tag *ape = nullptr;
+    if (auto *f = dynamic_cast<TagLib::APE::File *>(file)) ape = f->APETag();
+    if (auto *f = dynamic_cast<TagLib::WavPack::File *>(file)) ape = f->APETag();
+    if (auto *f = dynamic_cast<TagLib::MPC::File *>(file)) ape = f->APETag();
+    TagLib::APE::ItemListMap original;
+    bool preserveDate = false;
+    if (ape) {
+        auto before = file->properties();
+        auto desired = properties;
+        preserveDate = before["DATE"] == desired["DATE"] && before["YEAR"] == desired["YEAR"];
+        if (preserveDate) original = ape->itemListMap();
+    }
+    file->setProperties(properties);
+    if (ape && preserveDate) {
+        ape->removeItem("DATE");
+        ape->removeItem("YEAR");
+        for (const auto &[key, item] : original) {
+            if (key.upper() == "DATE" || key.upper() == "YEAR") ape->setItem(item.key(), item);
+        }
+    }
+}
+
+static void SetNativeID3NumberPair(TagLib::ID3v2::Tag *tag, const char *frameID,
+                                  NSString *text, NSArray<NSString *> *aliases)
+{
+    tag->removeFrames(frameID);
+    const auto frames = tag->frameList("TXXX");
+    for (auto *frame : frames) {
+        auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame);
+        if (userText && [aliases containsObject:TagStringToNSString(userText->description()).uppercaseString]) {
+            tag->removeFrame(frame);
+        }
+    }
+    if (text.length > 0) {
+        auto *frame = new TagLib::ID3v2::TextIdentificationFrame(frameID, TagLib::String::UTF8);
+        frame->setText(NSStringToTagString(text));
+        tag->addFrame(frame);
+    }
+}
+
 template <typename FileType>
 static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *metadata)
 {
     TagLib::PropertyMap existingProperties = file.properties();
     TagLib::PropertyMap properties = BuildGenericPropertyMap(metadata, &existingProperties);
-    file.setProperties(properties);
+    if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
+    if (auto *asf = dynamic_cast<TagLib::ASF::File *>(&file)) {
+        struct Field { const char *key; TagLib::String current; NSString *desired; };
+        const Field fields[] = {
+            { "TITLE", asf->tag()->title(), metadata.title },
+            { "ARTIST", asf->tag()->artist(), metadata.artist },
+            { "ALBUM", asf->tag()->album(), metadata.album },
+            { "COMMENT", asf->tag()->comment(), metadata.comment },
+            { "GENRE", asf->tag()->genre(), metadata.genre },
+        };
+        for (const auto &field : fields) {
+            if (field.current != NSStringToTagString(field.desired)) RemoveASFCommonAttributeAlias(asf->tag(), field.key);
+        }
+    }
+    SetPropertiesPreservingNativeDates(&file, properties);
+    if (auto *id3 = NativeID3v2TagForWrite(&file)) {
+        SetNativeID3NumberPair(id3, "TRCK",
+            BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks),
+            @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+        SetNativeID3NumberPair(id3, "TPOS",
+            BuildNumberTextPreservingFormatting(metadata.discNumberText, metadata.discNumber, metadata.totalDiscs),
+            @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+        SetNativeID3NumberPair(id3, "MVIN",
+            BuildTRCKString(metadata.movementNumber, metadata.movementCount, 0),
+            @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);
+    }
 }
 
 static TagLib::PropertyMap BuildRawPropertyMap(NSDictionary<NSString *, NSString *> *properties)
