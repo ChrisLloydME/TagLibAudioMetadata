@@ -649,6 +649,10 @@ extension TagLibMetadataManager {
             try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
         }
 
+        if capability(forExtension: url.pathExtension)?.identifier == "asf",
+           !(try readStructuredMetadataResult(from: url)).asfAttributes.isEmpty {
+            warnings.append("Native ASF attributes remain after erase.")
+        }
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))
         try throwOnVerificationFailures(warnings)
         return MetadataWriteResult(warnings: warnings)
@@ -657,7 +661,7 @@ extension TagLibMetadataManager {
     nonisolated private static func shouldWipeNativeMetadataContainer(for url: URL) -> Bool {
         switch url.pathExtension.lowercased() {
         case "mp3", "m4a", "m4r", "m4b", "m4p", "mp4", "m4v", "3g2",
-             "flac", "ape", "wv", "mpc", "wav", "tta", "dff", "dsdiff":
+             "flac", "ape", "wv", "mpc", "wav", "tta", "dff", "dsdiff", "wma", "asf":
             return true
         default:
             return false

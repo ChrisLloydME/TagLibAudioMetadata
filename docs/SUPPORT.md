@@ -1315,3 +1315,7 @@ Typed freeform fields use the schema's MP4 native keys, replace/remove their ent
 MP4 has one ©day value. In `updateBasicMetadata`, a releaseDate-only edit updates the derived year; a year-only edit replaces the first four characters of the existing release date, retaining its suffix. Clearing either field alone clears the shared date. A full `replaceBasicMetadata` payload must supply consistent year/releaseDate projections (an empty year may be derived); contradictions throw `MetadataValidationError.conflictingMP4Date` before mutation. Typed recording-date patches remain unsupported for MP4; patch releaseDate instead.
 
 Raw PropertyMap keys are prefixless TagLib names, not native MP4 atom identifiers. All raw overloads reject keys beginning `----:`, including with verification disabled; use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys. Existing prefixless custom PropertyMap keys remain writable. This explicit boundary replaces the former verified failure or verification-disabled no-op.
+
+### ASF erasure (2026-10-19)
+
+Verified ASF/WMA erase clears the complete native attribute map, including custom strings, binary/numeric attributes, and pictures, then checks that no native attributes remain. Any residual or unreadable result throws before commit. Audio packets are outside this erase operation.

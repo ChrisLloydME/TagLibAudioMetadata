@@ -956,6 +956,22 @@
         return YES;
     }
 
+    if (format == TLTagFileFormatASF) {
+        TagLib::ASF::File file(filePath);
+        if (!file.isValid() || !file.tag()) {
+            if (error) *error = PropertyMapDeltaError(9281, @"Unable to open ASF file for metadata wipe");
+            return NO;
+        }
+        file.setProperties(TagLib::PropertyMap());
+        const auto attributes = file.tag()->attributeListMap();
+        for (const auto &[key, values] : attributes) file.tag()->removeItem(key);
+        if (!file.save()) {
+            if (error) *error = PropertyMapDeltaError(9282, @"TagLib could not save the ASF metadata wipe");
+            return NO;
+        }
+        return YES;
+    }
+
     if (format == TLTagFileFormatFLAC) {
         TagLib::FLAC::File flacFile(filePath);
         return StripAllTagsAndSave(flacFile,
