@@ -457,14 +457,23 @@ extension TagLibMetadataManager {
         try readBasicSnapshot(from: url, afterExtraction: {})
     }
 
+    /// Streams encoded audio for continuity checks as part of the same observed
+    /// revision. This adds O(audio size) I/O and returns nil for unsupported layouts.
+    public nonisolated static func readBasicSnapshot(
+        from url: URL, includingAudioContent: Bool
+    ) throws -> BasicMetadataSnapshot {
+        try readBasicSnapshot(from: url, includingAudioContent: includingAudioContent, afterExtraction: {})
+    }
+
     // Shares the public implementation while allowing a test to mutate the file
     // after the real native extraction and before the final version validation.
     nonisolated static func readBasicSnapshot(
-        from url: URL, afterExtraction: () throws -> Void
+        from url: URL, includingAudioContent: Bool = false, afterExtraction: () throws -> Void
     ) throws -> BasicMetadataSnapshot {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
         try afterExtraction()
+        let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
               let bridgeRaw = projections["raw"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(
@@ -479,7 +488,7 @@ extension TagLibMetadataManager {
             rawDump: rawMetadataDump(fromBridgeDictionary: bridgeRaw),
             fileExtension: url.pathExtension
         )
-        return BasicMetadataSnapshot(metadata: metadata, fileVersion: version)
+        return BasicMetadataSnapshot(metadata: metadata, fileVersion: version, audioContentIdentity: audioIdentity)
     }
 
     public nonisolated static func bestEffortMetadata(from url: URL) -> BasicMetadata? {
