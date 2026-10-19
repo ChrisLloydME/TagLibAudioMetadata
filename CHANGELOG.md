@@ -23,7 +23,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added single-field MP4 date reconciliation to Basic updates and a precise error for contradictory full replacements; raw native atom keys now reject explicitly and require structured atoms.
 - Completed native ASF erase, exact Basic artwork verification, and additional bit-depth projections. Related independent checks repaired stale ASF common-field aliases and unchanged native APE date spelling.
 - Reject privileged files before transactional staging and unreconciled TrueAudio APEv2 metadata before commit; encoder-only TrueAudio provenance remains preserved.
-- Added 22 regression tests and a generated AIFF fixture. Debug, Release, sanitizers, strict platform builds, both consumers, opt-in corpus/benchmark, and independent eight-format checks passed; details and limitations are in [the clean-room remediation report](docs/CLEAN_ROOM_REMEDIATION_2026-10-19.md).
+- Added 22 regression tests and a generated AIFF fixture. Debug, Release, sanitizers, strict platform builds, both consumers, opt-in corpus/benchmark, and independent eight-format checks passed; details and limitations are in [the clean-room remediation report](docs/records/remediation/REM-2026-10-19-clean-room.md).
 
 ### Verification hardening — 2026-10-18
 
@@ -37,7 +37,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Enabled and strengthened the corpus test with reproducible generated tones;
   measured snapshot/write/flush costs through the existing opt-in benchmark.
 - Expanded legacy reader, erase, deprecated and version-aware source compilation.
-- See `docs/VERIFICATION_HARDENING_2026-10-18.md` for evidence and limitations.
+- See `docs/records/verification/VER-2026-10-18-verification-hardening.md` for evidence and limitations.
 
 ### Independent remediation verification — 2026-10-18
 
@@ -62,7 +62,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added independent MP4 atom/audio checks, ASF sibling payload checks, constructed
   APE/ID3 inputs, and source-compatibility coverage. TrueAudio structured ID3
   collections now work and report `.container` support.
-- See `docs/INDEPENDENT_REVIEW_2026-10-18.md` for per-finding evidence, exact
+- See `docs/records/reviews/REV-2026-10-18-post-remediation.md` for per-finding evidence, exact
   verification results, limitations, and the merge assessment.
 
 ### Remediation — 2026-10-18
