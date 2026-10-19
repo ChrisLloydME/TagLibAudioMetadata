@@ -7,6 +7,7 @@
 
 #import "TagLibMetadataExtractor.h"
 #include <exception>
+#include <stdexcept>
 #include <cstring>
 #include <cerrno>
 #include <cstdio>

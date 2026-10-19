@@ -546,7 +546,7 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
                 return NO;
             }
 
-            TagLib::ID3v2::Tag *id3v2Tag = mpegFile.ID3v2Tag(true);
+            TagLib::ID3v2::Tag *id3v2Tag = PrepareMPEGID3v2Tag(mpegFile);
 
             NSString *trimmedTrackText = TrimmedStringOrNil(trackNumberText);
             if (trimmedTrackText) {

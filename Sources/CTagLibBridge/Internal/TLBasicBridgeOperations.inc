@@ -230,11 +230,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
                 return NO;
             }
 
-            if (trackNumber > 0) {
-                tag->setTrack((unsigned int)trackNumber);
-            }
-
-            TagLib::ID3v2::Tag *id3v2Tag = mpegFile.ID3v2Tag(true);
+            TagLib::ID3v2::Tag *id3v2Tag = PrepareMPEGID3v2Tag(mpegFile);
             SetID3v2TextFrame(id3v2Tag, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth));
             RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
 
