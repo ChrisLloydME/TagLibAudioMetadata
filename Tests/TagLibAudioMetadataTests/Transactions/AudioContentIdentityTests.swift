@@ -342,6 +342,10 @@ struct AudioContentIdentityTests {
                 .init(fields: [.title: .text("AIFC title")]), to: url,
                 expectedVersion: TagLibMetadataManager.fileVersion(at: url), expectedAudioContent: identity)
             #expect(try TagLibMetadataManager.readMetadataResult(from: url).title == "AIFC title")
+            #expect(try TagLibMetadataManager.readSnapshot(from: url, includingAudioContent: true).audioContentIdentity == identity)
+            try replacePayload(at: url, ext: "aiff")
+            let changed = try TagLibMetadataManager.readSnapshot(from: url, includingAudioContent: true)
+            #expect(try #require(changed.audioContentIdentity) != identity)
         }
     }
 
