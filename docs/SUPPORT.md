@@ -1325,3 +1325,5 @@ Verified ASF/WMA erase clears the complete native attribute map, including custo
 Basic writes supplying artwork verify its exact bytes and normalized MIME type, in addition to the legacy presence expectation. Low-level facade callers can set `MetadataWriteVerificationContext.expectedArtworkData` and `expectedArtworkMIMEType` independently. The existing `.present` expectation retains its source-compatible presence-only meaning; use exact expectations when supplying known artwork.
 
 Bit-depth reads now project TagLib's available bits-per-sample value for Ogg FLAC, APE, WavPack, and ASF. For compressed ASF this is the container's declared sample width, not evidence that the codec is lossless. Zero continues to mean unavailable.
+
+Raw whole-map replacement owns the preferred visible PropertyMap and can intentionally hide omitted secondary-only values. MPEG raw replacement now saves ID3v2 with StripNone/DoNotDuplicate, retaining existing ID3v1 and APE tag bytes instead of rewriting a lossy secondary projection. Use a delta for preservation-oriented edits; this does not make whole-map replacement a native archive.
