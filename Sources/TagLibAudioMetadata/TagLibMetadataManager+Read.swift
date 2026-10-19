@@ -472,8 +472,8 @@ extension TagLibMetadataManager {
     ) throws -> BasicMetadataSnapshot {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
-        let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         try afterExtraction()
+        let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
               let bridgeRaw = projections["raw"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(

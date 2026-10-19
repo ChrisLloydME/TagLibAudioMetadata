@@ -397,8 +397,8 @@ extension TagLibMetadataManager {
     ) throws -> MetadataSnapshot {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjections(from: url)
-        let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         try afterExtraction()
+        let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
         let basic = basicMetadata(
             fromBridgeMetadata: projections.basic,
