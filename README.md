@@ -123,7 +123,7 @@ accept `1...INT_MAX`; use `.remove` to unset those components. Numeric fields
 whose schema permits zero, such as BPM and movement numbering, accept
 `0...INT_MAX`. Invalid values fail before a staging copy is made. Formats with
 explicit field allowlists reject unsupported typed fields before mutation; Raw
-APIs remain permissive.
+APIs use prefixless PropertyMap keys; native MP4 atom identifiers require Structured metadata.
 
 Patch text and array elements are trimmed once before mutation, and verification
 uses those same normalized values. Empty text, empty arrays, and arrays containing
@@ -280,7 +280,7 @@ The registry contains 22 families and 37 extensions.
 | Fixture-covered | MP3, M4A (AAC and ALAC fixtures), FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM, TrueAudio, WavPack, ASF/WMA, APE, Musepack, DSF, DSDIFF, Opus |
 | Experimental | S3M, Impulse Tracker |
 | Read-only | MOD family and Shorten |
-| Upstream-supported | Untested aliases and the remaining TagLib families, including Speex and AIFF |
+| Upstream-supported | Untested aliases and remaining TagLib families, including Speex; AIFF retains this configured label with selected generated-fixture tests |
 
 Fixture-covered means the repository has a licensed fixture and relevant read/write
 round-trip regression coverage. It does not imply that every alias or every
@@ -329,3 +329,7 @@ The Swift facade and Objective-C++ bridge are MIT licensed. The distributed
 TagLib library is available under LGPL-2.1 or MPL-1.1, and utf8cpp under the
 Boost Software License 1.0. Exact license texts and source revisions are in
 [Third-party notices](docs/THIRD_PARTY_NOTICES.md).
+
+## Clean-room remediation status (2026-10-19)
+
+The independent clean-room findings are resolved or explicitly bounded in [CLEAN_ROOM_REMEDIATION_2026-10-19.md](docs/CLEAN_ROOM_REMEDIATION_2026-10-19.md), which records the complete finding matrix, commits, verification evidence, and merge assessment. AIFF now has a generated PCM regression fixture; source-only families and uncommon aliases still lack runtime proof. Basic MP4 updates reconcile single-field year/releaseDate edits; full replacements must provide consistent projections. Native MP4 freeform keys require structured atoms. Mixed TrueAudio APEv2 metadata and setuid/setgid files reject safely before commit. Generic/Xiph number text normalizes display, and individual structured ASF/URL/UFID removal remains unsupported.
