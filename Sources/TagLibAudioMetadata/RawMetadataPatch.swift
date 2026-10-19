@@ -16,11 +16,12 @@ public struct RawMetadataPatch: Sendable {
     }
 }
 
-public enum RawMetadataPatchError: Error, Sendable, LocalizedError {
+public enum RawMetadataPatchError: Error, Equatable, Sendable, LocalizedError {
     case invalidKey(String)
     case emptyArray(String)
     case conflictingKey(String)
     case embeddedNull(String)
+    case nativeKeyRequiresStructuredAPI(String)
 
     public var errorDescription: String? {
         switch self {
@@ -28,11 +29,18 @@ public enum RawMetadataPatchError: Error, Sendable, LocalizedError {
         case .emptyArray(let key): "Use explicit removal to delete \(key); an empty value array is ambiguous."
         case .conflictingKey(let key): "Multiple changes target PropertyMap key \(key)."
         case .embeddedNull(let key): "PropertyMap field \(key) contains an unsupported null character."
+        case .nativeKeyRequiresStructuredAPI(let key): "\(key) is a native MP4 atom key; use StructuredMetadata.mp4Atoms. Raw APIs require prefixless PropertyMap keys."
         }
     }
 }
 
 extension TagLibMetadataManager {
+    nonisolated static func validateRawPropertyMapKeyNames(_ keys: [String]) throws {
+        for key in keys where key.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("----:") {
+            throw RawMetadataPatchError.nativeKeyRequiresStructuredAPI(key)
+        }
+    }
+
     nonisolated static func exactPropertyValues(_ dump: RawMetadataDump) -> [String: [String]] {
         dump.properties.reduce(into: [:]) { result, entry in
             result[entry.key.uppercased(), default: []].append(contentsOf: entry.values)
@@ -43,12 +51,37 @@ extension TagLibMetadataManager {
     /// committing. Formats that cannot represent a requested value exactly fail
     /// without modifying the destination. Opaque native metadata is not exposed
     /// by PropertyMap and is not claimed to be verified by this comparison.
+    nonisolated static func applyRawMetadataDeltaInPlace(
+        _ replacements: [String: [String]],
+        removingKeys removals: Set<String>,
+        verify: Bool,
+        to url: URL
+    ) throws {
+        var expected = exactPropertyValues(try rawMetadataResult(from: url))
+        for key in removals { expected.removeValue(forKey: key) }
+        for (key, entries) in replacements { expected[key] = entries }
+
+        try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+            replacements, removingKeys: Array(removals), to: url
+        )
+
+        guard verify else { return }
+        let actual = exactPropertyValues(try rawMetadataResult(from: url))
+        let mismatches = Set(expected.keys).union(actual.keys).sorted().filter { expected[$0] != actual[$0] }
+        guard mismatches.isEmpty else {
+            throw TagLibManagerError.verificationFailed(
+                mismatches.map { "PropertyMap field \($0) differs from the requested delta." }
+            )
+        }
+    }
+
     @discardableResult
     public nonisolated static func applyRawMetadataPatch(
         _ patch: RawMetadataPatch,
         to url: URL,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(patch.valuesToSet.keys) + Array(patch.removingKeys))
         func validatedKey(_ key: String) throws -> String {
             let normalized = key.uppercased()
             guard !key.isEmpty,
@@ -79,17 +112,12 @@ extension TagLibMetadataManager {
         let replacements = values
         let removals = removed
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { temporary in
-            var expected = exactPropertyValues(try rawMetadataResult(from: temporary))
-            for key in removals { expected.removeValue(forKey: key) }
-            for (key, entries) in replacements { expected[key] = entries }
-            try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                replacements, removingKeys: Array(removals), to: temporary
+            try applyRawMetadataDeltaInPlace(
+                replacements,
+                removingKeys: removals,
+                verify: true,
+                to: temporary
             )
-            let actual = exactPropertyValues(try rawMetadataResult(from: temporary))
-            let mismatches = Set(expected.keys).union(actual.keys).sorted().filter { expected[$0] != actual[$0] }
-            guard mismatches.isEmpty else {
-                throw TagLibManagerError.verificationFailed(mismatches.map { "PropertyMap field \($0) differs from the requested delta." })
-            }
             return MetadataWriteResult(warnings: [])
         }
     }

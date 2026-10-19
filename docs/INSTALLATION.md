@@ -17,9 +17,9 @@ selects the newest compatible tagged release:
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
 
-The APIs listed under `[Unreleased]` in the changelog belong to current `main`
-until the maintainer creates the next release tag. To evaluate that exact state
-before release, opt in explicitly:
+The APIs listed under `[Unreleased]` describe the development checkout, which
+can be ahead of `main` while changes are under review. To evaluate `main` rather
+than a tagged release, opt in explicitly:
 
 ```swift
 .package(
@@ -28,6 +28,7 @@ before release, opt in explicitly:
 )
 ```
 
+To evaluate an unmerged repair, select that branch or its exact revision instead.
 Branch dependencies move over time. Use them only for evaluation or coordinated
 integration; production dependencies should return to a tagged version range or
 an exact release after the next tag exists. This repository does not assign an

@@ -32,6 +32,12 @@ NS_SWIFT_NAME(writeRawPropertyMapValuesInPlace(_:to:));
                                 toURL:(NSURL *)fileURL
                                 error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(applyPropertyMapValuesInPlace(_:removingKeys:to:));
++ (BOOL)applyPropertyMapValuesPreservingInfoSurfaceInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
+                                             removingKeys:(NSArray<NSString *> *)keysToRemove
+                                   preserveInfoOnlyValues:(BOOL)preserveInfoOnlyValues
+                                                    toURL:(NSURL *)fileURL
+                                                    error:(NSError *_Nullable *_Nullable)error
+NS_SWIFT_NAME(applyPropertyMapValuesPreservingInfoSurfaceInPlace(_:removingKeys:preserveInfoOnlyValues:to:));
 + (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
                                    totalTracks:(NSInteger)totalTracks
                                updateTrackPair:(BOOL)updateTrackPair
