@@ -788,11 +788,10 @@ for warning in result.warnings {
 
 The manager writes an empty `TagLibAudioMetadata`, clears the raw property map,
 wipes the native metadata container for supported families, and reads back the
-file to report residual fields.
+file to verify deletion; detected residual fields cause a thrown failure before commit.
 
 The compatibility convenience returns only `Bool` and discards the richer write
-result, so new code that needs residual diagnostics should keep using the
-verified API above:
+result, so new code should use the verified API and handle residuals as thrown verification failures:
 
 ```swift
 try TagLibMetadataManager.eraseAllMetadata(from: url)
@@ -809,7 +808,7 @@ numeric equivalence and the container can represent the requested state. A
 paired first component cannot be removed while retaining its total on ID3/MP4;
 that partial operation is rejected, while removing both components clears the
 pair. The same validation applies to total-only Basic/typed requests on
-MP3/AAC, MP4, WAV, and ASF: set a positive number with the total. Raw and native APIs
+MP3/MP2/AAC, MP4, WAV, AIFF, TTA, DSF, DSDIFF, and ASF: set a positive number with the total. Raw and native APIs
 may expose container representations outside this normalized contract. Formats
 with independent total fields, such as FLAC/Ogg, still permit total-only edits.
 
