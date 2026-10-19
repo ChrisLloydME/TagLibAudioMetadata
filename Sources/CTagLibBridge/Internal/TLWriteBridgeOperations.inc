@@ -11,7 +11,7 @@
         }
         return NO;
     }
-    if (!ValidateBasicMetadataNumbers(metadata, error)) {
+    if (!ValidateWritableMetadataStrings(metadata, error) || !ValidateBasicMetadataNumbers(metadata, error)) {
         return NO;
     }
     if (TagLibAtomicMutationDepth == 0) {
@@ -32,7 +32,6 @@
     TLTagFileFormat format = DetectTagFileFormat(fileURL);
     TLMetadataContainerMask containers = ContainerMaskForFormat(format);
     bool isMPEG = format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC;
-    bool isAAC = format == TLTagFileFormatMPEGAAC;
     bool isMP4Like = format == TLTagFileFormatMP4;
 
     if (!IsWritableTagFileFormat(format) || containers == TLMetadataContainerNone) {
@@ -76,29 +75,7 @@
             return NO;
         }
 
-        if (isAAC) {
-            ApplyGenericPropertyMapToFile(mpegFile, metadata);
-            if (!ApplyPictureComplexProperties(&mpegFile,
-                                               metadata,
-                                               error,
-                                               68,
-                                               @"Unable to clear artwork from AAC metadata",
-                                               69,
-                                               @"Unable to write artwork into AAC metadata",
-                                               [NSString stringWithFormat:@"AAC '%@'", fileURL.lastPathComponent])) {
-                return NO;
-            }
-
-            if (!mpegFile.save()) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:14
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to AAC file" }];
-                }
-                TLog(@"TagLib save() failed for AAC '%@'", fileURL.lastPathComponent);
-                return NO;
-            }
-        } else {
+        {
             TagLib::Tag *tag = mpegFile.tag();
             if (!tag) {
                 if (error) {
@@ -142,6 +119,7 @@
                     metadata.totalTracks
                 );
                 SetID3v2TextFrame(id3v2Tag, "TRCK", trackString);
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
 
                 NSString *discString = BuildNumberTextPreservingFormatting(
                     metadata.discNumberText,
@@ -149,6 +127,7 @@
                     metadata.totalDiscs
                 );
                 SetID3v2TextFrame(id3v2Tag, "TPOS", discString);
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
 
                 // ID3v2.4 carries the complete date in TDRC; writing legacy TYER
                 // as well produces duplicate year/date representations.
@@ -246,7 +225,7 @@
             originalTrackPair.second != metadata.totalTracks;
         const bool discPairChanged = originalDiscPair.first != metadata.discNumber ||
             originalDiscPair.second != metadata.totalDiscs;
-        RemoveRecognizedMP4NumberPairFreeformItems(tag, true, true);
+        RemoveRecognizedMP4NumberPairFreeformItems(tag, trackPairChanged, discPairChanged);
 
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
         tag->setTitle(NSStringToTagString(metadata.title));
@@ -623,6 +602,9 @@
         TagLib::ID3v2::Tag *wavID3v2Tag = wavFile.ID3v2Tag();
         TagLib::PropertyMap wavExistingID3 = wavID3v2Tag->properties();
         wavID3v2Tag->setProperties(BuildGenericPropertyMap(metadata, &wavExistingID3));
+        SetNativeID3NumberPair(wavID3v2Tag, "TRCK", BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks), @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+        SetNativeID3NumberPair(wavID3v2Tag, "TPOS", BuildNumberTextPreservingFormatting(metadata.discNumberText, metadata.discNumber, metadata.totalDiscs), @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+        SetNativeID3NumberPair(wavID3v2Tag, "MVIN", BuildTRCKString(metadata.movementNumber, metadata.movementCount, 0), @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);
         if (!ApplyPictureComplexProperties(wavID3v2Tag,
                                            metadata,
                                            error,
@@ -971,6 +953,22 @@
         }
 
         TLog(@"Successfully wiped metadata for MP4 '%@'", fileURL.lastPathComponent);
+        return YES;
+    }
+
+    if (format == TLTagFileFormatASF) {
+        TagLib::ASF::File file(filePath);
+        if (!file.isValid() || !file.tag()) {
+            if (error) *error = PropertyMapDeltaError(9281, @"Unable to open ASF file for metadata wipe");
+            return NO;
+        }
+        file.setProperties(TagLib::PropertyMap());
+        const auto attributes = file.tag()->attributeListMap();
+        for (const auto &[key, values] : attributes) file.tag()->removeItem(key);
+        if (!file.save()) {
+            if (error) *error = PropertyMapDeltaError(9282, @"TagLib could not save the ASF metadata wipe");
+            return NO;
+        }
         return YES;
     }
 

@@ -407,12 +407,21 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             metadata,
             to: warningURL,
             verification: mismatchedVerification,
+            failurePolicy: .warn
         )) { error in
             guard case TagLibManagerError.verificationFailed = error else {
                 return XCTFail("Expected verificationFailed, got \(error)")
             }
         }
         XCTAssertEqual(try Data(contentsOf: warningURL), warningBytes)
+
+        var matchingVerification = mismatchedVerification
+        matchingVerification.expectedTextFields = ["title": "Written title"]
+        let verified = try TagLibMetadataManager.writeTagMetadata(
+            metadata, to: warningURL, verification: matchingVerification
+        )
+        XCTAssertTrue(verified.warnings.isEmpty)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: warningURL).title, "Written title")
     }
 
     func testStructuredMetadataWritesPropertiesAndContainerDataTogether() throws {
@@ -729,8 +738,8 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             to: url
         )) { error in
             XCTAssertEqual(
-                error as? MetadataPatchValidationError,
-                .unsupportedFieldForFormat(field: .date, format: "mp4")
+                error as? MetadataValidationError,
+                .conflictingMP4Date(year: "2021", releaseDate: "")
             )
         }
         XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)

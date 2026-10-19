@@ -524,9 +524,11 @@ final class AuditRemediationRegressionTests: XCTestCase {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("missing-\(UUID().uuidString).mp3")
         XCTAssertThrowsError(try TagLibMetadataManager.replaceBasicMetadata(.empty, to: url)) { error in
-            guard case TagLibManagerError.operationFailed = error else {
-                return XCTFail("Expected operationFailed, got \(error)")
+            guard case TagLibManagerError.operationFailedWithUnderlying(let underlying) = error else {
+                return XCTFail("Expected operationFailedWithUnderlying, got \(error)")
             }
+            XCTAssertEqual(underlying.domain, "TagLibMetadataManager")
+            XCTAssertNotEqual(underlying.code, 0)
         }
         let reads: [() throws -> Void] = [
             { _ = try TagLibMetadataManager.readMetadataResult(from: url) },

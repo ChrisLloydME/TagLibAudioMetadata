@@ -61,14 +61,14 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "mp3")).structuredReadSupport, .container)
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "m4a")).structuredWriteSupport, .container)
         XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "flac")).structuredWriteSupport, .propertyMap)
-        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "tta")).structuredWriteSupport, .propertyMap)
+        XCTAssertEqual(try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "tta")).structuredWriteSupport, .container)
     }
 
     func testConfiguredCoverageDistinguishesFixturesUpstreamAndExperimentalFormats() throws {
-        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav", "aac", "xm", "tta", "wv", "wma"] {
+        for ext in ["mp3", "m4a", "flac", "ogg", "oga", "wav", "aac", "xm", "tta", "wv", "wma", "ape", "mpc", "dsf", "dff", "opus"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .fixtureCovered, ext)
         }
-        for ext in ["mp2", "mp4", "ape", "dsf"] {
+        for ext in ["mp2", "mp4", "aiff", "spx"] {
             XCTAssertEqual(TagLibMetadataManager.formatSupportLevel(for: ext), .upstreamSupported, ext)
         }
         for ext in ["s3m", "it"] {

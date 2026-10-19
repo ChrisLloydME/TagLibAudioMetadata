@@ -160,7 +160,7 @@ extension TagLibMetadataManager {
             return true
         }
 
-        if !verification.expectedTextFields.isEmpty {
+        if !verification.expectedTextFields.isEmpty || verification.expectedArtworkData != nil || verification.expectedArtworkMIMEType != nil {
             return true
         }
 
@@ -285,6 +285,14 @@ extension TagLibMetadataManager {
         }
 
         if let afterWrite {
+            if let expectedData = verification.expectedArtworkData, afterWrite.artworkData != expectedData {
+                warnings.append("Artwork bytes differ after save.")
+            }
+            if let expectedMIME = verification.expectedArtworkMIMEType,
+               normalizedArtworkMIMEType(afterWrite.artworkMIMEType, data: afterWrite.artworkData) !=
+                    normalizedArtworkMIMEType(expectedMIME, data: verification.expectedArtworkData) {
+                warnings.append("Artwork MIME type differs after save.")
+            }
             switch verification.artworkExpectation {
             case .skip, .unchanged:
                 break
@@ -310,7 +318,11 @@ extension TagLibMetadataManager {
                     $0.key.caseInsensitiveCompare(key) == .orderedSame
                 }?.value
                 if let expected = verification.customFieldValues[key] {
-                    if !rawValues.contains(expected) && basicValue != expected {
+                    if normalizedTrimmed(expected).isEmpty {
+                        if !rawValues.isEmpty || basicValue != nil {
+                            warnings.append("Custom field \"\(key)\" was expected to be removed after save.")
+                        }
+                    } else if !rawValues.contains(expected) && basicValue != expected {
                         warnings.append(
                             "Custom field \"\(key)\" differs after save (expected \"\(expected)\", got \"\(basicValue ?? rawValues.joined(separator: "; "))\")."
                         )

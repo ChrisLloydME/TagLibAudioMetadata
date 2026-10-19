@@ -23,11 +23,21 @@ extension TagLibMetadataManager {
         let normalizedReleaseDate = normalizedTrimmed(releaseDate)
         let projectedReleaseYear = String(normalizedReleaseDate.prefix(4))
         guard !normalizedReleaseDate.isEmpty, normalizedYear == projectedReleaseYear else {
-            throw MetadataPatchValidationError.unsupportedFieldForFormat(field: .date, format: "mp4")
+            throw MetadataValidationError.conflictingMP4Date(year: normalizedYear, releaseDate: normalizedReleaseDate)
         }
     }
 
     nonisolated static func validateBasicMetadataForWrite(_ metadata: BasicMetadata) throws {
+        for field in BasicMetadata.editableFieldKeys {
+            if basicProjectionValue(for: field, metadata: metadata)?.contains("\0") == true {
+                throw MetadataValidationError.embeddedNull(location: field.rawValue)
+            }
+        }
+        for value in [metadata.trackNumberText, metadata.discNumberText, metadata.artworkMIMEType ?? ""] {
+            if value.contains("\0") {
+                throw MetadataValidationError.embeddedNull(location: "number text or artwork MIME type")
+            }
+        }
         for (key, value) in metadata.customFields {
             if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 throw MetadataValidationError.invalidCustomFieldKey(key)
@@ -39,7 +49,15 @@ extension TagLibMetadataManager {
                 throw MetadataValidationError.embeddedNull(location: "customFields[\(key)]")
             }
             if MetadataFieldRegistry.schema(forHighLevelCustomKey: key) != nil {
-                throw MetadataValidationError.knownFieldRequiresRawAPI(key)
+                // Native containers can expose an unmapped attribute with a
+                // schema-known spelling. Preserve a read projection unchanged;
+                // new or edited values still require the raw/structured API.
+                let original = metadata.originalCustomFieldProjection.first {
+                    $0.key.caseInsensitiveCompare(key) == .orderedSame
+                }?.value
+                if original != value {
+                    throw MetadataValidationError.knownFieldRequiresRawAPI(key)
+                }
             }
         }
     }
@@ -132,7 +150,8 @@ extension TagLibMetadataManager {
     nonisolated static func preservedStandardValues(
         desired: BasicMetadata,
         current: BasicMetadata,
-        rawDump: RawMetadataDump
+        rawDump: RawMetadataDump,
+        isMP4: Bool
     ) -> (values: [String: [String]], aliases: Set<String>) {
         var values: [String: [String]] = [:]
         var aliases: Set<String> = []
@@ -155,10 +174,9 @@ extension TagLibMetadataManager {
             } else if fieldsHandledByTypedWriters.contains(schema.key) {
                 shouldPreserve = false
             } else if schema.key == .date {
-                // The full recording date is carried through the Basic writer
-                // above; reapplying the raw DATE would be redundant and can be
-                // overridden by a lower-fidelity surface such as ID3v1.
-                shouldPreserve = false
+                // The scalar year cannot express date cardinality or aliases.
+                // Restore all original entries when that projection is unchanged.
+                shouldPreserve = !isMP4 && desired.year == current.year
             } else if let desiredValue = basicProjectionValue(for: schema.key, metadata: desired),
                       let currentValue = basicProjectionValue(for: schema.key, metadata: current) {
                 shouldPreserve = desiredValue == currentValue
@@ -167,6 +185,12 @@ extension TagLibMetadataManager {
             }
 
             guard shouldPreserve else { continue }
+            // Native MP4 freeform arrays/aliases are preserved by the native
+            // Basic writer. Replaying their uppercased PropertyMap projection
+            // can create a second, differently spelled atom.
+            if isMP4, schema.mappings.contains(where: { $0.format == .mp4 && $0.storageKind == .mp4Freeform }) {
+                continue
+            }
             values[entry.key] = entry.values
             aliases.formUnion(schema.propertyMapKeys)
         }
@@ -314,6 +338,7 @@ extension TagLibMetadataManager {
         verifyAfterWrite: Bool = true,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(properties.keys))
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -338,6 +363,9 @@ extension TagLibMetadataManager {
                     let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !key.isEmpty else { continue }
                     let normalized = key.uppercased()
+                    guard replacements[normalized] == nil, !removals.contains(normalized) else {
+                        throw RawMetadataPatchError.conflictingKey(rawKey)
+                    }
                     guard !hiddenInternalRawFieldKeys.contains(normalized) else {
                         throw RawMetadataPatchError.invalidKey(rawKey)
                     }
@@ -346,9 +374,9 @@ extension TagLibMetadataManager {
                     }
                     let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
                     if value.isEmpty {
-                        removals.insert(key)
+                        removals.insert(normalized)
                     } else {
-                        replacements[key] = [value]
+                        replacements[normalized] = [value]
                     }
                 }
                 try applyRawMetadataDeltaInPlace(
@@ -391,6 +419,7 @@ extension TagLibMetadataManager {
         verifyAfterWrite: Bool = true,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(properties.keys))
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -415,6 +444,9 @@ extension TagLibMetadataManager {
                     let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !key.isEmpty else { continue }
                     let normalized = key.uppercased()
+                    guard replacements[normalized] == nil, !removals.contains(normalized) else {
+                        throw RawMetadataPatchError.conflictingKey(rawKey)
+                    }
                     guard !hiddenInternalRawFieldKeys.contains(normalized) else {
                         throw RawMetadataPatchError.invalidKey(rawKey)
                     }
@@ -426,9 +458,9 @@ extension TagLibMetadataManager {
                         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                         .filter { !$0.isEmpty }
                     if values.isEmpty {
-                        removals.insert(key)
+                        removals.insert(normalized)
                     } else {
-                        replacements[key] = values
+                        replacements[normalized] = values
                     }
                 }
                 try applyRawMetadataDeltaInPlace(
@@ -617,6 +649,10 @@ extension TagLibMetadataManager {
             try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
         }
 
+        if capability(forExtension: url.pathExtension)?.identifier == "asf",
+           !(try readStructuredMetadataResult(from: url)).asfAttributes.isEmpty {
+            warnings.append("Native ASF attributes remain after erase.")
+        }
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))
         try throwOnVerificationFailures(warnings)
         return MetadataWriteResult(warnings: warnings)
@@ -625,7 +661,7 @@ extension TagLibMetadataManager {
     nonisolated private static func shouldWipeNativeMetadataContainer(for url: URL) -> Bool {
         switch url.pathExtension.lowercased() {
         case "mp3", "m4a", "m4r", "m4b", "m4p", "mp4", "m4v", "3g2",
-             "flac", "ape", "wv", "mpc", "wav", "tta", "dff", "dsdiff":
+             "flac", "ape", "wv", "mpc", "wav", "tta", "dff", "dsdiff", "wma", "asf":
             return true
         default:
             return false
@@ -643,6 +679,8 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
         try validateBasicMetadataForWrite(meta)
+        try validateNativeNumberPair(number: meta.track, total: meta.trackTotal, field: .track, for: url)
+        try validateNativeNumberPair(number: meta.disc, total: meta.discTotal, field: .disc, for: url)
         try validateDateStorageCompatibility(
             year: meta.year,
             releaseDate: meta.releaseDate,
@@ -780,7 +818,7 @@ extension TagLibMetadataManager {
             expectedYear = meta.year
         }
 
-        let verification = MetadataWriteVerificationContext(
+        var verification = MetadataWriteVerificationContext(
                 expectedTrackNumber: meta.track,
                 expectedTrackTotal: meta.trackTotal,
                 expectedTrackNumberText: expectedTrackNumberText,
@@ -861,16 +899,64 @@ extension TagLibMetadataManager {
                     "isCompilation": String(meta.isCompilation),
                 ],
                 expectedExplicitAdvisory: meta.explicitAdvisory,
-                customFieldValues: meta.customFields.filter { !$0.value.isEmpty }
+                customFieldValues: meta.customFields
             )
 
+        verification.expectedArtworkData = meta.artworkData
+        verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
+        let exactVerification = verification
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let current = try readBasicMetadataAndRaw(from: mutationURL)
+            // A PropertyMap cannot carry ID3 comment/lyric languages or the
+            // original description spelling. Preserve the native collections
+            // when their scalar Basic projection was not edited.
+            var nativeCollections = StructuredMetadata()
+            var preservedCollections: Set<StructuredMetadataReplaceableCollection> = []
+            if capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
+                let native = try readStructuredMetadataResult(from: mutationURL)
+                if meta.comment == current.metadata.comment, !native.comments.isEmpty {
+                    nativeCollections.comments = native.comments
+                    preservedCollections.insert(.comments)
+                }
+                if meta.lyrics == current.metadata.lyrics, !native.lyrics.isEmpty {
+                    nativeCollections.lyrics = native.lyrics
+                    preservedCollections.insert(.lyrics)
+                }
+            }
             let preservation = preservedStandardValues(
                 desired: meta,
                 current: current.metadata,
-                rawDump: current.raw
+                rawDump: current.raw,
+                isMP4: isMP4Family
             )
+            let numericFields: Set<MetadataFieldKey> = [
+                .track, .trackTotal, .disc, .discTotal,
+                .movementNumber, .movementCount, .bpm, .compilation
+            ]
+            let editedTextKeys = current.raw.properties.compactMap { entry -> String? in
+                guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key),
+                      BasicMetadata.editableFieldKeys.contains(schema.key),
+                      !numericFields.contains(schema.key) else { return nil }
+                let field: MetadataFieldKey = isMP4Family && schema.key == .date ? .releaseDate : schema.key
+                guard let desired = basicProjectionValue(for: field, metadata: meta),
+                      let original = basicProjectionValue(for: field, metadata: current.metadata),
+                      desired != original else { return nil }
+                return entry.key
+            }
+            if !editedTextKeys.isEmpty {
+                // Remove the complete represented alias/description group before
+                // emitting the caller's replacement. Otherwise old TXXX aliases
+                // can resurface when the canonical field is later cleared.
+                if ext == "wav" {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
+                        [:], removingKeys: editedTextKeys, preserveInfoOnlyValues: true, to: mutationURL
+                    )
+                } else {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                        [:], removingKeys: editedTextKeys, to: mutationURL
+                    )
+                }
+            }
             // Keep a full recording date when the caller did not change the
             // Basic year projection. The Basic model exposes only the year,
             // but the underlying tag can carry a complete ISO date.
@@ -888,6 +974,7 @@ extension TagLibMetadataManager {
                     try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
                         preservation.values,
                         removingKeys: Array(preservation.aliases),
+                        preserveInfoOnlyValues: true,
                         to: mutationURL
                     )
                 } else {
@@ -898,7 +985,23 @@ extension TagLibMetadataManager {
                     )
                 }
             }
-            var warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
+            if !preservedCollections.isEmpty {
+                let payload = bridgePayload(
+                    from: nativeCollections,
+                    includeProperties: false,
+                    replacingCollections: preservedCollections,
+                    riffPolicy: .preserveInfo
+                )
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
+                let nativeVerification = structuredWriteVerification(
+                    expected: nativeCollections,
+                    includeProperties: false,
+                    replacingCollections: preservedCollections,
+                    for: mutationURL
+                )
+                try throwOnVerificationFailures(nativeVerification.failures)
+            }
+            var warnings = metadataWriteWarnings(for: mutationURL, verification: exactVerification)
             warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
@@ -915,6 +1018,17 @@ extension TagLibMetadataManager {
         let snapshot = try readBasicSnapshot(from: url)
         var metadata = snapshot.metadata
         try update(&metadata)
+        if capability(forExtension: url.pathExtension)?.identifier == "mp4" {
+            let yearChanged = metadata.year != snapshot.metadata.year
+            let releaseChanged = metadata.releaseDate != snapshot.metadata.releaseDate
+            if releaseChanged && !yearChanged {
+                metadata.year = String(normalizedTrimmed(metadata.releaseDate).prefix(4))
+            } else if yearChanged && !releaseChanged {
+                let year = normalizedTrimmed(metadata.year)
+                let oldDate = normalizedTrimmed(metadata.releaseDate)
+                metadata.releaseDate = year.isEmpty ? "" : year + String(oldDate.dropFirst(4))
+            }
+        }
         return try replaceBasicMetadata(
             metadata,
             to: url,

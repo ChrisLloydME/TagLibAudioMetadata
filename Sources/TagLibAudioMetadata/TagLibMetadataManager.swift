@@ -14,6 +14,7 @@ public struct TagLibMetadataManager {
 
     nonisolated struct FileIdentity: Equatable {
         var device: dev_t
+        var mode: mode_t
         var inode: ino_t
         var size: off_t
         var linkCount: nlink_t
@@ -50,6 +51,7 @@ public struct TagLibMetadataManager {
         guard status == 0, fileType == mode_t(S_IFREG) else { return nil }
         return FileIdentity(
             device: information.st_dev,
+            mode: information.st_mode,
             inode: information.st_ino,
             size: information.st_size,
             linkCount: information.st_nlink,
@@ -177,7 +179,7 @@ public struct TagLibMetadataManager {
             }
             let nsError = underlying as NSError
             if nsError.domain == "TagLibMetadataExtractor" || nsError.domain == "TagLibMetadataManager" {
-                throw TagLibManagerError.operationFailed(nsError.localizedDescription)
+                throw TagLibManagerError.operationFailedWithUnderlying(nsError)
             }
             throw underlying
         }
@@ -207,6 +209,9 @@ public struct TagLibMetadataManager {
                 code: 1003,
                 description: "Metadata mutations require an existing regular file and do not follow symbolic links."
             )
+        }
+        guard originalIdentity.mode & mode_t(S_ISUID | S_ISGID) == 0 else {
+            throw mutationError(code: 1012, description: "Metadata mutations reject files with setuid or setgid permissions; clear privilege bits explicitly before editing.")
         }
         guard originalIdentity.linkCount == 1 else {
             throw TagLibManagerError.hardLinkedFile
@@ -389,6 +394,9 @@ public struct TagLibMetadataManager {
         public var expectedExplicitContent: Bool?
         public var expectedExplicitAdvisory: ExplicitAdvisory?
         public var artworkExpectation: ArtworkVerificationExpectation
+        /// Optional exact artwork expectations, independent of the legacy presence check.
+        public var expectedArtworkData: Data? = nil
+        public var expectedArtworkMIMEType: String? = nil
         public var customFieldKeys: [String]
         /// Expected custom-field values keyed by custom field name. When
         /// present, verification compares the value instead of only checking

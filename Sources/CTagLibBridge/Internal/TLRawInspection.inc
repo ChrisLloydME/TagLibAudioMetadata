@@ -363,7 +363,8 @@ static const char *SupportLevelForExtension(const TLFormatCapabilityDescriptor &
                                             NSString *extension)
 {
     static NSSet<NSString *> *fixtureCoveredExtensions = [NSSet setWithArray:@[
-        @"mp3", @"m4a", @"flac", @"ogg", @"oga", @"wav", @"aac", @"xm", @"tta", @"wv", @"wma"
+        @"mp3", @"m4a", @"flac", @"ogg", @"oga", @"wav", @"aac", @"xm", @"tta", @"wv", @"wma",
+        @"ape", @"mpc", @"dsf", @"dff", @"opus"
     ]];
     if ([fixtureCoveredExtensions containsObject:extension.lowercaseString]) {
         return "fixtureCovered";

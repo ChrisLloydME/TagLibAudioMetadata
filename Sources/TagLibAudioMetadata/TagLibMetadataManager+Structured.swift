@@ -209,8 +209,10 @@ extension TagLibMetadataManager {
                 expected.isTopLevel == actual.isTopLevel &&
                 expected.isOrdered == actual.isOrdered &&
                 expected.children == actual.children
+        case "podcast":
+            return true
         default:
-            return expectedValues.isEmpty || expectedValues == actualValues
+            return false
         }
     }
 
@@ -492,7 +494,7 @@ extension TagLibMetadataManager {
         }
 
         let supportedFrameTypes: Set<String> = [
-            "text", "userText", "url", "ufid", "chapter", "tableOfContents", "podcast", "unknown"
+            "text", "userText", "url", "ufid", "chapter", "tableOfContents", "podcast"
         ]
         for (index, frame) in metadata.id3v2Frames.enumerated() {
             if !supportedFrameTypes.contains(frame.type) {

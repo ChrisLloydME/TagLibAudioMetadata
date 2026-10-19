@@ -27,7 +27,7 @@ const char *kXMExtensions[] = { "xm", nullptr };
 
 const TLFormatCapabilityDescriptor kDescriptors[] = {
     { TLTagFileFormatMPEGID3, "mpeg-id3", "MPEG Audio / ID3", "MP3/MP2", kMPEGID3Extensions, "container", "container", true, true, true, nullptr, "ID3v2 is the preferred rich metadata container; ID3v1 is treated as a low-fidelity fallback." },
-    { TLTagFileFormatMPEGAAC, "mpeg-aac", "Raw AAC", "AAC", kMPEGAACExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "Raw AAC uses the generic TagLib PropertyMap path for textual metadata." },
+    { TLTagFileFormatMPEGAAC, "mpeg-aac", "Raw AAC", "AAC", kMPEGAACExtensions, "container", "container", true, true, true, nullptr, "Raw AAC uses MPEG ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas." },
     { TLTagFileFormatMP4, "mp4", "MP4 / MPEG-4 Audio", "AAC/MP4", kMP4Extensions, "container", "container", true, true, true, nullptr, "MP4 atoms and iTunes freeform atoms are exposed for structured editing." },
     { TLTagFileFormatFLAC, "flac", "FLAC", "FLAC", kFLACExtensions, "container", "propertyMap", true, true, true, nullptr, "Structured reads expose FLAC pictures; structured writes support PropertyMap deltas and complex-property artwork." },
     { TLTagFileFormatOggVorbis, "ogg-vorbis", "Ogg Vorbis", "Vorbis", kOggVorbisExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
@@ -39,10 +39,10 @@ const TLFormatCapabilityDescriptor kDescriptors[] = {
     { TLTagFileFormatMPC, "musepack", "Musepack", "Musepack", kMPCExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "APE item metadata is currently surfaced through PropertyMap values." },
     { TLTagFileFormatWAV, "wav", "WAV / RIFF", "WAV", kWAVExtensions, "container", "container", true, true, true, nullptr, "Structured writes use ID3v2; preserveInfo keeps RIFF INFO, id3v2Only removes it." },
     { TLTagFileFormatAIFF, "aiff", "AIFF", "AIFF", kAIFFExtensions, "container", "container", true, true, true, nullptr, "Structured writes use ID3v2." },
-    { TLTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "propertyMap", true, true, true, nullptr, "Structured reads expose the ID3v2 tag; structured writes support PropertyMap deltas and complex-property artwork." },
+    { TLTagFileFormatTTA, "trueaudio", "TrueAudio", "TrueAudio", kTTAExtensions, "container", "container", true, true, true, nullptr, "Structured reads and writes support ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas." },
     { TLTagFileFormatASF, "asf", "ASF / WMA", "WMA", kASFExtensions, "container", "container", true, true, true, nullptr, "ASF attributes are exposed for structured editing." },
-    { TLTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "DSF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork." },
-    { TLTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "DSDIFF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork." },
+    { TLTagFileFormatDSF, "dsf", "DSF", "DSF", kDSFExtensions, "container", "propertyMap", true, true, true, nullptr, "DSF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork." },
+    { TLTagFileFormatDSDIFF, "dsdiff", "DSDIFF", "DSDIFF", kDSDIFFExtensions, "container", "propertyMap", true, true, true, nullptr, "DSDIFF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork." },
     { TLTagFileFormatShorten, "shorten", "Shorten", "Shorten", kShortenExtensions, "propertyMap", "none", false, false, true, "TagLib 2.3.1 exposes Shorten metadata for reading but does not support saving it.", "Read-only format." },
     { TLTagFileFormatMOD, "mod", "MOD Tracker Module", "MOD", kMODExtensions, "propertyMap", "none", false, false, false, "TagLib exposes MOD metadata for reading but does not support saving it.", "MOD metadata is limited to title, comment, and a format-derived tracker name." },
     { TLTagFileFormatS3M, "s3m", "Scream Tracker 3 Module", "S3M", kS3MExtensions, "propertyMap", "propertyMap", false, false, false, nullptr, "Writes are limited to title and comment; fixed-width tracker storage may normalize text." },
