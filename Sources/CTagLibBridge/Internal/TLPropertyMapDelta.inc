@@ -207,7 +207,21 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         properties.replace(iterator->first, iterator->second);
     }
 
-    file->setProperties(properties);
+    if (auto *asf = dynamic_cast<TagLib::ASF::File *>(file)) {
+        const auto beforeProperties = file->properties();
+        for (const char *key : { "TITLE", "ARTIST", "ALBUM", "COMMENT", "GENRE" }) {
+            NSString *name = @(key);
+            if ([keysToRemove containsObject:name] && !valuesToSet[name]) {
+                RemoveASFCommonAttributeAlias(asf->tag(), key);
+            } else if (valuesToSet[name]) {
+                TagLib::StringList requested;
+                for (NSString *value in valuesToSet[name]) requested.append(NSStringToTagString(value));
+                auto current = beforeProperties;
+                if (current[key] != requested) RemoveASFCommonAttributeAlias(asf->tag(), key);
+            }
+        }
+    }
+    SetPropertiesPreservingNativeDates(file, properties);
     if (mp4) {
         NSMutableSet<NSString *> *descriptions = [NSMutableSet set];
         for (const auto &[key, item] : originalMP4Items) {
@@ -504,7 +518,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         );
     }
     if (dynamic_cast<TagLib::ASF::File *>(file)) CombineASFNumberTotals(properties);
-    file->setProperties(properties);
+    SetPropertiesPreservingNativeDates(file, properties);
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9267, @"TagLib could not save number-pair changes");
         return NO;
@@ -598,7 +612,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         properties.erase(key);
     }
     SetPropertyMapDynamicString(properties, @"ITUNESADVISORY", serialized);
-    file->setProperties(properties);
+    SetPropertiesPreservingNativeDates(file, properties);
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9277, @"TagLib could not save advisory metadata");
         return NO;
