@@ -180,7 +180,7 @@ extension TagLibMetadataManager {
     /// Called inside the snapshot's outer exact-version checks. Descriptor and path
     /// checks also bind the streamed bytes to that same observed file revision.
     nonisolated static func audioContentIdentity(
-        at url: URL, version: MetadataFileVersion
+        at url: URL, version: MetadataFileVersion, afterAudioRead: () throws -> Void = {}
     ) throws -> MetadataAudioContentIdentity? {
         let descriptor = url.path.withCString { Darwin.open($0, O_RDONLY | O_NOFOLLOW | O_NONBLOCK) }
         guard descriptor >= 0 else { throw TagLibManagerError.invalidFile }
@@ -207,6 +207,8 @@ extension TagLibMetadataManager {
         } catch MetadataAudioContentError.unavailable {
             identity = nil
         }
+        // Per-call seam used to exercise a replacement during the streaming interval.
+        try afterAudioRead()
         guard try descriptorVersion() == version, version == (try? fileVersion(at: url)) else {
             throw TagLibManagerError.fileChanged
         }
