@@ -18,7 +18,7 @@ Remaining caveats concern fixture breadth, dependency guarantees, coarse capabil
 
 ### Method and evidence key
 
-The local, excluded [original audit](../../../AUDIT_REPORT.md) and committed [remediation report](../remediation/REM-2026-10-18-comprehensive-audit.md) were read as historical evidence. The complete remediation diff from `03473c9` to `62504ff` was examined alongside current callers, tests, and documentation. The matrix below independently classifies all **64 findings**. “Verified” applies to the stated invariant and evidence, not every possible file produced by third-party software.
+The local, excluded original audit (`AUDIT_REPORT.md`, not committed) and committed [remediation report](../remediation/REM-2026-10-18-comprehensive-audit.md) were read as historical evidence. The complete remediation diff from `03473c9` to `62504ff` was examined alongside current callers, tests, and documentation. The matrix below independently classifies all **64 findings**. “Verified” applies to the stated invariant and evidence, not every possible file produced by third-party software.
 
 Source references:
 
