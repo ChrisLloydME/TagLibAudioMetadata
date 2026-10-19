@@ -29,7 +29,8 @@ for extension, codec in formats.items():
     if extension == "tta":
         # FFmpeg's TTA muxer writes APEv2, whereas the pinned TagLib TTA
         # handler projects ID3. Seed valid ID3v2.4 independently so preservation
-        # assertions have visible metadata to protect on this handler.
+        # assertions have visible metadata to protect on this handler. Remove
+        # the muxer's APEv2 surface first: mixed APEv2/ID3 TTA writes reject safely.
         def syncsafe(length):
             return bytes((length >> shift) & 127 for shift in (21, 14, 7, 0))
         def frame(key, value):
@@ -41,5 +42,14 @@ for extension, codec in formats.items():
             "TRCK": "1/9", "TPOS": "1/2", "TXXX": "HARDEN_KEEP\0Unrelated custom value"
         }.items())
         target = args.directory / "tone.tta"
-        target.write_bytes(b"ID3\x04\0\0" + syncsafe(len(frames)) + frames + target.read_bytes())
+        audio = target.read_bytes()
+        if audio[-32:-24] == b"APETAGEX":
+            size = int.from_bytes(audio[-20:-16], "little")
+            start = len(audio) - size
+            if start >= 32 and audio[start - 32:start - 24] == b"APETAGEX":
+                start -= 32
+            if not 0 <= start <= len(audio) - 32:
+                raise ValueError("Invalid generated APEv2 footer")
+            audio = audio[:start]
+        target.write_bytes(b"ID3\x04\0\0" + syncsafe(len(frames)) + frames + audio)
 print(f"Generated {len(formats)} tone files in {args.directory}")

@@ -920,7 +920,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (propertyValues) {
             file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+        TagLib::ID3v2::Tag *tag = NativeID3v2TagForWrite(&file);
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);

@@ -32,8 +32,38 @@ static TagLib::ID3v2::Tag *PrepareMPEGID3v2Tag(TagLib::MPEG::File &file)
 
 // The primary ID3 surface for every supported ID3-backed container. FLAC's
 // optional legacy ID3 tag is deliberately excluded: Xiph owns its writes.
+static void ValidateWritablePrimaryTagSurface(TagLib::File *file)
+{
+    if (!dynamic_cast<TagLib::TrueAudio::File *>(file)) return;
+    const auto position = file->tell();
+    auto end = file->length();
+    if (end >= 128) {
+        file->seek(end - 128);
+        if (file->readBlock(3) == TagLib::ByteVector("TAG", 3)) end -= 128;
+    }
+    bool hasAPE = false;
+    if (end >= 32) {
+        file->seek(end - 32);
+        hasAPE = file->readBlock(8) == TagLib::ByteVector("APETAGEX", 8);
+    }
+    bool hasUnmodeledFields = false;
+    if (hasAPE) {
+        TagLib::APE::Tag ape(file, end - 32);
+        for (const auto &[key, item] : ape.itemListMap()) {
+            // A muxer provenance marker is opaque and cannot shadow editable
+            // fields. Keep this common encoder-only footer byte-for-byte.
+            if (key.upper() != "ENCODER") hasUnmodeledFields = true;
+        }
+    }
+    file->seek(position);
+    if (hasUnmodeledFields) {
+        throw std::runtime_error("TrueAudio with APEv2 metadata is not writable: the pinned handler cannot reconcile APEv2 and ID3 surfaces");
+    }
+}
+
 static TagLib::ID3v2::Tag *NativeID3v2TagForWrite(TagLib::File *file)
 {
+    ValidateWritablePrimaryTagSurface(file);
     if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) return PrepareMPEGID3v2Tag(*mpeg);
     if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) return wav->ID3v2Tag();
     if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(file)) return aiff->tag();
@@ -53,6 +83,7 @@ static TagLib::ID3v2::Tag *NativeID3v2TagForWrite(TagLib::File *file)
 
 static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
 {
+    ValidateWritablePrimaryTagSurface(file);
     if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
         // WAV's default save may strip INFO while writing ID3v2.
         return wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
