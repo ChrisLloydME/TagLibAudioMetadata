@@ -176,9 +176,7 @@ input; new exact-text writes use the package-neutral namespace.
 
 `BasicMetadata` remains a convenient normalized projection, but it is not a
 lossless editing document. Multi-value scalar fields such as `artist` and
-`genre` are display strings with a format-dependent separator (`", "` on
-ID3/MP4, `"; "` on generic/Xiph paths); use raw or structured metadata when the
-array is authoritative. Values read from a file retain a separate raw
+`genre` are display strings. ID3 generally joins values with `", "`; MP4 artist/genre and generic/Xiph projections use `"; "`, while some MP4 native fields/freeforms use `", "`. Use raw or structured metadata when arrays are authoritative. Values read from a file retain a separate raw
 cardinality/provenance baseline, so unrelated Basic edits preserve untouched
 standard multi-values, full recording dates, documented aliases, qualified
 people fields, and custom fields without splitting display strings. Removing a

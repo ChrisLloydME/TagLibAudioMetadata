@@ -96,7 +96,8 @@ public enum ExplicitAdvisory: String, Hashable, Sendable {
 ///
 /// Multi-value fields such as `artist` and `genre` are display strings, not a
 /// stable array representation. Their separator is format-dependent
-/// (`", "` for ID3/MP4, `"; "` for generic/Xiph paths). Use `RawMetadataDump`
+/// (ID3 generally uses `", "`; MP4 artist/genre and generic/Xiph use `"; "`,
+/// while some MP4 native fields/freeforms use `", "`). Use `RawMetadataDump`
 /// or `StructuredMetadata` for lossless multi-value editing.
 public struct BasicMetadata: Sendable {
     /// Schema fields that this normalized projection can explicitly edit.
