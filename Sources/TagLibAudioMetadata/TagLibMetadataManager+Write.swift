@@ -185,6 +185,12 @@ extension TagLibMetadataManager {
             }
 
             guard shouldPreserve else { continue }
+            // Native MP4 freeform arrays/aliases are preserved by the native
+            // Basic writer. Replaying their uppercased PropertyMap projection
+            // can create a second, differently spelled atom.
+            if isMP4, schema.mappings.contains(where: { $0.format == .mp4 && $0.storageKind == .mp4Freeform }) {
+                continue
+            }
             values[entry.key] = entry.values
             aliases.formUnion(schema.propertyMapKeys)
         }

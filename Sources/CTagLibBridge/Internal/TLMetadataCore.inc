@@ -544,7 +544,7 @@ static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "MUSICBRAINZ_ARTISTTYPE", { "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE", nullptr }, nullptr, "ARTISTTYPE", nullptr, "ARTISTTYPE", false, false, false },
     { "ACOUSTID_ID", { "ACOUSTID ID", nullptr }, nullptr, "Acoustid Id", nullptr, "Acoustid Id", false, false, false },
     { "ACOUSTID_FINGERPRINT", { "ACOUSTID FINGERPRINT", nullptr }, nullptr, "Acoustid Fingerprint", nullptr, "Acoustid Fingerprint", false, false, false },
-    { "MUSICIP_PUID", { nullptr }, nullptr, "MusicIP PUID", nullptr, "MusicIP PUID", false, false, false },
+    { "MUSICIP_PUID", { "MUSICIP PUID", nullptr }, nullptr, "MusicIP PUID", nullptr, "MusicIP PUID", false, false, false },
     { "REPLAYGAIN_TRACK_GAIN", { nullptr }, nullptr, "REPLAYGAIN_TRACK_GAIN", nullptr, "REPLAYGAIN_TRACK_GAIN", false, false, false },
     { "REPLAYGAIN_ALBUM_GAIN", { nullptr }, nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", false, false, false },
     { "ITUNESALBUMID", { nullptr }, nullptr, "ITUNESALBUMID", nullptr, "ITUNESALBUMID", false, false, false },

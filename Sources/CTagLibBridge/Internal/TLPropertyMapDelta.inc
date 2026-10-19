@@ -178,6 +178,15 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
+    // TagLib uppercases freeform descriptions when projecting/replaying a
+    // PropertyMap. Restore untouched native items and target existing custom
+    // descriptions directly, so a delta cannot manufacture case duplicates.
+    TagLib::MP4::Tag *mp4 = nullptr;
+    TagLib::MP4::ItemMap originalMP4Items;
+    if (auto *mp4File = dynamic_cast<TagLib::MP4::File *>(file)) {
+        mp4 = mp4File->tag();
+        originalMP4Items = mp4->itemMap();
+    }
     TagLib::PropertyMap properties = file->properties();
     for (NSString *key in keysToRemove ?: @[]) {
         NSString *trimmedKey = TrimmedStringOrNil(key);
@@ -199,6 +208,34 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     file->setProperties(properties);
+    if (mp4) {
+        NSMutableSet<NSString *> *descriptions = [NSMutableSet set];
+        for (const auto &[key, item] : originalMP4Items) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (description) [descriptions addObject:description.uppercaseString];
+        }
+        const auto generated = mp4->itemMap();
+        for (const auto &[key, item] : generated) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (description && [descriptions containsObject:description.uppercaseString]) mp4->removeItem(key);
+        }
+        NSMutableSet<NSString *> *written = [NSMutableSet set];
+        for (const auto &[key, item] : originalMP4Items) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (!description) continue;
+            NSString *normalized = description.uppercaseString;
+            NSArray<NSString *> *replacement = valuesToSet[normalized];
+            if (replacement) {
+                if ([written containsObject:normalized]) continue;
+                TagLib::StringList values;
+                for (NSString *value in replacement) values.append(NSStringToTagString(value));
+                mp4->setItem(key, TagLib::MP4::Item(values));
+                [written addObject:normalized];
+            } else if (![keysToRemove containsObject:normalized]) {
+                mp4->setItem(key, item);
+            }
+        }
+    }
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
