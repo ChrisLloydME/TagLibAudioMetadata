@@ -257,6 +257,15 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             (entry[@"children"] && !StructuredValueIsStringArray(entry[@"children"]))) {
             return SetStructuredPayloadValidationError(error, @"ID3v2 frame fields have invalid value types");
         }
+        if ([type isEqualToString:@"url"] &&
+            (![frameID hasPrefix:@"W"] || !TrimmedStringOrNil((NSString *)entry[@"url"]))) {
+            return SetStructuredPayloadValidationError(error, @"URL frames require a W-prefixed frame ID and a non-empty URL; empty payloads are not removal operations");
+        }
+        if ([type isEqualToString:@"ufid"] &&
+            (![frameID isEqualToString:@"UFID"] || !TrimmedStringOrNil((NSString *)entry[@"owner"]) ||
+             DataValueFromObject(entry[@"data"]).length == 0)) {
+            return SetStructuredPayloadValidationError(error, @"UFID requires an owner and non-empty identifier; empty payloads are not removal operations");
+        }
         if (([type isEqualToString:@"chapter"] && ![frameID isEqualToString:@"CHAP"]) ||
             ([type isEqualToString:@"tableOfContents"] && ![frameID isEqualToString:@"CTOC"]) ||
             ([type isEqualToString:@"podcast"] && ![frameID isEqualToString:@"PCST"])) {

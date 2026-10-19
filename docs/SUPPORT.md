@@ -246,9 +246,7 @@ values, artwork as `Data?`, and unknown custom fields as `[String: String]`.
 
 It is a normalized projection, not a lossless document. It can flatten
 multi-value properties and cannot represent every frame, atom, attribute,
-comment, lyric, or artwork record. Display separators are format-dependent:
-`", "` for ID3/MP4 and `"; "` for generic/Xiph paths. Do not split these strings
-to reconstruct arrays; use raw or structured metadata.
+comment, lyric, or artwork record. ID3 generally joins multi-values with `", "`; MP4 artist/genre and generic/Xiph projections use `"; "`, while some MP4 native fields and freeforms use `", "`. Do not split display strings to reconstruct arrays; use raw or structured metadata.
 
 Reads retain the original raw arrays and corresponding normalized scalar
 projections for known multi-value fields such as `ARTIST`, `COMPOSER`,
@@ -1242,9 +1240,7 @@ merge of the visible PropertyMap.
 Use structured metadata for frame-level editors. Use basic metadata for normal
 library editing.
 
-When erasing metadata, expect residual warnings on formats that preserve unknown
-or unsupported fields. Show those warnings instead of presenting the operation as
-an unconditional wipe.
+Verified erase throws on any detected residual fields or unverifiable result and leaves the destination unchanged. Successful warnings are non-fatal advisories, not a way to accept partial deletion. Erase is limited to the metadata surfaces exposed by the supported parser; it is not a forensic byte scrub.
 
 When distributing an app, verify that the final product embeds and signs
 `TagLibAudioMetadataTagLib.framework` and that its rpath resolves
@@ -1327,3 +1323,13 @@ Basic writes supplying artwork verify its exact bytes and normalized MIME type, 
 Bit-depth reads now project TagLib's available bits-per-sample value for Ogg FLAC, APE, WavPack, and ASF. For compressed ASF this is the container's declared sample width, not evidence that the codec is lossless. Zero continues to mean unavailable.
 
 Raw whole-map replacement owns the preferred visible PropertyMap and can intentionally hide omitted secondary-only values. MPEG raw replacement now saves ID3v2 with StripNone/DoNotDuplicate, retaining existing ID3v1 and APE tag bytes instead of rewriting a lossy secondary projection. Use a delta for preservation-oriented edits; this does not make whole-map replacement a native archive.
+
+### Bounded display, removal, and evidence contracts
+
+`writeTrackNumberText` stores separate TRACKNUMBER/TRACKTOTAL and DISCNUMBER/DISCTOTAL keys on generic/Xiph formats. The first-component padding survives, but Basic numberText displays only that component and total padding is normalized; read the numeric pair or raw values rather than requiring a slash display on those formats. Native ID3 exact-text writes now retain the requested slash text and total padding. Numeric writers may normalize formatting.
+
+Structured ASF attributes are upserts, not replace-all collections, and currently have no individual deletion operation; an empty attributes array omits edits, and an empty string is a stored value. ID3 URL/UFID frames also have no individual structured removal operation. Empty URL/UFID payloads now reject before mutation, including when verification is disabled. These are intentional API limits; use verified full erase only when removing all metadata is intended. A future targeted-removal API should make deletion explicit rather than overload empty payloads.
+
+A successful `MetadataWriteResult.warnings` array contains only non-fatal advisories. A requested value that cannot be verified, residual deletion, or unsupported mutation throws before commit; an empty warnings array describes only the checks requested by that API. Low-level writes without facade expectations do not gain semantic verification from an empty warnings array.
+
+Coverage labels are not a matrix of tested fields or public APIs. AIFF now has a generated repository PCM fixture covering Basic/Patch/native numbering and scalar comments/lyrics. Speex, S3M, IT, Shorten, MOD, uncommon extension aliases, minimum-OS runtime, and device runtime remain unverified here; their existing upstream/experimental/read-only labels must not be presented as runtime proof. See the clean-room remediation report for the actual executed matrix.
