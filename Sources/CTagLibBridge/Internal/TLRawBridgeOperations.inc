@@ -3,6 +3,13 @@
                      error:(NSError **)error
 {
     try {
+    if (!ValidateMetadataObjectStrings(properties, error)) return NO;
+    for (NSString *key in properties) {
+        if ([TrimmedStringOrNil(key) hasPrefix:@"----:"]) {
+            if (error) *error = PropertyMapDeltaError(9280, @"Native MP4 atom keys require structured mp4Atoms; raw APIs use prefixless PropertyMap keys");
+            return NO;
+        }
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMap:properties toURL:temporaryURL error:mutationError];
@@ -295,6 +302,13 @@
                             error:(NSError **)error
 {
     try {
+    if (!ValidateMetadataObjectStrings(properties, error)) return NO;
+    for (NSString *key in properties) {
+        if ([TrimmedStringOrNil(key) hasPrefix:@"----:"]) {
+            if (error) *error = PropertyMapDeltaError(9280, @"Native MP4 atom keys require structured mp4Atoms; raw APIs use prefixless PropertyMap keys");
+            return NO;
+        }
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw multi-value property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeRawPropertyMapValues:properties toURL:temporaryURL error:mutationError];
@@ -507,113 +521,31 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
     const char *filePath = fileURL.path.UTF8String;
-    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
-        TagLib::MPEG::File mpegFile(filePath);
-
-        if (format == TLTagFileFormatMPEGAAC) {
-            if (!WritePropertyMapNumberTextToFile(mpegFile,
-                                                  TrimmedStringOrNil(trackNumberText),
-                                                  discNumberText,
-                                                  error,
-                                                  52,
-                                                  @"Unable to open AAC file for writing track/disc numbers",
-                                                  54,
-                                                  @"TagLib failed to save AAC track/disc numbers",
-                                                  [NSString stringWithFormat:@"AAC '%@'", fileURL.lastPathComponent])) {
+    TagLib::FileRef nativeRef(filePath, true, TagLib::AudioProperties::Fast);
+    if (!nativeRef.isNull() && nativeRef.file()->isValid()) {
+        if (auto *id3 = NativeID3v2TagForWrite(nativeRef.file())) {
+            auto writePair = [&](NSString *text, const char *frameID, const char *numberKey,
+                                 const char *totalKey, const char *totalAlias) {
+                if (!text) return;
+                NSString *trimmed = TrimmedStringOrNil(text);
+                NSInteger number = 0, total = 0, width = 0;
+                ParseNumberPairFromNSString(trimmed, number, total, width);
+                if (trimmed && ![trimmed containsString:@"/"]) {
+                    total = PropertyMapNumberTotal(id3->properties(), numberKey, totalKey, totalAlias);
+                    if (total > 0) trimmed = [NSString stringWithFormat:@"%@/%ld", trimmed, (long)total];
+                }
+                SetNativeID3NumberPair(id3, frameID, trimmed, @[ @(totalKey), @(totalAlias) ]);
+            };
+            writePair(trackNumberText, "TRCK", "TRACKNUMBER", "TRACKTOTAL", "TOTALTRACKS");
+            writePair(discNumberText, "TPOS", "DISCNUMBER", "DISCTOTAL", "TOTALDISCS");
+            if (!SaveMetadataPreservingOtherTagSurfaces(nativeRef.file())) {
+                if (error) *error = PropertyMapDeltaError(54, @"TagLib failed to save native ID3 number text");
                 return NO;
             }
-        } else {
-            if (!mpegFile.isValid()) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:52
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open file for writing track/disc numbers" }];
-                }
-                TLog(@"Failed to open '%@' for track/disc write", fileURL.lastPathComponent);
-                return NO;
-            }
-
-            TagLib::Tag *tag = mpegFile.tag();
-            if (!tag) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:53
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"No tag found to write track/disc numbers into" }];
-                }
-                TLog(@"No tag object available for '%@' (track/disc write)", fileURL.lastPathComponent);
-                return NO;
-            }
-
-            TagLib::ID3v2::Tag *id3v2Tag = mpegFile.ID3v2Tag(true);
-
-            NSString *trimmedTrackText = TrimmedStringOrNil(trackNumberText);
-            if (trimmedTrackText) {
-                NSInteger trackNumber = 0;
-                NSInteger totalTracks = 0;
-                NSInteger padWidth = 0;
-                ParseNumberPairFromNSString(trimmedTrackText, trackNumber, totalTracks, padWidth);
-                if (totalTracks <= 0 && id3v2Tag) {
-                    TagLib::ID3v2::FrameList existingFrames = id3v2Tag->frameList("TRCK");
-                    if (!existingFrames.isEmpty()) {
-                        NSString *existingText = TagStringToNSString(existingFrames.front()->toString());
-                        NSInteger existingNumber = 0;
-                        NSInteger existingTotal = 0;
-                        NSInteger existingPadWidth = 0;
-                        ParseNumberPairFromNSString(existingText, existingNumber, existingTotal, existingPadWidth);
-                        (void)existingNumber;
-                        (void)existingPadWidth;
-                        totalTracks = existingTotal;
-                    }
-                }
-                tag->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
-
-                if (id3v2Tag) {
-                    NSString *trckToWrite = BuildTRCKString(trackNumber, totalTracks, padWidth) ?: trimmedTrackText;
-                    SetID3v2TextFrame(id3v2Tag, "TRCK", trckToWrite);
-                }
-            } else {
-                tag->setTrack(0);
-                SetID3v2TextFrame(id3v2Tag, "TRCK", nil);
-            }
-
-            if (discNumberText != nil && id3v2Tag) {
-                NSString *trimmedDiscText = TrimmedStringOrNil(discNumberText);
-                if (trimmedDiscText) {
-                    NSInteger discNumber = 0;
-                    NSInteger totalDiscs = 0;
-                    NSInteger padWidth = 0;
-                    ParseNumberPairFromNSString(trimmedDiscText, discNumber, totalDiscs, padWidth);
-                    if (totalDiscs <= 0) {
-                        TagLib::ID3v2::FrameList existingFrames = id3v2Tag->frameList("TPOS");
-                        if (!existingFrames.isEmpty()) {
-                            NSString *existingText = TagStringToNSString(existingFrames.front()->toString());
-                            NSInteger existingNumber = 0;
-                            NSInteger existingTotal = 0;
-                            NSInteger existingPadWidth = 0;
-                            ParseNumberPairFromNSString(existingText, existingNumber, existingTotal, existingPadWidth);
-                            (void)existingNumber;
-                            (void)existingPadWidth;
-                            totalDiscs = existingTotal;
-                        }
-                    }
-                    NSString *tposToWrite = BuildTRCKString(discNumber, totalDiscs, padWidth) ?: trimmedDiscText;
-                    SetID3v2TextFrame(id3v2Tag, "TPOS", tposToWrite);
-                } else {
-                    SetID3v2TextFrame(id3v2Tag, "TPOS", nil);
-                }
-            }
-
-            if (!mpegFile.save()) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:54
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save after writing track/disc numbers" }];
-                }
-                TLog(@"TagLib save() failed after track/disc write for '%@'", fileURL.lastPathComponent);
-                return NO;
-            }
+            return YES;
         }
-    } else if (format == TLTagFileFormatMP4) {
+    }
+    if (format == TLTagFileFormatMP4) {
         TagLib::MP4::File mp4File(filePath);
 
         if (!mp4File.isValid()) {
@@ -813,9 +745,11 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
         TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
         if (trackNumberText != nil) {
             SetID3v2TextFrame(id3v2Tag, "TRCK", TrimmedStringOrNil(trackNumberText));
+            RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
         }
         if (discNumberText != nil) {
             SetID3v2TextFrame(id3v2Tag, "TPOS", TrimmedStringOrNil(discNumberText));
+            RemoveID3v2UserTextFrames(id3v2Tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
         }
         if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {

@@ -417,7 +417,12 @@ extension TagLibMetadataManager {
         )
     }
 
-    public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
+    nonisolated static func readBasicMetadataAndRaw(
+        from url: URL
+    ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump) {
+        guard regularFileIdentity(at: url) != nil else {
+            throw TagLibManagerError.invalidFile
+        }
         let identityBeforeRead = regularFileIdentity(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
@@ -431,18 +436,35 @@ extension TagLibMetadataManager {
                 "The audio file changed while metadata was being read."
             )
         }
-        return basicMetadata(
-            fromBridgeMetadata: bridgeBasic,
-            rawDump: rawMetadataDump(fromBridgeDictionary: bridgeRaw),
-            fileExtension: url.pathExtension
+        let raw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
+        return (
+            basicMetadata(
+                fromBridgeMetadata: bridgeBasic,
+                rawDump: raw,
+                fileExtension: url.pathExtension
+            ),
+            raw
         )
+    }
+
+    public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
+        try readBasicMetadataAndRaw(from: url).metadata
     }
 
     /// Reads normalized Basic metadata and the exact file version captured with it.
     /// This avoids constructing structured/container inspector models.
     public nonisolated static func readBasicSnapshot(from url: URL) throws -> BasicMetadataSnapshot {
+        try readBasicSnapshot(from: url, afterExtraction: {})
+    }
+
+    // Shares the public implementation while allowing a test to mutate the file
+    // after the real native extraction and before the final version validation.
+    nonisolated static func readBasicSnapshot(
+        from url: URL, afterExtraction: () throws -> Void
+    ) throws -> BasicMetadataSnapshot {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
+        try afterExtraction()
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
               let bridgeRaw = projections["raw"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(
@@ -482,6 +504,9 @@ extension TagLibMetadataManager {
     }
 
     public nonisolated static func rawMetadataResult(from url: URL) throws -> RawMetadataDump {
+        guard regularFileIdentity(at: url) != nil else {
+            throw TagLibManagerError.invalidFile
+        }
         let identityBeforeRead = regularFileIdentity(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: .raw)
         guard let bridgeRaw = projections["raw"] as? [String: NSObject] else {

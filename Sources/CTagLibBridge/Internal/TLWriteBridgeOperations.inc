@@ -11,7 +11,7 @@
         }
         return NO;
     }
-    if (!ValidateBasicMetadataNumbers(metadata, error)) {
+    if (!ValidateWritableMetadataStrings(metadata, error) || !ValidateBasicMetadataNumbers(metadata, error)) {
         return NO;
     }
     if (TagLibAtomicMutationDepth == 0) {
@@ -32,7 +32,6 @@
     TLTagFileFormat format = DetectTagFileFormat(fileURL);
     TLMetadataContainerMask containers = ContainerMaskForFormat(format);
     bool isMPEG = format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC;
-    bool isAAC = format == TLTagFileFormatMPEGAAC;
     bool isMP4Like = format == TLTagFileFormatMP4;
 
     if (!IsWritableTagFileFormat(format) || containers == TLMetadataContainerNone) {
@@ -76,29 +75,7 @@
             return NO;
         }
 
-        if (isAAC) {
-            ApplyGenericPropertyMapToFile(mpegFile, metadata);
-            if (!ApplyPictureComplexProperties(&mpegFile,
-                                               metadata,
-                                               error,
-                                               68,
-                                               @"Unable to clear artwork from AAC metadata",
-                                               69,
-                                               @"Unable to write artwork into AAC metadata",
-                                               [NSString stringWithFormat:@"AAC '%@'", fileURL.lastPathComponent])) {
-                return NO;
-            }
-
-            if (!mpegFile.save()) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:14
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to AAC file" }];
-                }
-                TLog(@"TagLib save() failed for AAC '%@'", fileURL.lastPathComponent);
-                return NO;
-            }
-        } else {
+        {
             TagLib::Tag *tag = mpegFile.tag();
             if (!tag) {
                 if (error) {
@@ -142,6 +119,7 @@
                     metadata.totalTracks
                 );
                 SetID3v2TextFrame(id3v2Tag, "TRCK", trackString);
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
 
                 NSString *discString = BuildNumberTextPreservingFormatting(
                     metadata.discNumberText,
@@ -149,11 +127,13 @@
                     metadata.totalDiscs
                 );
                 SetID3v2TextFrame(id3v2Tag, "TPOS", discString);
+                RemoveID3v2UserTextFrames(id3v2Tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
 
-                SetID3v2TextFrame(id3v2Tag, "TYER", metadata.year);
+                // ID3v2.4 carries the complete date in TDRC; writing legacy TYER
+                // as well produces duplicate year/date representations.
 
                 // Explicit advisory (absent = unspecified, 1 = explicit, 2 = clean).
-                SetID3v2UserTextFrame(id3v2Tag, "ITUNESADVISORY", SerializedExplicitAdvisory(metadata));
+                ApplyCanonicalID3v2Advisory(id3v2Tag, metadata.explicitAdvisory);
                 ApplyCustomFieldsToID3v2Tag(id3v2Tag, metadata.customFields);
 
                 if (!ApplyPictureComplexProperties(id3v2Tag,
@@ -169,7 +149,13 @@
             }
 
             // --- Save ---
-            if (!mpegFile.save()) {
+            // Save the ID3v2 surface only. A default MPEG save also rewrites
+            // ID3v1 with joined single-value projections, which can inject a
+            // lossy duplicate of multi-value ID3v2 fields.
+            if (!mpegFile.save(TagLib::MPEG::File::ID3v2,
+                               TagLib::File::StripNone,
+                               TagLib::ID3v2::v4,
+                               TagLib::File::DoNotDuplicate)) {
                 if (error) {
                     *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                                  code:14
@@ -239,7 +225,7 @@
             originalTrackPair.second != metadata.totalTracks;
         const bool discPairChanged = originalDiscPair.first != metadata.discNumber ||
             originalDiscPair.second != metadata.totalDiscs;
-        RemoveRecognizedMP4NumberPairFreeformItems(tag, true, true);
+        RemoveRecognizedMP4NumberPairFreeformItems(tag, trackPairChanged, discPairChanged);
 
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
         tag->setTitle(NSStringToTagString(metadata.title));
@@ -613,8 +599,13 @@
             return NO;
         }
 
-        ApplyGenericPropertyMapToFile(wavFile, metadata);
-        if (!ApplyPictureComplexProperties(wavFile.ID3v2Tag(),
+        TagLib::ID3v2::Tag *wavID3v2Tag = wavFile.ID3v2Tag();
+        TagLib::PropertyMap wavExistingID3 = wavID3v2Tag->properties();
+        wavID3v2Tag->setProperties(BuildGenericPropertyMap(metadata, &wavExistingID3));
+        SetNativeID3NumberPair(wavID3v2Tag, "TRCK", BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks), @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+        SetNativeID3NumberPair(wavID3v2Tag, "TPOS", BuildNumberTextPreservingFormatting(metadata.discNumberText, metadata.discNumber, metadata.totalDiscs), @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+        SetNativeID3NumberPair(wavID3v2Tag, "MVIN", BuildTRCKString(metadata.movementNumber, metadata.movementCount, 0), @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);
+        if (!ApplyPictureComplexProperties(wavID3v2Tag,
                                            metadata,
                                            error,
                                            146,
@@ -716,6 +707,33 @@
         }
 
         ApplyGenericPropertyMapToFile(asfFile, metadata);
+        if (TagLib::ASF::Tag *asfTag = asfFile.tag()) {
+            // TagLib's ASF PropertyMap path does not persist arbitrary custom
+            // keys or the package's advisory key. Write those as native ASF
+            // attributes so Basic writes remain preservation-safe.
+            for (NSString *key in metadata.customFields ?: @{}) {
+                NSString *trimmedKey = TrimmedStringOrNil(key);
+                if (!trimmedKey) continue;
+                NSString *value = TrimmedStringOrNil(metadata.customFields[key]);
+                if (value) {
+                    asfTag->setAttribute(
+                        NSStringToTagString(trimmedKey),
+                        TagLib::ASF::Attribute(NSStringToTagString(value))
+                    );
+                } else {
+                    asfTag->removeItem(NSStringToTagString(trimmedKey));
+                }
+            }
+            NSString *advisory = SerializedExplicitAdvisory(metadata);
+            if (advisory) {
+                asfTag->setAttribute(
+                    "ITUNESADVISORY",
+                    TagLib::ASF::Attribute(NSStringToTagString(advisory))
+                );
+            } else {
+                asfTag->removeItem("ITUNESADVISORY");
+            }
+        }
         if (!ApplyPictureComplexProperties(asfFile.tag(),
                                            metadata,
                                            error,
@@ -935,6 +953,22 @@
         }
 
         TLog(@"Successfully wiped metadata for MP4 '%@'", fileURL.lastPathComponent);
+        return YES;
+    }
+
+    if (format == TLTagFileFormatASF) {
+        TagLib::ASF::File file(filePath);
+        if (!file.isValid() || !file.tag()) {
+            if (error) *error = PropertyMapDeltaError(9281, @"Unable to open ASF file for metadata wipe");
+            return NO;
+        }
+        file.setProperties(TagLib::PropertyMap());
+        const auto attributes = file.tag()->attributeListMap();
+        for (const auto &[key, values] : attributes) file.tag()->removeItem(key);
+        if (!file.save()) {
+            if (error) *error = PropertyMapDeltaError(9282, @"TagLib could not save the ASF metadata wipe");
+            return NO;
+        }
         return YES;
     }
 

@@ -55,3 +55,5 @@ repeated M4A stress. These commands instrument the Swift and Objective-C++
 targets. The distributed Release XCFramework is precompiled and is not
 internally sanitizer-instrumented; fully instrumented upstream diagnosis
 requires a separate diagnostic TagLib build.
+
+Files carrying setuid or setgid permissions are rejected by both transaction engines before staging. This prevents a successful metadata write from silently clearing privilege bits through copyfile clone semantics. Ordinary permission, ACL, xattr, and file-flag guarantees remain subject to the documented filesystem and access constraints.

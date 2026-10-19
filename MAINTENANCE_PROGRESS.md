@@ -1,6 +1,42 @@
 # Maintenance Progress
 
-Last updated: 2026-09-22
+Last updated: 2026-10-19
+
+## Current task — clean-room audit remediation
+
+- Branch: `fix/clean-room-audit-remediation`, created from audited revision `615bc8c928a57fc221dace14849455031d4d73ba`; the untracked audit was committed unchanged first.
+- Evaluated all AUD-01 through AUD-20 findings, repaired confirmed integrity defects, added explicit safe-failure boundaries, and documented remaining API/coverage limitations.
+- Added 22 Swift Testing regressions, independent native checks, and a generated AIFF fixture; the suite now contains 208 tests.
+- Final verification passed Debug (all opt-ins enabled), Release, ASAN, TSAN, Xcode tests, five strict platform builds, both consumers, and an independent eight-format metadata/encoded-packet preservation experiment.
+- The authoritative handover is [CLEAN_ROOM_REMEDIATION_2026-10-19.md](docs/CLEAN_ROOM_REMEDIATION_2026-10-19.md). Main remains unchanged and no merge was performed.
+
+## Prior task — independent post-remediation review
+
+- Review branch: `review/comprehensive-remediation-verification`, created from
+  third-party HEAD `62504ff`; main remains at `03473c9`.
+- Independently reproduced and repaired preservation, verification, native
+  concurrency-boundary, and source-compatibility defects in focused commits.
+- Added native byte/atom evidence and strengthened fixtures that previously
+  concealed WAV INFO loss. Historical audit/remediation records are unchanged.
+- The dated independent review records the final finding matrix, executed checks,
+  remaining caveats, commit history, and merge decision. No merge was performed.
+
+## Prior task — comprehensive audit remediation
+
+- Validated the independent audit findings against source and runtime probes,
+  then implemented focused fixes on `fix/comprehensive-audit-remediation`.
+- Structured PropertyMap writes now merge; Basic writes preserve full dates,
+  aliases, qualified keys, and described comments/lyrics; NUL and unsupported
+  role/collection-frame inputs fail before mutation.
+- Raw merge preserves hidden MP4 atoms and WAV INFO; WAV INFO/ID3 surfaces and
+  RIFF `.id3v2Only` are implemented.
+- Number totals, partial pair removal, ALAC codec/bit-depth, multi-value flags,
+  artwork across AAC/ASF/APE-family/TrueAudio, ASF attributes, and typed errors
+  were remediated.
+- Added regression coverage and generated fixtures for ALAC, ASF/WMA, TrueAudio,
+  and WavPack. Current suite: 153 tests, 151 passed, 2 opt-in skips, 0 failures.
+- Documentation, changelog, and the dated remediation report are being updated;
+  remaining dependency/deferred items are listed in the report.
 
 ## Current task — next-release documentation readiness
 
@@ -398,8 +434,9 @@ This journal tracks the independent maintenance review of TagLibAudioMetadata. T
   bridge, with ordered cross-language schema assertions.
 - Added `.replace`/`.merge` mode to multi-value raw writes and complete-map
   replacement verification, including stale omitted-key detection.
-- Made `.warn` unavailable and made unsupported RIFF INFO synchronization fail
-  before staging begins with `unsupportedWritePolicy`.
+- Curated 0.5.x made `.warn` unavailable; the 2026-10-18 remediation restored
+  the deprecated source spelling with no verification bypass. Unsupported RIFF
+  INFO synchronization still fails before staging with `unsupportedWritePolicy`.
 - Exported the low-level NSError domain and typed durability-uncertain code.
 - Removed the AudioMator-specific debug environment alias.
 - Consumer-contract corrections committed as `fa34ed4`.

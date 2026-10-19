@@ -19,7 +19,7 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
 
     file.setProperties(BuildRawPropertyMap(properties));
 
-    if (!file.save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:saveErrorCode
@@ -54,7 +54,7 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
 
     file.setProperties(BuildRawPropertyMapValues(properties));
 
-    if (!file.save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:saveErrorCode
@@ -112,13 +112,16 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
                 "TRACKTOTAL",
                 [NSString stringWithFormat:@"%ld", (long)explicitTrackTotal]
             );
-            SetPropertyMapString(
-                properties,
-                "TOTALTRACKS",
-                [NSString stringWithFormat:@"%ld", (long)explicitTrackTotal]
-            );
+            SetPropertyMapString(properties, "TOTALTRACKS", nil);
         } else if (effectiveTrackTotal <= 0) {
             SetPropertyMapString(properties, "TRACKTOTAL", nil);
+            SetPropertyMapString(properties, "TOTALTRACKS", nil);
+        } else {
+            SetPropertyMapString(
+                properties,
+                "TRACKTOTAL",
+                [NSString stringWithFormat:@"%ld", (long)effectiveTrackTotal]
+            );
             SetPropertyMapString(properties, "TOTALTRACKS", nil);
         }
         } else {
@@ -151,13 +154,16 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
                     "DISCTOTAL",
                     [NSString stringWithFormat:@"%ld", (long)explicitDiscTotal]
                 );
-                SetPropertyMapString(
-                    properties,
-                    "TOTALDISCS",
-                    [NSString stringWithFormat:@"%ld", (long)explicitDiscTotal]
-                );
+                SetPropertyMapString(properties, "TOTALDISCS", nil);
             } else if (effectiveDiscTotal <= 0) {
                 SetPropertyMapString(properties, "DISCTOTAL", nil);
+                SetPropertyMapString(properties, "TOTALDISCS", nil);
+            } else {
+                SetPropertyMapString(
+                    properties,
+                    "DISCTOTAL",
+                    [NSString stringWithFormat:@"%ld", (long)effectiveDiscTotal]
+                );
                 SetPropertyMapString(properties, "TOTALDISCS", nil);
             }
         } else {
@@ -166,7 +172,8 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
             SetPropertyMapString(properties, "TOTALDISCS", nil);
         }
     }
-    file.setProperties(properties);
+    if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
+    SetPropertiesPreservingNativeDates(&file, properties);
 
     if (!file.save()) {
         if (error) {
@@ -435,6 +442,34 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", GetReplayGainAlbum },
 };
 
+static BOOL ValidateWritableMetadataStrings(TagLibAudioMetadata *metadata, NSError **error)
+{
+    auto validate = [&](NSString *value) -> BOOL {
+        if (value && [value rangeOfString:@"\0"].location != NSNotFound) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:245
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Metadata text contains an unsupported null character" }];
+            }
+            return NO;
+        }
+        return YES;
+    };
+    for (NSString *value in @[metadata.title ?: @"", metadata.artist ?: @"",
+                              metadata.album ?: @"", metadata.genre ?: @"",
+                              metadata.comment ?: @"", metadata.lyrics ?: @"",
+                              metadata.trackNumberText ?: @"", metadata.discNumberText ?: @"",
+                              metadata.artworkMimeType ?: @""]) {
+        if (!validate(value)) return NO;
+    }
+    for (const auto &mapping : kWritableTextMappings) {
+        if (mapping.getter && !validate(mapping.getter(metadata))) return NO;
+    }
+    for (NSString *key in metadata.customFields ?: @{}) {
+        if (!validate(key) || !validate(metadata.customFields[key])) return NO;
+    }
+    return YES;
+}
+
 static void ApplyWritableTextMappingsToID3v2Tag(TagLib::ID3v2::Tag *tag,
                                                 TagLibAudioMetadata *metadata)
 {
@@ -466,6 +501,23 @@ static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,
             SetMP4TextItem(tag, mapping.mp4Atom, value);
         }
         if (mapping.mp4FreeformDescription) {
+            const TLMetadataFieldMapping *field = nullptr;
+            for (const auto &candidate : kMetadataFieldMappings) {
+                if (candidate.mp4FreeformDescription && std::strcmp(candidate.mp4FreeformDescription, mapping.mp4FreeformDescription) == 0) {
+                    field = &candidate;
+                    break;
+                }
+            }
+            TagLib::StringList aliases;
+            NSString *existingValue = nil;
+            for (const auto &[key, item] : tag->itemMap()) {
+                if (field && MP4ItemMatchesField(key, *field)) {
+                    aliases.append(key);
+                    existingValue = TagStringToNSString(item.toStringList().toString(", "));
+                }
+            }
+            if ([TrimmedStringOrNil(existingValue) ?: @"" isEqualToString:TrimmedStringOrNil(value) ?: @""]) continue;
+            for (const auto &key : aliases) tag->removeItem(key);
             SetMP4FreeformTextItem(tag, @(mapping.mp4FreeformDescription), value);
         }
     }
@@ -544,6 +596,28 @@ static NSString * _Nullable FirstStringFromProperty(const TagLib::PropertyMap &p
     return nil;
 }
 
+static NSString * _Nullable FirstStringFromPropertyWithPrefix(const TagLib::PropertyMap &properties,
+                                                                  NSString *prefix)
+{
+    if (!prefix || prefix.length == 0 || properties.isEmpty()) {
+        return nil;
+    }
+
+    for (auto iterator = properties.begin(); iterator != properties.end(); ++iterator) {
+        NSString *key = TagStringToNSString(iterator->first);
+        if (!key || ![key hasPrefix:prefix]) {
+            continue;
+        }
+        for (const auto &value : iterator->second) {
+            NSString *trimmed = TrimmedStringOrNil(TagStringToNSString(value));
+            if (trimmed) {
+                return trimmed;
+            }
+        }
+    }
+    return nil;
+}
+
 static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &properties,
                                             TagLibAudioMetadata *metadata)
 {
@@ -552,10 +626,12 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     metadata.title = FirstStringFromProperty(properties, {"TITLE"}) ?: metadata.title;
     metadata.artist = FirstStringFromProperty(properties, {"ARTIST", "ARTISTS"}, true) ?: metadata.artist;
     metadata.album = FirstStringFromProperty(properties, {"ALBUM"}) ?: metadata.album;
-    metadata.comment = FirstStringFromProperty(properties, {"COMMENT"}) ?: metadata.comment;
+    metadata.comment = FirstStringFromProperty(properties, {"COMMENT"})
+        ?: FirstStringFromPropertyWithPrefix(properties, @"COMMENT:")
+        ?: metadata.comment;
     metadata.genre = FirstStringFromProperty(properties, {"GENRE"}, true) ?: metadata.genre;
     metadata.composer = FirstStringFromProperty(properties, {"COMPOSER"}, true) ?: metadata.composer;
-    metadata.albumArtist = FirstStringFromProperty(properties, {"ALBUMARTIST"}, true) ?: metadata.albumArtist;
+    metadata.albumArtist = FirstStringFromProperty(properties, {"ALBUMARTIST", "ALBUM ARTIST"}, true) ?: metadata.albumArtist;
 
     NSString *dateValue = FirstStringFromProperty(properties, {"DATE", "YEAR"});
     if (dateValue.length > 0 && metadata.year.length == 0) {
@@ -567,7 +643,7 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
         metadata.releaseDate = releaseDateValue;
     }
 
-    NSString *originalDate = FirstStringFromProperty(properties, {"ORIGINALDATE"});
+    NSString *originalDate = FirstStringFromProperty(properties, {"ORIGINALDATE", "ORIGINAL YEAR"});
     if (originalDate.length > 0) {
         metadata.originalReleaseDate = originalDate;
     }
@@ -613,10 +689,11 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     NSString *copyrightValue = FirstStringFromProperty(properties, {"COPYRIGHT"});
     if (copyrightValue.length > 0) metadata.copyright = copyrightValue;
 
-    NSString *lyricsValue = FirstStringFromProperty(properties, {"LYRICS"}, true);
+    NSString *lyricsValue = FirstStringFromProperty(properties, {"LYRICS"}, true)
+        ?: FirstStringFromPropertyWithPrefix(properties, @"LYRICS:");
     if (lyricsValue.length > 0) metadata.lyrics = lyricsValue;
 
-    NSString *labelValue = FirstStringFromProperty(properties, {"LABEL"});
+    NSString *labelValue = FirstStringFromProperty(properties, {"LABEL", "PUBLISHER"});
     if (labelValue.length > 0) metadata.label = labelValue;
 
     NSString *isrcValue = FirstStringFromProperty(properties, {"ISRC"});
@@ -677,18 +754,18 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     NSString *musicalKeyValue = FirstStringFromProperty(properties, {"INITIALKEY", "KEY"});
     if (musicalKeyValue.length > 0) metadata.musicalKey = musicalKeyValue;
 
-    NSString *releaseTypeValue = FirstStringFromProperty(properties, {"RELEASETYPE"});
+    NSString *releaseTypeValue = FirstStringFromProperty(properties, {"RELEASETYPE", "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ ALBUM TYPE"});
     if (releaseTypeValue.length > 0) metadata.releaseType = releaseTypeValue;
-    NSString *releaseStatusValue = FirstStringFromProperty(properties, {"RELEASESTATUS"});
+    NSString *releaseStatusValue = FirstStringFromProperty(properties, {"RELEASESTATUS", "MUSICBRAINZ_ALBUMSTATUS", "MUSICBRAINZ ALBUM STATUS"});
     if (releaseStatusValue.length > 0) metadata.releaseStatus = releaseStatusValue;
 
     NSString *barcodeValue = FirstStringFromProperty(properties, {"BARCODE", "UPC", "EAN"});
     if (barcodeValue.length > 0) metadata.barcode = barcodeValue;
 
-    NSString *catalogValue = FirstStringFromProperty(properties, {"CATALOGNUMBER"});
+    NSString *catalogValue = FirstStringFromProperty(properties, {"CATALOGNUMBER", "CATALOG NUMBER", "CATALOG"});
     if (catalogValue.length > 0) metadata.catalogNumber = catalogValue;
 
-    NSString *releaseCountryValue = FirstStringFromProperty(properties, {"RELEASECOUNTRY"});
+    NSString *releaseCountryValue = FirstStringFromProperty(properties, {"RELEASECOUNTRY", "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "MUSICBRAINZ ALBUM RELEASE COUNTRY"});
     if (releaseCountryValue.length > 0) metadata.releaseCountry = releaseCountryValue;
     NSString *asinValue = FirstStringFromProperty(properties, {"ASIN"});
     if (asinValue.length > 0) metadata.asin = asinValue;
@@ -696,26 +773,26 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     if (originalAlbumValue.length > 0) metadata.originalAlbum = originalAlbumValue;
     NSString *originalArtistValue = FirstStringFromProperty(properties, {"ORIGINALARTIST"});
     if (originalArtistValue.length > 0) metadata.originalArtist = originalArtistValue;
-    NSString *artistTypeValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE"});
+    NSString *artistTypeValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"});
     if (artistTypeValue.length > 0) metadata.artistType = artistTypeValue;
 
-    NSString *mbArtistValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ARTISTID"});
+    NSString *mbArtistValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ARTISTID", "MUSICBRAINZ ARTISTID", "MUSICBRAINZ ARTIST ID"});
     if (mbArtistValue.length > 0) metadata.musicBrainzArtistId = mbArtistValue;
-    NSString *mbAlbumValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ALBUMID"});
+    NSString *mbAlbumValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ALBUMID", "MUSICBRAINZ ALBUMID", "MUSICBRAINZ ALBUM ID"});
     if (mbAlbumValue.length > 0) metadata.musicBrainzAlbumId = mbAlbumValue;
-    NSString *mbAlbumArtistValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ALBUMARTISTID"});
+    NSString *mbAlbumArtistValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ ALBUMARTISTID", "MUSICBRAINZ ALBUM ARTIST ID"});
     if (mbAlbumArtistValue.length > 0) metadata.musicBrainzAlbumArtistId = mbAlbumArtistValue;
-    NSString *mbTrackValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_TRACKID"});
+    NSString *mbTrackValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_TRACKID", "MUSICBRAINZ TRACKID", "MUSICBRAINZ TRACK ID"});
     if (mbTrackValue.length > 0) metadata.musicBrainzTrackId = mbTrackValue;
-    NSString *mbReleaseGroupValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_RELEASEGROUPID"});
+    NSString *mbReleaseGroupValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_RELEASEGROUPID", "MUSICBRAINZ RELEASEGROUPID", "MUSICBRAINZ RELEASE GROUP ID"});
     if (mbReleaseGroupValue.length > 0) metadata.musicBrainzReleaseGroupId = mbReleaseGroupValue;
-    NSString *mbReleaseTrackValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_RELEASETRACKID"});
+    NSString *mbReleaseTrackValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_RELEASETRACKID", "MUSICBRAINZ RELEASETRACKID", "MUSICBRAINZ RELEASE TRACK ID"});
     if (mbReleaseTrackValue.length > 0) metadata.musicBrainzReleaseTrackId = mbReleaseTrackValue;
-    NSString *mbWorkValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_WORKID"});
+    NSString *mbWorkValue = FirstStringFromProperty(properties, {"MUSICBRAINZ_WORKID", "MUSICBRAINZ WORKID", "MUSICBRAINZ WORK ID"});
     if (mbWorkValue.length > 0) metadata.musicBrainzWorkId = mbWorkValue;
-    NSString *acoustIdValue = FirstStringFromProperty(properties, {"ACOUSTID_ID"});
+    NSString *acoustIdValue = FirstStringFromProperty(properties, {"ACOUSTID_ID", "ACOUSTID ID"});
     if (acoustIdValue.length > 0) metadata.acoustId = acoustIdValue;
-    NSString *acoustFingerprintValue = FirstStringFromProperty(properties, {"ACOUSTID_FINGERPRINT"});
+    NSString *acoustFingerprintValue = FirstStringFromProperty(properties, {"ACOUSTID_FINGERPRINT", "ACOUSTID FINGERPRINT"});
     if (acoustFingerprintValue.length > 0) metadata.acoustIdFingerprint = acoustFingerprintValue;
     NSString *musicIpPuidValue = FirstStringFromProperty(properties, {"MUSICIP_PUID"});
     if (musicIpPuidValue.length > 0) metadata.musicIpPuid = musicIpPuidValue;

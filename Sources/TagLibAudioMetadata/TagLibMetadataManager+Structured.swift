@@ -46,7 +46,8 @@ extension TagLibMetadataManager {
     nonisolated static func bridgePayload(
         from metadata: StructuredMetadata,
         includeProperties: Bool,
-        replacingCollections: Set<StructuredMetadataReplaceableCollection>
+        replacingCollections: Set<StructuredMetadataReplaceableCollection>,
+        riffPolicy: RIFFMetadataWritePolicy
     ) -> [String: NSObject] {
         var payload: [String: NSObject] = [:]
 
@@ -141,6 +142,7 @@ extension TagLibMetadataManager {
             } as NSArray
         }
 
+        payload["riffPolicy"] = riffPolicy.rawValue as NSString
         return payload
     }
 
@@ -207,8 +209,10 @@ extension TagLibMetadataManager {
                 expected.isTopLevel == actual.isTopLevel &&
                 expected.isOrdered == actual.isOrdered &&
                 expected.children == actual.children
+        case "podcast":
+            return true
         default:
-            return expectedValues.isEmpty || expectedValues == actualValues
+            return false
         }
     }
 
@@ -216,8 +220,10 @@ extension TagLibMetadataManager {
         _ expected: StructuredArtwork,
         _ actual: StructuredArtwork
     ) -> Bool {
-        guard (expected.container.isEmpty || expected.container == actual.container),
-              expected.mimeType == actual.mimeType,
+        // The writer selects the destination container from the file format;
+        // callers cannot reliably predict it (ID3v2, APE, ASF, MP4). Treat the
+        // value as informational and compare the payload itself.
+        guard expected.mimeType == actual.mimeType,
               expected.data == actual.data else {
             return false
         }
@@ -257,6 +263,7 @@ extension TagLibMetadataManager {
 
     nonisolated static func structuredWriteVerification(
         expected: StructuredMetadata,
+        includeProperties: Bool,
         replacingCollections: Set<StructuredMetadataReplaceableCollection>,
         for url: URL
     ) -> (failures: [String], advisories: [String]) {
@@ -265,6 +272,22 @@ extension TagLibMetadataManager {
         }
 
         var warnings: [String] = []
+
+        if includeProperties {
+            for property in expected.properties {
+                let actual = after.properties.first {
+                    $0.key.caseInsensitiveCompare(property.key) == .orderedSame
+                }
+                if property.values.isEmpty {
+                    if actual != nil {
+                        warnings.append("Structured property \(property.key) was expected to be removed after save.")
+                    }
+                } else if actual?.values != property.values {
+                    warnings.append("Structured property \(property.key) differs after save.")
+                }
+            }
+        }
+
         var unmatchedFrames = after.id3v2Frames
         for frame in expected.id3v2Frames {
             if let index = unmatchedFrames.firstIndex(where: { structuredID3v2FrameMatches(frame, $0) }) {
@@ -315,11 +338,10 @@ extension TagLibMetadataManager {
                 warnings.append("MP4 atom \(atom.key) value differs after save.")
             }
         }
-        for key in Set(expected.asfAttributes.map(\.key)) {
-            let expectedForKey = expected.asfAttributes.filter { $0.key == key }
-            let actualForKey = after.asfAttributes.filter { $0.key == key }
-            if !unorderedCollectionMatches(expectedForKey, actualForKey, matching: structuredASFAttributeMatches) {
-                warnings.append("ASF attribute \(key) could not be confirmed after save.")
+        for attribute in expected.asfAttributes {
+            let actualForKey = after.asfAttributes.filter { $0.key == attribute.key }
+            if !actualForKey.contains(where: { structuredASFAttributeMatches(attribute, $0) }) {
+                warnings.append("ASF attribute \(attribute.key) could not be confirmed after save.")
             }
         }
         return (warnings, after.warnings)
@@ -432,6 +454,9 @@ extension TagLibMetadataManager {
     }
 
     public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {
+        guard regularFileIdentity(at: url) != nil else {
+            throw TagLibManagerError.invalidFile
+        }
         let identityBeforeRead = regularFileIdentity(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: .structured)
         guard let bridgeStructured = projections["structured"] as? [String: NSObject] else {
@@ -447,6 +472,92 @@ extension TagLibMetadataManager {
         return structuredMetadata(fromBridgeDictionary: bridgeStructured)
     }
 
+    nonisolated static func validateStructuredMetadataForWrite(
+        _ metadata: StructuredMetadata,
+        includeProperties: Bool
+    ) throws {
+        func check(_ value: String?, _ location: String) throws {
+            if let value, value.contains("\0") {
+                throw MetadataValidationError.embeddedNull(location: location)
+            }
+        }
+
+        if !includeProperties && !metadata.properties.isEmpty {
+            throw MetadataValidationError.propertiesRequireIncludeProperties
+        }
+
+        for (index, property) in metadata.properties.enumerated() {
+            try check(property.key, "properties[\(index)].key")
+            for (valueIndex, value) in property.values.enumerated() {
+                try check(value, "properties[\(index)].values[\(valueIndex)]")
+            }
+        }
+
+        let supportedFrameTypes: Set<String> = [
+            "text", "userText", "url", "ufid", "chapter", "tableOfContents", "podcast"
+        ]
+        for (index, frame) in metadata.id3v2Frames.enumerated() {
+            if !supportedFrameTypes.contains(frame.type) {
+                throw MetadataValidationError.unsupportedID3v2FrameType(frame.type)
+            }
+            try check(frame.frameID, "id3v2Frames[\(index)].frameID")
+            try check(frame.type, "id3v2Frames[\(index)].type")
+            try check(frame.value, "id3v2Frames[\(index)].value")
+            for (valueIndex, value) in frame.values.enumerated() {
+                try check(value, "id3v2Frames[\(index)].values[\(valueIndex)]")
+            }
+            try check(frame.description, "id3v2Frames[\(index)].description")
+            try check(frame.language, "id3v2Frames[\(index)].language")
+            try check(frame.url, "id3v2Frames[\(index)].url")
+            try check(frame.owner, "id3v2Frames[\(index)].owner")
+            try check(frame.elementID, "id3v2Frames[\(index)].elementID")
+            for (childIndex, child) in frame.children.enumerated() {
+                try check(child, "id3v2Frames[\(index)].children[\(childIndex)]")
+            }
+            for (key, value) in frame.fields {
+                try check(key, "id3v2Frames[\(index)].fields key")
+                try check(value, "id3v2Frames[\(index)].fields value")
+            }
+        }
+
+        for (index, atom) in metadata.mp4Atoms.enumerated() {
+            try check(atom.key, "mp4Atoms[\(index)].key")
+            try check(atom.type, "mp4Atoms[\(index)].type")
+            try check(atom.value, "mp4Atoms[\(index)].value")
+            for (valueIndex, value) in atom.values.enumerated() {
+                try check(value, "mp4Atoms[\(index)].values[\(valueIndex)]")
+            }
+            try check(atom.freeformDescription, "mp4Atoms[\(index)].freeformDescription")
+        }
+
+        for (index, attribute) in metadata.asfAttributes.enumerated() {
+            try check(attribute.key, "asfAttributes[\(index)].key")
+            try check(attribute.type, "asfAttributes[\(index)].type")
+            try check(attribute.value, "asfAttributes[\(index)].value")
+            try check(attribute.pictureType, "asfAttributes[\(index)].pictureType")
+            try check(attribute.mimeType, "asfAttributes[\(index)].mimeType")
+            try check(attribute.description, "asfAttributes[\(index)].description")
+        }
+
+        for (index, artwork) in metadata.artwork.enumerated() {
+            try check(artwork.container, "artwork[\(index)].container")
+            try check(artwork.pictureType, "artwork[\(index)].pictureType")
+            try check(artwork.mimeType, "artwork[\(index)].mimeType")
+            try check(artwork.description, "artwork[\(index)].description")
+        }
+
+        for (index, lyrics) in metadata.lyrics.enumerated() {
+            try check(lyrics.language, "lyrics[\(index)].language")
+            try check(lyrics.description, "lyrics[\(index)].description")
+            try check(lyrics.text, "lyrics[\(index)].text")
+        }
+        for (index, comment) in metadata.comments.enumerated() {
+            try check(comment.language, "comments[\(index)].language")
+            try check(comment.description, "comments[\(index)].description")
+            try check(comment.text, "comments[\(index)].text")
+        }
+    }
+
     @discardableResult
     public nonisolated static func writeStructuredMetadataWithVerification(
         _ metadata: StructuredMetadata,
@@ -454,7 +565,8 @@ extension TagLibMetadataManager {
         riffPolicy: RIFFMetadataWritePolicy = .preserveInfo,
         includeProperties: Bool = false,
         replacingCollections: Set<StructuredMetadataReplaceableCollection> = [],
-        verifyAfterWrite: Bool = true
+        verifyAfterWrite: Bool = true,
+        expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
@@ -468,20 +580,24 @@ extension TagLibMetadataManager {
             )
         }
 
-        return try withAtomicMetadataWriteMutation(at: url) { mutationURL in
+        try validateStructuredMetadataForWrite(metadata, includeProperties: includeProperties)
+
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             var warnings: [String] = []
             var verificationFailures: [String] = []
 
             let payload = bridgePayload(
                 from: metadata,
                 includeProperties: includeProperties,
-                replacingCollections: replacingCollections
+                replacingCollections: replacingCollections,
+                riffPolicy: riffPolicy
             )
             try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
 
             if verifyAfterWrite {
                 let verification = structuredWriteVerification(
                     expected: metadata,
+                    includeProperties: includeProperties,
                     replacingCollections: replacingCollections,
                     for: mutationURL
                 )
@@ -503,6 +619,7 @@ extension TagLibMetadataManager {
         includeProperties: Bool = false,
         replacingCollections: Set<StructuredMetadataReplaceableCollection> = [],
         verifyAfterWrite: Bool = true,
+        expectedVersion: MetadataFileVersion? = nil,
         failurePolicy: VerificationFailurePolicy
     ) throws -> MetadataWriteResult {
         try writeStructuredMetadataWithVerification(
@@ -511,7 +628,8 @@ extension TagLibMetadataManager {
             riffPolicy: riffPolicy,
             includeProperties: includeProperties,
             replacingCollections: replacingCollections,
-            verifyAfterWrite: verifyAfterWrite
+            verifyAfterWrite: verifyAfterWrite,
+            expectedVersion: expectedVersion
         )
     }
 

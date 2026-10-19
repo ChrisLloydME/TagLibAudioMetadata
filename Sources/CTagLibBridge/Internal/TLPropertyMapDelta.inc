@@ -30,6 +30,46 @@ static void RemoveRecognizedMP4AdvisoryFreeformItems(TagLib::MP4::Tag *tag)
     }
 }
 
+static void RemoveID3v2ExplicitAdvisoryAliases(TagLib::ID3v2::Tag *tag)
+{
+    if (!tag) return;
+    TagLib::ID3v2::FrameList frames = tag->frameList("TXXX");
+    for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) {
+        auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(*iterator);
+        if (!userText) continue;
+        NSString *description = [TagStringToNSString(userText->description()) uppercaseString];
+        if ([description isEqualToString:@"ITUNESADVISORY"] ||
+            [description isEqualToString:@"ADVISORY"] ||
+            [description isEqualToString:@"EXPLICITCONTENT"] ||
+            [description isEqualToString:@"EXPLICIT"]) {
+            tag->removeFrame(*iterator);
+        }
+    }
+}
+
+static void RemoveID3v2UserTextFrames(TagLib::ID3v2::Tag *tag,
+                                        NSArray<NSString *> *descriptions)
+{
+    if (!tag || descriptions.count == 0) return;
+    TagLib::ID3v2::FrameList frames = tag->frameList("TXXX");
+    for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) {
+        auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(*iterator);
+        if (!userText) continue;
+        NSString *description = [TagStringToNSString(userText->description()) uppercaseString];
+        if (description && [descriptions containsObject:description]) {
+            tag->removeFrame(*iterator);
+        }
+    }
+}
+
+static void ApplyCanonicalID3v2Advisory(TagLib::ID3v2::Tag *tag,
+                                        TagLibExplicitAdvisory advisory)
+{
+    if (!tag) return;
+    RemoveID3v2ExplicitAdvisoryAliases(tag);
+    SetID3v2UserTextFrame(tag, "ITUNESADVISORY", SerializedExplicitAdvisoryValue(advisory));
+}
+
 static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                                       TagLibExplicitAdvisory advisory)
 {
@@ -83,6 +123,70 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return NO;
     }
 
+    // WAV exposes RIFF INFO and ID3v2 through the same file-level
+    // PropertyMap. Applying a file-level setProperties call writes everything
+    // into ID3v2 and duplicates INFO values. Apply the delta to the surface(s)
+    // that actually own each key, and create new keys in ID3v2.
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
+        TagLib::PropertyMap info = wav->InfoTag()->properties();
+        TagLib::PropertyMap id3 = wav->ID3v2Tag()->properties();
+        bool infoChanged = false;
+        bool id3Changed = false;
+
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *trimmedKey = TrimmedStringOrNil(key);
+            if (!trimmedKey) continue;
+            TagLib::String tagKey = NSStringToTagString(trimmedKey);
+            if (info.contains(tagKey)) { info.erase(tagKey); infoChanged = true; }
+            if (id3.contains(tagKey)) { id3.erase(tagKey); id3Changed = true; }
+        }
+
+        for (NSString *key in valuesToSet ?: @{}) {
+            NSString *trimmedKey = TrimmedStringOrNil(key);
+            if (!trimmedKey) continue;
+            TagLib::String tagKey = NSStringToTagString(trimmedKey);
+            TagLib::StringList values;
+            for (NSString *value in valuesToSet[key]) {
+                values.append(NSStringToTagString(value));
+            }
+            const bool inInfo = info.contains(tagKey);
+            const bool inID3 = id3.contains(tagKey);
+            if (inInfo) { info.replace(tagKey, values); infoChanged = true; }
+            if (inID3 || !inInfo) { id3.replace(tagKey, values); id3Changed = true; }
+        }
+
+        wav->InfoTag()->setProperties(info);
+        wav->ID3v2Tag()->setProperties(id3);
+        if (infoChanged &&
+            !wav->save(TagLib::RIFF::WAV::File::Info, TagLib::File::StripNone)) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:9253
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib could not save RIFF INFO metadata changes" }];
+            }
+            return NO;
+        }
+        if (id3Changed &&
+            !wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:9253
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib could not save ID3v2 metadata changes" }];
+            }
+            return NO;
+        }
+        return YES;
+    }
+
+    // TagLib uppercases freeform descriptions when projecting/replaying a
+    // PropertyMap. Restore untouched native items and target existing custom
+    // descriptions directly, so a delta cannot manufacture case duplicates.
+    TagLib::MP4::Tag *mp4 = nullptr;
+    TagLib::MP4::ItemMap originalMP4Items;
+    if (auto *mp4File = dynamic_cast<TagLib::MP4::File *>(file)) {
+        mp4 = mp4File->tag();
+        originalMP4Items = mp4->itemMap();
+    }
     TagLib::PropertyMap properties = file->properties();
     for (NSString *key in keysToRemove ?: @[]) {
         NSString *trimmedKey = TrimmedStringOrNil(key);
@@ -103,7 +207,65 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         properties.replace(iterator->first, iterator->second);
     }
 
-    file->setProperties(properties);
+    if (auto *asf = dynamic_cast<TagLib::ASF::File *>(file)) {
+        const auto beforeProperties = file->properties();
+        for (const char *key : { "TITLE", "ARTIST", "ALBUM", "COMMENT", "GENRE" }) {
+            NSString *name = @(key);
+            if ([keysToRemove containsObject:name] && !valuesToSet[name]) {
+                RemoveASFCommonAttributeAlias(asf->tag(), key);
+            } else if (valuesToSet[name]) {
+                TagLib::StringList requested;
+                for (NSString *value in valuesToSet[name]) requested.append(NSStringToTagString(value));
+                auto current = beforeProperties;
+                if (current[key] != requested) RemoveASFCommonAttributeAlias(asf->tag(), key);
+            }
+        }
+    }
+    SetPropertiesPreservingNativeDates(file, properties);
+    if (mp4) {
+        NSMutableSet<NSString *> *descriptions = [NSMutableSet set];
+        for (const auto &[key, item] : originalMP4Items) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (description) [descriptions addObject:description.uppercaseString];
+        }
+        const auto generated = mp4->itemMap();
+        for (const auto &[key, item] : generated) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (description && [descriptions containsObject:description.uppercaseString]) mp4->removeItem(key);
+        }
+        for (const auto &mapping : kMetadataFieldMappings) {
+            if (!mapping.mp4FreeformDescription) continue;
+            bool originallyFreeform = false;
+            for (const auto &[key, item] : originalMP4Items) {
+                if (MP4FreeformDescriptionForItemKey(key) && MP4ItemMatchesField(key, mapping)) originallyFreeform = true;
+            }
+            if (!originallyFreeform) continue;
+            bool edited = valuesToSet[@(mapping.canonicalPropertyKey)] || [keysToRemove containsObject:@(mapping.canonicalPropertyKey)];
+            for (const char *alias : mapping.propertyAliases) {
+                if (alias) edited |= valuesToSet[@(alias)] || [keysToRemove containsObject:@(alias)];
+            }
+            if (edited) continue;
+            for (const auto &[key, item] : generated) {
+                if (!originalMP4Items.contains(key) && MP4ItemMatchesField(key, mapping)) mp4->removeItem(key);
+            }
+        }
+        NSMutableSet<NSString *> *written = [NSMutableSet set];
+        for (const auto &[key, item] : originalMP4Items) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (!description) continue;
+            NSString *normalized = description.uppercaseString;
+            NSArray<NSString *> *replacement = valuesToSet[normalized];
+            if (replacement) {
+                if ([written containsObject:normalized]) continue;
+                TagLib::StringList values;
+                for (NSString *value in replacement) values.append(NSStringToTagString(value));
+                mp4->setItem(key, TagLib::MP4::Item(values));
+                [written addObject:normalized];
+            } else if (![keysToRemove containsObject:normalized]) {
+                mp4->setItem(key, item);
+            }
+        }
+    }
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -114,6 +276,57 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
     return YES;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Targeted property-map mutation", NO)
+}
+
++ (BOOL)applyPropertyMapValuesPreservingInfoSurfaceInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
+                                             removingKeys:(NSArray<NSString *> *)keysToRemove
+                                   preserveInfoOnlyValues:(BOOL)preserveInfoOnlyValues
+                                                    toURL:(NSURL *)fileURL
+                                                    error:(NSError **)error
+{
+    try {
+    TAGLIB_BRIDGE_SERIAL_GUARD();
+    if (DetectTagFileFormat(fileURL.pathExtension) != TLTagFileFormatWAV) {
+        return [self applyPropertyMapValuesInPlace:valuesToSet removingKeys:keysToRemove toURL:fileURL error:error];
+    }
+    TagLib::RIFF::WAV::File wav(fileURL.path.UTF8String);
+    if (!wav.isValid()) {
+        return [self applyPropertyMapValuesInPlace:valuesToSet removingKeys:keysToRemove toURL:fileURL error:error];
+    }
+
+    TagLib::PropertyMap info = wav.InfoTag()->properties();
+    TagLib::PropertyMap id3 = wav.ID3v2Tag()->properties();
+    for (NSString *key in keysToRemove ?: @[]) {
+        NSString *trimmedKey = TrimmedStringOrNil(key);
+        if (!trimmedKey) continue;
+        id3.erase(NSStringToTagString(trimmedKey));
+    }
+    for (NSString *key in valuesToSet ?: @{}) {
+        NSString *trimmedKey = TrimmedStringOrNil(key);
+        if (!trimmedKey) continue;
+        TagLib::String tagKey = NSStringToTagString(trimmedKey);
+        // RIFF INFO is already preserved by the Basic writer leaving that
+        // surface untouched. Do not copy INFO-only values into ID3.
+        if (preserveInfoOnlyValues && info.contains(tagKey) && !id3.contains(tagKey)) {
+            continue;
+        }
+        TagLib::StringList values;
+        for (NSString *value in valuesToSet[key]) {
+            values.append(NSStringToTagString(value));
+        }
+        id3.replace(tagKey, values);
+    }
+    wav.ID3v2Tag()->setProperties(id3);
+    if (!wav.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                         code:9254
+                                     userInfo:@{ NSLocalizedDescriptionKey : @"TagLib could not save ID3v2 metadata changes" }];
+        }
+        return NO;
+    }
+    return YES;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"INFO-preserving property-map mutation", NO)
 }
 
 + (BOOL)writeNumberPairsInPlaceWithTrackNumber:(NSInteger)trackNumber
@@ -253,70 +466,21 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
-    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
-        TagLib::MPEG::File file(filePath);
-        if (!file.isValid()) {
-            if (error) *error = PropertyMapDeltaError(9264, @"Unable to open MPEG file for native number-pair mutation");
-            return NO;
-        }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
-        if (updateTrackPair) {
-            if (file.tag()) file.tag()->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
-            TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TRCK", trackText);
-        }
-        if (updateDiscPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TPOS", discText);
-        }
-        if (updateMovementPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "MVIN", movementText);
-        }
-        if (!file.save()) {
-            if (error) *error = PropertyMapDeltaError(9265, @"TagLib could not save native MPEG number pairs");
-            return NO;
-        }
-        return YES;
-    }
-
-    if (format == TLTagFileFormatWAV) {
-        TagLib::RIFF::WAV::File file(filePath);
-        if (!file.isValid()) {
-            if (error) *error = PropertyMapDeltaError(9268, @"Unable to open WAV file for native number-pair mutation");
-            return NO;
-        }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
-        if (updateTrackPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TRCK", trackText);
-        }
-        if (updateDiscPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TPOS", discText);
-        }
-        if (updateMovementPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "MVIN", movementText);
-        }
-        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
-            if (error) *error = PropertyMapDeltaError(9269, @"TagLib could not save native WAV number pairs");
-            return NO;
-        }
-        return YES;
-    }
-
     TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Fast);
     TagLib::File *file = fileRef.file();
     if (fileRef.isNull() || !file || !file->isValid()) {
         if (error) *error = PropertyMapDeltaError(9266, @"Unable to open audio file for number-pair mutation");
         return NO;
+    }
+    if (auto *tag = NativeID3v2TagForWrite(file)) {
+        if (updateTrackPair) SetNativeID3NumberPair(tag, "TRCK", trackText, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+        if (updateDiscPair) SetNativeID3NumberPair(tag, "TPOS", discText, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+        if (updateMovementPair) SetNativeID3NumberPair(tag, "MVIN", movementText, @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);
+        if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
+            if (error) *error = PropertyMapDeltaError(9265, @"TagLib could not save native ID3 number pairs");
+            return NO;
+        }
+        return YES;
     }
     TagLib::PropertyMap properties = file->properties();
     if (updateTrackPair) {
@@ -353,7 +517,8 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             movementCount > 0 ? [NSString stringWithFormat:@"%ld", (long)movementCount] : nil
         );
     }
-    file->setProperties(properties);
+    if (dynamic_cast<TagLib::ASF::File *>(file)) CombineASFNumberTotals(properties);
+    SetPropertiesPreservingNativeDates(file, properties);
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9267, @"TagLib could not save number-pair changes");
         return NO;
@@ -413,7 +578,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (error) *error = PropertyMapDeltaError(9274, @"Unable to open MPEG file for advisory mutation");
             return NO;
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+        TagLib::ID3v2::Tag *tag = PrepareMPEGID3v2Tag(file);
         const std::initializer_list<const char *> descriptions = {
             "ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"
         };
@@ -429,7 +594,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             }
         }
         if (serialized) SetID3v2UserTextFrame(tag, "ITUNESADVISORY", serialized);
-        if (!file.save()) {
+        if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
             if (error) *error = PropertyMapDeltaError(9275, @"TagLib could not save MPEG advisory metadata");
             return NO;
         }
@@ -447,7 +612,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         properties.erase(key);
     }
     SetPropertyMapDynamicString(properties, @"ITUNESADVISORY", serialized);
-    file->setProperties(properties);
+    SetPropertiesPreservingNativeDates(file, properties);
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) *error = PropertyMapDeltaError(9277, @"TagLib could not save advisory metadata");
         return NO;
