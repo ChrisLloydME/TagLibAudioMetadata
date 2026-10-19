@@ -239,7 +239,7 @@ extension TagLibMetadataManager {
         number: Int, total: Int, field: MetadataFieldKey, for url: URL
     ) throws {
         let format = capability(forExtension: url.pathExtension)?.identifier ?? url.pathExtension
-        if ["mpeg-id3", "mpeg-aac", "mp4", "wav", "asf"].contains(format), number == 0, total > 0 {
+        if ["mpeg-id3", "mpeg-aac", "mp4", "wav", "aiff", "trueaudio", "dsf", "dsdiff", "asf"].contains(format), number == 0, total > 0 {
             throw MetadataPatchValidationError.unsupportedPartialPairRemoval(field: field, format: format)
         }
     }
@@ -547,6 +547,14 @@ extension TagLibMetadataManager {
                 }
             }
 
+            // Scalar comments/lyrics own every qualified native entry.
+            for field in [MetadataFieldKey.comment, .lyrics] where validatedPatch.fields[field] != nil {
+                let prefix = field == .comment ? "COMMENT:" : "LYRICS:"
+                for entry in before.raw.properties where entry.key.uppercased().hasPrefix(prefix) {
+                    keysToRemove.insert(entry.key)
+                }
+            }
+
             for (key, value) in validatedPatch.customFields {
                 keysToRemove.insert(key)
                 if !value.propertyMapValues.isEmpty {
@@ -568,20 +576,9 @@ extension TagLibMetadataManager {
             }
 
             if !propertyValues.isEmpty || !keysToRemove.isEmpty {
-                if ext == "wav" {
-                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
-                        propertyValues,
-                        removingKeys: Array(keysToRemove),
-                        preserveInfoOnlyValues: false,
-                        to: mutationURL
-                    )
-                } else {
-                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                        propertyValues,
-                        removingKeys: Array(keysToRemove),
-                        to: mutationURL
-                    )
-                }
+                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                    propertyValues, removingKeys: Array(keysToRemove), to: mutationURL
+                )
             }
 
             switch patch.artwork {
@@ -666,6 +663,15 @@ extension TagLibMetadataManager {
                 }?.values ?? []
                 if actual != value.propertyMapValues {
                     warnings.append("Patched field \(storage.writeKey) differs after save.")
+                }
+            }
+            if capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
+                for field in [MetadataFieldKey.comment, .lyrics] {
+                    guard let value = validatedPatch.fields[field] else { continue }
+                    let texts = field == .comment ? afterStructured.comments.map(\.text) : afterStructured.lyrics.map(\.text)
+                    if texts != value.propertyMapValues {
+                        warnings.append("Patched native \(field.rawValue) collection differs after save.")
+                    }
                 }
             }
             for (key, value) in validatedPatch.customFields {

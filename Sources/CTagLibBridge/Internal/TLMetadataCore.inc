@@ -30,6 +30,19 @@ static TagLib::ID3v2::Tag *PrepareMPEGID3v2Tag(TagLib::MPEG::File &file)
     return tag;
 }
 
+// The primary ID3 surface for every supported ID3-backed container. FLAC's
+// optional legacy ID3 tag is deliberately excluded: Xiph owns its writes.
+static TagLib::ID3v2::Tag *NativeID3v2TagForWrite(TagLib::File *file)
+{
+    if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) return PrepareMPEGID3v2Tag(*mpeg);
+    if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) return wav->ID3v2Tag();
+    if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(file)) return aiff->tag();
+    if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(file)) return tta->ID3v2Tag(true);
+    if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(file)) return dsf->tag();
+    if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(file)) return dff->ID3v2Tag(true);
+    return nullptr;
+}
+
 static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
 {
     if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
@@ -659,7 +672,8 @@ static TLMetadataContainerMask ContainerMaskForFormat(TLTagFileFormat format)
                  | TLMetadataContainerAPE;
         case TLTagFileFormatMPEGAAC:
             return TLMetadataContainerTag
-                 | TLMetadataContainerPropertyMap;
+                 | TLMetadataContainerPropertyMap
+                 | TLMetadataContainerID3v2;
         case TLTagFileFormatMP4:
             return TLMetadataContainerTag
                  | TLMetadataContainerPropertyMap

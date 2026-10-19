@@ -32,7 +32,6 @@
     TLTagFileFormat format = DetectTagFileFormat(fileURL);
     TLMetadataContainerMask containers = ContainerMaskForFormat(format);
     bool isMPEG = format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC;
-    bool isAAC = format == TLTagFileFormatMPEGAAC;
     bool isMP4Like = format == TLTagFileFormatMP4;
 
     if (!IsWritableTagFileFormat(format) || containers == TLMetadataContainerNone) {
@@ -76,29 +75,7 @@
             return NO;
         }
 
-        if (isAAC) {
-            ApplyGenericPropertyMapToFile(mpegFile, metadata);
-            if (!ApplyPictureComplexProperties(&mpegFile,
-                                               metadata,
-                                               error,
-                                               68,
-                                               @"Unable to clear artwork from AAC metadata",
-                                               69,
-                                               @"Unable to write artwork into AAC metadata",
-                                               [NSString stringWithFormat:@"AAC '%@'", fileURL.lastPathComponent])) {
-                return NO;
-            }
-
-            if (!mpegFile.save()) {
-                if (error) {
-                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                                 code:14
-                                             userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to AAC file" }];
-                }
-                TLog(@"TagLib save() failed for AAC '%@'", fileURL.lastPathComponent);
-                return NO;
-            }
-        } else {
+        {
             TagLib::Tag *tag = mpegFile.tag();
             if (!tag) {
                 if (error) {
@@ -625,6 +602,9 @@
         TagLib::ID3v2::Tag *wavID3v2Tag = wavFile.ID3v2Tag();
         TagLib::PropertyMap wavExistingID3 = wavID3v2Tag->properties();
         wavID3v2Tag->setProperties(BuildGenericPropertyMap(metadata, &wavExistingID3));
+        SetNativeID3NumberPair(wavID3v2Tag, "TRCK", BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks), @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+        SetNativeID3NumberPair(wavID3v2Tag, "TPOS", BuildNumberTextPreservingFormatting(metadata.discNumberText, metadata.discNumber, metadata.totalDiscs), @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+        SetNativeID3NumberPair(wavID3v2Tag, "MVIN", BuildTRCKString(metadata.movementNumber, metadata.movementCount, 0), @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);
         if (!ApplyPictureComplexProperties(wavID3v2Tag,
                                            metadata,
                                            error,
