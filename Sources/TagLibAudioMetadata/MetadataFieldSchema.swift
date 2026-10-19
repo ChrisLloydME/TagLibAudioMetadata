@@ -305,7 +305,7 @@ public enum MetadataFieldRegistry {
         schema(.musicBrainzWorkID, "MusicBrainz Work ID", .identifiers, ["MUSICBRAINZ_WORKID", "MUSICBRAINZ WORKID", "MUSICBRAINZ WORK ID"], id3User: ["MusicBrainz Work Id"], mp4Freeform: ["MusicBrainz Work Id"]),
         schema(.acoustID, "AcoustID", .identifiers, ["ACOUSTID_ID", "ACOUSTID ID"], id3User: ["Acoustid Id"], mp4Freeform: ["Acoustid Id"]),
         schema(.acoustIDFingerprint, "AcoustID Fingerprint", .identifiers, ["ACOUSTID_FINGERPRINT", "ACOUSTID FINGERPRINT"], id3User: ["Acoustid Fingerprint"], mp4Freeform: ["Acoustid Fingerprint"]),
-        schema(.musicIPPUID, "MusicIP PUID", .identifiers, ["MUSICIP_PUID"], id3User: ["MusicIP PUID"], mp4Freeform: ["MusicIP PUID"]),
+        schema(.musicIPPUID, "MusicIP PUID", .identifiers, ["MUSICIP_PUID", "MUSICIP PUID"], id3User: ["MusicIP PUID"], mp4Freeform: ["MusicIP PUID"]),
         schema(.replayGainTrackGain, "ReplayGain Track Gain", .replayGain, ["REPLAYGAIN_TRACK_GAIN"], id3User: ["REPLAYGAIN_TRACK_GAIN"], mp4Freeform: ["REPLAYGAIN_TRACK_GAIN"]),
         schema(.replayGainAlbumGain, "ReplayGain Album Gain", .replayGain, ["REPLAYGAIN_ALBUM_GAIN"], id3User: ["REPLAYGAIN_ALBUM_GAIN"], mp4Freeform: ["REPLAYGAIN_ALBUM_GAIN"]),
         schema(.itunesAlbumID, "iTunes Album ID", .itunes, ["ITUNESALBUMID"], id3User: ["ITUNESALBUMID"], mp4Freeform: ["ITUNESALBUMID"]),

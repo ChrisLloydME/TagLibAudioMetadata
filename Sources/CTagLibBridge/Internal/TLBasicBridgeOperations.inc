@@ -229,7 +229,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
             return NO;
         }
 
-        RemoveRecognizedMP4NumberPairFreeformItems(mp4Tag, true, true);
+        RemoveRecognizedMP4NumberPairFreeformItems(mp4Tag, true, false);
 
         if (trackNumber > 0) {
             mp4Tag->setTrack((unsigned int)trackNumber);

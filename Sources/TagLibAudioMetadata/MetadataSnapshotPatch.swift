@@ -260,6 +260,7 @@ extension TagLibMetadataManager {
     private struct SemanticPropertyStorage: Sendable {
         var writeKey: String
         var keysToRemove: Set<String>
+        var nativeMP4Key: String? = nil
     }
 
     nonisolated private static func propertyStorage(
@@ -287,6 +288,18 @@ extension TagLibMetadataManager {
                 writeKey: "DATE",
                 keysToRemove: ["DATE", "RELEASEDATE"]
             )
+        }
+
+        if isMP4, let nativeKey = schema.mappings.first(where: {
+            $0.format == .mp4 && $0.storageKind == .mp4Freeform
+        })?.keys.first {
+            var aliases = Set(schema.propertyMapKeys.map { $0.uppercased() })
+            for mapping in schema.mappings where mapping.format == .mp4 {
+                aliases.formUnion(mapping.keys.map { $0.uppercased() })
+            }
+            aliases.formUnion(schema.propertyMapKeys.map { "----:COM.APPLE.ITUNES:\($0.uppercased())" })
+            if field == .work { aliases.insert("©WRK") }
+            return SemanticPropertyStorage(writeKey: nativeKey, keysToRemove: aliases, nativeMP4Key: nativeKey)
         }
 
         return SemanticPropertyStorage(
@@ -433,6 +446,8 @@ extension TagLibMetadataManager {
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
+            var nativeFieldAliases: Set<String> = []
+            var nativeAtoms: [StructuredMP4Atom] = []
             let patchesNumberPair = !structuredNumberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
 
@@ -541,6 +556,17 @@ extension TagLibMetadataManager {
 
             for (field, value) in validatedPatch.fields where !structuredNumberPairFields.contains(field) {
                 guard let storage = fieldStorage[field] else { continue }
+                if let nativeKey = storage.nativeMP4Key {
+                    nativeFieldAliases.formUnion(storage.keysToRemove)
+                    let oldKeys = before.structured.mp4Atoms.map(\.key).filter {
+                        storage.keysToRemove.contains($0.uppercased())
+                    }
+                    nativeAtoms.append(contentsOf: oldKeys.filter { $0 != nativeKey }.map {
+                        StructuredMP4Atom(key: $0, type: "stringList", values: [])
+                    })
+                    nativeAtoms.append(StructuredMP4Atom(key: nativeKey, type: "stringList", values: value.propertyMapValues))
+                    continue
+                }
                 keysToRemove.formUnion(storage.keysToRemove)
                 if !value.propertyMapValues.isEmpty {
                     propertyValues[storage.writeKey] = value.propertyMapValues
@@ -579,6 +605,12 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
                     propertyValues, removingKeys: Array(keysToRemove), to: mutationURL
                 )
+            }
+
+            if !nativeAtoms.isEmpty {
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
+                    bridgePayload(from: StructuredMetadata(mp4Atoms: nativeAtoms), includeProperties: false,
+                        replacingCollections: [], riffPolicy: .preserveInfo), to: mutationURL)
             }
 
             switch patch.artwork {
@@ -621,7 +653,7 @@ extension TagLibMetadataManager {
             let afterStructured = (projections["structured"] as? [String: NSObject]).map {
                 structuredMetadata(fromBridgeDictionary: $0)
             } ?? StructuredMetadata()
-            var intentionallyChangedKeys = keysToRemove
+            var intentionallyChangedKeys = keysToRemove.union(nativeFieldAliases)
             for field in expectedNumberPairs.keys {
                 intentionallyChangedKeys.formUnion(MetadataFieldRegistry.schema(for: field)?.propertyMapKeys ?? [])
             }
@@ -658,9 +690,27 @@ extension TagLibMetadataManager {
             }
             for (field, value) in validatedPatch.fields where expectedNumberPairs[field] == nil {
                 guard let storage = fieldStorage[field] else { continue }
-                let actual = afterRaw.properties.first {
-                    storage.writeKey.caseInsensitiveCompare($0.key) == .orderedSame
-                }?.values ?? []
+                let actual: [String]
+                if let nativeKey = storage.nativeMP4Key {
+                    actual = afterStructured.mp4Atoms.first { $0.key == nativeKey }?.values ?? []
+                    let stale = afterStructured.mp4Atoms.filter {
+                        $0.key != nativeKey && storage.keysToRemove.contains($0.key.uppercased())
+                    }
+                    if !stale.isEmpty { warnings.append("Patched field \(field.rawValue) has stale native aliases.") }
+                } else {
+                    actual = afterRaw.properties.first {
+                        storage.writeKey.caseInsensitiveCompare($0.key) == .orderedSame
+                    }?.values ?? []
+                }
+                if field != .date, let semantic = basicProjectionValue(for: field, metadata: afterBasic) {
+                    switch value {
+                    case .text(let expected) where semantic != expected:
+                        warnings.append("Patched semantic field \(field.rawValue) differs after save.")
+                    case .remove where !semantic.isEmpty:
+                        warnings.append("Patched semantic field \(field.rawValue) remains after removal.")
+                    default: break
+                    }
+                }
                 if actual != value.propertyMapValues {
                     warnings.append("Patched field \(storage.writeKey) differs after save.")
                 }

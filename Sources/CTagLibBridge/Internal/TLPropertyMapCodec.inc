@@ -66,13 +66,32 @@ static void SetMP4FreeformTextItem(TagLib::MP4::Tag *tag,
         return;
     }
 
-    NSString *fullKey = [@"----:com.apple.iTunes:" stringByAppendingString:trimmedDescription];
-    std::string key = fullKey.UTF8String ? fullKey.UTF8String : "";
-    if (key.empty()) {
-        return;
+    // Basic custom-field identity is case-insensitive, while native keys keep
+    // their original spelling. Collapse case aliases only for this edited key.
+    TagLib::String target = NSStringToTagString([@"----:com.apple.iTunes:" stringByAppendingString:trimmedDescription]);
+    TagLib::StringList matches;
+    for (const auto &[key, item] : tag->itemMap()) {
+        NSString *existing = MP4FreeformDescriptionForItemKey(key);
+        if (existing && [existing caseInsensitiveCompare:trimmedDescription] == NSOrderedSame) matches.append(key);
     }
+    if (!matches.isEmpty()) target = matches.front();
+    for (const auto &key : matches) tag->removeItem(key);
+    SetMP4TextItem(tag, target.to8Bit(true).c_str(), value);
+}
 
-    SetMP4TextItem(tag, key.c_str(), value);
+static bool MP4ItemMatchesField(const TagLib::String &key, const TLMetadataFieldMapping &mapping)
+{
+    if (mapping.mp4Atom && key == TagLib::String(mapping.mp4Atom, TagLib::String::Latin1)) return true;
+    // TagLib's native WORK representation is also an alias of our WORK freeform.
+    if (std::strcmp(mapping.canonicalPropertyKey, "WORK") == 0 && key == TagLib::String("\xA9" "wrk", TagLib::String::Latin1)) return true;
+    NSString *description = UppercaseTrimmedString(MP4FreeformDescriptionForItemKey(key));
+    if (!description) return false;
+    if ([description isEqualToString:@(mapping.canonicalPropertyKey)] ||
+        (mapping.mp4FreeformDescription && [description isEqualToString:[@(mapping.mp4FreeformDescription) uppercaseString]])) return true;
+    for (const char *alias : mapping.propertyAliases) {
+        if (alias && [description isEqualToString:@(alias)]) return true;
+    }
+    return false;
 }
 
 static bool IsMP4TrackNumberPairAlias(NSString * _Nullable description)
@@ -464,7 +483,7 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
-    if ([normalizedKey isEqualToString:@"MUSICIP_PUID"]) {
+    if ([normalizedKey isEqualToString:@"MUSICIP_PUID"] || [normalizedKey isEqualToString:@"MUSICIP PUID"]) {
         metadata.musicIpPuid = trimmedValue;
         return true;
     }

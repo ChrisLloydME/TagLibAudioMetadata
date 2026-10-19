@@ -225,7 +225,7 @@
             originalTrackPair.second != metadata.totalTracks;
         const bool discPairChanged = originalDiscPair.first != metadata.discNumber ||
             originalDiscPair.second != metadata.totalDiscs;
-        RemoveRecognizedMP4NumberPairFreeformItems(tag, true, true);
+        RemoveRecognizedMP4NumberPairFreeformItems(tag, trackPairChanged, discPairChanged);
 
         // Basic fields: nil/empty means clear; callers that need preservation should read-modify-write.
         tag->setTitle(NSStringToTagString(metadata.title));

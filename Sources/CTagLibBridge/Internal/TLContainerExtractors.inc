@@ -421,7 +421,12 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
         }
 
         if (!ApplyKnownCustomMetadataField(description, itemValueString, metadata)) {
-            SetCustomMetadataField(metadata, description, itemValueString);
+            NSMutableDictionary *custom = [metadata.customFields mutableCopy] ?: [NSMutableDictionary dictionary];
+            for (NSString *key in [custom allKeys]) {
+                if ([key caseInsensitiveCompare:description] == NSOrderedSame) [custom removeObjectForKey:key];
+            }
+            metadata.customFields = custom;
+            SetCustomMetadataField(metadata, description.uppercaseString, itemValueString);
         }
     }
 }
