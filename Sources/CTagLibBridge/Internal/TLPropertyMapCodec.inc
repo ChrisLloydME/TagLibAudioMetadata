@@ -1104,6 +1104,13 @@ static void ExtractASFCustomAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadat
                 continue;
             }
             if ([normalized hasPrefix:@"WM/"]) continue;
+            // FFmpeg and other writers may duplicate common fields as custom
+            // attributes. They are semantic aliases, not editable custom keys.
+            if ([normalized isEqualToString:@"TITLE"]) { if (!metadata.title.length) metadata.title = value; continue; }
+            if ([normalized isEqualToString:@"ARTIST"]) { if (!metadata.artist.length) metadata.artist = value; continue; }
+            if ([normalized isEqualToString:@"ALBUM"]) { if (!metadata.album.length) metadata.album = value; continue; }
+            if ([normalized isEqualToString:@"COMMENT"]) { if (!metadata.comment.length) metadata.comment = value; continue; }
+            if ([normalized isEqualToString:@"GENRE"]) { if (!metadata.genre.length) metadata.genre = value; continue; }
             custom[key] = value;
         }
     }
@@ -1126,6 +1133,40 @@ static void CombineASFNumberTotals(TagLib::PropertyMap &properties)
                 [NSString stringWithFormat:@"%@/%@", first, total]);
         }
         properties.erase(keys.second);
+    }
+}
+
+static void RemoveASFCommonAttributeAlias(TagLib::ASF::Tag *tag, const char *propertyKey)
+{
+    const auto attributes = tag->attributeListMap();
+    for (const auto &[key, values] : attributes) {
+        if (key.upper() == propertyKey) tag->removeItem(key);
+    }
+}
+
+// APE maps both native Date and Year to DATE. Replaying an unchanged map must
+// retain the original native spelling and complete date rather than migrate it.
+static void SetPropertiesPreservingNativeDates(TagLib::File *file, const TagLib::PropertyMap &properties)
+{
+    TagLib::APE::Tag *ape = nullptr;
+    if (auto *f = dynamic_cast<TagLib::APE::File *>(file)) ape = f->APETag();
+    if (auto *f = dynamic_cast<TagLib::WavPack::File *>(file)) ape = f->APETag();
+    if (auto *f = dynamic_cast<TagLib::MPC::File *>(file)) ape = f->APETag();
+    TagLib::APE::ItemListMap original;
+    bool preserveDate = false;
+    if (ape) {
+        auto before = file->properties();
+        auto desired = properties;
+        preserveDate = before["DATE"] == desired["DATE"] && before["YEAR"] == desired["YEAR"];
+        if (preserveDate) original = ape->itemListMap();
+    }
+    file->setProperties(properties);
+    if (ape && preserveDate) {
+        ape->removeItem("DATE");
+        ape->removeItem("YEAR");
+        for (const auto &[key, item] : original) {
+            if (key.upper() == "DATE" || key.upper() == "YEAR") ape->setItem(item.key(), item);
+        }
     }
 }
 
@@ -1153,7 +1194,20 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
     TagLib::PropertyMap existingProperties = file.properties();
     TagLib::PropertyMap properties = BuildGenericPropertyMap(metadata, &existingProperties);
     if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
-    file.setProperties(properties);
+    if (auto *asf = dynamic_cast<TagLib::ASF::File *>(&file)) {
+        struct Field { const char *key; TagLib::String current; NSString *desired; };
+        const Field fields[] = {
+            { "TITLE", asf->tag()->title(), metadata.title },
+            { "ARTIST", asf->tag()->artist(), metadata.artist },
+            { "ALBUM", asf->tag()->album(), metadata.album },
+            { "COMMENT", asf->tag()->comment(), metadata.comment },
+            { "GENRE", asf->tag()->genre(), metadata.genre },
+        };
+        for (const auto &field : fields) {
+            if (field.current != NSStringToTagString(field.desired)) RemoveASFCommonAttributeAlias(asf->tag(), field.key);
+        }
+    }
+    SetPropertiesPreservingNativeDates(&file, properties);
     if (auto *id3 = NativeID3v2TagForWrite(&file)) {
         SetNativeID3NumberPair(id3, "TRCK",
             BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks),

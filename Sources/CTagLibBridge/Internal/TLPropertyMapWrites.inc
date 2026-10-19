@@ -173,7 +173,7 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
         }
     }
     if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
-    file.setProperties(properties);
+    SetPropertiesPreservingNativeDates(&file, properties);
 
     if (!file.save()) {
         if (error) {
