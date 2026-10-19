@@ -87,4 +87,27 @@ struct CleanRoomMPEGTests {
             }
         }
     }
+    @Test func rawReplacementPreservesSecondaryID3v1Bytes() throws {
+        for ext in ["mp3", "mp2"] {
+            try HardeningFixture.withCopy("mp3", name: "testAudioFile") { source in
+                let url = source.deletingPathExtension().appendingPathExtension(ext)
+                let payload = audio(try Data(contentsOf: source))
+                let legacy = legacyTag()
+                let modern = HardeningFixture.id3(HardeningFixture.frame("TIT2", Data([3]) + Data("Modern".utf8)))
+                for arrays in [false, true] {
+                    try (modern + payload + legacy).write(to: url)
+                    if arrays {
+                        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(["TITLE": ["Replacement"]], to: url)
+                    } else {
+                        try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(["TITLE": "Replacement"], to: url)
+                    }
+                    let result = try Data(contentsOf: url)
+                    #expect(result.suffix(128) == legacy)
+                    #expect(audio(result) == payload)
+                    #expect(try TagLibMetadataManager.readMetadataResult(from: url).title == "Replacement")
+                }
+            }
+        }
+    }
+
 }

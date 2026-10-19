@@ -19,7 +19,7 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
 
     file.setProperties(BuildRawPropertyMap(properties));
 
-    if (!file.save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:saveErrorCode
@@ -54,7 +54,7 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
 
     file.setProperties(BuildRawPropertyMapValues(properties));
 
-    if (!file.save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:saveErrorCode
