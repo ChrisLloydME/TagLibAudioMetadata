@@ -1,3 +1,6 @@
+static NSString * _Nullable BuildTRCKString(NSInteger number, NSInteger total, NSInteger padWidth);
+static NSString * _Nullable BuildNumberTextPreservingFormatting(NSString * _Nullable text, NSInteger number, NSInteger total);
+
 static void SetMP4TextItem(TagLib::MP4::Tag *tag,
                            const char *key,
                            NSString * _Nullable value)
@@ -1107,6 +1110,24 @@ static void CombineASFNumberTotals(TagLib::PropertyMap &properties)
     }
 }
 
+static void SetNativeID3NumberPair(TagLib::ID3v2::Tag *tag, const char *frameID,
+                                  NSString *text, NSArray<NSString *> *aliases)
+{
+    tag->removeFrames(frameID);
+    const auto frames = tag->frameList("TXXX");
+    for (auto *frame : frames) {
+        auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame);
+        if (userText && [aliases containsObject:TagStringToNSString(userText->description()).uppercaseString]) {
+            tag->removeFrame(frame);
+        }
+    }
+    if (text.length > 0) {
+        auto *frame = new TagLib::ID3v2::TextIdentificationFrame(frameID, TagLib::String::UTF8);
+        frame->setText(NSStringToTagString(text));
+        tag->addFrame(frame);
+    }
+}
+
 template <typename FileType>
 static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *metadata)
 {
@@ -1114,6 +1135,17 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
     TagLib::PropertyMap properties = BuildGenericPropertyMap(metadata, &existingProperties);
     if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
     file.setProperties(properties);
+    if (auto *id3 = NativeID3v2TagForWrite(&file)) {
+        SetNativeID3NumberPair(id3, "TRCK",
+            BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks),
+            @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+        SetNativeID3NumberPair(id3, "TPOS",
+            BuildNumberTextPreservingFormatting(metadata.discNumberText, metadata.discNumber, metadata.totalDiscs),
+            @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+        SetNativeID3NumberPair(id3, "MVIN",
+            BuildTRCKString(metadata.movementNumber, metadata.movementCount, 0),
+            @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);
+    }
 }
 
 static TagLib::PropertyMap BuildRawPropertyMap(NSDictionary<NSString *, NSString *> *properties)

@@ -399,73 +399,21 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
 
-    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
-        TagLib::MPEG::File file(filePath);
-        if (!file.isValid()) {
-            if (error) *error = PropertyMapDeltaError(9264, @"Unable to open MPEG file for native number-pair mutation");
-            return NO;
-        }
-        TagLib::ID3v2::Tag *tag = PrepareMPEGID3v2Tag(file);
-        if (updateTrackPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TRCK", trackText);
-            RemoveID3v2UserTextFrames(tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
-        }
-        if (updateDiscPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TPOS", discText);
-            RemoveID3v2UserTextFrames(tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
-        }
-        if (updateMovementPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "MVIN", movementText);
-        }
-        if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
-            if (error) *error = PropertyMapDeltaError(9265, @"TagLib could not save native MPEG number pairs");
-            return NO;
-        }
-        return YES;
-    }
-
-    if (format == TLTagFileFormatWAV) {
-        TagLib::RIFF::WAV::File file(filePath);
-        if (!file.isValid()) {
-            if (error) *error = PropertyMapDeltaError(9268, @"Unable to open WAV file for native number-pair mutation");
-            return NO;
-        }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
-        if (updateTrackPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TRCK", trackText);
-            RemoveID3v2UserTextFrames(tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
-        }
-        if (updateDiscPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("TPOS");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "TPOS", discText);
-            RemoveID3v2UserTextFrames(tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
-        }
-        if (updateMovementPair) {
-            TagLib::ID3v2::FrameList frames = tag->frameList("MVIN");
-            for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
-            SetID3v2TextFrame(tag, "MVIN", movementText);
-        }
-        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
-            if (error) *error = PropertyMapDeltaError(9269, @"TagLib could not save native WAV number pairs");
-            return NO;
-        }
-        return YES;
-    }
-
     TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Fast);
     TagLib::File *file = fileRef.file();
     if (fileRef.isNull() || !file || !file->isValid()) {
         if (error) *error = PropertyMapDeltaError(9266, @"Unable to open audio file for number-pair mutation");
         return NO;
+    }
+    if (auto *tag = NativeID3v2TagForWrite(file)) {
+        if (updateTrackPair) SetNativeID3NumberPair(tag, "TRCK", trackText, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
+        if (updateDiscPair) SetNativeID3NumberPair(tag, "TPOS", discText, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
+        if (updateMovementPair) SetNativeID3NumberPair(tag, "MVIN", movementText, @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);
+        if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
+            if (error) *error = PropertyMapDeltaError(9265, @"TagLib could not save native ID3 number pairs");
+            return NO;
+        }
+        return YES;
     }
     TagLib::PropertyMap properties = file->properties();
     if (updateTrackPair) {

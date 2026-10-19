@@ -1301,3 +1301,7 @@ The benchmark keeps fixture setup outside timing and prints warmed snapshot
 throughput, twelve-write batches for raw deltas versus Basic native
 preservation, and dirty-file fsync/fullSync samples. It has no performance
 threshold. Both facilities remain opt-in; ordinary runs intentionally skip them.
+
+### Clean-room ID3 contract corrections (2026-10-19)
+
+Typed comment and lyric patches own the entire scalar field, including qualified descriptions: replacement removes the previous entries and removal clears all represented entries. Raw patches continue to address individual PropertyMap keys. AAC exposes native ID3v2 structured editing and preserves comment/lyric language and description on unrelated Basic edits. All primary ID3 containers (MP3/MP2, AAC, WAV, AIFF, TTA, DSF, DSDIFF) write combined TRCK/TPOS/MVIN pairs through Basic and typed number writers; a total without a first component is rejected for track/disc. Exact ID3 number-text writes retain both components' padding. Numeric pair writes may normalize padding. Existing DSD restrictions on replaying native collections through Basic/structured writes remain; scalar typed comment/lyric patches operate on their complete PropertyMap groups.
