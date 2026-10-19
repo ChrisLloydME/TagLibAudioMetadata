@@ -405,9 +405,8 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (error) *error = PropertyMapDeltaError(9264, @"Unable to open MPEG file for native number-pair mutation");
             return NO;
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+        TagLib::ID3v2::Tag *tag = PrepareMPEGID3v2Tag(file);
         if (updateTrackPair) {
-            if (file.tag()) file.tag()->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
             TagLib::ID3v2::FrameList frames = tag->frameList("TRCK");
             for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
             SetID3v2TextFrame(tag, "TRCK", trackText);
@@ -424,7 +423,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) tag->removeFrame(*iterator);
             SetID3v2TextFrame(tag, "MVIN", movementText);
         }
-        if (!file.save()) {
+        if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
             if (error) *error = PropertyMapDeltaError(9265, @"TagLib could not save native MPEG number pairs");
             return NO;
         }
@@ -564,7 +563,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (error) *error = PropertyMapDeltaError(9274, @"Unable to open MPEG file for advisory mutation");
             return NO;
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+        TagLib::ID3v2::Tag *tag = PrepareMPEGID3v2Tag(file);
         const std::initializer_list<const char *> descriptions = {
             "ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"
         };
@@ -580,7 +579,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             }
         }
         if (serialized) SetID3v2UserTextFrame(tag, "ITUNESADVISORY", serialized);
-        if (!file.save()) {
+        if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
             if (error) *error = PropertyMapDeltaError(9275, @"TagLib could not save MPEG advisory metadata");
             return NO;
         }

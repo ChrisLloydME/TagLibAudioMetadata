@@ -17,6 +17,19 @@ static TagLib::PropertyMap VisibleMetadataProperties(TagLib::File *file)
     return file->properties();
 }
 
+// Creating a preferred tag must not shadow metadata that only exists in a
+// secondary tag. Promote the visible map once; keep the secondary bytes intact.
+static TagLib::ID3v2::Tag *PrepareMPEGID3v2Tag(TagLib::MPEG::File &file)
+{
+    if (file.hasID3v2Tag()) return file.ID3v2Tag();
+    const TagLib::PropertyMap legacy = file.properties();
+    TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+    if (!tag->setProperties(legacy).isEmpty()) {
+        throw std::runtime_error("Cannot faithfully promote legacy MPEG metadata to ID3v2");
+    }
+    return tag;
+}
+
 static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
 {
     if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
