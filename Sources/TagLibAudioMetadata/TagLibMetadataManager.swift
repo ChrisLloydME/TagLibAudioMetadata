@@ -389,6 +389,9 @@ public struct TagLibMetadataManager {
         public var expectedExplicitContent: Bool?
         public var expectedExplicitAdvisory: ExplicitAdvisory?
         public var artworkExpectation: ArtworkVerificationExpectation
+        /// Optional exact artwork expectations, independent of the legacy presence check.
+        public var expectedArtworkData: Data? = nil
+        public var expectedArtworkMIMEType: String? = nil
         public var customFieldKeys: [String]
         /// Expected custom-field values keyed by custom field name. When
         /// present, verification compares the value instead of only checking

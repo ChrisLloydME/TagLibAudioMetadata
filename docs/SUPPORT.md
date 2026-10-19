@@ -1319,3 +1319,7 @@ Raw PropertyMap keys are prefixless TagLib names, not native MP4 atom identifier
 ### ASF erasure (2026-10-19)
 
 Verified ASF/WMA erase clears the complete native attribute map, including custom strings, binary/numeric attributes, and pictures, then checks that no native attributes remain. Any residual or unreadable result throws before commit. Audio packets are outside this erase operation.
+
+### Exact Basic artwork verification (2026-10-19)
+
+Basic writes supplying artwork verify its exact bytes and normalized MIME type, in addition to the legacy presence expectation. Low-level facade callers can set `MetadataWriteVerificationContext.expectedArtworkData` and `expectedArtworkMIMEType` independently. The existing `.present` expectation retains its source-compatible presence-only meaning; use exact expectations when supplying known artwork.
