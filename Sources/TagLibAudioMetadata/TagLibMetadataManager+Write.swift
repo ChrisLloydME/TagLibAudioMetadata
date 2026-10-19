@@ -23,7 +23,7 @@ extension TagLibMetadataManager {
         let normalizedReleaseDate = normalizedTrimmed(releaseDate)
         let projectedReleaseYear = String(normalizedReleaseDate.prefix(4))
         guard !normalizedReleaseDate.isEmpty, normalizedYear == projectedReleaseYear else {
-            throw MetadataPatchValidationError.unsupportedFieldForFormat(field: .date, format: "mp4")
+            throw MetadataValidationError.conflictingMP4Date(year: normalizedYear, releaseDate: normalizedReleaseDate)
         }
     }
 
@@ -338,6 +338,7 @@ extension TagLibMetadataManager {
         verifyAfterWrite: Bool = true,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(properties.keys))
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -418,6 +419,7 @@ extension TagLibMetadataManager {
         verifyAfterWrite: Bool = true,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(properties.keys))
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -1009,6 +1011,17 @@ extension TagLibMetadataManager {
         let snapshot = try readBasicSnapshot(from: url)
         var metadata = snapshot.metadata
         try update(&metadata)
+        if capability(forExtension: url.pathExtension)?.identifier == "mp4" {
+            let yearChanged = metadata.year != snapshot.metadata.year
+            let releaseChanged = metadata.releaseDate != snapshot.metadata.releaseDate
+            if releaseChanged && !yearChanged {
+                metadata.year = String(normalizedTrimmed(metadata.releaseDate).prefix(4))
+            } else if yearChanged && !releaseChanged {
+                let year = normalizedTrimmed(metadata.year)
+                let oldDate = normalizedTrimmed(metadata.releaseDate)
+                metadata.releaseDate = year.isEmpty ? "" : year + String(oldDate.dropFirst(4))
+            }
+        }
         return try replaceBasicMetadata(
             metadata,
             to: url,

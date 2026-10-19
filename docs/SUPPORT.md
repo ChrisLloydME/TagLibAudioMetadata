@@ -1309,3 +1309,9 @@ Typed comment and lyric patches own the entire scalar field, including qualified
 ### MP4 semantic and custom-field identity (2026-10-19)
 
 Typed freeform fields use the schema's MP4 native keys, replace/remove their entire recognized alias group, and verify native arrays plus the scalar readback. Basic edits preserve unchanged native freeform arrays; they do not replay uppercased PropertyMap descriptions into new atoms. Custom Basic keys have one uppercase display identity while native spelling is retained when editing an existing item. Case-sensitive native editing remains available through structured atoms. Number aliases are canonicalized only when their corresponding pair changes; a track-only low-level write preserves disc aliases.
+
+### MP4 date and raw-key contracts (2026-10-19)
+
+MP4 has one ©day value. In `updateBasicMetadata`, a releaseDate-only edit updates the derived year; a year-only edit replaces the first four characters of the existing release date, retaining its suffix. Clearing either field alone clears the shared date. A full `replaceBasicMetadata` payload must supply consistent year/releaseDate projections (an empty year may be derived); contradictions throw `MetadataValidationError.conflictingMP4Date` before mutation. Typed recording-date patches remain unsupported for MP4; patch releaseDate instead.
+
+Raw PropertyMap keys are prefixless TagLib names, not native MP4 atom identifiers. All raw overloads reject keys beginning `----:`, including with verification disabled; use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys. Existing prefixless custom PropertyMap keys remain writable. This explicit boundary replaces the former verified failure or verification-disabled no-op.
