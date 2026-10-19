@@ -142,7 +142,7 @@ does not preserve inode identity or update sibling hard links. Staging uses
 `copyfile(COPYFILE_CLONE | COPYFILE_ACL)`: macOS attempts a same-volume
 copy-on-write clone and automatically falls back to an ordinary copy. The
 staging flags request ACL preservation; tests validate ACLs, extended
-attributes, flags, permissions, and payload bytes. Production does not run a
+attributes, ordinary permissions/flags, and payload bytes. Both transaction engines reject setuid/setgid files before staging because clone/copy may drop privilege bits; callers must clear those bits explicitly before editing. Production does not run a
 separate metadata-preservation audit, so clients with deployment-specific
 quarantine, immutable-flag, or security-scoped requirements must validate their
 environment.

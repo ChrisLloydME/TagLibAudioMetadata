@@ -19,7 +19,7 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
 
     file.setProperties(BuildRawPropertyMap(properties));
 
-    if (!file.save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:saveErrorCode
@@ -54,7 +54,7 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
 
     file.setProperties(BuildRawPropertyMapValues(properties));
 
-    if (!file.save()) {
+    if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:saveErrorCode
@@ -172,7 +172,8 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
             SetPropertyMapString(properties, "TOTALDISCS", nil);
         }
     }
-    file.setProperties(properties);
+    if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
+    SetPropertiesPreservingNativeDates(&file, properties);
 
     if (!file.save()) {
         if (error) {
@@ -500,6 +501,23 @@ static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,
             SetMP4TextItem(tag, mapping.mp4Atom, value);
         }
         if (mapping.mp4FreeformDescription) {
+            const TLMetadataFieldMapping *field = nullptr;
+            for (const auto &candidate : kMetadataFieldMappings) {
+                if (candidate.mp4FreeformDescription && std::strcmp(candidate.mp4FreeformDescription, mapping.mp4FreeformDescription) == 0) {
+                    field = &candidate;
+                    break;
+                }
+            }
+            TagLib::StringList aliases;
+            NSString *existingValue = nil;
+            for (const auto &[key, item] : tag->itemMap()) {
+                if (field && MP4ItemMatchesField(key, *field)) {
+                    aliases.append(key);
+                    existingValue = TagStringToNSString(item.toStringList().toString(", "));
+                }
+            }
+            if ([TrimmedStringOrNil(existingValue) ?: @"" isEqualToString:TrimmedStringOrNil(value) ?: @""]) continue;
+            for (const auto &key : aliases) tag->removeItem(key);
             SetMP4FreeformTextItem(tag, @(mapping.mp4FreeformDescription), value);
         }
     }

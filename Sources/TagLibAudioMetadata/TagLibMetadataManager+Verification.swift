@@ -160,7 +160,7 @@ extension TagLibMetadataManager {
             return true
         }
 
-        if !verification.expectedTextFields.isEmpty {
+        if !verification.expectedTextFields.isEmpty || verification.expectedArtworkData != nil || verification.expectedArtworkMIMEType != nil {
             return true
         }
 
@@ -285,6 +285,14 @@ extension TagLibMetadataManager {
         }
 
         if let afterWrite {
+            if let expectedData = verification.expectedArtworkData, afterWrite.artworkData != expectedData {
+                warnings.append("Artwork bytes differ after save.")
+            }
+            if let expectedMIME = verification.expectedArtworkMIMEType,
+               normalizedArtworkMIMEType(afterWrite.artworkMIMEType, data: afterWrite.artworkData) !=
+                    normalizedArtworkMIMEType(expectedMIME, data: verification.expectedArtworkData) {
+                warnings.append("Artwork MIME type differs after save.")
+            }
             switch verification.artworkExpectation {
             case .skip, .unchanged:
                 break

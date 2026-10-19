@@ -246,9 +246,7 @@ values, artwork as `Data?`, and unknown custom fields as `[String: String]`.
 
 It is a normalized projection, not a lossless document. It can flatten
 multi-value properties and cannot represent every frame, atom, attribute,
-comment, lyric, or artwork record. Display separators are format-dependent:
-`", "` for ID3/MP4 and `"; "` for generic/Xiph paths. Do not split these strings
-to reconstruct arrays; use raw or structured metadata.
+comment, lyric, or artwork record. ID3 generally joins multi-values with `", "`; MP4 artist/genre and generic/Xiph projections use `"; "`, while some MP4 native fields and freeforms use `", "`. Do not split display strings to reconstruct arrays; use raw or structured metadata.
 
 Reads retain the original raw arrays and corresponding normalized scalar
 projections for known multi-value fields such as `ARTIST`, `COMPOSER`,
@@ -741,8 +739,9 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 ```
 
 Top-level structured artwork replacement is supported for ID3v2, MP4, ASF,
-FLAC/Xiph, and APE-family containers (TrueAudio and WavPack are covered by
-fixtures; Musepack uses the same APE path). `StructuredArtwork.container` is
+FLAC/Xiph, and APE-family containers. TrueAudio, WavPack, APE, Musepack,
+DSF, and DSDIFF now have genuine runtime fixtures; DSD structured collection
+reads are tested independently from their more limited write support. `StructuredArtwork.container` is
 informational: the writer selects the destination container from the file
 format, so verification compares payload, MIME type, and applicable picture
 metadata rather than requiring the caller to guess the container name.
@@ -789,11 +788,10 @@ for warning in result.warnings {
 
 The manager writes an empty `TagLibAudioMetadata`, clears the raw property map,
 wipes the native metadata container for supported families, and reads back the
-file to report residual fields.
+file to verify deletion; detected residual fields cause a thrown failure before commit.
 
 The compatibility convenience returns only `Bool` and discards the richer write
-result, so new code that needs residual diagnostics should keep using the
-verified API above:
+result, so new code should use the verified API and handle residuals as thrown verification failures:
 
 ```swift
 try TagLibMetadataManager.eraseAllMetadata(from: url)
@@ -810,7 +808,7 @@ numeric equivalence and the container can represent the requested state. A
 paired first component cannot be removed while retaining its total on ID3/MP4;
 that partial operation is rejected, while removing both components clears the
 pair. The same validation applies to total-only Basic/typed requests on
-MP3/AAC, MP4, and WAV: set a positive number with the total. Raw and native APIs
+MP3/MP2/AAC, MP4, WAV, AIFF, TTA, DSF, DSDIFF, and ASF: set a positive number with the total. Raw and native APIs
 may expose container representations outside this normalized contract. Formats
 with independent total fields, such as FLAC/Ogg, still permit total-only edits.
 
@@ -1241,9 +1239,7 @@ merge of the visible PropertyMap.
 Use structured metadata for frame-level editors. Use basic metadata for normal
 library editing.
 
-When erasing metadata, expect residual warnings on formats that preserve unknown
-or unsupported fields. Show those warnings instead of presenting the operation as
-an unconditional wipe.
+Verified erase throws on any detected residual fields or unverifiable result and leaves the destination unchanged. Successful warnings are non-fatal advisories, not a way to accept partial deletion. Erase is limited to the metadata surfaces exposed by the supported parser; it is not a forensic byte scrub.
 
 When distributing an app, verify that the final product embeds and signs
 `TagLibAudioMetadataTagLib.framework` and that its rpath resolves
@@ -1251,3 +1247,94 @@ When distributing an app, verify that the final product embeds and signs
 resolution links the framework; the final application target remains
 responsible for a valid embedded, signed copy.
 See [INSTALLATION.md](INSTALLATION.md).
+
+## Verification-hardening evidence
+
+See [the verification-hardening report](VERIFICATION_HARDENING_2026-10-18.md)
+for the runtime matrix and its limits. Genuine pinned upstream DSF/DSDIFF, APE,
+and Musepack files are copied before testing. Native ID3, APEv2, bounded ASF
+header inspection, and encoded audio comparisons provide evidence beyond
+same-library readback. A fixture-covered label does not imply universal codec
+or native metadata conformance.
+
+DSF/DSDIFF support native structured ID3 collection **reading**, PropertyMap
+changes, Basic writes on representable projections, and artwork changes.
+Native frame/comment/lyric collection replacement remains unsupported. A Basic
+edit that requires replaying existing DSD comments/lyrics safely rejects rather
+than normalizing that information; use a raw delta for an unrelated field.
+APE-family artwork writes support one front image; existing back artwork is
+read and preserved during unrelated edits, and removeAll clears both roles.
+
+ASF structured attributes preserve name/type/language/stream identity. The
+public `int` type projects WORD and DWORD: an update retains an existing
+unambiguous native width, a new attribute uses DWORD, and a WORD overflow or
+ambiguous same-identity WORD/DWORD update rejects. GUID attributes are
+inspection-only with the pinned encoder: omit them from write payloads to
+preserve them. They are never silently encoded as binary attributes.
+Normalized ASF number writers persist totals inside WM/TrackNumber and
+WM/PartOfSet text pairs; exact raw-map writes retain their distinct contract.
+
+### Reproducing the opt-in checks
+
+```sh
+# The output directory must not already exist. Requires Python 3 and FFmpeg
+# with the listed encoders (including experimental native Vorbis/Opus).
+python3 scripts/make-preservation-corpus.py /tmp/taglib-preservation-corpus
+TAGLIB_PRESERVATION_CORPUS=/tmp/taglib-preservation-corpus \
+  swift test --disable-sandbox --filter ExternalCorpusPreservationTests
+TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
+  --filter SnapshotThroughputBenchmarkTests
+```
+
+The generated corpus has eight valid tone containers with known metadata.
+FFmpeg emits APEv2 on TTA, while the pinned TTA reader projects ID3; the generator
+also independently seeds ID3v2 on that file so the visible-map preservation
+assertion is meaningful. This is a controlled generated corpus, not an
+independently curated application or user-library corpus.
+
+The benchmark keeps fixture setup outside timing and prints warmed snapshot
+throughput, twelve-write batches for raw deltas versus Basic native
+preservation, and dirty-file fsync/fullSync samples. It has no performance
+threshold. Both facilities remain opt-in; ordinary runs intentionally skip them.
+
+### Clean-room ID3 contract corrections (2026-10-19)
+
+Typed comment and lyric patches own the entire scalar field, including qualified descriptions: replacement removes the previous entries and removal clears all represented entries. Raw patches continue to address individual PropertyMap keys. AAC exposes native ID3v2 structured editing and preserves comment/lyric language and description on unrelated Basic edits. All primary ID3 containers (MP3/MP2, AAC, WAV, AIFF, TTA, DSF, DSDIFF) write combined TRCK/TPOS/MVIN pairs through Basic and typed number writers; a total without a first component is rejected for track/disc. Exact ID3 number-text writes retain both components' padding. Numeric pair writes may normalize padding. Existing DSD restrictions on replaying native collections through Basic/structured writes remain; scalar typed comment/lyric patches operate on their complete PropertyMap groups.
+
+### MP4 semantic and custom-field identity (2026-10-19)
+
+Typed freeform fields use the schema's MP4 native keys, replace/remove their entire recognized alias group, and verify native arrays plus the scalar readback. Basic edits preserve unchanged native freeform arrays; they do not replay uppercased PropertyMap descriptions into new atoms. Custom Basic keys have one uppercase display identity while native spelling is retained when editing an existing item. Case-sensitive native editing remains available through structured atoms. Number aliases are canonicalized only when their corresponding pair changes; a track-only low-level write preserves disc aliases.
+
+### MP4 date and raw-key contracts (2026-10-19)
+
+MP4 has one ©day value. In `updateBasicMetadata`, a releaseDate-only edit updates the derived year; a year-only edit replaces the first four characters of the existing release date, retaining its suffix. Clearing either field alone clears the shared date. A full `replaceBasicMetadata` payload must supply consistent year/releaseDate projections (an empty year may be derived); contradictions throw `MetadataValidationError.conflictingMP4Date` before mutation. Typed recording-date patches remain unsupported for MP4; patch releaseDate instead.
+
+Raw PropertyMap keys are prefixless TagLib names, not native MP4 atom identifiers. All raw overloads reject keys beginning `----:`, including with verification disabled; use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys. Existing prefixless custom PropertyMap keys remain writable. This explicit boundary replaces the former verified failure or verification-disabled no-op.
+
+### ASF erasure (2026-10-19)
+
+Verified ASF/WMA erase clears the complete native attribute map, including custom strings, binary/numeric attributes, and pictures, then checks that no native attributes remain. Any residual or unreadable result throws before commit. Audio packets are outside this erase operation.
+
+### Exact Basic artwork verification (2026-10-19)
+
+Basic writes supplying artwork verify its exact bytes and normalized MIME type, in addition to the legacy presence expectation. Low-level facade callers can set `MetadataWriteVerificationContext.expectedArtworkData` and `expectedArtworkMIMEType` independently. The existing `.present` expectation retains its source-compatible presence-only meaning; use exact expectations when supplying known artwork.
+
+Bit-depth reads now project TagLib's available bits-per-sample value for Ogg FLAC, APE, WavPack, and ASF. For compressed ASF this is the container's declared sample width, not evidence that the codec is lossless. Zero continues to mean unavailable.
+
+Raw whole-map replacement owns the preferred visible PropertyMap and can intentionally hide omitted secondary-only values. MPEG raw replacement now saves ID3v2 with StripNone/DoNotDuplicate, retaining existing ID3v1 and APE tag bytes instead of rewriting a lossy secondary projection. Use a delta for preservation-oriented edits; this does not make whole-map replacement a native archive.
+
+### Bounded display, removal, and evidence contracts
+
+`writeTrackNumberText` stores separate TRACKNUMBER/TRACKTOTAL and DISCNUMBER/DISCTOTAL keys on generic/Xiph formats. The first-component padding survives, but Basic numberText displays only that component and total padding is normalized; read the numeric pair or raw values rather than requiring a slash display on those formats. Native ID3 exact-text writes now retain the requested slash text and total padding. Numeric writers may normalize formatting.
+
+Structured ASF attributes are upserts, not replace-all collections, and currently have no individual deletion operation; an empty attributes array omits edits, and an empty string is a stored value. ID3 URL/UFID frames also have no individual structured removal operation. Empty URL/UFID payloads now reject before mutation, including when verification is disabled. These are intentional API limits; use verified full erase only when removing all metadata is intended. A future targeted-removal API should make deletion explicit rather than overload empty payloads.
+
+A successful `MetadataWriteResult.warnings` array contains only non-fatal advisories. A requested value that cannot be verified, residual deletion, or unsupported mutation throws before commit; an empty warnings array describes only the checks requested by that API. Low-level writes without facade expectations do not gain semantic verification from an empty warnings array.
+
+Coverage labels are not a matrix of tested fields or public APIs. AIFF now has a generated repository PCM fixture covering Basic/Patch/native numbering and scalar comments/lyrics. Speex, S3M, IT, Shorten, MOD, uncommon extension aliases, minimum-OS runtime, and device runtime remain unverified here; their existing upstream/experimental/read-only labels must not be presented as runtime proof. See the clean-room remediation report for the actual executed matrix.
+
+Creating the first preferred ID3v2 tag in MPEG or TrueAudio promotes the visible legacy fields first; secondary on-disk tags remain intact. Targeted MP4 PropertyMap replay also removes any newly generated aliases of untouched freeform fields, so an unrelated replay cannot manufacture a second native representation.
+
+Independent corpus checks also exposed two related native alias cases: common ASF fields duplicated as custom attributes are now treated as semantic aliases and cleared only when that common field changes; unrelated attributes such as PUBLISHER remain preserved. Unchanged APE Date/Year items retain their native spelling and full values through number, Basic, and raw delta replay instead of silently migrating Date to Year.
+
+TrueAudio writes support its primary ID3 surface and reject files carrying unmodeled APEv2 fields before commit. The pinned TrueAudio handler cannot reconcile those fields with ID3, and external readers may prefer stale APEv2 values. An encoder-only APEv2 provenance footer cannot shadow editable fields and remains preserved. Rejection applies to Basic, typed/raw patches, raw replacement (also with verification disabled), structured writes, numbering, and erase; original bytes remain intact. Use a separate APE-aware tool to reconcile/remove that secondary tag explicitly before retrying. The generated corpus now removes FFmpeg's APEv2 tag before seeding ID3, and a dedicated mixed-surface rejection test preserves coverage of the formerly misleading case.

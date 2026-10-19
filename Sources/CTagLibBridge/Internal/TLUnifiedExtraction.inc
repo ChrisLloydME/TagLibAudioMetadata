@@ -192,6 +192,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"OGG FLAC";
+            if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (file->tag()) {
                 ExtractXiphCommentMetadata(file->tag(), basic);
                 ExtractArtworkFromComplexProperties(file->tag(), basic);
@@ -216,6 +217,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"APE";
+            if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
             if (wantsStructured) AppendStructuredAPEPictures(file->APETag(), artworkOut);
         }
@@ -224,6 +226,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"WavPack";
+            if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
             if (wantsStructured) AppendStructuredAPEPictures(file->APETag(), artworkOut);
         }
@@ -277,6 +280,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"WMA";
+            if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (file->tag()) {
                 ExtractASFPicture(file->tag(), basic);
                 ExtractASFCustomAttributes(file->tag(), basic);
