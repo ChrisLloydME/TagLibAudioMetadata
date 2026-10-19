@@ -257,6 +257,15 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             (entry[@"children"] && !StructuredValueIsStringArray(entry[@"children"]))) {
             return SetStructuredPayloadValidationError(error, @"ID3v2 frame fields have invalid value types");
         }
+        if ([type isEqualToString:@"url"] &&
+            (![frameID hasPrefix:@"W"] || !TrimmedStringOrNil((NSString *)entry[@"url"]))) {
+            return SetStructuredPayloadValidationError(error, @"URL frames require a W-prefixed frame ID and a non-empty URL; empty payloads are not removal operations");
+        }
+        if ([type isEqualToString:@"ufid"] &&
+            (![frameID isEqualToString:@"UFID"] || !TrimmedStringOrNil((NSString *)entry[@"owner"]) ||
+             DataValueFromObject(entry[@"data"]).length == 0)) {
+            return SetStructuredPayloadValidationError(error, @"UFID requires an owner and non-empty identifier; empty payloads are not removal operations");
+        }
         if (([type isEqualToString:@"chapter"] && ![frameID isEqualToString:@"CHAP"]) ||
             ([type isEqualToString:@"tableOfContents"] && ![frameID isEqualToString:@"CTOC"]) ||
             ([type isEqualToString:@"podcast"] && ![frameID isEqualToString:@"PCST"])) {
@@ -876,7 +885,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    if (format == TLTagFileFormatMPEGID3) {
+    if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:232 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MPEG file for structured metadata editing" }];
@@ -885,7 +894,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (propertyValues) {
             file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag();
+        TagLib::ID3v2::Tag *tag = PrepareMPEGID3v2Tag(file);
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
@@ -911,7 +920,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (propertyValues) {
             file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
-        TagLib::ID3v2::Tag *tag = file.ID3v2Tag(true);
+        TagLib::ID3v2::Tag *tag = NativeID3v2TagForWrite(&file);
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
@@ -1017,29 +1026,6 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Artwork(tag, artwork);
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:237 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured AIFF metadata" }];
-            return NO;
-        }
-        return YES;
-    }
-
-    if (format == TLTagFileFormatMPEGAAC) {
-        if (frames || mp4Atoms || asfAttributes || lyrics || comments) {
-            return SetStructuredPayloadValidationError(
-                error,
-                @"Raw AAC supports structured PropertyMap values and artwork only"
-            );
-        }
-        TagLib::MPEG::File file(filePath);
-        if (!file.isValid()) {
-            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:246 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open AAC file for structured metadata editing" }];
-            return NO;
-        }
-        if (propertyValues) {
-            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
-        }
-        ReplaceID3v2Artwork(file.ID3v2Tag(true), artwork);
-        if (!file.save()) {
-            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:248 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured AAC metadata" }];
             return NO;
         }
         return YES;

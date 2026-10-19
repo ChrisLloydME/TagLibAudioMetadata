@@ -27,7 +27,7 @@ const char *kXMExtensions[] = { "xm", nullptr };
 
 const TLFormatCapabilityDescriptor kDescriptors[] = {
     { TLTagFileFormatMPEGID3, "mpeg-id3", "MPEG Audio / ID3", "MP3/MP2", kMPEGID3Extensions, "container", "container", true, true, true, nullptr, "ID3v2 is the preferred rich metadata container; ID3v1 is treated as a low-fidelity fallback." },
-    { TLTagFileFormatMPEGAAC, "mpeg-aac", "Raw AAC", "AAC", kMPEGAACExtensions, "propertyMap", "propertyMap", true, true, true, nullptr, "Raw AAC uses the generic TagLib PropertyMap path for textual metadata." },
+    { TLTagFileFormatMPEGAAC, "mpeg-aac", "Raw AAC", "AAC", kMPEGAACExtensions, "container", "container", true, true, true, nullptr, "Raw AAC uses MPEG ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas." },
     { TLTagFileFormatMP4, "mp4", "MP4 / MPEG-4 Audio", "AAC/MP4", kMP4Extensions, "container", "container", true, true, true, nullptr, "MP4 atoms and iTunes freeform atoms are exposed for structured editing." },
     { TLTagFileFormatFLAC, "flac", "FLAC", "FLAC", kFLACExtensions, "container", "propertyMap", true, true, true, nullptr, "Structured reads expose FLAC pictures; structured writes support PropertyMap deltas and complex-property artwork." },
     { TLTagFileFormatOggVorbis, "ogg-vorbis", "Ogg Vorbis", "Vorbis", kOggVorbisExtensions, "container", "propertyMap", true, true, true, nullptr, "Xiph comments preserve repeated PropertyMap values." },
