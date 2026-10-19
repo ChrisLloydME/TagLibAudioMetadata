@@ -1,10 +1,8 @@
-# TagLibAudioMetadata Support Guide
+# TagLibAudioMetadata API and usage guide
 
-This guide explains how to use the public API in `TagLibAudioMetadata`.
-It treats the Swift source and bridge header as the source of truth.
+This guide explains how to use the public API in `TagLibAudioMetadata`. It describes the Swift facade and the public Objective-C bridge at the current HEAD; the source code remains the source of truth.
 
-Use this document when you need to decide which API to call, what each model means,
-and how to handle container-specific behavior after writes.
+Use this document to choose an API, understand a model, and handle container-specific behavior after writes. For the underlying preservation and verification contract, see [PRESERVATION](PRESERVATION.md). For format coverage, see [FORMATS](FORMATS.md). For transaction and concurrency behavior, see [TRANSACTIONS](TRANSACTIONS.md).
 
 ## Package Shape
 
@@ -185,38 +183,20 @@ Formats without reliable field-level restrictions continue to rely on their
 schema mappings and TagLib behavior. Raw APIs are not restricted by this
 high-level preflight.
 
-## Format Support
+## Format support
 
 Check support before you show editing controls or attempt a write.
 
 ```swift
 let ext = url.pathExtension
-
-guard TagLibMetadataManager.isReadableExtension(ext) else {
-    throw TagLibManagerError.unsupportedFormat
-}
-
-let canWrite = TagLibMetadataManager.isWritableExtension(ext)
+let isReadable = TagLibMetadataManager.isReadableExtension(ext)
+let isWritable = TagLibMetadataManager.isWritableExtension(ext)
 let capability = TagLibMetadataManager.capability(forExtension: ext)
 ```
 
-These APIs describe a declared extension; they do not open a file. Use
-`probeFile(at:)` for parser validation of a concrete user file. It reads the
-file and throws if the selected parser cannot validate it, then returns the
-corresponding capability. It does not test POSIX write permission, ACLs, disk
-space, or sandbox access; attempt a write or check those separately when an
-editability decision depends on them.
+These APIs describe a declared extension; they do not open a file. Use `probeFile(at:)` for parser validation of a concrete user file. It reads the file and throws if the selected parser cannot validate it, then returns the corresponding declared capability. It does not test POSIX write permission, ACLs, disk space, or sandbox access; attempt a write or check those separately when an editability decision depends on them.
 
-Capability fields answer different questions. `writeSupport(for:)` is the
-field's declared storage mapping, `structuredWriteSupport` describes non-artwork
-structured data, `canWriteArtwork` is separate, and `preservesMultiValueProperties`
-is a family-level property. Do not infer one from another; query the exact API
-path and run a concrete-file probe plus a write when the decision is important. `capability(forExtension:)` reports the format family,
-all extension aliases, metadata containers, artwork support, multi-value support,
-structured support, read-only caveats, and evidence level. `fixtureCovered` is
-backed by a repository fixture and round-trip tests; `experimental` exposes incomplete
-container behavior; `upstreamSupported` is an unverified upstream parser path;
-`readOnly` has no supported save route; and `unsupported` has no package route.
+Capability fields answer different questions. `writeSupport(for:)` combines the family and field mappings, `structuredWriteSupport` describes non-artwork structured data, `canWriteArtwork` is separate, and `preservesMultiValueProperties` is a family-level property. Do not infer one from another. `capability(forExtension:)` reports the format family, aliases, metadata containers, artwork support, multi-value support, structured support, read-only caveats, and evidence level.
 
 ```swift
 if let capability = TagLibMetadataManager.capability(forExtension: "m4a") {
@@ -229,14 +209,9 @@ if let capability = TagLibMetadataManager.capability(forExtension: "m4a") {
 }
 ```
 
-`formatCapabilities` returns every known family:
+`formatCapabilities` returns every known family, and `readableExtensions`/`writableExtensions` are derived extension lists.
 
-```swift
-let writableFamilies = TagLibMetadataManager.formatCapabilities.filter(\.isWritable)
-```
-
-`readableExtensions` and `writableExtensions` are extension lists derived from the
-same capability data.
+`fixtureCovered`, `experimental`, `upstreamSupported`, and `readOnly` are configured evidence labels, not runtime proof. The complete family matrix, per-extension levels, and format-specific limitations are in [FORMATS](FORMATS.md).
 
 ## Basic Metadata
 
@@ -257,7 +232,7 @@ retains qualified people keys such as `PERFORMER:GUITAR`. It never guesses
 cardinality by splitting a display string. The same schema-driven preservation
 retains known fields Basic cannot express (for example `PERFORMER`,
 `INVOLVEDPEOPLE`, and `TRACKERNAME`) and unknown custom fields. On ID3-backed
-MP3, WAV, AIFF, and TTA, unchanged native comment/lyric collections also retain
+MP3, AAC, WAV, AIFF, and TTA, unchanged native comment/lyric collections also retain
 their languages and descriptions; a PropertyMap projection alone cannot carry
 that information. Existing native custom attributes with schema-known names
 may be carried through unchanged, but editing or adding those names through
@@ -797,76 +772,16 @@ result, so new code should use the verified API and handle residuals as thrown v
 try TagLibMetadataManager.eraseAllMetadata(from: url)
 ```
 
-## Verification
+## Verification and transaction outcomes
 
-Write methods that return `MetadataWriteResult` may include non-fatal container
-advisories after a successful verification. A requested value that is missing,
-different, unsupported by the actual write path, or otherwise unconfirmed is a
-verification failure: it throws and the staged file is not committed. Number
-format normalization is accepted only where the verifier establishes semantic
-numeric equivalence and the container can represent the requested state. A
-paired first component cannot be removed while retaining its total on ID3/MP4;
-that partial operation is rejected, while removing both components clears the
-pair. The same validation applies to total-only Basic/typed requests on
-MP3/MP2/AAC, MP4, WAV, AIFF, TTA, DSF, DSDIFF, and ASF: set a positive number with the total. Raw and native APIs
-may expose container representations outside this normalized contract. Formats
-with independent total fields, such as FLAC/Ogg, still permit total-only edits.
-
-Structured readers can report container advisories that do not contradict the
-requested mutation. Those advisories remain visible in
-`MetadataWriteResult.warnings` after a correctly verified write:
+Verified write methods throw `TagLibManagerError.verificationFailed` when a requested value cannot be confirmed. A successful `MetadataWriteResult.warnings` array contains only non-fatal container advisories. The exact comparison scope differs by API; the canonical table is in [PRESERVATION](PRESERVATION.md#verification-model).
 
 ```swift
-let result = try TagLibMetadataManager.replaceBasicMetadata(
-    metadata,
-    to: url
-)
+let result = try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
 showWarnings(result.warnings)
 ```
 
-Read-back verification differences always abort before commit.
-
-Basic verification requests Basic+PropertyMap together and derives both checks
-from one TagLib extraction without enumerating raw ID3 frame summaries. A whole
-Basic transaction may additionally capture native collections, restore raw/native
-preservation data, and verify those restorations; it is not a single-parse or
-single-save operation. Patch
-verification requests the complete projection set because it compares both
-unedited PropertyMap fields and unedited artwork; it does not switch projection
-work on only when artwork changes. Raw inspectors request PropertyMap and
-raw-frame extraction; full snapshots request every projection in one parser
-session.
-
-Structured-only calls return only the structured projection, although the
-current unified Objective-C++ traversal still constructs an internal Basic
-carrier. A complex Patch may also perform separate staged-file open/save cycles
-for number pairs, advisory, PropertyMap values, and artwork. Both are documented
-performance follow-ups rather than semantic limitations.
-
-## Transaction Outcomes
-
-Facade writes validate the original, create one same-directory staging copy,
-mutate and verify that copy, request `F_FULLFSYNC` on the copy (falling back to
-`fsync` where unsupported), recheck destination identity, atomically rename it,
-and sync the parent directory. Staging requests a copy-on-write clone and
-automatically falls back to an ordinary copy when the filesystem does not
-support cloning. Failures before rename leave the original pathname unchanged.
-
-If the final directory `fsync` fails, rename has already committed. High-level
-manager writes return `.durabilityUncertain(detail)` in
-`MetadataWriteResult.commitStatus`; this is a committed result, not a failure to
-blindly retry. The lower-level/internal transaction helper retains
-`TagLibManagerError.committedButDurabilityUncertain(String)` for compatibility.
-The package does not attempt a fake post-rename rollback.
-
-TagLib access and Objective-C projection construction from live native objects
-are serialized by a process-wide recursive mutex. Swift model conversion and
-filesystem copy, flush, and rename operations occur outside that lock. A
-separate process-local directory-entry lock serializes the complete transaction
-for one destination across facade and bridge writes, including after atomic
-inode replacement. Independent destinations may stage and commit concurrently,
-although their TagLib parser intervals still share the global mutex. Neither
-lock excludes writers in another process.
+Writes stage one sibling copy, flush it, recheck identity, rename atomically, and sync the parent directory. If the final directory flush fails after rename, `MetadataWriteResult.commitStatus` is `.durabilityUncertain(detail)`; the new file is already visible, so do not retry as if nothing committed. The full sequence, rejection cases, and process-local concurrency limits are in [TRANSACTIONS](TRANSACTIONS.md).
 
 ## Field Registry
 
@@ -1248,93 +1163,15 @@ resolution links the framework; the final application target remains
 responsible for a valid embedded, signed copy.
 See [INSTALLATION.md](INSTALLATION.md).
 
-## Verification-hardening evidence
+## Current contracts and evidence
 
-See [the verification-hardening report](records/verification/VER-2026-10-18-verification-hardening.md)
-for the runtime matrix and its limits. Genuine pinned upstream DSF/DSDIFF, APE,
-and Musepack files are copied before testing. Native ID3, APEv2, bounded ASF
-header inspection, and encoded audio comparisons provide evidence beyond
-same-library readback. A fixture-covered label does not imply universal codec
-or native metadata conformance.
+The detailed preservation, verification, transaction, and format boundaries are maintained in one place each:
 
-DSF/DSDIFF support native structured ID3 collection **reading**, PropertyMap
-changes, Basic writes on representable projections, and artwork changes.
-Native frame/comment/lyric collection replacement remains unsupported. A Basic
-edit that requires replaying existing DSD comments/lyrics safely rejects rather
-than normalizing that information; use a raw delta for an unrelated field.
-APE-family artwork writes support one front image; existing back artwork is
-read and preserved during unrelated edits, and removeAll clears both roles.
+- [PRESERVATION](PRESERVATION.md) — omission/removal semantics, model fidelity, verification scope, erase, and unsupported behavior.
+- [FORMATS](FORMATS.md) — the 22-family matrix, per-extension evidence levels, and format-specific limitations.
+- [TRANSACTIONS](TRANSACTIONS.md) — atomicity, durability, filesystem checks, thread safety, and concurrency limits.
+- [TESTING](TESTING.md) — test layers, sanitizer and platform commands, opt-in corpus/benchmark checks, and evidence limits.
+- [STATUS](STATUS.md) — the latest known validation state of the current branch.
+- [Engineering records](records/README.md) — historical audits, reviews, remediation, and verification evidence.
 
-ASF structured attributes preserve name/type/language/stream identity. The
-public `int` type projects WORD and DWORD: an update retains an existing
-unambiguous native width, a new attribute uses DWORD, and a WORD overflow or
-ambiguous same-identity WORD/DWORD update rejects. GUID attributes are
-inspection-only with the pinned encoder: omit them from write payloads to
-preserve them. They are never silently encoded as binary attributes.
-Normalized ASF number writers persist totals inside WM/TrackNumber and
-WM/PartOfSet text pairs; exact raw-map writes retain their distinct contract.
-
-### Reproducing the opt-in checks
-
-```sh
-# The output directory must not already exist. Requires Python 3 and FFmpeg
-# with the listed encoders (including experimental native Vorbis/Opus).
-python3 scripts/make-preservation-corpus.py /tmp/taglib-preservation-corpus
-TAGLIB_PRESERVATION_CORPUS=/tmp/taglib-preservation-corpus \
-  swift test --disable-sandbox --filter ExternalCorpusPreservationTests
-TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
-  --filter SnapshotThroughputBenchmarkTests
-```
-
-The generated corpus has eight valid tone containers with known metadata.
-FFmpeg emits APEv2 on TTA, while the pinned TTA reader projects ID3; the generator
-also independently seeds ID3v2 on that file so the visible-map preservation
-assertion is meaningful. This is a controlled generated corpus, not an
-independently curated application or user-library corpus.
-
-The benchmark keeps fixture setup outside timing and prints warmed snapshot
-throughput, twelve-write batches for raw deltas versus Basic native
-preservation, and dirty-file fsync/fullSync samples. It has no performance
-threshold. Both facilities remain opt-in; ordinary runs intentionally skip them.
-
-### Clean-room ID3 contract corrections (2026-10-19)
-
-Typed comment and lyric patches own the entire scalar field, including qualified descriptions: replacement removes the previous entries and removal clears all represented entries. Raw patches continue to address individual PropertyMap keys. AAC exposes native ID3v2 structured editing and preserves comment/lyric language and description on unrelated Basic edits. All primary ID3 containers (MP3/MP2, AAC, WAV, AIFF, TTA, DSF, DSDIFF) write combined TRCK/TPOS/MVIN pairs through Basic and typed number writers; a total without a first component is rejected for track/disc. Exact ID3 number-text writes retain both components' padding. Numeric pair writes may normalize padding. Existing DSD restrictions on replaying native collections through Basic/structured writes remain; scalar typed comment/lyric patches operate on their complete PropertyMap groups.
-
-### MP4 semantic and custom-field identity (2026-10-19)
-
-Typed freeform fields use the schema's MP4 native keys, replace/remove their entire recognized alias group, and verify native arrays plus the scalar readback. Basic edits preserve unchanged native freeform arrays; they do not replay uppercased PropertyMap descriptions into new atoms. Custom Basic keys have one uppercase display identity while native spelling is retained when editing an existing item. Case-sensitive native editing remains available through structured atoms. Number aliases are canonicalized only when their corresponding pair changes; a track-only low-level write preserves disc aliases.
-
-### MP4 date and raw-key contracts (2026-10-19)
-
-MP4 has one ©day value. In `updateBasicMetadata`, a releaseDate-only edit updates the derived year; a year-only edit replaces the first four characters of the existing release date, retaining its suffix. Clearing either field alone clears the shared date. A full `replaceBasicMetadata` payload must supply consistent year/releaseDate projections (an empty year may be derived); contradictions throw `MetadataValidationError.conflictingMP4Date` before mutation. Typed recording-date patches remain unsupported for MP4; patch releaseDate instead.
-
-Raw PropertyMap keys are prefixless TagLib names, not native MP4 atom identifiers. All raw overloads reject keys beginning `----:`, including with verification disabled; use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys. Existing prefixless custom PropertyMap keys remain writable. This explicit boundary replaces the former verified failure or verification-disabled no-op.
-
-### ASF erasure (2026-10-19)
-
-Verified ASF/WMA erase clears the complete native attribute map, including custom strings, binary/numeric attributes, and pictures, then checks that no native attributes remain. Any residual or unreadable result throws before commit. Audio packets are outside this erase operation.
-
-### Exact Basic artwork verification (2026-10-19)
-
-Basic writes supplying artwork verify its exact bytes and normalized MIME type, in addition to the legacy presence expectation. Low-level facade callers can set `MetadataWriteVerificationContext.expectedArtworkData` and `expectedArtworkMIMEType` independently. The existing `.present` expectation retains its source-compatible presence-only meaning; use exact expectations when supplying known artwork.
-
-Bit-depth reads now project TagLib's available bits-per-sample value for Ogg FLAC, APE, WavPack, and ASF. For compressed ASF this is the container's declared sample width, not evidence that the codec is lossless. Zero continues to mean unavailable.
-
-Raw whole-map replacement owns the preferred visible PropertyMap and can intentionally hide omitted secondary-only values. MPEG raw replacement now saves ID3v2 with StripNone/DoNotDuplicate, retaining existing ID3v1 and APE tag bytes instead of rewriting a lossy secondary projection. Use a delta for preservation-oriented edits; this does not make whole-map replacement a native archive.
-
-### Bounded display, removal, and evidence contracts
-
-`writeTrackNumberText` stores separate TRACKNUMBER/TRACKTOTAL and DISCNUMBER/DISCTOTAL keys on generic/Xiph formats. The first-component padding survives, but Basic numberText displays only that component and total padding is normalized; read the numeric pair or raw values rather than requiring a slash display on those formats. Native ID3 exact-text writes now retain the requested slash text and total padding. Numeric writers may normalize formatting.
-
-Structured ASF attributes are upserts, not replace-all collections, and currently have no individual deletion operation; an empty attributes array omits edits, and an empty string is a stored value. ID3 URL/UFID frames also have no individual structured removal operation. Empty URL/UFID payloads now reject before mutation, including when verification is disabled. These are intentional API limits; use verified full erase only when removing all metadata is intended. A future targeted-removal API should make deletion explicit rather than overload empty payloads.
-
-A successful `MetadataWriteResult.warnings` array contains only non-fatal advisories. A requested value that cannot be verified, residual deletion, or unsupported mutation throws before commit; an empty warnings array describes only the checks requested by that API. Low-level writes without facade expectations do not gain semantic verification from an empty warnings array.
-
-Coverage labels are not a matrix of tested fields or public APIs. AIFF now has a generated repository PCM fixture covering Basic/Patch/native numbering and scalar comments/lyrics. Speex, S3M, IT, Shorten, MOD, uncommon extension aliases, minimum-OS runtime, and device runtime remain unverified here; their existing upstream/experimental/read-only labels must not be presented as runtime proof. See the clean-room remediation report for the actual executed matrix.
-
-Creating the first preferred ID3v2 tag in MPEG or TrueAudio promotes the visible legacy fields first; secondary on-disk tags remain intact. Targeted MP4 PropertyMap replay also removes any newly generated aliases of untouched freeform fields, so an unrelated replay cannot manufacture a second native representation.
-
-Independent corpus checks also exposed two related native alias cases: common ASF fields duplicated as custom attributes are now treated as semantic aliases and cleared only when that common field changes; unrelated attributes such as PUBLISHER remain preserved. Unchanged APE Date/Year items retain their native spelling and full values through number, Basic, and raw delta replay instead of silently migrating Date to Year.
-
-TrueAudio writes support its primary ID3 surface and reject files carrying unmodeled APEv2 fields before commit. The pinned TrueAudio handler cannot reconcile those fields with ID3, and external readers may prefer stale APEv2 values. An encoder-only APEv2 provenance footer cannot shadow editable fields and remains preserved. Rejection applies to Basic, typed/raw patches, raw replacement (also with verification disabled), structured writes, numbering, and erase; original bytes remain intact. Use a separate APE-aware tool to reconcile/remove that secondary tag explicitly before retrying. The generated corpus now removes FFmpeg's APEv2 tag before seeding ID3, and a dedicated mixed-surface rejection test preserves coverage of the formerly misleading case.
+A successful write with warnings is a verified commit with non-fatal container advisories, not a silent failure. A mismatch in requested metadata throws before commit. Handle `commitStatus == .durabilityUncertain` separately because the rename already committed. `.durable` means the requested OS-level flush completed; it is not a hardware or power-loss guarantee.

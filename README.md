@@ -1,20 +1,18 @@
 # TagLibAudioMetadata
 
-`TagLibAudioMetadata` is a Swift package for reading, editing, verifying, and
-erasing audio metadata on macOS and iOS. Applications use a Swift facade; an
-Objective-C++ bridge dynamically links a checksum-pinned TagLib 2.3.1
-XCFramework.
+`TagLibAudioMetadata` is a Swift package for reading, editing, verifying, and erasing audio metadata on macOS and iOS. Applications use a Swift facade; an Objective-C++ bridge links a checksum-pinned, namespaced TagLib 2.3.1 XCFramework.
 
-It supports common tags, artwork, MusicBrainz and AcoustID identifiers,
-ReplayGain, raw multi-value property maps, and container-aware ID3v2, MP4, ASF,
-Xiph, APE, FLAC, and RIFF metadata.
+The package supports common tags, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, raw multi-value PropertyMap data, and container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata. It is a semantic metadata editor, not a lossless native-tag archive.
 
-## Requirements and installation
+## Requirements
 
 - Swift tools 6.0
 - macOS 13+
 - iOS 16+
-- Xcode toolchains capable of GNU C++20
+- Xcode toolchain with GNU C++20 support
+- Network access on first resolution to fetch the pinned binary release
+
+## Installation
 
 ```swift
 dependencies: [
@@ -25,14 +23,9 @@ dependencies: [
 ]
 ```
 
-That range selects the newest compatible tagged release. The API additions in
-the `[Unreleased]` changelog section describe current `main` and will become
-available in the next release after the maintainer creates its tag. Consumers
-evaluating those additions before then must deliberately select the `main`
-branch or an exact revision; production dependencies should prefer a release
-tag. No untagged version number is implied by this documentation.
+The range selects the newest compatible tagged release. The latest tag at the time of writing is `0.5.3`; see the [changelog](CHANGELOG.md) for release history. APIs described under `[Unreleased]` are on `main` and are not part of a tag yet; select `main` or an exact revision deliberately when evaluating them. Production dependencies should use a tag.
 
-Most targets need only the facade product:
+Most targets need only the facade:
 
 ```swift
 .target(
@@ -43,21 +36,19 @@ Most targets need only the facade product:
 )
 ```
 
-Advanced clients that intentionally use the Objective-C bridge should depend
-on `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`. Starting in 0.5,
-the facade no longer re-exports the bridge; add the low-level product explicitly
-when migrating code that directly names bridge types. The product exposes only
-transactional mutators; package-only in-place primitives live in a separate
-non-product module.
+Advanced clients that directly use the bridge must also declare the low-level product and import `CTagLibBridge`:
 
-The binary is fetched from the public
-[`taglib-binary-2.3.1-r2`](https://github.com/ChrisLloydME/TagLibAudioMetadata/releases/tag/taglib-binary-2.3.1-r2)
-release. No Homebrew, CMake, system TagLib, or vendored source fallback is used.
-See [Installation](docs/INSTALLATION.md) for embedding and diagnostics.
+```swift
+.product(name: "TagLibAudioMetadataLowLevel", package: "TagLibAudioMetadata")
+```
 
-## Recommended API
+Starting in 0.5, the facade does not re-export bridge declarations. The public bridge exposes transactional mutators; package-internal in-place primitives are not a supported product.
 
-Read a complete editing snapshot in one bridge session:
+The binary is a dynamic framework. The final app or archive must embed and sign `TagLibAudioMetadataTagLib.framework` and resolve `@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib`. SwiftPM links it; your app target owns embedding and signing. See [Installation](docs/INSTALLATION.md) for slices, binary identity, offline builds, and diagnostics.
+
+## Quick start
+
+Read a coherent snapshot:
 
 ```swift
 import TagLibAudioMetadata
@@ -70,11 +61,9 @@ print(snapshot.raw.properties)
 print(snapshot.structured.artwork)
 ```
 
-`MetadataSnapshot` is a comprehensive semantic snapshot, not a lossless native
-serialization. Unsupported/opaque frames or atoms may be summarized rather than
-retained as reconstructable payload bytes.
+`MetadataSnapshot` is a comprehensive semantic snapshot, not a lossless native serialization. Supported multi-value and container-specific data are retained; unknown or opaque native frames/atoms may be summarized rather than exposed as reconstructable payloads.
 
-Apply only the requested changes while preserving everything else:
+Apply only the requested changes:
 
 ```swift
 let patch = MetadataPatch(
@@ -85,8 +74,7 @@ let patch = MetadataPatch(
     ],
     customFields: ["APP_WORKFLOW": .values(["Focused", "Calm"])],
     explicitAdvisory: .clean,
-    artwork: .unchanged,
-    numberText: .init(trackNumberText: "01/12", discNumberText: "01/02")
+    artwork: .unchanged
 )
 
 let result = try TagLibMetadataManager.applyMetadataPatch(
@@ -94,109 +82,16 @@ let result = try TagLibMetadataManager.applyMetadataPatch(
     to: url,
     expectedVersion: snapshot.fileVersion
 )
+
+print(result.commitStatus)
+for warning in result.warnings {
+    print(warning)
+}
 ```
 
-For a Basic read/modify/write workflow, use
-`updateBasicMetadata(at:_:)`; it captures a file version and rejects a stale
-replacement. `replaceBasicMetadata` intentionally replaces the complete modeled
-Basic projection, so empty/default fields clear existing values. The older
-`writeMetadata` and `writeMetadataWithVerification` names are deprecated because
-their replacement semantics were easy to mistake for a partial update.
-Verification mismatches always abort a transaction; the former one-case
-`VerificationFailurePolicy` and `failurePolicy` overloads are deprecated.
+Omitted fields are unchanged. `.remove` is the explicit deletion request. Verification mismatches throw before commit; warnings are non-fatal container advisories. Use either typed track/disc fields or `numberText` in one patch, not both.
 
-Loaders that need normalized Basic metadata plus an optimistic-concurrency token,
-but not raw/structured inspector models, can use `readBasicSnapshot(from:)`.
-Use the comprehensive `readSnapshot(from:)` only when those additional
-representations are actually needed.
-
-Automatic conflict rebasing also needs audio-content continuity. Opt in with
-`includingAudioContent: true` at the baseline and current read, compare non-nil
-`audioContentIdentity` values, and use the typed/raw patch overload requiring
-both `expectedVersion` and `expectedAudioContent`. WAV, AIFF/AIFF-C and native
-FLAC currently support this token; other formats require explicit reload.
-See [audio-content continuity](docs/AUDIO_CONTENT_CONTINUITY.md) for adoption,
-normalization, cost and concurrency limits. A dependency update alone does not
-change an application's conflict policy.
-
-Typed patch values are checked against `MetadataFieldRegistry` before staging.
-Known keys and aliases are rejected in `customFields`; use `fields` (or a
-dedicated patch property) for schema-known metadata. Unknown custom keys remain
-available and are normalized before mutation. Use either typed track/disc fields
-or `numberText` in one patch; the formatted form makes exact text authoritative
-and commits it in the same transaction as the other semantic changes. Within
-`MetadataNumberTextPatch`, `nil` leaves that pair unchanged, a nonempty string
-sets it, and an empty string removes it, so track-only and disc-only edits do not
-rewrite the other representation. Track/disc numbers and totals
-accept `1...INT_MAX`; use `.remove` to unset those components. Numeric fields
-whose schema permits zero, such as BPM and movement numbering, accept
-`0...INT_MAX`. Invalid values fail before a staging copy is made. Formats with
-explicit field allowlists reject unsupported typed fields before mutation; Raw
-APIs use prefixless PropertyMap keys; native MP4 atom identifiers require Structured metadata.
-
-Patch text and array elements are trimmed once before mutation, and verification
-uses those same normalized values. Empty text, empty arrays, and arrays containing
-empty elements are rejected; `.remove` is the only high-level deletion request.
-
-The bridge applies requested PropertyMap changes to the current map in one
-session; omitted keys are not rebuilt in Swift. For text-backed booleans,
-`.boolean(false)` writes `"0"`, while `.remove` removes the key.
-
-Track and disc numbers are container-aware. MP4/M4A patches update native
-`trkn`/`disk` pairs and preserve an omitted number or total. Advisory patches
-likewise update native MP4 `rtng` or the supported ID3 representation; they do
-not create a contradictory freeform advisory. MP4 cleanup is limited to the
-recognized aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and
-`EXPLICIT`.
-
-Advisory metadata has four semantic states: `.unspecified` means the field is
-absent, while `.notExplicit`, `.explicit`, and `.clean` mean a field is present.
-Canonical MP4/M4A storage is respectively absent, `rtng = 0`, `rtng = 1`, and
-`rtng = 2`, matching Apple/iTunes metadata. ID3 and generic PropertyMap formats
-retain their established container-specific `ITUNESADVISORY` representation
-using values `0`, `1`, and `2`. Legacy `4`, text `TRUE`/`YES`/`EXPLICIT`, and
-`FALSE`/`NO`/`NONE`/`-1` remain readable; a high-level rewrite emits canonical
-values. The compatibility Boolean `isExplicit` is intentionally a lossy read
-projection. Its setter is deprecated; assign `explicitAdvisory` whenever
-absence, not-explicit, and clean must remain distinct.
-
-Basic MP4 advisory writes use the same canonical `rtng` helper and alias cleanup
-as Patch writes, so switching between the two high-level APIs cannot leave a
-contradictory recognized freeform advisory. ID3 movement number/count patches
-likewise preserve the omitted component of native `MVIN`.
-
-Date fields have distinct semantics. `.date` is the recording date/year and
-owns ID3 `TDRC` (with legacy `TYER` read compatibility) plus PropertyMap
-`DATE`/`YEAR`. `.releaseDate` owns ID3 `TDRL` and PropertyMap `RELEASEDATE`.
-MP4 has one interoperable date atom, `©day`; `.releaseDate` owns it and `.date`
-is reported unsupported for MP4 rather than silently sharing the slot.
-`BasicMetadata.year` remains a compatibility projection and is derived from
-`©day` on MP4 reads; use `MetadataPatch` for explicit date semantics.
-
-Generic PropertyMap formats store number and total separately as
-`TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`; ID3 retains combined
-`TRCK`/`TPOS` text. Ordinary MP4 Patch or Basic writes do not create private
-formatting atoms. Legacy `AUDIOMATOR_*_TEXT` atoms remain readable. When the
-corresponding number pair is edited, the package lazily migrates that formatting
-provenance to a package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` atom while retaining
-its number padding. An unrelated edit preserves legacy provenance unchanged.
-Use `writeTrackNumberText` when formatted number text itself is the intentional
-input; new exact-text writes use the package-neutral namespace.
-
-`BasicMetadata` remains a convenient normalized projection, but it is not a
-lossless editing document. Multi-value scalar fields such as `artist` and
-`genre` are display strings. ID3 generally joins values with `", "`; MP4 artist/genre and generic/Xiph projections use `"; "`, while some MP4 native fields/freeforms use `", "`. Use raw or structured metadata when arrays are authoritative. Values read from a file retain a separate raw
-cardinality/provenance baseline, so unrelated Basic edits preserve untouched
-standard multi-values, full recording dates, documented aliases, qualified
-people fields, and custom fields without splitting display strings. Removing a
-key from `BasicMetadata.customFields` is not a deletion tombstone; use
-`MetadataPatchValue.remove` for explicit deletion.
-
-For professional editors, read `MetadataSnapshot` and write
-`MetadataPatch`, raw multi-value maps, or structured metadata. A basic
-write has replacement semantics for fields Basic explicitly models: empty
-strings and zero numeric values clear those fields where the container allows
-it. Internal preservation provenance is readable but not caller-mutable.
+For a Basic read/modify/write workflow, use `updateBasicMetadata(at:_:)`; it captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The older `writeMetadata` and `writeMetadataWithVerification` names are deprecated because replacement semantics were easy to mistake for a partial update.
 
 Check capability evidence before enabling controls:
 
@@ -206,139 +101,76 @@ print(capability.supportLevel)
 print(capability.writeSupport(for: .artwork))
 ```
 
-`probeFile` validates readability with the selected parser; it does not test
-POSIX write permission, ACLs, disk space, or sandbox access. Use
-`capability(forExtension:)` only for declared-format discovery where no concrete
-file exists yet. It does not open or validate audio content.
-
-Support levels are `fixtureCovered`, `experimental`, `upstreamSupported`,
-`readOnly`, and `unsupported`. These are configured coverage/implementation
-labels, not generated release evidence or a guarantee that arbitrary files and
-metadata are preserved. The old `verified` case is deprecated and no longer
-returned by capability lookup.
+`probeFile` validates readability with the selected parser; it does not test POSIX write permission, ACLs, disk space, or sandbox access. Use `capability(forExtension:)` only for declared-format discovery where no file exists yet.
 
 ## Reliability contract
 
-Reads reject files the selected TagLib parser cannot read. This is not a promise
-to detect every malformed file. Snapshot reads require a regular file (not a final
-symlink), bracket extraction with file-version checks, and return `fileVersion`.
-Pass that token as `expectedVersion` to typed/raw patches, raw whole-map writes,
-structured writes, or `writeTagMetadata` to reject stale edits after acquiring
-the transaction lock and before creating the temporary copy. Versionless calls
-target the current state.
+Transactional facade and public bridge writes:
 
-Transactional facade and public low-level bridge writes:
+1. reject final symlinks, hard-linked files, setuid/setgid files, and non-regular paths;
+2. create one sibling, same-volume copy-on-write clone when supported, with an ordinary-copy fallback;
+3. mutate the copy; verified facade APIs compare requested metadata, while direct bridge mutators check only that the staged file remains readable;
+4. request `F_FULLFSYNC` on the copy (falling back to `fsync` where the filesystem rejects it), recheck destination identity, atomically rename, and sync the parent directory.
 
-1. reject final symlinks and hard-linked files, and require an existing regular file;
-2. make one sibling, same-volume copy-on-write clone when supported, with an
-   automatic ordinary-copy fallback;
-3. mutate the copy; verified facade APIs compare requested metadata, while
-   direct bridge APIs check only that the staged file remains readable;
-4. requests `F_FULLFSYNC` on the copy (falling back to `fsync` where the
-   filesystem rejects it), rechecks destination identity, atomically renames it,
-   and syncs the parent directory.
+A failure before rename leaves the original pathname and bytes unchanged and removes the temporary copy. If the final directory flush fails, the rename has already committed; high-level writes return `MetadataWriteResult.commitStatus == .durabilityUncertain(...)`. `.durable` means the requested OS-level flush completed, not a hardware or power-loss guarantee.
 
-A failure before rename leaves the original pathname and bytes unchanged and
-cleans up the temporary copy. Hard links are rejected because replacement would
-split their identity. If the final directory flush fails, the rename has
-already committed. High-level manager writes return
-`MetadataWriteResult.commitStatus == .durabilityUncertain(...)` so callers can
-report committed state without inviting a blind retry. `.durable` means the
-requested OS-level flush completed; it is not a hardware or power-loss
-guarantee. The lower-level/internal
-transaction helper retains `TagLibManagerError.committedButDurabilityUncertain`
-for compatibility.
-Sibling-copy creation also requires write access to the parent directory.
-Security-scoped URLs must already be accessed by the caller; App Sandbox and
-code-signing behavior are integration responsibilities.
+Reads capture a `MetadataFileVersion`; pass it as `expectedVersion` to reject a stale edit. TagLib parser and mutation work is serialized by a process-wide recursive mutex, and same-entry transactions are serialized by a directory-identity/name lock shared by the facade and bridge. This is **process-local coordination, not cross-process exclusion**. An external writer can still race the final identity check and rename. See [Transactions and concurrency](docs/TRANSACTIONS.md).
 
-TagLib parser and mutation work is protected by a process-wide recursive mutex.
-Objective-C projection objects copied directly from live TagLib values are also
-built under that lock; Swift model conversion, copying, flushing, and renaming
-occur outside it. Calls on independent
-files retain this conservative serialization. Entire same-entry transactions are
-also serialized through a directory-identity/name lock shared by the facade and
-bridge. It survives destination inode replacement and parent-directory symlink
-aliases. Acquisition order is not a user-visible ordering guarantee.
-This is process-local coordination, **not cross-process exclusion**: an external
-writer can still race the final identity check and rename. Parent-directory
-replacement/rename by an external process is likewise not protected.
-
-Use `MetadataPatch` for semantic edits or `RawMetadataPatch` for exact PropertyMap
-arrays. Omitted keys are unchanged; deletion is explicit. Raw deltas compare all
-visible PropertyMap values before commit; typed patches compare unedited visible
-properties and artwork as well as requested changes. Neither comparison is a
-lossless oracle for opaque native metadata that TagLib does not expose. Empty
-FLAC comment values that TagLib drops are rejected by exact-value verification.
-Verification mismatches always throw before commit. `VerificationFailurePolicy.warn`
-is deprecated and has no bypass effect; it remains compilable for source
-compatibility.
-Basic and typed number checks accept numeric-equivalent formatting. Exact raw
-map verification compares strings and can reject normalized padding. A paired first
-component cannot be removed while retaining its total on ID3/MP4 because zero is
-not a missing component; remove both components to clear the pair. Legacy
-whole-object and whole-PropertyMap replacement APIs are not edit-session models;
-avoid them for changes intended to touch only selected fields.
+`MetadataPatch` and `RawMetadataPatch` are omission-safe deltas. Raw APIs use prefixless TagLib PropertyMap keys; native MP4 `----:` atom identifiers must go through `StructuredMetadata.mp4Atoms`. Neither delta comparison is a lossless oracle for opaque native metadata that TagLib does not expose.
 
 ## Format evidence
 
-The registry contains 22 families and 37 extensions.
+The capability registry contains 22 families and 37 extensions. A `fixtureCovered` label means the repository has a fixture and regression coverage for that extension, not that every field, alias, codec variant, or platform works.
 
-| Level | Families/extensions |
+| Evidence level | Families / extensions |
 | --- | --- |
 | Fixture-covered | MP3, M4A (AAC and ALAC fixtures), FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC, FastTracker XM, TrueAudio, WavPack, ASF/WMA, APE, Musepack, DSF, DSDIFF, Opus |
 | Experimental | S3M, Impulse Tracker |
-| Read-only | MOD family and Shorten |
-| Upstream-supported | Untested aliases and remaining TagLib families, including Speex; AIFF retains this configured label with selected generated-fixture tests |
+| Read-only | MOD (`.mod`, `.module`, `.nst`, `.wow`) and Shorten |
+| Upstream-supported (unverified here) | Remaining aliases and families, including AIFF/AIFF-C, Speex, and less-common MP4 extensions |
 
-Fixture-covered means the repository has a licensed fixture and relevant read/write
-round-trip regression coverage. It does not imply that every alias or every
-container-specific field has been tested. Query `FormatCapability` for the
-extension and field in question rather than hard-coding this summary.
+AIFF/AIFF-C has a generated PCM fixture and focused tests, but its configured family label remains upstream-supported. Query `FormatCapability` for the extension and field in question rather than hard-coding this table. Fixture provenance and hashes are in [Tests/TagLibAudioMetadataTests/Audio/README.md](Tests/TagLibAudioMetadataTests/Audio/README.md).
 
-Fixture origins and hashes are recorded in
-[Tests/TagLibAudioMetadataTests/Audio/README.md](Tests/TagLibAudioMetadataTests/Audio/README.md).
+## Audio-content continuity
 
-## Architecture and verification
+Opt-in audio identities help a consumer distinguish a metadata-only conflict from replaced audio:
 
-The package deliberately exposes two products:
+```swift
+let baseline = try TagLibMetadataManager.readSnapshot(
+    from: url, includingAudioContent: true
+)
 
-| Product | Module | Purpose |
-| --- | --- | --- |
-| `TagLibAudioMetadata` | `TagLibAudioMetadata` | Stable Swift facade and application models |
-| `TagLibAudioMetadataLowLevel` | `CTagLibBridge` | Advanced transactional Objective-C bridge access |
+// Later, compare non-nil baseline.audioContentIdentity with a fresh snapshot,
+// then commit with both guards:
+try TagLibMetadataManager.applyMetadataPatch(
+    patch, to: url,
+    expectedVersion: currentVersion,
+    expectedAudioContent: originalAudio
+)
+```
 
-`CTagLibBridgeInternalAPI` contains the in-place mutation declarations required
-by the Swift facade's pre-commit verification pipeline. It is intentionally not
-a library product and is not supported for package consumers.
+Availability is limited to WAV, AIFF/AIFF-C, and native FLAC. WAVE `bext` and `iXML` are excluded because TagLib may relocate them during a metadata save; other ancillary edits can change the token. Two missing identities never establish continuity. Other formats require explicit reload. See [Audio-content continuity](docs/AUDIO_CONTENT_CONTINUITY.md).
 
-The binary framework is named `TagLibAudioMetadataTagLib`, with install name
-`@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib`, to avoid
-colliding with a generic `TagLib.framework`. Public headers expose no C++ types.
-The dynamic framework still exports TagLib C++ symbols, so loading another
-incompatible TagLib C++ implementation into the same process remains an ABI
-risk.
+## Documentation
 
-The CI configuration covers facade and low-level consumers, strict
-warnings-as-errors, sanitizer runs, concurrency stress, transaction failures,
-minimum deployment targets, release builds, and format-specific round trips.
-Those configured jobs are not evidence that an unrun commit passed. The latest
-completed validation for current `main` is recorded in
-[`MAINT-2026-10-19-progress-log.md`](docs/records/maintenance/MAINT-2026-10-19-progress-log.md); the older migration report
-is explicitly historical evidence.
+| Topic | Document |
+| --- | --- |
+| Documentation hub and navigation | [docs/README.md](docs/README.md) |
+| Installation, binary identity, signing | [docs/INSTALLATION.md](docs/INSTALLATION.md) |
+| Public API guide and recipes | [docs/USAGE.md](docs/USAGE.md) |
+| Symbol-level API index | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
+| Format capability and limitations | [docs/FORMATS.md](docs/FORMATS.md) |
+| Preservation and write semantics | [docs/PRESERVATION.md](docs/PRESERVATION.md) |
+| Transactions, filesystem, thread safety | [docs/TRANSACTIONS.md](docs/TRANSACTIONS.md) |
+| Architecture and source layout | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Testing and verification guidance | [docs/TESTING.md](docs/TESTING.md) |
+| Current validation status | [docs/STATUS.md](docs/STATUS.md) |
+| Compatibility and migration | [docs/MIGRATION.md](docs/MIGRATION.md) |
+| Development and maintenance | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
+| Historical audits, reviews, remediation | [docs/records/README.md](docs/records/README.md) |
 
-See [Architecture](docs/ARCHITECTURE.md), [Support](docs/SUPPORT.md),
-[Thread safety](docs/THREAD_SAFETY.md), and the
-[migration record](docs/records/migrations/MIG-2026-09-01-taglib-2.3.1.md) for detailed contracts and
-remaining risks.
+The CI configuration covers strict warnings-as-errors, tests, release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the current environment-dependent privilege-bit test, is in [Status](docs/STATUS.md). Historical assessments are preserved as records and are not current merge decisions.
 
 ## License
 
-The Swift facade and Objective-C++ bridge are MIT licensed. The distributed
-TagLib library is available under LGPL-2.1 or MPL-1.1, and utf8cpp under the
-Boost Software License 1.0. Exact license texts and source revisions are in
-[Third-party notices](docs/THIRD_PARTY_NOTICES.md).
-
-## Clean-room remediation status (2026-10-19)
-
-The independent clean-room findings are resolved or explicitly bounded in [REM-2026-10-19-clean-room.md](docs/records/remediation/REM-2026-10-19-clean-room.md), which records the complete finding matrix, commits, verification evidence, and merge assessment. AIFF now has a generated PCM regression fixture; source-only families and uncommon aliases still lack runtime proof. Basic MP4 updates reconcile single-field year/releaseDate edits; full replacements must provide consistent projections. Native MP4 freeform keys require structured atoms. Mixed TrueAudio APEv2 metadata and setuid/setgid files reject safely before commit. Generic/Xiph number text normalizes display, and individual structured ASF/URL/UFID removal remains unsupported.
+The Swift facade and Objective-C++ bridge are MIT licensed. The distributed TagLib library is available under LGPL-2.1 or MPL-1.1, and utf8cpp under the Boost Software License 1.0. Exact texts and source revisions are in [Third-party notices](docs/THIRD_PARTY_NOTICES.md).
