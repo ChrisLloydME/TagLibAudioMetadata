@@ -1323,3 +1323,5 @@ Verified ASF/WMA erase clears the complete native attribute map, including custo
 ### Exact Basic artwork verification (2026-10-19)
 
 Basic writes supplying artwork verify its exact bytes and normalized MIME type, in addition to the legacy presence expectation. Low-level facade callers can set `MetadataWriteVerificationContext.expectedArtworkData` and `expectedArtworkMIMEType` independently. The existing `.present` expectation retains its source-compatible presence-only meaning; use exact expectations when supplying known artwork.
+
+Bit-depth reads now project TagLib's available bits-per-sample value for Ogg FLAC, APE, WavPack, and ASF. For compressed ASF this is the container's declared sample width, not evidence that the codec is lossless. Zero continues to mean unavailable.
