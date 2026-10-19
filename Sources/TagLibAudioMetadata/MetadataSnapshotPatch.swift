@@ -38,12 +38,15 @@ public struct MetadataSnapshot: Sendable {
     public var raw: RawMetadataDump
     public var structured: StructuredMetadata
     public let fileVersion: MetadataFileVersion?
+    /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
+    public let audioContentIdentity: MetadataAudioContentIdentity?
 
-    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil) {
+    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil, audioContentIdentity: MetadataAudioContentIdentity? = nil) {
         self.basic = basic
         self.raw = raw
         self.structured = structured
         self.fileVersion = fileVersion
+        self.audioContentIdentity = audioContentIdentity
     }
 }
 
@@ -52,10 +55,13 @@ public struct MetadataSnapshot: Sendable {
 public struct BasicMetadataSnapshot: Sendable {
     public var metadata: BasicMetadata
     public let fileVersion: MetadataFileVersion
+    /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
+    public let audioContentIdentity: MetadataAudioContentIdentity?
 
-    public init(metadata: BasicMetadata, fileVersion: MetadataFileVersion) {
+    public init(metadata: BasicMetadata, fileVersion: MetadataFileVersion, audioContentIdentity: MetadataAudioContentIdentity? = nil) {
         self.metadata = metadata
         self.fileVersion = fileVersion
+        self.audioContentIdentity = audioContentIdentity
     }
 }
 
@@ -376,13 +382,22 @@ extension TagLibMetadataManager {
         try readSnapshot(from: url, afterExtraction: {})
     }
 
+    /// Streams the encoded audio when requested. Unsupported layouts return a nil
+    /// identity; callers must require explicit reload instead of automatic rebase.
+    public nonisolated static func readSnapshot(
+        from url: URL, includingAudioContent: Bool
+    ) throws -> MetadataSnapshot {
+        try readSnapshot(from: url, includingAudioContent: includingAudioContent, afterExtraction: {})
+    }
+
     // Internal, per-call seam for deterministic external-change tests. No global
     // hook or public synchronization policy is added to the read API.
     nonisolated static func readSnapshot(
-        from url: URL, afterExtraction: () throws -> Void
+        from url: URL, includingAudioContent: Bool = false, afterExtraction: () throws -> Void
     ) throws -> MetadataSnapshot {
         let version = try fileVersion(at: url)
         let projections = try bridgeMetadataProjections(from: url)
+        let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         try afterExtraction()
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
         let basic = basicMetadata(
@@ -394,7 +409,7 @@ extension TagLibMetadataManager {
         guard version == (try? fileVersion(at: url)) else {
             throw TagLibManagerError.fileChanged
         }
-        return MetadataSnapshot(basic: basic, raw: raw, structured: structured, fileVersion: version)
+        return MetadataSnapshot(basic: basic, raw: raw, structured: structured, fileVersion: version, audioContentIdentity: audioIdentity)
     }
 
     /// Applies only explicitly requested changes through the transactional coordinator.
