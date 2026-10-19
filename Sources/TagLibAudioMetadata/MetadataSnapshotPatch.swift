@@ -41,7 +41,17 @@ public struct MetadataSnapshot: Sendable {
     /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
     public let audioContentIdentity: MetadataAudioContentIdentity?
 
-    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil, audioContentIdentity: MetadataAudioContentIdentity? = nil) {
+    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil) {
+        self.init(basic: basic, raw: raw, structured: structured, fileVersion: fileVersion, audioContentIdentity: nil)
+    }
+
+    public init(
+        basic: BasicMetadata,
+        raw: RawMetadataDump,
+        structured: StructuredMetadata,
+        fileVersion: MetadataFileVersion? = nil,
+        audioContentIdentity: MetadataAudioContentIdentity?
+    ) {
         self.basic = basic
         self.raw = raw
         self.structured = structured
@@ -58,7 +68,15 @@ public struct BasicMetadataSnapshot: Sendable {
     /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
     public let audioContentIdentity: MetadataAudioContentIdentity?
 
-    public init(metadata: BasicMetadata, fileVersion: MetadataFileVersion, audioContentIdentity: MetadataAudioContentIdentity? = nil) {
+    public init(metadata: BasicMetadata, fileVersion: MetadataFileVersion) {
+        self.init(metadata: metadata, fileVersion: fileVersion, audioContentIdentity: nil)
+    }
+
+    public init(
+        metadata: BasicMetadata,
+        fileVersion: MetadataFileVersion,
+        audioContentIdentity: MetadataAudioContentIdentity?
+    ) {
         self.metadata = metadata
         self.fileVersion = fileVersion
         self.audioContentIdentity = audioContentIdentity

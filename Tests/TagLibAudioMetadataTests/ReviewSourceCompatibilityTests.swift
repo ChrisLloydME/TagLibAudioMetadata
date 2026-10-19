@@ -20,6 +20,12 @@ struct ReviewSourceCompatibilityTests {
         let _: (URL) throws -> StructuredMetadata = TagLibMetadataManager.readStructuredMetadataResult
         let _: (URL) throws -> MetadataSnapshot = TagLibMetadataManager.readSnapshot
         let _: (URL) throws -> BasicMetadataSnapshot = TagLibMetadataManager.readBasicSnapshot
+        let _: (BasicMetadata, RawMetadataDump, StructuredMetadata, MetadataFileVersion?) -> MetadataSnapshot = MetadataSnapshot.init
+        let _: (BasicMetadata, MetadataFileVersion) -> BasicMetadataSnapshot = BasicMetadataSnapshot.init
+        let _: (MetadataPatch, URL, MetadataFileVersion?) throws -> Result = TagLibMetadataManager.applyMetadataPatch
+        let _: (RawMetadataPatch, URL, MetadataFileVersion?) throws -> Result = TagLibMetadataManager.applyRawMetadataPatch
+        let _: (MetadataPatch, URL, MetadataFileVersion, MetadataAudioContentIdentity) throws -> Result = TagLibMetadataManager.applyMetadataPatch
+        let _: (RawMetadataPatch, URL, MetadataFileVersion, MetadataAudioContentIdentity) throws -> Result = TagLibMetadataManager.applyRawMetadataPatch
         let _: (URL) throws -> Bool = TagLibMetadataManager.eraseAllMetadata
         let _: (URL, MetadataFileVersion?) throws -> Result = TagLibMetadataManager.eraseAllMetadataWithVerification
         let _: (BasicMetadata, URL, Policy) throws -> Result = TagLibMetadataManager.writeMetadataWithVerification
