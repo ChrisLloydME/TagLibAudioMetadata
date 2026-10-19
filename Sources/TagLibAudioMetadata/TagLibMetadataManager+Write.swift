@@ -818,7 +818,7 @@ extension TagLibMetadataManager {
             expectedYear = meta.year
         }
 
-        let verification = MetadataWriteVerificationContext(
+        var verification = MetadataWriteVerificationContext(
                 expectedTrackNumber: meta.track,
                 expectedTrackTotal: meta.trackTotal,
                 expectedTrackNumberText: expectedTrackNumberText,
@@ -902,6 +902,9 @@ extension TagLibMetadataManager {
                 customFieldValues: meta.customFields
             )
 
+        verification.expectedArtworkData = meta.artworkData
+        verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
+        let exactVerification = verification
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let current = try readBasicMetadataAndRaw(from: mutationURL)
             // A PropertyMap cannot carry ID3 comment/lyric languages or the
@@ -998,7 +1001,7 @@ extension TagLibMetadataManager {
                 )
                 try throwOnVerificationFailures(nativeVerification.failures)
             }
-            var warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
+            var warnings = metadataWriteWarnings(for: mutationURL, verification: exactVerification)
             warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
