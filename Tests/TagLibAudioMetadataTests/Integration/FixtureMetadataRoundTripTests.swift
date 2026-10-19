@@ -738,8 +738,8 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             to: url
         )) { error in
             XCTAssertEqual(
-                error as? MetadataPatchValidationError,
-                .unsupportedFieldForFormat(field: .date, format: "mp4")
+                error as? MetadataValidationError,
+                .conflictingMP4Date(year: "2021", releaseDate: "")
             )
         }
         XCTAssertEqual(try Data(contentsOf: url), beforeUnsupportedPatch)

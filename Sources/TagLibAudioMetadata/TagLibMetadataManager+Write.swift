@@ -23,7 +23,7 @@ extension TagLibMetadataManager {
         let normalizedReleaseDate = normalizedTrimmed(releaseDate)
         let projectedReleaseYear = String(normalizedReleaseDate.prefix(4))
         guard !normalizedReleaseDate.isEmpty, normalizedYear == projectedReleaseYear else {
-            throw MetadataPatchValidationError.unsupportedFieldForFormat(field: .date, format: "mp4")
+            throw MetadataValidationError.conflictingMP4Date(year: normalizedYear, releaseDate: normalizedReleaseDate)
         }
     }
 
@@ -185,6 +185,12 @@ extension TagLibMetadataManager {
             }
 
             guard shouldPreserve else { continue }
+            // Native MP4 freeform arrays/aliases are preserved by the native
+            // Basic writer. Replaying their uppercased PropertyMap projection
+            // can create a second, differently spelled atom.
+            if isMP4, schema.mappings.contains(where: { $0.format == .mp4 && $0.storageKind == .mp4Freeform }) {
+                continue
+            }
             values[entry.key] = entry.values
             aliases.formUnion(schema.propertyMapKeys)
         }
@@ -332,6 +338,7 @@ extension TagLibMetadataManager {
         verifyAfterWrite: Bool = true,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(properties.keys))
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -412,6 +419,7 @@ extension TagLibMetadataManager {
         verifyAfterWrite: Bool = true,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
+        try validateRawPropertyMapKeyNames(Array(properties.keys))
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
@@ -641,6 +649,10 @@ extension TagLibMetadataManager {
             try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
         }
 
+        if capability(forExtension: url.pathExtension)?.identifier == "asf",
+           !(try readStructuredMetadataResult(from: url)).asfAttributes.isEmpty {
+            warnings.append("Native ASF attributes remain after erase.")
+        }
         warnings.append(contentsOf: residualWarningsAfterErase(for: url))
         try throwOnVerificationFailures(warnings)
         return MetadataWriteResult(warnings: warnings)
@@ -649,7 +661,7 @@ extension TagLibMetadataManager {
     nonisolated private static func shouldWipeNativeMetadataContainer(for url: URL) -> Bool {
         switch url.pathExtension.lowercased() {
         case "mp3", "m4a", "m4r", "m4b", "m4p", "mp4", "m4v", "3g2",
-             "flac", "ape", "wv", "mpc", "wav", "tta", "dff", "dsdiff":
+             "flac", "ape", "wv", "mpc", "wav", "tta", "dff", "dsdiff", "wma", "asf":
             return true
         default:
             return false
@@ -806,7 +818,7 @@ extension TagLibMetadataManager {
             expectedYear = meta.year
         }
 
-        let verification = MetadataWriteVerificationContext(
+        var verification = MetadataWriteVerificationContext(
                 expectedTrackNumber: meta.track,
                 expectedTrackTotal: meta.trackTotal,
                 expectedTrackNumberText: expectedTrackNumberText,
@@ -890,6 +902,9 @@ extension TagLibMetadataManager {
                 customFieldValues: meta.customFields
             )
 
+        verification.expectedArtworkData = meta.artworkData
+        verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
+        let exactVerification = verification
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let current = try readBasicMetadataAndRaw(from: mutationURL)
             // A PropertyMap cannot carry ID3 comment/lyric languages or the
@@ -986,7 +1001,7 @@ extension TagLibMetadataManager {
                 )
                 try throwOnVerificationFailures(nativeVerification.failures)
             }
-            var warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
+            var warnings = metadataWriteWarnings(for: mutationURL, verification: exactVerification)
             warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
@@ -1003,6 +1018,17 @@ extension TagLibMetadataManager {
         let snapshot = try readBasicSnapshot(from: url)
         var metadata = snapshot.metadata
         try update(&metadata)
+        if capability(forExtension: url.pathExtension)?.identifier == "mp4" {
+            let yearChanged = metadata.year != snapshot.metadata.year
+            let releaseChanged = metadata.releaseDate != snapshot.metadata.releaseDate
+            if releaseChanged && !yearChanged {
+                metadata.year = String(normalizedTrimmed(metadata.releaseDate).prefix(4))
+            } else if yearChanged && !releaseChanged {
+                let year = normalizedTrimmed(metadata.year)
+                let oldDate = normalizedTrimmed(metadata.releaseDate)
+                metadata.releaseDate = year.isEmpty ? "" : year + String(oldDate.dropFirst(4))
+            }
+        }
         return try replaceBasicMetadata(
             metadata,
             to: url,

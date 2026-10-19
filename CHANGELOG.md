@@ -7,6 +7,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Clean-room audit remediation — 2026-10-19
+
+- Repaired MP4 schema freeform patches, semantic verification, native alias cleanup, custom-field case identity, and track/disc alias preservation.
+- Unified native ID3 numbering across MPEG/AAC, WAV, AIFF, TTA, DSF, and DSDIFF; qualified scalar comment/lyric patches replace or remove the complete represented collection.
+- Preserved legacy MPEG/TrueAudio fields when creating ID3v2, retained MPEG secondary tags during deltas/raw replacement, and enabled native AAC collection preservation.
+- Added single-field MP4 date reconciliation to Basic updates and a precise error for contradictory full replacements; raw native atom keys now reject explicitly and require structured atoms.
+- Completed native ASF erase, exact Basic artwork verification, and additional bit-depth projections. Related independent checks repaired stale ASF common-field aliases and unchanged native APE date spelling.
+- Reject privileged files before transactional staging and unreconciled TrueAudio APEv2 metadata before commit; encoder-only TrueAudio provenance remains preserved.
+- Added 22 regression tests and a generated AIFF fixture. Debug, Release, sanitizers, strict platform builds, both consumers, opt-in corpus/benchmark, and independent eight-format checks passed; details and limitations are in [the clean-room remediation report](docs/CLEAN_ROOM_REMEDIATION_2026-10-19.md).
+
 ### Verification hardening — 2026-10-18
 
 — Added pinned, independently decoded DSF, DSDIFF, APE, and Musepack fixtures;

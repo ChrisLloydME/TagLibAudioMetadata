@@ -50,16 +50,19 @@
 #include TL_TAGLIB_HEADER(oggflacfile.h)
 
 #include TL_TAGLIB_HEADER(apefile.h)
+#include TL_TAGLIB_HEADER(apeproperties.h)
 #include TL_TAGLIB_HEADER(apetag.h)
 
 #include TL_TAGLIB_HEADER(wavfile.h)
 #include TL_TAGLIB_HEADER(aifffile.h)
 #include TL_TAGLIB_HEADER(wavpackfile.h)
+#include TL_TAGLIB_HEADER(wavpackproperties.h)
 #include TL_TAGLIB_HEADER(trueaudiofile.h)
 
 #include TL_TAGLIB_HEADER(mpcfile.h)
 #include TL_TAGLIB_HEADER(speexfile.h)
 #include TL_TAGLIB_HEADER(asffile.h)
+#include TL_TAGLIB_HEADER(asfproperties.h)
 
 #include TL_TAGLIB_HEADER(dsffile.h)
 #include TL_TAGLIB_HEADER(dsdifffile.h)

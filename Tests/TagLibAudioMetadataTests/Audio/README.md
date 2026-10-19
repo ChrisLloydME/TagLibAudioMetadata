@@ -71,3 +71,5 @@ These are small upstream test signals, not a codec conformance corpus.
 Tests copy them before independently seeding metadata. Native expected values
 and payload invariants are defined in the hardening tests rather than inferred
 from a same-library round trip.
+
+- `clean-room.aiff`: generated locally for clean-room remediation tests; AIFF COMM specifies 4,410 stereo 16-bit silent PCM frames at 44,100 Hz, with one SSND chunk. No external audio source or license applies.
