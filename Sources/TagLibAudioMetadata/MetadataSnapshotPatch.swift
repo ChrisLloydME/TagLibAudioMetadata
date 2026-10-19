@@ -602,9 +602,13 @@ extension TagLibMetadataManager {
             }
 
             if !propertyValues.isEmpty || !keysToRemove.isEmpty {
-                try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                    propertyValues, removingKeys: Array(keysToRemove), to: mutationURL
-                )
+                if ext == "wav" {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
+                        propertyValues, removingKeys: Array(keysToRemove), preserveInfoOnlyValues: false, to: mutationURL)
+                } else {
+                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                        propertyValues, removingKeys: Array(keysToRemove), to: mutationURL)
+                }
             }
 
             if !nativeAtoms.isEmpty {
@@ -702,7 +706,9 @@ extension TagLibMetadataManager {
                         storage.writeKey.caseInsensitiveCompare($0.key) == .orderedSame
                     }?.values ?? []
                 }
-                if field != .date, let semantic = basicProjectionValue(for: field, metadata: afterBasic) {
+                if field != .date,
+                   MetadataFieldRegistry.schema(for: field)?.acceptedPatchValueKinds.contains(.text) == true,
+                   let semantic = basicProjectionValue(for: field, metadata: afterBasic) {
                     switch value {
                     case .text(let expected) where semantic != expected:
                         warnings.append("Patched semantic field \(field.rawValue) differs after save.")
