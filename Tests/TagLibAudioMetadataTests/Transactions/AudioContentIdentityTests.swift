@@ -102,6 +102,131 @@ struct AudioContentIdentityTests {
         }
     }
 
+    @Test func guardedTypedAndRawRebasesRejectReplacementAudio() throws {
+        for raw in [false, true] {
+            for ext in ["wav", "aiff", "flac"] {
+                try withFixture(ext) { url in
+                    let baseline = try TagLibMetadataManager.readSnapshot(from: url, includingAudioContent: true)
+                    let identity = try #require(baseline.audioContentIdentity)
+                    try replacePayload(at: url, ext: ext)
+                    let current = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                    #expect(try #require(current.audioContentIdentity) != identity)
+                    let replacedBytes = try Data(contentsOf: url)
+                    do {
+                        if raw {
+                            try TagLibMetadataManager.applyRawMetadataPatch(
+                                .init(valuesToSet: ["TITLE": ["Stale draft"]]), to: url,
+                                expectedVersion: current.fileVersion, expectedAudioContent: identity)
+                        } else {
+                            try TagLibMetadataManager.applyMetadataPatch(
+                                .init(fields: [.title: .text("Stale draft")]), to: url,
+                                expectedVersion: current.fileVersion, expectedAudioContent: identity)
+                        }
+                        Issue.record("Fresh file version must not authorize a draft for different audio")
+                    } catch MetadataAudioContentError.changed {}
+                    #expect(try Data(contentsOf: url) == replacedBytes)
+                    #expect(try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path) == [url.lastPathComponent])
+                }
+            }
+        }
+    }
+
+    @Test func guardedRebasesAcceptMetadataOnlyChangesAndKeepVersionGuard() throws {
+        for raw in [false, true] {
+            for ext in ["wav", "aiff", "flac"] {
+                try withFixture(ext) { url in
+                    let baseline = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                    let identity = try #require(baseline.audioContentIdentity)
+                    // Force tag growth so an identity cannot accidentally depend on
+                    // total size, tag padding, audio offset, or destination inode.
+                    let album = String(repeating: "External album ", count: 1_000)
+                    try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.album: .text(album)]), to: url)
+                    let current = try TagLibMetadataManager.readSnapshot(from: url, includingAudioContent: true)
+                    let version = try #require(current.fileVersion)
+                    #expect(current.audioContentIdentity == identity)
+                    #expect(current.basic.album == album.trimmingCharacters(in: .whitespaces))
+                    let before = try Data(contentsOf: url)
+                    do {
+                        if raw {
+                            try TagLibMetadataManager.applyRawMetadataPatch(
+                                .init(valuesToSet: ["TITLE": ["Rebased draft"]]), to: url,
+                                expectedVersion: baseline.fileVersion, expectedAudioContent: identity)
+                        } else {
+                            try TagLibMetadataManager.applyMetadataPatch(
+                                .init(fields: [.title: .text("Rebased draft")]), to: url,
+                                expectedVersion: baseline.fileVersion, expectedAudioContent: identity)
+                        }
+                        Issue.record("Matching audio must not bypass a stale expected version")
+                    } catch TagLibManagerError.fileChanged {}
+                    #expect(try Data(contentsOf: url) == before)
+                    if raw {
+                        try TagLibMetadataManager.applyRawMetadataPatch(
+                            .init(valuesToSet: ["TITLE": ["Rebased draft"]]), to: url,
+                            expectedVersion: version, expectedAudioContent: identity)
+                    } else {
+                        try TagLibMetadataManager.applyMetadataPatch(
+                            .init(fields: [.title: .text("Rebased draft")]), to: url,
+                            expectedVersion: version, expectedAudioContent: identity)
+                    }
+                    let final = try TagLibMetadataManager.readSnapshot(from: url, includingAudioContent: true)
+                    #expect(final.basic.title == "Rebased draft")
+                    #expect(final.basic.album == current.basic.album)
+                    #expect(final.audioContentIdentity == identity)
+                }
+            }
+        }
+    }
+
+    @Test func guardedRebasesFailClosedWhenCurrentLayoutIsUnavailable() throws {
+        let baselineURL = try HardeningFixture.url("wav", name: "testAudioFile")
+        let snapshot = try TagLibMetadataManager.readBasicSnapshot(from: baselineURL, includingAudioContent: true)
+        let identity = try #require(snapshot.audioContentIdentity)
+        for raw in [false, true] {
+            try withFixture("mp3") { url in
+                let current = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                #expect(current.audioContentIdentity == nil)
+                let before = try Data(contentsOf: url)
+                do {
+                    if raw {
+                        try TagLibMetadataManager.applyRawMetadataPatch(
+                            .init(valuesToSet: ["TITLE": ["Unsupported rebase"]]), to: url,
+                            expectedVersion: current.fileVersion, expectedAudioContent: identity)
+                    } else {
+                        try TagLibMetadataManager.applyMetadataPatch(
+                            .init(fields: [.title: .text("Unsupported rebase")]), to: url,
+                            expectedVersion: current.fileVersion, expectedAudioContent: identity)
+                    }
+                    Issue.record("Unsupported layout must not grant continuity")
+                } catch MetadataAudioContentError.unavailable {}
+                #expect(try Data(contentsOf: url) == before)
+            }
+        }
+    }
+
+    @Test func finalTransactionGuardStillRejectsChangesAfterAudioValidation() throws {
+        try withFixture("wav") { url in
+            let snapshot = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+            let identity = try #require(snapshot.audioContentIdentity)
+            var replacedBytes = Data()
+            do {
+                _ = try TagLibMetadataManager.withAtomicMetadataWriteMutation(
+                    at: url, expectedVersion: snapshot.fileVersion
+                ) { temporary in
+                    try TagLibMetadataManager.requireAudioContent(at: temporary, matching: identity)
+                    // External writer does not participate in our entry coordinator.
+                    try replacePayload(at: url, ext: "wav")
+                    replacedBytes = try Data(contentsOf: url)
+                    try TagLibMetadataManager.applyMetadataPatch(
+                        .init(fields: [.title: .text("Must not commit")]), to: temporary)
+                    return .init(warnings: [])
+                }
+                Issue.record("Final version guard must reject external replacement")
+            } catch TagLibManagerError.fileChanged {}
+            #expect(!replacedBytes.isEmpty)
+            #expect(try Data(contentsOf: url) == replacedBytes)
+        }
+    }
+
     @Test func unsupportedFormatsDoNotGrantContinuity() throws {
         for ext in ["mp3", "m4a", "ogg", "wv"] {
             try withFixture(ext) { url in
