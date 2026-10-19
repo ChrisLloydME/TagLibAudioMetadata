@@ -86,6 +86,9 @@ adopts a fresh version for changed audio. It does not choose a field-level merge
 policy. Existing unguarded overloads retain their behavior. Other write surfaces
 (Basic replacement, whole-map raw replacement, structured and bridge APIs) have
 no new audio guard: use the typed or raw delta overloads above for rebasing.
+The deprecated typed `applyMetadataPatch(_:to:expectedVersion:failurePolicy:)`
+overload also forwards to the unguarded path; it has no `expectedAudioContent`
+parameter and must not be used for guarded rebasing.
 
 Never retry a conflict by dropping a guard. An explicit reload discards/reviews
 the old draft and establishes a new baseline. Run these synchronous reads and
@@ -109,7 +112,9 @@ Their presence, contents and position do not affect the identity; this includes
 BWF time references and production metadata. Continuity therefore does not
 establish equality of that metadata. Their chunk lengths and padding are still
 validated before skipping them. Encoded samples and decode parameters such as
-`fmt ` remain fully hashed.
+`fmt ` remain fully hashed. Three focused regressions cover relocation,
+consecutive guarded writes with the original token, and rejection of changed
+audio or format parameters.
 
 WAVE/AIFF require one format chunk and one nonempty sound-data chunk, exact root
 length, and valid bounded chunk lengths including padding. WAVE nested lists
@@ -123,6 +128,25 @@ MP3, MP4/M4A, raw AAC, Ogg/Opus, ASF, APE, WavPack, Musepack, TTA, DSD and track
 formats currently have no identity. RF64, RIFX, leading-ID3 FLAC and unsupported
 layouts also have none. Formats can gain support only after container-specific
 normalization and positive/negative tests; no whole-file fallback is used.
+
+## Source compatibility and function references
+
+Adding overloads with the same base name means an untyped function reference can
+become ambiguous:
+
+```swift
+// Ambiguous with multiple readSnapshot overloads.
+let reader = TagLibMetadataManager.readSnapshot
+
+// Supported compatibility shape: an explicit function type.
+let reader: (URL) throws -> MetadataSnapshot = TagLibMetadataManager.readSnapshot
+```
+
+Typed references and direct calls remain supported. The same caveat applies to
+`readBasicSnapshot`, `applyMetadataPatch`, `applyRawMetadataPatch`, and
+`BasicMetadataSnapshot.init`. This is a narrow source-compatibility limitation,
+not a runtime defect. Give stored references an explicit type, or call the
+overload directly.
 
 ## Cost and concurrency limits
 
@@ -144,40 +168,27 @@ as under the existing transaction contract. Cryptographic equality is bounded
 by SHA-256 collision resistance. Tokens must not be persisted across package
 versions as stable recording IDs.
 
-## Verification — 2026-10-19
+## Evidence and verification
 
-The supplied AudioMator integration decision and independent reassessment
-describe N-05 against their 0.5.3 dependency. This work starts from package
-`main` at `1310e4f` and supplies the missing contract without changing the
-consumer repository, dependency pin, conflict policy, release tag or binary.
+The feature was added on top of `1310e4f` in the `fix/audio-content-continuity` work and audited independently at `873cb3e`. That audit's F1 finding (WAVE `bext`/`iXML` relocation invalidating a metadata-only identity) was fixed in `bedd725` and merged in `d40f7f9`. The audit also recorded F2/F3 as compatibility limitations and F4/F5 as documentation/test-coverage gaps; see [the historical audit](records/audits/AUD-2026-10-19-audio-content-identity.md) and [the records index](records/README.md).
 
-| Check | Result |
-| --- | --- |
-| Xcode build including tests | Passed |
-| iOS 16 arm64 Release compilation | Passed with Swift warnings-as-errors and Clang Werror; compilation only, no device execution |
-| Full Xcode Debug suite after implementation and compatibility forwarding | 222 discovered; 220 passed, 2 existing opt-in skips, zero failures |
-| Full SwiftPM Release suite after compatibility forwarding | 153 XCTest (151 passed, 2 opt-in skips) plus 69 Swift Testing passed; zero failures |
-| New identity regression functions | 14 passed, with typed/raw positive and negative checks across WAVE, AIFF and FLAC |
-| Additional AIFF-C assertions after full suites | Focused Xcode rerun passed; all 14 identity tests then passed again in Release, including identity preservation after a guarded title write and rejection of replacement payload |
-| Public function-reference compatibility | Existing snapshot initializers, readers and typed/raw patch references compile; guarded overloads also compile |
-| Local I/O cost | 1/16/64 MiB generated PCM files, three samples each; no timing threshold |
+The current test file contains 17 focused Swift Testing functions covering:
 
-The two existing opt-in skips are the external preservation corpus and unrelated
-snapshot throughput benchmark. The new continuity regressions and their cost
-probe run by default, with no skips or expected-failure annotations. Tests also
-check that rejected transactions leave replacement bytes intact and remove
-their staged copies.
+- opt-in identities across full and Basic snapshots, and `nil` for default reads;
+- identity retention across metadata, artwork, and erase edits for the supported layouts;
+- WAVE `bext`/`iXML` relocation and consecutive guarded writes with the original token;
+- rejection when audio bytes or interpretation parameters change;
+- guarded typed/raw rebases, stale versions, unavailable layouts, and the final transaction guard;
+- malformed or ambiguous layouts, unsupported formats, AIFF-C and odd chunk padding;
+- a non-gating 1/16/64 MiB local cost probe.
 
-Full Debug summary: Xcode action artifact `EA10C5D5-47DA-43BB-8FC3-50B45DB8DD52`.
-Full Release log from this session:
-`/private/tmp/taglib-audio-identity-release-final.log` (local, not committed).
+The audit at `873cb3e` observed 222 Xcode tests (220 passed, 2 opt-in skips) and a successful iOS Simulator build. After the F1 fix, three regressions were added, bringing the current declaration count to 225. A full-suite result for `d40f7f9` was not recorded in the repository before the documentation pass.
 
-AudioMator's enabled application regression was read as the reproduction
-reference; its application suite was not run or modified. Its distribution
-blocker remains for the consumer to close after adopting the new API, requiring
-reload for unavailable identities, and rerunning its own typed/raw policy tests,
-complete suites and artifact checks. Platform minimum-OS runtime, signing,
-network/provider volumes and hostile writers remain unverified.
+During the documentation restructuring, a `swift test --disable-sandbox` run at `d40f7f9` observed 153 XCTest tests with 2 opt-in skips and 0 failures, plus 71 of 72 Swift Testing tests passing. The one failure was the privilege-bit test failing at its own setuid/setgid precondition because the execution sandbox strips those bits. All audio-identity tests passed. Release, sanitizer, device, and minimum-OS runtime checks were not run in that pass. See [STATUS](STATUS.md) for the current summary.
+
+The cost figures above are local observations from the audit environment. They are not throughput promises, cold-cache results, or measurements of network volumes. The cost test has no timing threshold.
+
+The feature does not modify AudioMator. A consumer must adopt the guarded overloads, require explicit reload when either identity is missing, and run its own policy, suite, and distribution checks. Platform minimum-OS runtime, signing, network/provider volumes, and hostile external writers remain outside this evidence.
 
 ## Specification references
 

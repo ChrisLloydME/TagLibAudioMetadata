@@ -17,9 +17,9 @@ selects the newest compatible tagged release:
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
 
-The APIs listed under `[Unreleased]` describe the development checkout, which
-can be ahead of `main` while changes are under review. To evaluate `main` rather
-than a tagged release, opt in explicitly:
+The APIs listed under `[Unreleased]` describe the development checkout, which is
+ahead of the latest tag (`0.5.3`). To evaluate `main` rather than a tagged
+release, opt in explicitly:
 
 ```swift
 .package(
@@ -43,6 +43,8 @@ Advanced targets that directly use `TagLibMetadataExtractor` or
 
 Then use `import CTagLibBridge`. Starting in 0.5, importing the facade alone no
 longer exposes bridge declarations.
+
+For source-compatibility changes, deprecated-name replacements, and the 0.4 to 0.5 product split, see [Compatibility and migration](MIGRATION.md).
 
 ## Binary identity
 

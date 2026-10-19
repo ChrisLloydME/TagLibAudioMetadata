@@ -72,12 +72,14 @@ streaming reads without sample decoding.
 
 ## Write pipeline
 
-The facade transaction coordinator creates one same-directory copy, takes one
-current projections where needed, performs in-place bridge mutations on that copy,
+The facade transaction coordinator creates one same-directory copy, takes the
+current projections it needs, performs in-place bridge mutations on that copy,
 reads a verification snapshot, requests `F_FULLFSYNC` on the file (falling back
 to `fsync` when unsupported), rechecks original identity, renames atomically, and
-flushes the parent directory. Public bridge mutators use
-the same transaction principles when called directly.
+flushes the parent directory. Public bridge mutators use the same transaction
+principles when called directly, but perform only readability checks after
+mutation; they do not inherit the facade's semantic verification. See
+[TRANSACTIONS.md](TRANSACTIONS.md).
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged,
 `.remove` clears a property, `explicitAdvisory` retains all four advisory states,
@@ -179,7 +181,8 @@ of completion.
 
 `FormatCapability` separates read/write mechanics from evidence through
 `FormatSupportLevel`. UI code should query the extension and field being edited,
-because aliases and container fields can have different evidence levels.
+because aliases and container fields can have different evidence levels. The
+complete matrix and its limits are in [FORMATS.md](FORMATS.md).
 
 ## Performance and concurrency
 
@@ -199,7 +202,7 @@ transaction and mutation paths instead of expanding their risk surface.
 A process-wide recursive mutex covers TagLib object lifetimes and Objective-C
 objects populated while traversing them. Swift model conversion and filesystem
 copy, flush, and rename work are outside the lock. See
-[THREAD_SAFETY.md](THREAD_SAFETY.md).
+[TRANSACTIONS.md](TRANSACTIONS.md).
 
 ## Source layout
 
@@ -232,6 +235,10 @@ The single SwiftPM test target is organized physically by test layer:
 - `Concurrency/` contains cross-format and M4A stress coverage.
 - `ModelSemantics/` covers pure value-model contracts.
 - `Performance/` contains opt-in, non-gating throughput experiments.
+
+Root-level tests cover public Objective-C selectors, Swift nested types,
+deprecated function references, and console-diagnostics hygiene. See
+[TESTING.md](TESTING.md) for commands, CI jobs, and evidence limits.
 
 This hierarchy communicates failure semantics without multiplying XCTest
 targets or changing test discovery.

@@ -7,6 +7,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation architecture — 2026-10-19
+
+- Restructured current documentation around explicit owners: installation, usage, API reference, formats, preservation, transactions, architecture, testing, status, migration, and development.
+- Moved audits, reviews, remediation reports, verification campaigns, migrations, and the maintenance log into `docs/records/` with a centralized investigation index and finding register.
+- Added record conventions and a template for future audits, incidents, remediation, and verification work.
+- Replaced the mixed current/historical support guide with [the usage guide](docs/USAGE.md) and separated [format evidence](docs/FORMATS.md), [preservation semantics](docs/PRESERVATION.md), and [transaction/concurrency guarantees](docs/TRANSACTIONS.md).
+- Added [current validation status](docs/STATUS.md) and [testing guidance](docs/TESTING.md); the latest recorded test run and its environment-dependent privilege-bit failure are explicit.
+- Corrected the read-only format summary (MOD and Shorten, not the whole tracker family), documented the audio-identity source-compatibility caveat and the unguarded deprecated patch overload, and removed stale "current status" material from the README.
+
 ### Audio-content continuity — 2026-10-19
 
 - Added opt-in, coherent `MetadataAudioContentIdentity` tokens to full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C and native FLAC, with bounded SHA-256 streaming and container-specific metadata exclusions.
@@ -99,14 +108,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added regression coverage and generated fixtures for ALAC, ASF/WMA, TrueAudio,
   and WavPack, plus independent RIFF INFO parsing and WAV policy tests.
 
-### Historical release provenance
-
-The 0.5.1–0.5.3 summaries below were reconstructed from existing tag boundaries
-during verification hardening. They are selected changes verified from commit
-history, not contemporaneous release announcements. Tag target commit dates
-are not asserted to be release publication dates; historical verification
-results and complete compatibility guarantees are not reconstructed.
-
 ### Fixed
 
 - Made high-level writes return committed parent-directory durability uncertainty
@@ -159,6 +160,14 @@ results and complete compatibility guarantees are not reconstructed.
 - Made native MP4/M4A `trkn` and `disk` pairs authoritative over conflicting
   legacy freeform number aliases, and removed those aliases during number
   writes so totals cannot become stale.
+
+## Historical release provenance (0.5.1–0.5.3)
+
+The 0.5.1–0.5.3 summaries below were reconstructed from existing tag boundaries
+during verification hardening. They are selected changes verified from commit
+history, not contemporaneous release announcements. Tag target commit dates
+are not asserted to be release publication dates; historical verification
+results and complete compatibility guarantees are not reconstructed.
 
 ## [0.5.3] - reconstructed tag summary
 
