@@ -219,6 +219,22 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             NSString *description = MP4FreeformDescriptionForItemKey(key);
             if (description && [descriptions containsObject:description.uppercaseString]) mp4->removeItem(key);
         }
+        for (const auto &mapping : kMetadataFieldMappings) {
+            if (!mapping.mp4FreeformDescription) continue;
+            bool originallyFreeform = false;
+            for (const auto &[key, item] : originalMP4Items) {
+                if (MP4FreeformDescriptionForItemKey(key) && MP4ItemMatchesField(key, mapping)) originallyFreeform = true;
+            }
+            if (!originallyFreeform) continue;
+            bool edited = valuesToSet[@(mapping.canonicalPropertyKey)] || [keysToRemove containsObject:@(mapping.canonicalPropertyKey)];
+            for (const char *alias : mapping.propertyAliases) {
+                if (alias) edited |= valuesToSet[@(alias)] || [keysToRemove containsObject:@(alias)];
+            }
+            if (edited) continue;
+            for (const auto &[key, item] : generated) {
+                if (!originalMP4Items.contains(key) && MP4ItemMatchesField(key, mapping)) mp4->removeItem(key);
+            }
+        }
         NSMutableSet<NSString *> *written = [NSMutableSet set];
         for (const auto &[key, item] : originalMP4Items) {
             NSString *description = MP4FreeformDescriptionForItemKey(key);
