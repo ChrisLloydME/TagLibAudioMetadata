@@ -30,6 +30,15 @@ This contract assumes the client does not concurrently mutate TagLib global
 hooks through another direct linkage. Loading another TagLib C++ implementation
 in the same process can also cause symbol interposition and is unsupported.
 
+## Audio-content checks
+
+Opt-in audio identities are streamed outside the TagLib global mutex. Exact
+path and descriptor version checks bind their bytes to the snapshot revision.
+The typed/raw audio-guarded overloads compare the transactional copy under the
+same-entry coordinator and retain the final destination version check. They do
+not close the external check/rename race described above. Unsupported layouts
+require explicit reload; see [audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
+
 ## Why the mutex remains
 
 TagLib 2.3.1 improved thread-safety behavior, but still exposes process-global
