@@ -9,7 +9,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Audio-content continuity — 2026-10-19
 
-- Added opt-in, coherent `MetadataAudioContentIdentity` tokens to full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C and native FLAC, with bounded SHA-256 streaming independent of supported tag edits.
+- Added opt-in, coherent `MetadataAudioContentIdentity` tokens to full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C and native FLAC, with bounded SHA-256 streaming and container-specific metadata exclusions.
+- Fixed F1: exclude WAVE `bext`/`iXML` metadata (including BWF time references) so TagLib chunk relocation preserves the audio identity. Added three regressions covering relocation, consecutive guarded writes with the original token, and audio/format rejection.
 - Added typed/raw delta overloads requiring both a baseline audio token and an exact current file version; changed or unavailable audio rejects before publication, retaining the final transaction guard.
 - Added 14 regression/cost tests for same-inode/restored-mtime payload replacement, metadata-only rebases, artwork/erase preservation, decoding parameters, malformed layouts, streaming boundaries and read/commit races.
 - Other formats require explicit reload for automatic conflicts. Existing read/write signatures and default I/O costs are retained; consumers must adopt [the continuity contract](docs/AUDIO_CONTENT_CONTINUITY.md).

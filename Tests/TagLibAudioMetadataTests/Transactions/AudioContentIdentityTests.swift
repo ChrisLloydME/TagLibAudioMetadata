@@ -51,6 +51,159 @@ struct AudioContentIdentityTests {
         }
     }
 
+    private func waveBytes(_ chunks: [(name: String, payload: Data)]) -> Data {
+        var bytes = Data("RIFF".utf8) + Data(repeating: 0, count: 4) + Data("WAVE".utf8)
+        for chunk in chunks {
+            bytes += Data(chunk.name.utf8)
+            bytes += HardeningFixture.number(UInt64(chunk.payload.count), bytes: 4, little: true)
+            bytes += chunk.payload
+            if chunk.payload.count % 2 != 0 { bytes.append(0) }
+        }
+        bytes.replaceSubrange(4..<8, with: HardeningFixture.number(UInt64(bytes.count - 8), bytes: 4, little: true))
+        return bytes
+    }
+
+    private func waveChunks(at url: URL) throws -> [(name: String, payload: Data)] {
+        let bytes = try Data(contentsOf: url)
+        var chunks: [(name: String, payload: Data)] = []
+        var offset = 12
+        while offset < bytes.count {
+            let count = try HardeningFixture.integer(bytes, offset + 4, 4, little: true)
+            let start = offset + 8
+            guard count <= bytes.count - start, count % 2 <= bytes.count - start - count else {
+                throw HardeningFixture.Invalid.container
+            }
+            chunks.append((String(decoding: bytes[offset..<(offset + 4)], as: UTF8.self),
+                           Data(bytes[start..<(start + count)])))
+            offset = start + count + count % 2
+        }
+        return chunks
+    }
+
+    /// A standard stereo PCM layout with a 602-byte BWF chunk or odd-length iXML
+    /// before data, where TagLib's metadata save relocates the ancillary chunk.
+    private func waveWithAncillaryChunk(_ name: String) -> [(name: String, payload: Data)] {
+        let format = Data([1, 0, 2, 0, 0x44, 0xac, 0, 0, 0x10, 0xb1, 2, 0, 4, 0, 16, 0])
+        let metadata = name == "bext" ? Data(repeating: 0, count: 602) : Data("<BWFXML></BWFXML>".utf8)
+        return [("fmt ", format), (name, metadata), ("data", Data(repeating: 0x55, count: 176_400))]
+    }
+
+    @Test func waveAncillaryRelocationRetainsIdentityAcrossMetadataWrites() throws {
+        let cover = try Data(contentsOf: HardeningFixture.url("jpg", name: "testCover"))
+        for name in ["bext", "iXML"] {
+            for operation in ["typed", "raw", "artwork", "erase"] {
+                try withFixture("wav") { url in
+                    let chunks = waveWithAncillaryChunk(name)
+                    try waveBytes(chunks).write(to: url)
+                    let baseline = try TagLibMetadataManager.readSnapshot(from: url, includingAudioContent: true)
+                    let identity = try #require(baseline.audioContentIdentity)
+                    switch operation {
+                    case "typed":
+                        try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.title: .text("Relocated")]), to: url)
+                    case "raw":
+                        try TagLibMetadataManager.applyRawMetadataPatch(.init(valuesToSet: ["TITLE": ["Relocated"]]), to: url)
+                    case "artwork":
+                        try TagLibMetadataManager.applyMetadataPatch(
+                            .init(artwork: .replace([.init(mimeType: "image/jpeg", data: cover)])), to: url)
+                    default:
+                        try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+                    }
+                    let saved = try waveChunks(at: url)
+                    // Confirm this exercises the relocation, rather than merely a stable layout.
+                    #expect(Array(saved.prefix(3).map(\.name)) == ["fmt ", "data", name])
+                    #expect(saved.first { $0.name == name }?.payload == chunks[1].payload)
+                    #expect(saved.first { $0.name == "data" }?.payload == chunks[2].payload)
+                    let current = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                    #expect(current.audioContentIdentity == identity, "\(name): \(operation)")
+                    #expect(current.fileVersion != baseline.fileVersion)
+                    // Rebase a draft using the original token after an unguarded metadata save.
+                    try TagLibMetadataManager.applyMetadataPatch(
+                        .init(fields: [.album: .text("Rebased")]), to: url,
+                        expectedVersion: current.fileVersion, expectedAudioContent: identity)
+                    #expect(try TagLibMetadataManager.readMetadataResult(from: url).album == "Rebased")
+                }
+            }
+        }
+    }
+
+    @Test func waveAncillaryGuardedWritesKeepOriginalTokenValid() throws {
+        for name in ["bext", "iXML"] {
+            for raw in [false, true] {
+                try withFixture("wav") { url in
+                    try waveBytes(waveWithAncillaryChunk(name)).write(to: url)
+                    let baseline = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                    let identity = try #require(baseline.audioContentIdentity)
+                    var version = baseline.fileVersion
+                    for title in ["First guarded write", "Second guarded write"] {
+                        if raw {
+                            try TagLibMetadataManager.applyRawMetadataPatch(
+                                .init(valuesToSet: ["TITLE": [title]]), to: url,
+                                expectedVersion: version, expectedAudioContent: identity)
+                        } else {
+                            try TagLibMetadataManager.applyMetadataPatch(
+                                .init(fields: [.title: .text(title)]), to: url,
+                                expectedVersion: version, expectedAudioContent: identity)
+                        }
+                        let current = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                        #expect(current.metadata.title == title)
+                        #expect(current.audioContentIdentity == identity, "\(name), raw=\(raw)")
+                        #expect(current.fileVersion != version)
+                        version = current.fileVersion
+                    }
+                }
+            }
+        }
+    }
+
+    @Test func waveAncillaryMetadataIsExcludedButAudioAndFormatRemainGuarded() throws {
+        for name in ["bext", "iXML"] {
+            try withFixture("wav") { url in
+                let chunks = waveWithAncillaryChunk(name)
+                try waveBytes(chunks).write(to: url)
+                let baseline = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                let identity = try #require(baseline.audioContentIdentity)
+                var edited = chunks
+                edited[1].payload[0] ^= 1
+                // Content changes, relocation, removal and insertion of these metadata chunks
+                // are deliberately outside the encoded-audio identity, including BWF timing.
+                for metadataOnly in [edited, [edited[0], edited[2], edited[1]], [chunks[0], chunks[2]], chunks] {
+                    try waveBytes(metadataOnly).write(to: url)
+                    #expect(try TagLibMetadataManager.readBasicSnapshot(
+                        from: url, includingAudioContent: true).audioContentIdentity == identity)
+                }
+                for index in [0, 2] {
+                    var changed = chunks
+                    changed[index].payload[index == 0 ? 4 : changed[index].payload.count - 1] ^= 1
+                    try waveBytes(changed).write(to: url)
+                    let current = try TagLibMetadataManager.readBasicSnapshot(from: url, includingAudioContent: true)
+                    #expect(try #require(current.audioContentIdentity) != identity)
+                    let before = try Data(contentsOf: url)
+                    for raw in [false, true] {
+                        do {
+                            if raw {
+                                try TagLibMetadataManager.applyRawMetadataPatch(
+                                    .init(valuesToSet: ["TITLE": ["Rejected"]]), to: url,
+                                    expectedVersion: current.fileVersion, expectedAudioContent: identity)
+                            } else {
+                                try TagLibMetadataManager.applyMetadataPatch(
+                                    .init(fields: [.title: .text("Rejected")]), to: url,
+                                    expectedVersion: current.fileVersion, expectedAudioContent: identity)
+                            }
+                            Issue.record("Ancillary exclusions must not hide changed audio or format")
+                        } catch MetadataAudioContentError.changed {}
+                        #expect(try Data(contentsOf: url) == before)
+                    }
+                }
+                var malformed = waveBytes(chunks)
+                // Excluded chunks must still have bounded lengths and complete padding.
+                malformed.replaceSubrange(40..<44, with: Data(repeating: 0xff, count: 4))
+                try malformed.write(to: url)
+                #expect(try TagLibMetadataManager.audioContentIdentity(
+                    at: url, version: TagLibMetadataManager.fileVersion(at: url)) == nil)
+            }
+        }
+    }
+
     /// Changes actual data bytes, retaining path, inode, length and nanosecond mtime.
     private func replacePayload(at url: URL, ext: String) throws {
         let bytes = try Data(contentsOf: url)

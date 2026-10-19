@@ -99,9 +99,17 @@ TagLib must also accept the file for a public snapshot/write.
 
 | Container | Included in the identity | Excluded |
 | --- | --- | --- |
-| RIFF WAVE | Form type; each non-excluded chunk's ID, payload length and bytes, including `fmt ` and the complete `data` payload | Root size, chunk padding, `id3 `/`ID3 `, `LIST/INFO`, `JUNK`, `PAD ` |
+| RIFF WAVE | Form type; each non-excluded chunk's ID, payload length and bytes, including `fmt ` and the complete `data` payload | Root size, chunk padding, `id3 `/`ID3 `, `LIST/INFO`, `JUNK`, `PAD `, `bext`, `iXML` |
 | AIFF / AIFF-C | Form type; each non-excluded chunk's ID, payload length and bytes, including `COMM`, complete `SSND` and `FVER` when present | Root size, chunk padding, `ID3 `, `NAME`, `AUTH`, `(c) `, `ANNO` |
 | Native FLAC | Complete `STREAMINFO`, application blocks, and every byte from the first audio frame to EOF | Last-block flags, padding, seek tables, Vorbis comments, cue sheets, pictures |
+
+WAVE `bext` (Broadcast Wave) and `iXML` are treated as ancillary metadata.
+TagLib can relocate them from before `data` to after it during a metadata save.
+Their presence, contents and position do not affect the identity; this includes
+BWF time references and production metadata. Continuity therefore does not
+establish equality of that metadata. Their chunk lengths and padding are still
+validated before skipping them. Encoded samples and decode parameters such as
+`fmt ` remain fully hashed.
 
 WAVE/AIFF require one format chunk and one nonempty sound-data chunk, exact root
 length, and valid bounded chunk lengths including padding. WAVE nested lists
