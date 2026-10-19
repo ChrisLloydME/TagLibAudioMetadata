@@ -132,6 +132,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         return NO;
     }
 
+    ValidateWritablePrimaryTagSurface(&file);
     file.strip();
 
     if (!file.save()) {
