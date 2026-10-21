@@ -1,42 +1,42 @@
-# Testing and verification guide
+# Testing and verification
 
-This document explains how the package is tested, how to run the checks, and what the results do and do not establish. It is a guide, not a claim that the current working tree passes. See [STATUS](STATUS.md) for the latest recorded result.
+This guide explains how the package is tested, how to run the checks, and what the results do and do not establish. It is not a claim that the current working tree passes. The latest observed result and its environment are in [Status](STATUS.md).
 
 ## Test layers
 
 The single SwiftPM test target is organized physically by layer:
 
-| Directory | What it covers |
+| Directory | Coverage |
 | --- | --- |
 | `Capabilities/` | Public capability model, field-level support, and cross-language schema consistency. |
 | `Integration/` | Real-fixture round trips, container projections, native parsers, artwork, dates, numbers, and raw metadata. |
 | `Transactions/` | Stale versions, failure atomicity, preservation, same-entry coordination, privilege rejection, and audio-content identity. |
-| `Concurrency/` | Cross-format reads and writes, M4A stress, and same-file contention. |
+| `Concurrency/` | Cross-format reads/writes, M4A stress, and same-file contention. |
 | `ModelSemantics/` | Pure value-model contracts. |
 | `Performance/` | Opt-in, non-gating throughput experiments. |
-| Root-level compatibility tests | Public Objective-C selectors, Swift nested types, deprecated function references, and no unsolicited console output. |
+| Root-level tests | Public Objective-C selectors, Swift nested types, deprecated function references, and no unsolicited console output. |
 
-At the current HEAD the test target declares 153 XCTest functions and 72 Swift Testing functions, for 225 test declarations. Two XCTest tests are opt-in and skip by default. Test counts vary by runner and by which opt-ins are enabled; do not compare counts across records without checking their scope.
+The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
 
 ## Standard commands
 
 ```sh
-# Resolve/build and run the suite
+# Resolve/build and run the suite.
 swift test --disable-keychain --disable-netrc
 
-# Strict compile: package Swift and C/Objective-C warnings are errors
+# Strict compile: package Swift and C/Objective-C warnings are errors.
 swift build --disable-keychain --disable-netrc \
   -Xswiftc -warnings-as-errors -Xcc -Werror
 
-# Release mode
+# Release mode.
 swift test --disable-keychain --disable-netrc -c release
 
-# Sanitizers
+# Sanitizers.
 swift test --disable-keychain --disable-netrc --sanitize=address
 swift test --disable-keychain --disable-netrc --sanitize=thread
 ```
 
-Some restricted environments cannot launch SwiftPM's manifest sandbox. `swift test --disable-sandbox` works around that but weakens a build-time isolation layer; use it only when the environment requires it and say so in the verification record.
+Some restricted environments cannot launch SwiftPM's manifest sandbox or write to the default module cache. `--disable-sandbox` and a workspace-local module cache can work around that, but they weaken or alter build isolation. Use them only when the environment requires it and state that in the verification record.
 
 ### Minimum-platform builds
 
@@ -53,11 +53,10 @@ The CI matrix compiles these triples:
 ```sh
 SDK_PATH=$(xcrun --sdk macosx --show-sdk-path)
 swift build --disable-keychain --disable-netrc \
-  --triple arm64-apple-macosx13.0 --sdk "$SDK_PATH" \
-  -Xswiftc -warnings-as-errors -Xcc -Werror
+  --triple arm64-apple-macosx13.0 --sdk "$SDK_PATH"
 ```
 
-These are compile/link checks. They do not prove runtime behavior on the minimum OS, on a device, or on x86_64.
+These are compile/link checks. They do not prove runtime behavior on the minimum OS, on a device, or on x86_64. The CI job adds no `-warnings-as-errors` flags; the repository's strict warning check is the separate `build-and-test` step.
 
 ### Consumer integration
 
@@ -68,7 +67,7 @@ swift run --disable-keychain --disable-netrc \
   --package-path IntegrationTests/Consumer TagLibAudioMetadataLowLevelConsumer
 ```
 
-The facade consumer uses only the public product. The low-level consumer explicitly imports `CTagLibBridge`. Neither consumer proves that an embedding application's signing or rpath configuration is correct.
+The facade consumer uses only the public product. The low-level consumer explicitly imports `CTagLibBridge`. Neither consumer proves an embedding application's signing or rpath configuration.
 
 ## Opt-in checks
 
@@ -98,26 +97,25 @@ The benchmark keeps fixture setup outside timing and prints warmed snapshot thro
 
 Some integration tests use independent parsers or external tools rather than the package reader as the only oracle:
 
-- a bounded RIFF/INFO parser for WAV surfaces;
+- a bounded RIFF INFO parser for WAV surfaces;
 - an ID3v2 frame parser for native number, comment, lyric, and artwork checks;
 - an MP4 atom/item parser, including `mdat` payload comparison;
 - an APEv2 item parser;
 - a bounded ASF header/attribute parser;
 - DSF/DSDIFF native frame checks;
-- FFprobe/FFmpeg for generated-format metadata and encoded-packet comparison;
 - generated AIFF and corpus fixtures.
 
-These oracles are intentionally bounded. They do not establish universal codec conformance, every native metadata variant, or correctness of the precompiled TagLib binary.
+These oracles are intentionally bounded. They do not establish universal codec conformance, every native metadata variant, or correctness of the precompiled TagLib binary. FFprobe/FFmpeg were used during fixture acquisition and historical verification campaigns, but the current suite does not invoke them; the opt-in corpus generator requires FFmpeg.
 
 ## CI jobs
 
 | Job | What it does |
 | --- | --- |
-| `build-and-test` | Clean build, strict warning build, `swift test`, both consumers, and a dynamic-link/binary-boundary audit. |
+| `build-and-test` | Clean build, strict warning build, `swift test`, both consumers, a documentation check, and a dynamic-link/binary-boundary audit. |
 | `address-sanitizer` | Full test suite under AddressSanitizer. |
 | `release-build-and-test` | Release-mode tests against real fixtures. |
 | `thread-sanitizer` | Full test suite under ThreadSanitizer. |
-| `minimum-platform-builds` | Five strict compile/link checks for the supported deployment targets. |
+| `minimum-platform-builds` | Five compile/link checks for the supported deployment targets. |
 | `remote-tag-consumer` | On a tag build, a clean consumer resolves the published tag and runs. |
 
 The CI configuration is evidence only for runs that actually executed. A configured job is not a passing result for an unrun commit. The `taglib-binary-release.yml` workflow is separate: binary release changes must publish the new asset before CI can resolve it.
@@ -126,7 +124,7 @@ The CI configuration is evidence only for runs that actually executed. A configu
 
 `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` sets setuid/setgid bits with `chmod` and verifies that both transaction engines reject the file without changing inode, mode, or bytes.
 
-Some agent/sandbox environments silently strip those bits even when `chmod` reports success. In that environment the test fails at its own `before.st_mode` precondition. This is a host restriction, not a production defect. Run the test outside the sandbox; do not weaken or skip it to make a suite green. The clean-room remediation record documents a successful run outside the sandbox.
+Some agent/sandbox environments silently strip those bits even when `chmod` reports success. In that environment the test fails at its own `before.st_mode` precondition. This is a host restriction, not a production defect. Run the test outside the sandbox; do not weaken or skip it to make a suite green. The clean-room remediation record documents a successful run outside the sandbox, and the current status records whether the latest observed run saw this limitation.
 
 ## What passing tests establish
 
@@ -144,4 +142,4 @@ When a test uses the package reader as both writer and expected-value source, th
 
 ## Reporting a verification result
 
-Record the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not report a compile-only check as runtime verification. See [records/CONVENTIONS.md](records/CONVENTIONS.md) for the record format and [STATUS.md](STATUS.md) for the current summary.
+Record the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not report a compile-only check as runtime verification. Put campaign narratives in [engineering records](records/README.md) and update [Status](STATUS.md) only when the latest known state changes. See [Record conventions](records/CONVENTIONS.md) for the record format.
