@@ -36,7 +36,7 @@ File location:
 docs/records/<type-directory>/<RECORD-ID>.md
 ```
 
-Type directories are `audits/`, `reviews/`, `remediation/`, `verification/`, `migrations/`, `maintenance/`, `incidents/`, and `documentation/` as needed. A required top-level restructuring report is the one exception: it is stored at `docs/DOCUMENTATION_RESTRUCTURING_REPORT.md` and indexed as a `DOC` record.
+Type directories are `audits/`, `reviews/`, `remediation/`, `verification/`, `migrations/`, `maintenance/`, `incidents/`, and `documentation/` as needed. All records, including documentation-restructuring reports, live under the matching type directory.
 
 ## Required metadata
 
