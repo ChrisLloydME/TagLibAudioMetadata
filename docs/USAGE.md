@@ -1,294 +1,53 @@
-# TagLibAudioMetadata API and usage guide
+# Usage guide
 
-This guide explains how to use the public API in `TagLibAudioMetadata`. It describes the Swift facade and the public Objective-C bridge at the current HEAD; the source code remains the source of truth.
+This guide shows how to choose and use the public API. It is task-oriented; the complete signature index is in the [API reference](API_REFERENCE.md). The source code remains authoritative for behavior.
 
-Use this document to choose an API, understand a model, and handle container-specific behavior after writes. For the underlying preservation and verification contract, see [PRESERVATION](PRESERVATION.md). For format coverage, see [FORMATS](FORMATS.md). For transaction and concurrency behavior, see [TRANSACTIONS](TRANSACTIONS.md).
+Use the canonical documents for deeper contracts:
 
-## Package Shape
+- [Write semantics](PRESERVATION.md) — omission, deletion, Basic preservation, verification, erase.
+- [Formats](FORMATS.md) — capability evidence and container-specific limits.
+- [Transactions](TRANSACTIONS.md) — staging, atomicity, durability, locking.
+- [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md) — optional audio guards.
 
-`TagLibAudioMetadata` presents two public products:
+## Choose the right layer
 
-- `TagLibAudioMetadata`: the Swift facade used by app code.
-- `TagLibAudioMetadataLowLevel`: the `CTagLibBridge` Objective-C bridge for
-  advanced integrations. Its mutators retain the package transaction guarantees.
+| Need | Start with | Why |
+| --- | --- | --- |
+| Show common tags in a library or editor | `BasicMetadata` via `readMetadataResult` or `readBasicSnapshot` | Normalized, compact, easy to bind to UI. |
+| Preserve data the UI does not expose while editing a few fields | `MetadataSnapshot` + `MetadataPatch` | One coherent read and an omission-safe delta. |
+| Replace the complete common-field projection | `replaceBasicMetadata` or `updateBasicMetadata` | Explicit replacement semantics for modeled Basic fields. |
+| Edit exact `PropertyMap` keys/arrays | `RawMetadataDump`, `RawMetadataPatch` | Exact visible cardinality and explicit removals. |
+| Edit ID3 frames, MP4 atoms, ASF attributes, or multiple artwork/comment/lyric records | `StructuredMetadata` | Container-aware collections. |
+| Reject stale edits based on an earlier read | `MetadataFileVersion` | Optimistic filesystem revision check. |
+| Rebase after a metadata-only conflict without replacing audio | `MetadataAudioContentIdentity` + guarded patch overload | Distinguishes changed audio from changed metadata. |
 
-Unsafe in-place mutation and coordination declarations are isolated in the
-non-product `CTagLibBridgeInternalAPI` target for facade implementation and tests.
+`BasicMetadata` is a projection, not a lossless document. If the UI does not expose a field, do not assume a Basic round trip preserves it. Use a snapshot and a patch when preservation matters.
 
-The root manifest declares a checksum-pinned remote `binaryTarget` for the
-dynamic, namespaced `TagLibAudioMetadataTagLib.xcframework`. The bridge depends
-on that target; this source
-repository no longer compiles or carries TagLib source, headers, or binaries
-and has no static/source fallback.
+## Read metadata
 
-Most apps should import the Swift facade:
+### Read Basic metadata
 
 ```swift
 import TagLibAudioMetadata
-```
 
-Starting in 0.5, the Swift module no longer re-exports `CTagLibBridge`. Direct
-bridge integrations must depend on `TagLibAudioMetadataLowLevel` and
-`import CTagLibBridge` explicitly.
+let url = URL(fileURLWithPath: "/path/to/song.flac")
 
-Requirements:
-
-- Swift tools version 6.0
-- macOS 13+
-- iOS 16+
-- GNU C++20, configured by `Package.swift`
-
-Consumers still depend only on the `TagLibAudioMetadata` product. See
-[INSTALLATION.md](INSTALLATION.md) for dynamic framework embedding/signing,
-supported slices, offline use, binary reproduction, and diagnostics.
-
-## API Layers
-
-The package exposes a comprehensive snapshot plus three metadata projections.
-Pick the highest-level layer that keeps the data you need.
-
-| Layer | Main types | Use it for |
-| --- | --- | --- |
-| Comprehensive editing | `MetadataSnapshot`, `MetadataPatch`, `readSnapshot`, `applyMetadataPatch` | Professional editors that must preserve omitted and container-specific data. |
-| Basic metadata | `BasicMetadata`, `BasicMetadataSnapshot`, `readMetadataResult`, `readBasicSnapshot`, `updateBasicMetadata`, `replaceBasicMetadata` | Track editors, library views, common tags, artwork, common IDs, ReplayGain, iTunes fields. |
-| Raw property map | `RawMetadataDump`, `RawMetadataPatch`, `applyRawMetadataPatch`, whole-map compatibility writers | Advanced editors that expose exact TagLib property keys and value arrays. |
-| Structured metadata | `StructuredMetadata`, `StructuredID3v2Frame`, `StructuredMP4Atom`, `StructuredASFAttribute` | Container-aware editing of ID3v2 frames, MP4 atoms, ASF attributes, comments, lyrics, and artwork. |
-
-Use `BasicMetadata` for display and simple full-model editing. Use snapshots and
-patches when preserving data the UI did not expose is part of the contract.
-
-## Comprehensive Snapshots and Patches
-
-`readSnapshot(from:)` obtains the basic, raw, and structured projections from
-one TagLib file session and rejects a file whose identity changes during the
-read:
-
-```swift
-let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
-print(snapshot.basic.title)
-print(snapshot.raw.properties)
-print(snapshot.structured.mp4Atoms)
-```
-
-This is a comprehensive semantic snapshot, not a lossless native serialization.
-Known raw cardinality and supported structured frames/items are retained, but
-unknown ID3v2 frames, CHAP embedded frames, private payloads, and unsupported MP4
-or ASF values may be represented only by display/type/count summaries. Leaving
-such content out of a patch preserves the on-disk entry; rebuilding a native tag
-from the snapshot alone is not guaranteed to reproduce opaque bytes.
-
-`MetadataPatch` distinguishes omission from removal. Fields absent from the
-patch remain unchanged; `.remove` clears an explicitly named property; artwork
-has separate unchanged, replace, and remove-all cases; and
-`explicitAdvisory` preserves unspecified, not-explicit, explicit, and clean
-states. `numberText` carries an intentional formatted track/disc pair in the
-same transaction as other patch fields. Track and disc intent are independent:
-`nil` is unchanged, a nonempty string sets the pair, and an empty string removes
-it. A patch cannot mix that exact-text form
-with typed track/disc components. The compatibility Boolean `isExplicit` is a
-lossy read projection; its setter is deprecated, so mutations should use the
-enum and state their exact intent.
-
-Known fields are validated against `MetadataFieldRegistry` before any staging
-copy or mutation. For example, `.title` accepts text while `.bpm` accepts an
-integer. Track/disc numbers and totals accept `1...INT_MAX`, with `.remove` as
-their explicit unset operation. BPM and movement numbering retain their
-schema-defined `0...INT_MAX` range. Negative, zero where disallowed, and
-narrowing values fail before the staged file exists. High-level `customFields`
-accept only genuinely unknown keys: known keys, aliases, case variants, and
-typed/custom collisions are rejected with `MetadataPatchValidationError`.
-Permissive known-key editing remains available through the raw APIs.
-Text-backed Boolean patches encode `.boolean(true)` as `"1"` and
-`.boolean(false)` as `"0"`; `.remove` alone makes the field absent.
-Text and array elements are trimmed once before mutation, and verification uses
-that same normalized representation. `.text("")`, `.values([])`, and arrays
-containing empty or whitespace-only elements are validation errors. Use
-`.remove` when absence is intended.
-
-```swift
-let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
-let patch = MetadataPatch(
-    fields: [.title: .text("Edited")],
-    customFields: ["APP_EDITOR_STATE": .values(["One", "Two"])],
-    artwork: .unchanged
-)
-
-try TagLibMetadataManager.applyMetadataPatch(
-    patch,
-    to: url,
-    expectedVersion: snapshot.fileVersion
-)
-```
-
-Passing the snapshot version makes an edit based on that snapshot fail closed if
-the destination changes before the transaction acquires its same-entry lock.
-Omitting `expectedVersion` is appropriate only when the operation intentionally
-targets whatever content is current when it begins.
-
-Track and disc fields are semantic pairs even though the Patch API exposes
-their components separately. On MP4/M4A, changing only `.track` preserves the
-existing total in native `trkn`; changing only `.trackTotal` preserves the
-number. `disc`/`discTotal` behave the same through `disk`. ID3 and
-PropertyMap-backed formats receive their corresponding native/text pair. Generic
-PropertyMap formats use separate `TRACKNUMBER`/`TRACKTOTAL` and
-`DISCNUMBER`/`DISCTOTAL` values, so the total is not duplicated inside the
-number field. ID3 retains its combined `TRCK`/`TPOS` representation. ID3
-movement number/count uses native `MVIN`; patching either component preserves
-the other.
-
-An ordinary MP4 number Patch or Basic read-modify-write writes standard
-`trkn`/`disk` metadata and does not introduce private formatting atoms into a
-standard-only file. Legacy `AUDIOMATOR_*_TEXT` atoms remain readable formatting
-provenance rather than numeric authority. Editing the corresponding pair lazily
-migrates that provenance to package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` while
-retaining its padding; unrelated edits leave the legacy atom unchanged. Use
-`writeTrackNumberText` for intentional formatted text; new writes use the
-package-neutral namespace. When native
-`trkn`/`disk` pairs coexist with legacy freeform number or total aliases, native
-pairs are authoritative; number writes remove those conflicting aliases.
-
-`explicitAdvisory` is also container-aware in both Basic and Patch writes:
-MP4/M4A uses native `rtng`, ID3 uses the supported `ITUNESADVISORY` TXXX
-representation, and generic PropertyMap formats retain their corresponding
-`ITUNESADVISORY` key. For MP4/M4A, atom absence means unspecified, while native
-values `0`, `1`, and `2` mean not-explicit, explicit, and clean. High-level writes
-emit only that canonical mapping. Legacy MP4 value `4` is read as explicit and
-canonicalized to `1` on rewrite. The textual compatibility reader also accepts
-`TRUE`, `YES`, and `EXPLICIT` as explicit; `CLEAN` as clean; and `FALSE`, `NO`,
-`NONE`, and `-1` as not-explicit. Unspecified removes the container's supported
-representation. The high-level MP4 writer removes the explicitly recognized
-freeform aliases `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, and `EXPLICIT`
-instead of leaving stale native and freeform values together. Unrelated
-freeform metadata is not removed by fuzzy name matching.
-
-Date fields are deliberately separate:
-
-| Semantic field | Meaning | ID3v2 | Xiph/PropertyMap | MP4 |
-| --- | --- | --- | --- | --- |
-| `.date` | Recording date or year | `TDRC`; legacy `TYER` is read-compatible | `DATE`; `YEAR` is an alias | Unsupported for typed writes |
-| `.releaseDate` | Release date | `TDRL` | `RELEASEDATE` | `©day` |
-| `.originalReleaseDate` | Original release date | `TDOR` | `ORIGINALDATE` / `ORIGINAL YEAR` | `ORIGINAL YEAR` freeform |
-
-ID3 and Xiph-style formats can therefore retain different recording and release
-dates at the same time. MP4 exposes only one standard date atom, so
-`.releaseDate` is its sole owner. A typed `.date` patch for MP4 fails before
-staging or mutation, and a patch verification reads the exact storage selected
-by this format-aware write plan. `BasicMetadata.year` is retained for source
-compatibility; MP4 reads project its value from `©day`, but callers that need
-unambiguous editing should use `MetadataPatch` and the semantic field keys.
-
-When a capability descriptor supplies an explicit writable-field allowlist,
-`MetadataPatch` rejects unsupported typed fields before creating a staging copy.
-Formats without reliable field-level restrictions continue to rely on their
-schema mappings and TagLib behavior. Raw APIs are not restricted by this
-high-level preflight.
-
-## Format support
-
-Check support before you show editing controls or attempt a write.
-
-```swift
-let ext = url.pathExtension
-let isReadable = TagLibMetadataManager.isReadableExtension(ext)
-let isWritable = TagLibMetadataManager.isWritableExtension(ext)
-let capability = TagLibMetadataManager.capability(forExtension: ext)
-```
-
-These APIs describe a declared extension; they do not open a file. Use `probeFile(at:)` for parser validation of a concrete user file. It reads the file and throws if the selected parser cannot validate it, then returns the corresponding declared capability. It does not test POSIX write permission, ACLs, disk space, or sandbox access; attempt a write or check those separately when an editability decision depends on them.
-
-Capability fields answer different questions. `writeSupport(for:)` combines the family and field mappings, `structuredWriteSupport` describes non-artwork structured data, `canWriteArtwork` is separate, and `preservesMultiValueProperties` is a family-level property. Do not infer one from another. `capability(forExtension:)` reports the format family, aliases, metadata containers, artwork support, multi-value support, structured support, read-only caveats, and evidence level.
-
-```swift
-if let capability = TagLibMetadataManager.capability(forExtension: "m4a") {
-    print(capability.identifier)              // "mp4"
-    print(capability.extensions)              // extension aliases for the family
-    print(capability.canWriteArtwork)
-    print(capability.structuredWriteSupport)
-    print(capability.supportLevel)
-    print(capability.writeSupport(for: .artwork))
-}
-```
-
-`formatCapabilities` returns every known family, and `readableExtensions`/`writableExtensions` are derived extension lists.
-
-`fixtureCovered`, `experimental`, `upstreamSupported`, and `readOnly` are configured evidence labels, not runtime proof. The complete family matrix, per-extension levels, and format-specific limitations are in [FORMATS](FORMATS.md).
-
-## Basic Metadata
-
-`BasicMetadata` is the model for common app-level metadata. It stores text fields
-as `String`, numbers as `Int`, booleans as `Bool`, audio properties as numeric
-values, artwork as `Data?`, and unknown custom fields as `[String: String]`.
-
-It is a normalized projection, not a lossless document. It can flatten
-multi-value properties and cannot represent every frame, atom, attribute,
-comment, lyric, or artwork record. ID3 generally joins multi-values with `", "`; MP4 artist/genre and generic/Xiph projections use `"; "`, while some MP4 native fields and freeforms use `", "`. Do not split display strings to reconstruct arrays; use raw or structured metadata.
-
-Reads retain the original raw arrays and corresponding normalized scalar
-projections for known multi-value fields such as `ARTIST`, `COMPOSER`,
-`ALBUMARTIST`, and `GENRE`. An unrelated Basic edit restores those untouched
-arrays exactly, preserves full recording dates and documented aliases (for
-example `PUBLISHER`, `CATALOG`, `ORIGINAL YEAR`, and MusicBrainz space forms), and
-retains qualified people keys such as `PERFORMER:GUITAR`. It never guesses
-cardinality by splitting a display string. The same schema-driven preservation
-retains known fields Basic cannot express (for example `PERFORMER`,
-`INVOLVEDPEOPLE`, and `TRACKERNAME`) and unknown custom fields. On ID3-backed
-MP3, AAC, WAV, AIFF, and TTA, unchanged native comment/lyric collections also retain
-their languages and descriptions; a PropertyMap projection alone cannot carry
-that information. Existing native custom attributes with schema-known names
-may be carried through unchanged, but editing or adding those names through
-Basic custom fields is rejected.
-
-Removing an entry from `BasicMetadata.customFields` does not delete it on disk;
-absence means the normalized Basic projection is not making a deletion request.
-An explicitly supplied empty custom value clears that custom entry; raw Patch
-removal is the preferred explicit deletion API.
-Use `MetadataPatch(customFields: [key: .remove])` or a raw API for deletion.
-Changing an existing custom value still writes the new value. Cardinality and
-original-projection bookkeeping is exposed read-only and cannot be mutated by
-callers to corrupt preservation decisions. Precise editing should use a
-snapshot/patch, raw multi-value map, or structured payload.
-
-Use `BasicMetadata.empty` only when you intentionally want to build a complete
-replacement from scratch:
-
-```swift
-var metadata = BasicMetadata.empty
-metadata.title = "Nocturne"
-metadata.artist = "Example Artist"
-metadata.album = "Late Sessions"
-metadata.track = 1
-metadata.trackTotal = 12
-metadata.trackNumberText = "01/12"
-metadata.artworkData = try Data(contentsOf: coverURL)
-```
-
-Empty strings mean "clear this field" when you write through
-`replaceBasicMetadata`. Numeric zero means "unset" for number fields. For a safe
-read/modify/write convenience, use `updateBasicMetadata(at:_:)`; it reads the
-current Basic+PropertyMap projection through `readBasicSnapshot`, without
-constructing structured inspector models, and supplies its version to the
-replacement transaction.
-The ambiguous `writeMetadata` and `writeMetadataWithVerification` entry points
-remain as deprecated source-compatible wrappers.
-
-### Reading Basic Metadata
-
-Prefer the throwing API in new code:
-
-```swift
 do {
     let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
     print(metadata.title)
+    print(metadata.artist)
     print(metadata.duration)
 } catch TagLibManagerError.unsupportedFormat {
-    // The extension is missing or not supported by this bridge.
-} catch TagLibManagerError.failedToReadWithUnderlying(let message) {
-    // TagLib or the bridge failed while opening or parsing the file.
-    print(message)
+    // Missing extension or a format the bridge does not register.
+} catch TagLibManagerError.failedToReadWithUnderlying(let detail) {
+    // The selected parser could not open or validate the file.
+    print(detail)
 }
 ```
 
-Use the optional API for compatibility paths where `nil` is enough:
+`readMetadataResult` reads the Basic projection and the visible `PropertyMap` from one pass and rejects a file whose observed identity changes during the read. It does not construct structured/container inspector models.
+
+Optional readers collapse every failure to `nil`:
 
 ```swift
 if let metadata = TagLibMetadataManager.bestEffortMetadata(from: url) {
@@ -296,176 +55,34 @@ if let metadata = TagLibMetadataManager.bestEffortMetadata(from: url) {
 }
 ```
 
-`bestEffortMetadata(from:)` returns `nil` without diagnostics. Its name makes the
-intentional loss of unsupported-format, corrupt-file, permission, I/O, and
-concurrent-change errors explicit. The older `readMetadata(from:)` optional
-helper is deprecated.
+Use a best-effort reader only when losing the error is intentional. Typed `TagLibManagerError` cases usually tell the UI what to do next.
 
-When a loader also needs a version token for a later optimistic edit, use the
-focused snapshot rather than the comprehensive inspector snapshot:
+### Read Basic metadata with a version token
 
 ```swift
 let snapshot = try TagLibMetadataManager.readBasicSnapshot(from: url)
 show(snapshot.metadata)
+
 let version = snapshot.fileVersion
+// Pass version to a later write to reject a stale edit.
 ```
 
-### Writing Basic Metadata
+`readBasicSnapshot` avoids building raw and structured inspector models while still returning a `MetadataFileVersion`. It is the right loader for a Basic editor.
 
-When the UI already owns a Basic snapshot, pass its version into the verified
-replacement so a stale edit cannot overwrite a newer file:
+### Read a comprehensive snapshot
 
 ```swift
-let snapshot = try TagLibMetadataManager.readBasicSnapshot(from: url)
-var metadata = snapshot.metadata
-metadata.title = "New Title"
-metadata.artist = "New Artist"
-metadata.track = 2
-metadata.trackTotal = 10
-metadata.trackNumberText = "02/10"
+let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
 
-let result = try TagLibMetadataManager.replaceBasicMetadata(
-    metadata,
-    to: url,
-    expectedVersion: snapshot.fileVersion
-)
-
-for warning in result.warnings {
-    print("Metadata warning:", warning)
-}
+print(snapshot.basic.title)
+print(snapshot.raw.properties)
+print(snapshot.structured.artwork)
+print(snapshot.structured.id3v2Frames)
 ```
 
-`replaceBasicMetadata` writes through the bridge and reads the file back
-to check important fields. A verification mismatch always invalidates the
-transaction and throws before commit. Successful structured writes may still
-return non-fatal container advisories in `MetadataWriteResult.warnings`.
+`readSnapshot` obtains Basic, raw, and structured projections from one parser session and rejects a file that changes during extraction. It is a semantic snapshot, not a byte-exact native archive. Unknown or opaque native records may be summarized, and leaving them out of a patch does not necessarily reconstruct their bytes.
 
-```swift
-try TagLibMetadataManager.replaceBasicMetadata(
-    metadata,
-    to: url
-)
-```
-
-Verification failures always abort the transaction as
-`TagLibManagerError.verificationFailed([String])`. The former one-case policy
-parameter remains only on deprecated source-compatible overloads.
-
-Prefer the omission-safe Basic update convenience when starting from an existing file:
-
-```swift
-try TagLibMetadataManager.updateBasicMetadata(at: url) { metadata in
-    metadata.title = "New Title"
-}
-```
-
-### Track and Disc Number Text
-
-Many containers store track and disc numbers as text such as `01/12`.
-`BasicMetadata` keeps both parsed numbers and the original text form:
-
-- `track` and `trackTotal` store parsed numeric values.
-- `disc` and `discTotal` store parsed numeric values.
-- `trackNumberText` and `discNumberText` preserve formatting when possible.
-
-Use `writeTrackNumberText` for renumbering features that should keep padding:
-
-```swift
-let result = try TagLibMetadataManager.writeTrackNumberText(
-    "03/12",
-    discNumberText: "01/02",
-    to: url
-)
-
-if !result.warnings.isEmpty {
-    print(result.warnings)
-}
-```
-
-Pass `discNumberText: nil` to leave the disc text unchanged.
-
-### Artwork
-
-Read artwork from `BasicMetadata.artworkData`:
-
-```swift
-let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-if let artwork = metadata.artworkData {
-    renderArtwork(artwork)
-}
-```
-
-Write artwork through the omission-safe update convenience:
-
-```swift
-let result = try TagLibMetadataManager.updateBasicMetadata(at: url) { metadata in
-    metadata.artworkData = try Data(contentsOf: coverURL)
-}
-```
-
-Check `FormatCapability.canWriteArtwork` before enabling artwork editing. Some
-formats can read tags but cannot persist artwork.
-
-To remove artwork through the low-level bridge model, import the bridge module explicitly:
-
-```swift
-import CTagLibBridge
-let bridgeMetadata = TagLibAudioMetadata()
-bridgeMetadata.removeArtwork = true
-
-try TagLibMetadataManager.writeTagMetadata(
-    bridgeMetadata,
-    to: url,
-    verification: .init(
-        expectedTrackNumber: nil,
-        expectedTrackTotal: nil,
-        expectedTrackNumberText: nil,
-        expectedDiscNumber: nil,
-        expectedDiscTotal: nil,
-        expectedDiscNumberText: nil,
-        expectedExplicitContent: nil,
-        artworkExpectation: .absent,
-        customFieldKeys: []
-    )
-)
-```
-
-### Provenance
-
-`BasicMetadata.provenance` explains where selected values came from.
-
-```swift
-let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-
-switch metadata.provenance.trackNumberText {
-case .nativeTag:
-    print("The container exposed track text directly.")
-case .rawFallback:
-    print("The manager recovered track text from raw metadata.")
-case .derivedNumeric:
-    print("The manager derived text from parsed numeric values.")
-case .none:
-    print("No track text was available.")
-default:
-    break
-}
-```
-
-`MetadataValueSource` values:
-
-- `nativeTag`: TagLib exposed the value through its main tag API.
-- `propertyMap`: TagLib exposed the value through the normalized property map.
-- `id3v2Frame`: the value came from an ID3v2 frame.
-- `rawFallback`: the manager recovered a value from the raw dump.
-- `derivedNumeric`: the manager derived text from numeric fields.
-- `none`: the value was not present.
-
-## Raw Metadata
-
-Raw metadata exposes TagLib `PropertyMap` entries and ID3v2 frame summaries.
-Use it for inspection panels, power-user editors, debugging, and custom tag work.
-
-### Reading Raw Metadata
+### Read raw metadata
 
 ```swift
 let dump = try TagLibMetadataManager.rawMetadataResult(from: url)
@@ -479,13 +96,9 @@ for frame in dump.id3v2Frames {
 }
 ```
 
-Use `bestEffortRawMetadata(from:)` when `nil` is enough:
+`RawPropertyEntry.value` is a joined display projection; `values` is authoritative for cardinality. `schema` links a property key to the field registry when known. `shouldDisplayAsMultiValue` is a UI hint based on schema mappings and qualified prefixes.
 
-```swift
-let dump = TagLibMetadataManager.bestEffortRawMetadata(from: url)
-```
-
-Use `bestEffortRawMetadataText(from:)` for copyable diagnostics:
+`bestEffortRawMetadataText` returns copyable diagnostic text:
 
 ```swift
 if let text = TagLibMetadataManager.bestEffortRawMetadataText(from: url) {
@@ -493,113 +106,15 @@ if let text = TagLibMetadataManager.bestEffortRawMetadataText(from: url) {
 }
 ```
 
-`RawPropertyEntry.schema` links a raw property key to the field registry when the
-key is known. `shouldDisplayAsMultiValue` tells UI code whether to show the entry
-as a multi-value field.
+Raw ID3v2 frame summaries are populated for the ID3 extraction paths that request them (MPEG/ID3, WAV, AIFF, TTA). Containers such as MP4, ASF, FLAC, and Ogg expose structured collections instead.
 
-### Writing Raw Property Maps
-
-Raw APIs use prefixless TagLib PropertyMap keys. Native MP4 `----:` atom identifiers are rejected with `RawMetadataPatchError.nativeKeyRequiresStructuredAPI`; use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys. This rejection applies even when verification is disabled.
-
-Use `writeRawMetadataPropertyMapWithVerification` when you edit flat
-`[String: String]` values:
-
-```swift
-try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
-    [
-        "TITLE": "Raw Title",
-        "MOOD": "Focused",
-        "CUSTOM_CASE": "Alpha"
-    ],
-    to: url,
-    mode: .replace
-)
-```
-
-`RawPropertyMapWriteMode.replace` replaces the visible TagLib PropertyMap with
-the provided keys. It is not a byte-level or opaque-native replacement: WAV INFO
-can be removed, and native data that TagLib does not expose through
-`properties()` is not reconstructed. Empty values are trimmed/removed. Use it
-for a full editor save where the UI owns the complete visible map.
-
-```swift
-try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
-    [
-        "MOOD": "",
-        "CUSTOM_CASE": "Beta"
-    ],
-    to: url,
-    mode: .merge
-)
-```
-
-`RawPropertyMapWriteMode.merge` applies a delta to the current map, preserves
-omitted visible keys, hidden MP4 freeform atoms, and WAV INFO, and removes a key
-when the supplied value is empty. New WAV keys are created in ID3v2; existing
-INFO keys update INFO. Both modes accept `expectedVersion`.
-
-Use `writeRawMetadataPropertyMapValuesWithVerification` when the container can
-preserve arrays. Its default `.replace` mode owns the complete visible PropertyMap
-and removes omitted keys; pass `mode: .merge` for a partial edit:
-
-```swift
-try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
-    ["ARTIST": ["One", "Two"]],
-    to: url,
-    mode: .merge
-)
-```
-
-This is the better API for Xiph/Vorbis-style multi-value fields. `.replace`
-writes only the supplied visible map and can remove opaque native fields;
-`.merge` preserves untouched keys and hidden data. Neither mode injects private
-number-formatting atoms.
-
-For precise partial edits, prefer `RawMetadataPatch`. It retains exact arrays,
-uses explicit removals, verifies the complete visible PropertyMap, and accepts
-an optimistic-concurrency token:
-
-```swift
-let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
-let patch = RawMetadataPatch(
-    valuesToSet: ["ARTIST": ["One", "Two"]],
-    removingKeys: ["OLD_WORKFLOW_KEY"]
-)
-
-let result = try TagLibMetadataManager.applyRawMetadataPatch(
-    patch,
-    to: url,
-    expectedVersion: snapshot.fileVersion
-)
-```
-
-Both raw-mode functions and the compatibility
-`writeRawMetadataPropertyMap(_:to:mode:expectedVersion:)` accept
-`expectedVersion`. The convenience returns only `Bool` and discards the richer
-write result:
-
-```swift
-try TagLibMetadataManager.writeRawMetadataPropertyMap(
-    ["TITLE": "Edited"],
-    to: url,
-    mode: .merge
-)
-```
-
-## Structured Metadata
-
-Structured metadata exposes container-specific records while keeping them in
-Swift value types. Use it when your UI needs to edit ID3v2 frames, MP4 atoms, ASF
-attributes, multiple comments, multiple lyrics entries, or multiple artwork
-records.
-
-### Reading Structured Metadata
+### Read structured metadata
 
 ```swift
 let structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
 
 for frame in structured.id3v2Frames {
-    print(frame.frameID, frame.type, frame.value)
+    print(frame.frameID, frame.type, frame.values)
 }
 
 for atom in structured.mp4Atoms {
@@ -611,27 +126,194 @@ for warning in structured.warnings {
 }
 ```
 
-Use `bestEffortStructuredMetadata(from:)` for an optional result:
+Structured collections are container-specific. A format may populate `properties` only, or may expose frames/atoms/attributes, artwork, lyrics, comments, or warnings. Do not assume every collection is populated for every file.
+
+For ID3v2 text frames, `values` is the ordered native string list; `value` is a display projection. `TXXX.description` identifies the user-text frame and is not duplicated into `values`. `APIC`, `COMM`, and `USLT` are returned in the dedicated `artwork`, `comments`, and `lyrics` collections rather than `id3v2Frames`.
+
+Opaque ID3 frames are returned with `type == "unknown"` and are inspection-only. Omit them from a write payload; supplying one throws `MetadataValidationError.unsupportedID3v2FrameType`.
+
+## Write metadata
+
+### Apply a typed patch
+
+`MetadataPatch` is an omission-safe delta. Absent fields are unchanged.
 
 ```swift
-let structured = TagLibMetadataManager.bestEffortStructuredMetadata(from: url)
+let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+
+let patch = MetadataPatch(
+    fields: [
+        .title: .text("Edited Title"),
+        .track: .integer(2),
+        .trackTotal: .integer(10)
+    ],
+    customFields: ["APP_EDITOR_STATE": .values(["reviewed", "approved"])],
+    explicitAdvisory: .clean,
+    artwork: .unchanged
+)
+
+let result = try TagLibMetadataManager.applyMetadataPatch(
+    patch,
+    to: url,
+    expectedVersion: snapshot.fileVersion
+)
+
+for warning in result.warnings {
+    print("Warning:", warning)
+}
 ```
 
-`CHAP` and `CTOC` records expose their container data directly on
-`StructuredID3v2Frame`: `elementID`, start/end time and offsets, `isTopLevel`,
-`isOrdered`, `children`, and `embeddedFrameCount`. The structured writer creates
-and modifies these frames and the `PCST` podcast marker, validates their
-unsigned numeric fields, and verifies their typed values after save.
+Rules enforced before staging:
 
-For ordinary ID3v2 text frames, `values` is the ordered native TagLib string
-list. Structured writes pass that list to the native text-frame API without
-joining it into a display string. For `TXXX`, `description` is the user-text
-frame identifier and `values` contains only the semantic payload values; the
-description is not duplicated into the array. Verified writes compare frame ID,
-type, description where applicable, value count, ordering, and each value, so
-`["A", "B"]` is not equivalent to `["A; B"]`.
+- Field/value kinds come from `MetadataFieldRegistry`: `.bpm`, `.track`, `.disc`, and movement fields are integers; `.compilation` is Boolean; artwork, explicit advisory, and custom data use dedicated properties.
+- Track/disc components accept `1...Int32.max`; BPM and movement numbering accept `0...Int32.max`.
+- Role-qualified fields `.performer`, `.involvedPeople`, and `.musicianCredits` are rejected because their keys carry roles. Use a raw or structured API.
+- `customFields` accepts only unknown keys. Known keys, aliases, case variants, and a typed/custom collision are rejected.
+- `.text` and `.values` are trimmed once; empty text, empty arrays, and empty elements are errors. `.remove` is the explicit deletion request.
+- A patch cannot mix `numberText` with typed track/disc fields.
 
-### Writing Structured Metadata
+`MetadataPatchValue` has four field-value forms and one deletion form: `.text`, `.integer`, `.boolean`, `.values`, and `.remove`. `.boolean(false)` writes `"0"`; it is not deletion.
+
+#### Omission, removal, and boolean states
+
+```swift
+// Leave the title unchanged; remove the comment; set the mood.
+let patch = MetadataPatch(fields: [
+    .comment: .remove,
+    .mood: .text("Focused")
+])
+```
+
+`MetadataPatch.isEmpty` is true when no field, custom field, advisory, artwork, or number-text intent is present. An empty patch returns an empty result without staging or validating a version/audio guard.
+
+`explicitAdvisory` has four meaningful values: `nil` means unchanged, `.unspecified` removes the representation, and `.notExplicit`, `.clean`, or `.explicit` stores the corresponding state. `BasicMetadata.isExplicit` is a lossy Boolean projection; assigning `false` records `.clean`, not `notExplicit` or absence.
+
+#### Track, disc, and formatted number text
+
+Track and disc fields are semantic pairs. Patching only `.track` preserves the existing total; patching only `.trackTotal` preserves the number. Native ID3 formats use combined `TRCK`/`TPOS`, MP4 uses `trkn`/`disk`, and generic/Xiph formats use separate number/total keys. ID3 movement uses `MVIN`; patching one movement component preserves the other.
+
+A first component cannot be removed while retaining a total on formats that cannot represent a missing number with a total. Remove both components to clear the pair.
+
+Use `numberText` only when formatted text is the authoritative input:
+
+```swift
+let patch = MetadataPatch(
+    numberText: .init(trackNumberText: "02/10", discNumberText: "01/02")
+)
+```
+
+`nil` leaves a pair unchanged, a non-empty string sets it, and an empty string removes it. Do not combine `numberText` with typed track/disc fields in the same patch.
+
+Ordinary numeric Basic and Patch writes use native numeric storage. On MP4 they do not add private formatting atoms to a standard-only file. If legacy `AUDIOMATOR_*_TEXT` formatting provenance exists and the corresponding pair is edited, the package migrates it to the package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` namespace while retaining padding. Use `writeTrackNumberText` for an intentional formatted-text write.
+
+#### Dates on MP4
+
+MP4 has one standard date atom, `©day`. `.releaseDate` owns it; typed `.date` writes are rejected for MP4. `.date` owns the recording date/year where the container has a separate representation.
+
+`updateBasicMetadata` reconciles a single-field MP4 year/releaseDate edit. A full `replaceBasicMetadata` with inconsistent non-empty `year` and `releaseDate` projections throws `MetadataValidationError.conflictingMP4Date`; an empty `year` is allowed and the date projection supplies the year.
+
+#### Artwork
+
+```swift
+let cover = try Data(contentsOf: coverURL)
+
+let patch = MetadataPatch(artwork: .replace([
+    StructuredArtwork(
+        pictureType: "Front Cover",
+        pictureTypeCode: 3,
+        mimeType: "image/jpeg",
+        description: "Front cover",
+        data: cover
+    )
+]))
+
+try TagLibMetadataManager.applyMetadataPatch(patch, to: url)
+```
+
+`.unchanged` leaves the artwork collection alone, `.replace` replaces the top-level collection, and `.removeAll` removes it. Artwork support is container-specific; check `FormatCapability.canWriteArtwork`. APE-family containers accept one front image; ID3v2, MP4, ASF, FLAC, and Xiph support the entries their containers store. `container` is informational: the writer selects the destination container from the file format.
+
+### Replace or update Basic metadata
+
+`replaceBasicMetadata` replaces the complete Basic projection:
+
+```swift
+var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+metadata.title = "New Title"
+metadata.artist = "New Artist"
+metadata.track = 2
+metadata.trackTotal = 10
+
+let result = try TagLibMetadataManager.replaceBasicMetadata(
+    metadata,
+    to: url
+)
+```
+
+Empty strings and zero numbers clear modeled fields where the container allows it. A custom field key removed from `customFields` is not a deletion request; use `MetadataPatch(customFields: [key: .remove])` or a raw API. An explicitly supplied empty custom value clears that entry.
+
+For read/modify/write, prefer the version-checked convenience:
+
+```swift
+let result = try TagLibMetadataManager.updateBasicMetadata(at: url) { metadata in
+    metadata.title = "New Title"
+    metadata.genre = "Ambient"
+}
+```
+
+`updateBasicMetadata` reads a focused Basic snapshot, applies the closure, and passes the captured version to `replaceBasicMetadata`. It is safer than reading and replacing in separate UI events without a version.
+
+`BasicMetadata.empty` is a complete replacement value, not a partial patch. Do not use it to clear only one field.
+
+### Apply a raw delta
+
+Use `RawMetadataPatch` for exact partial `PropertyMap` edits:
+
+```swift
+let patch = RawMetadataPatch(
+    valuesToSet: ["ARTIST": ["Primary Artist", "Featured Artist"]],
+    removingKeys: ["OLD_WORKFLOW_KEY"]
+)
+
+let result = try TagLibMetadataManager.applyRawMetadataPatch(
+    patch,
+    to: url,
+    expectedVersion: snapshot.fileVersion
+)
+```
+
+Keys are normalized to uppercase. Omitted keys are unchanged. Array boundaries, duplicate values, empty strings, and whitespace are significant; an empty array is invalid and must be expressed with `removingKeys`. Conflicting keys after normalization are rejected. Native MP4 `----:` atom keys are rejected; use `StructuredMetadata.mp4Atoms`. The complete visible `PropertyMap` is verified after the delta.
+
+### Replace or merge a whole visible map
+
+Use the whole-map writers only when the caller deliberately owns the complete visible map or an explicit merge:
+
+```swift
+try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+    [
+        "TITLE": "Raw Title",
+        "MOOD": "Focused"
+    ],
+    to: url,
+    mode: .replace
+)
+```
+
+`.replace` removes omitted visible keys from the map it writes. It does not reconstruct native data TagLib does not expose. On WAV, RIFF INFO is a separate surface and is not removed by this call; omitted INFO keys can remain and make verification fail. Use a structured `.id3v2Only` write to remove INFO, or delete both surfaces explicitly. `.merge` preserves omitted visible keys and native structures and treats an empty value as removal:
+
+```swift
+try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+    [
+        "ARTIST": ["One", "Two"],
+        "OLD_KEY": []
+    ],
+    to: url,
+    mode: .merge
+)
+```
+
+The values variant preserves array boundaries. Both writers accept `expectedVersion` and `verifyAfterWrite`; setting `verifyAfterWrite: false` skips readback comparison but still stages and commits atomically. Do not describe such a write as verified.
+
+### Write structured metadata
 
 ```swift
 let payload = StructuredMetadata(
@@ -639,12 +321,7 @@ let payload = StructuredMetadata(
         .init(key: "TITLE", values: ["Structured Title"])
     ],
     id3v2Frames: [
-        .init(
-            frameID: "TIT3",
-            type: "text",
-            value: "Subtitle",
-            values: ["Subtitle"]
-        )
+        .init(frameID: "TIT3", type: "text", values: ["Subtitle"])
     ],
     comments: [
         .init(language: "eng", description: "", text: "Editor comment")
@@ -658,22 +335,9 @@ let result = try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-`includeProperties` controls whether `StructuredMetadata.properties` participates.
-When `true`, supplied properties are applied as a **delta**: omitted keys and
-native structures are preserved, and an empty `values` array removes that key.
-When `false`, a non-empty `properties` array is rejected rather than silently
-ignored. Leave it `false` when you only want to edit frames, atoms, attributes,
-artwork, comments, or lyrics.
+`includeProperties` controls whether `properties` participates. With `false`, a non-empty properties array is rejected; with `true`, non-empty properties are a delta and an empty `values` array removes that key.
 
-Opaque ID3v2 entries returned with `type == "unknown"` are inspection-only.
-Exclude them from `id3v2Frames` when writing; omitted opaque frames remain on
-disk. Supplying an opaque frame to the writer throws
-`unsupportedID3v2FrameType` because its display summary cannot reconstruct or
-verify a native payload.
-
-Non-empty artwork, lyrics, and comments arrays use replace-all semantics. Empty
-arrays are omitted by default so a partial edit does not erase existing data. To
-remove the final entries, name the collections explicitly:
+Non-empty `artwork`, `lyrics`, and `comments` arrays use replace-all semantics. Empty arrays are omitted by default so a partial edit does not erase existing data. To remove the final entries, name the collections explicitly:
 
 ```swift
 try TagLibMetadataManager.writeStructuredMetadataWithVerification(
@@ -683,419 +347,19 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-For MP4 freeform atoms:
+#### ID3v2 frames
 
 ```swift
-let payload = StructuredMetadata(
-    mp4Atoms: [
-        .init(
-            key: "----:com.apple.iTunes:CATALOGNUMBER",
-            type: "stringList",
-            values: ["ABC-123"]
-        )
-    ]
-)
-
-try TagLibMetadataManager.writeStructuredMetadataWithVerification(payload, to: url)
-```
-
-For structured artwork:
-
-```swift
-let artwork = StructuredArtwork(
-    container: "id3v2",
-    pictureType: "Front Cover",
-    pictureTypeCode: 3,
-    mimeType: "image/jpeg",
-    data: try Data(contentsOf: coverURL)
-)
-
-try TagLibMetadataManager.writeStructuredMetadataWithVerification(
-    StructuredMetadata(artwork: [artwork]),
-    to: url
+let frame = StructuredID3v2Frame(
+    frameID: "TIT3",
+    type: "text",
+    values: ["Subtitle"]
 )
 ```
 
-Top-level structured artwork replacement is supported for ID3v2, MP4, ASF,
-FLAC/Xiph, and APE-family containers. TrueAudio, WavPack, APE, Musepack,
-DSF, and DSDIFF now have genuine runtime fixtures; DSD structured collection
-reads are tested independently from their more limited write support. `StructuredArtwork.container` is
-informational: the writer selects the destination container from the file
-format, so verification compares payload, MIME type, and applicable picture
-metadata rather than requiring the caller to guess the container name.
+Supported write types are `text`, `userText`, `url`, `ufid`, `chapter`, `tableOfContents`, and `podcast`. `APIC`, `COMM`, and `USLT` must be edited through `artwork`, `comments`, and `lyrics`; `unknown` frames are read-only. `CHAP`/`CTOC` require a non-empty `elementID`; `UFID` requires an owner and non-empty data; URL frames require a `W`-prefixed ID and a non-empty URL. `fields` is reserved and currently ignored.
 
-Picture type code `0` is valid and means `Other`; it is preserved rather than
-treated as a missing type. When no picture type is supplied, the writer defaults
-to Front Cover (`3`). APE-family writes support one front-cover image; ID3v2,
-MP4, ASF, FLAC, and Xiph paths support the entries those containers can store.
-Verification compares image data and MIME type, plus picture type and description
-where the container serializes them.
-
-`structuredWriteSupport` describes non-artwork structured mutation. A `.propertyMap`
-level still permits artwork through the structured artwork collection when
-`canWriteArtwork` is true. TrueAudio/TTA now supports its native ID3v2 frame,
-comment, and lyric collections as well and reports `.container` support.
-
-`RIFFMetadataWritePolicy` applies to WAV. AIFF/AIFF-C structured writes use ID3v2
-and have no RIFF INFO surface, so `.id3v2Only` has no additional effect there.
-
-- `.id3v2Only`: write structured ID3v2 data, then remove RIFF INFO.
-- `.preserveInfo` (default): keep existing RIFF INFO fields.
-- `.syncBasicFieldsToInfo`: reserved but not implemented; selection fails before
-  a staging transaction begins with `unsupportedWritePolicy`.
-
-Raw WAV PropertyMap deltas target the surface that owns each key: INFO keys
-update RIFF INFO, ID3v2 keys update ID3v2, and new keys go to ID3v2. Basic, typed
-Patch, and structured WAV writes target ID3v2 and leave INFO untouched unless
-structured `riffPolicy: .id3v2Only` is selected. A verified deletion that would
-expose a retained INFO fallback is rejected; use raw deletion to clear both
-surfaces.
-
-## Erasing Metadata
-
-Use the verified erase API when the user chooses a destructive metadata clear:
-
-```swift
-let result = try TagLibMetadataManager.eraseAllMetadataWithVerification(
-    from: url
-)
-
-for warning in result.warnings {
-    print("Erase warning:", warning)
-}
-```
-
-The manager writes an empty `TagLibAudioMetadata`, clears the raw property map,
-wipes the native metadata container for supported families, and reads back the
-file to verify deletion; detected residual fields cause a thrown failure before commit.
-
-The compatibility convenience returns only `Bool` and discards the richer write
-result, so new code should use the verified API and handle residuals as thrown verification failures:
-
-```swift
-try TagLibMetadataManager.eraseAllMetadata(from: url)
-```
-
-## Verification and transaction outcomes
-
-Verified write methods throw `TagLibManagerError.verificationFailed` when a requested value cannot be confirmed. A successful `MetadataWriteResult.warnings` array contains only non-fatal container advisories. The exact comparison scope differs by API; the canonical table is in [PRESERVATION](PRESERVATION.md#verification-model).
-
-```swift
-let result = try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
-showWarnings(result.warnings)
-```
-
-Writes stage one sibling copy, flush it, recheck identity, rename atomically, and sync the parent directory. If the final directory flush fails after rename, `MetadataWriteResult.commitStatus` is `.durabilityUncertain(detail)`; the new file is already visible, so do not retry as if nothing committed. The full sequence, rejection cases, and process-local concurrency limits are in [TRANSACTIONS](TRANSACTIONS.md).
-
-## Field Registry
-
-`MetadataFieldRegistry` describes known fields, their display names, categories,
-PropertyMap keys, and container mappings.
-
-Use it to build metadata editor UIs:
-
-```swift
-let basicFields = MetadataFieldRegistry.allSchemas.filter {
-    $0.category == .basic
-}
-```
-
-Find a schema by enum key:
-
-```swift
-let titleSchema = MetadataFieldRegistry.schema(for: .title)
-```
-
-Find a schema by raw property map key:
-
-```swift
-let schema = MetadataFieldRegistry.schema(forPropertyMapKey: "MUSICBRAINZ_TRACKID")
-```
-
-Filter fields by format family:
-
-```swift
-let id3Fields = MetadataFieldRegistry.schemas(withMappingsFor: .id3v2)
-```
-
-Filter fields by a runtime format capability:
-
-```swift
-if let capability = TagLibMetadataManager.capability(forExtension: url.pathExtension) {
-    let supportedFields = MetadataFieldRegistry.schemas(storableIn: capability)
-}
-```
-
-Read-only capabilities return an empty list because their mapped fields can be
-inspected but are not storable through the package.
-
-Check whether a field has a mapping:
-
-```swift
-if MetadataFieldRegistry.schema(.title, hasMappingFor: .mp4) {
-    print("Title has an MP4 mapping.")
-}
-```
-
-Normalize raw property keys before comparisons:
-
-```swift
-let key = MetadataFieldRegistry.normalizePropertyMapKey(" musicbrainz_trackid ")
-// "MUSICBRAINZ_TRACKID"
-```
-
-## Field Model Reference
-
-`BasicMetadata` includes these field groups.
-
-Core:
-
-- `title`, `artist`, `album`, `albumArtist`
-- `composer`, `genre`, `comment`, `lyrics`
-
-Numbering:
-
-- `track`, `trackTotal`, `trackNumberText`
-- `disc`, `discTotal`, `discNumberText`
-- `movementNumber`, `movementCount`
-
-Dates:
-
-- `year` (recording date/year compatibility projection)
-- `releaseDate` (release date; the owner of MP4 `©day`)
-- `originalReleaseDate` (original release date)
-
-People and roles:
-
-- `conductor`, `remixer`, `producer`, `engineer`, `lyricist`
-- `originalArtist`
-
-Sorting:
-
-- `sortTitle`, `sortArtist`, `sortAlbum`, `sortAlbumArtist`, `sortComposer`
-
-Identifiers:
-
-- `isrc`, `barcode`, `asin`, `catalogNumber`
-- `musicBrainzArtistID`, `musicBrainzAlbumID`, `musicBrainzAlbumArtistID`
-- `musicBrainzTrackID`, `musicBrainzReleaseGroupID`
-- `musicBrainzReleaseTrackID`, `musicBrainzWorkID`
-- `acoustID`, `acoustIDFingerprint`, `musicIPPUID`
-
-Release and work metadata:
-
-- `publisher`, `copyright`
-- `releaseType`, `releaseStatus`, `releaseCountry`, `artistType`
-- `originalAlbum`, `discSubtitle`, `work`, `movement`
-- `subtitle`, `grouping`, `mood`, `language`, `musicalKey`
-
-Technical and playback metadata:
-
-- `encodedBy`, `encoderSettings`
-- `replayGainTrack`, `replayGainAlbum`
-- `mediaType`, `bpm`, `isCompilation`, `isExplicit`
-- `explicitAdvisory` (the lossless four-state advisory value); `isExplicit` is
-  its deprecated-setter Boolean compatibility projection
-
-iTunes metadata:
-
-- `itunesAlbumID`, `itunesArtistID`, `itunesCatalogID`, `itunesGenreID`
-- `itunesMediaType`, `itunesPurchaseDate`
-- `itunesNorm`, `itunesSMPB`
-
-Read-only audio properties:
-
-- `duration`
-- `bitrate`
-- `sampleRate`
-- `channels`
-- `bitDepth`
-- `format`
-
-Other:
-
-- `artworkData`
-- `customFields`
-- `provenance`
-
-Audio properties are read from the file. The basic write path maps common tag
-fields, artwork, and custom fields back to the bridge model.
-
-## Error Reference
-
-`TagLibManagerError` can report:
-
-- `invalidFile`: the URL is not an existing regular file or is a final symbolic
-  link on read. Writes reject missing paths before staging and retain the
-  transaction failure as `operationFailedWithUnderlying`.
-- `fileChanged`: the optimistic version or destination identity became stale.
-- `hardLinkedFile`: atomic replacement would split a hard-linked file identity.
-- `unsupportedFormat`: the URL has no extension or the bridge does not support it.
-- `unsupportedWritePolicy(String)`: the selected structured write policy is not
-  implemented for that container.
-- `failedToReadWithUnderlying(String)`: TagLib or the bridge failed while reading.
-- `verificationFailed([String])`: verification produced failures and the caller
-  cannot safely commit the staged replacement. Structured container advisories
-  can still be returned as warnings without triggering this error.
-- `operationFailedWithUnderlying(NSError)`: a bridge or filesystem operation
-  failed before commit. Inspect `underlyingError` for the original domain, code,
-  and nested `NSUnderlyingErrorKey` (for example a POSIX error). The message-only
-  `operationFailed(String)` case remains available for source compatibility.
-- `MetadataValidationError`: embedded NULs, structured properties outside
-  `includeProperties`, unsupported ID3 frame types, or schema-known keys placed
-  in Basic custom fields.
-- `MetadataPatchValidationError`: typed patch validation, including
-  `roleQualifiedFieldRequiresRawAPI` and
-  `unsupportedPartialPairRemoval(field:format:)`.
-- `RawMetadataPatchError`: raw key/value validation. Exact-delta persistence
-  mismatches throw `TagLibManagerError.verificationFailed`.
-- `committedButDurabilityUncertain(String)`: compatibility/internal transaction
-  code observed parent-directory sync failure after rename. High-level manager
-  writes represent this committed state in `MetadataWriteResult.commitStatus`.
-- `failedToRead`: deprecated. Use `failedToReadWithUnderlying`.
-
-Error enums gained cases during remediation and review. Exhaustive client
-switches must handle the new cases (or use an appropriate `@unknown default`).
-In particular, native/filesystem failures now arrive as
-`operationFailedWithUnderlying`; the older message-only `operationFailed`
-constructor remains available but is no longer emitted for those failures.
-
-## Low-Level Bridge API
-
-Bridge diagnostics can be enabled for troubleshooting with the
-`TAGLIBAUDIOMETADATA_DEBUG` environment variable (`1`, `true`, `yes`, or `on`).
-
-Most Swift app code should call `TagLibMetadataManager`. Use the bridge directly
-only when you need a safe property or transactional method the facade does not
-wrap. The public bridge does not expose package-internal in-place mutation.
-
-Declare the `TagLibAudioMetadataLowLevel` product and import its module:
-
-```swift
-import CTagLibBridge
-```
-
-Facade clients migrating direct bridge calls must add the low-level product and
-explicit module import.
-
-`TagLibAudioMetadata` is an Objective-C class with nullable properties. It maps
-closely to the bridge writer. It is a full replacement model for fields the
-bridge writer explicitly maps; structured PropertyMap writes use delta
-semantics and Basic writes preserve unmodified schema/raw fields. Read the
-current values when you intend to change only selected bridge fields:
-
-```swift
-let metadata = try TagLibMetadataExtractor.extractMetadata(from: url)
-metadata.title = "Bridge Title"
-metadata.trackNumber = 1
-metadata.totalTracks = 10
-metadata.trackNumberText = "01/10"
-
-try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
-```
-
-A sparsely populated instance replaces the bridge writer's mapped fields and
-clears them where the container permits; omitted custom fields are preserved,
-not treated as deletion requests. It is not a general patch object. Pass
-`expectedVersion` to reject a concurrent change. Clients must import
-`CTagLibBridge` to name the `TagLibAudioMetadata` parameter type; facade-only
-clients should use `replaceBasicMetadata` or `updateBasicMetadata`.
-
-`TagLibMetadataExtractor` exposes bridge methods such as:
-
-- `extractMetadata(from:)`
-- `writeMetadata(_:to:)`
-- `writeTrackNumberText(_:discNumberText:to:)`
-- `writeRawPropertyMap(_:to:)`
-- `writeRawPropertyMapValues(_:to:)`
-- `structuredMetadata(for:)`
-- `writeStructuredMetadata(_:to:)`
-- `wipeMetadata(from:)`
-- `rawMetadata(for:)`
-- `dumpMetadataText(from:)`
-- `isSupportedFormat(_:)`
-- `isWritableFormat(_:)`
-- `supportedExtensions()`
-- `writableExtensions()`
-- `formatCapability(for:)`
-- `formatCapabilities()`
-
-Direct bridge writes are atomic and validate readability, but do not compare
-requested metadata after save. The manager's verified writers add semantic
-checks; `writeTagMetadata` performs only the checks supplied in its verification
-context, whose default `.none` checks no metadata values. Prefer Basic, typed
-Patch, or raw Patch verified APIs for normal editing.
-
-## Practical Recipes
-
-### Build a Read-Only Inspector
-
-```swift
-let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-let rawText = TagLibMetadataManager.bestEffortRawMetadataText(from: url)
-
-titleLabel.text = metadata.title
-artistLabel.text = metadata.artist
-debugTextView.text = rawText ?? ""
-```
-
-### Build an Editor With Capability-Based Controls
-
-```swift
-let capability = try TagLibMetadataManager.probeFile(at: url)
-
-titleField.isEnabled = capability.isWritable
-artworkButton.isEnabled = capability.canWriteArtwork
-structuredButton.isEnabled = capability.structuredWriteSupport != .none
-```
-
-### Save User Edits and Surface Warnings
-
-```swift
-do {
-    let result = try TagLibMetadataManager.replaceBasicMetadata(
-        metadata,
-        to: url
-    )
-    showWarnings(result.warnings)
-} catch TagLibManagerError.unsupportedFormat {
-    showError("This file type cannot be edited.")
-} catch {
-    showError("The file could not be saved.")
-}
-```
-
-### Preserve Multi-Value Artists
-
-```swift
-try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
-    ["ARTIST": ["Primary Artist", "Featured Artist"]],
-    to: url
-)
-```
-
-### Add a Typed or Custom Field
-
-```swift
-let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
-let patch = MetadataPatch(
-    fields: [.catalogNumber: .text("ABC-123")],
-    customFields: ["APP_REVIEW_STATE": .text("Approved")]
-)
-
-try TagLibMetadataManager.applyMetadataPatch(
-    patch,
-    to: url,
-    expectedVersion: snapshot.fileVersion
-)
-```
-
-Schema-known keys such as `CATALOGNUMBER` belong in `fields`; `customFields`
-rejects known keys and aliases so the same semantic field cannot be written
-through two representations.
-
-For an MP4 freeform atom where you need the exact atom key, use structured
-metadata instead:
+#### MP4 atoms
 
 ```swift
 let atom = StructuredMP4Atom(
@@ -1110,72 +374,270 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-### Batch Verify Writes
+Supported write types are `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Inspection-only types such as `coverArtList`, `byteVectorList`, `void`, and `stem` should be omitted; supplying one is not a supported mutation, and readback verification fails when it is enabled. Use the `artwork` collection for `covr`.
+
+#### ASF attributes
+
+ASF attributes preserve key, type, language, and stream; they are upserts, not replace-all collections. `string`, `bool`, `int`, `int64`, and `binary` are writable. `guid` is inspection-only and rejected. An `int` update retains an unambiguous existing WORD/DWORD width; a new attribute uses DWORD. Ambiguous or overflowing WORD/DWORD updates reject. There is no individual structured deletion operation; use verified full erase only when deleting everything is intended.
+
+#### Structured artwork, lyrics, and comments
+
+```swift
+let artwork = StructuredArtwork(
+    pictureTypeCode: 3,
+    mimeType: "image/jpeg",
+    description: "Front cover",
+    data: cover
+)
+
+try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+    StructuredMetadata(artwork: [artwork]),
+    to: url
+)
+```
+
+`StructuredArtwork.container` is informational. `pictureTypeCode == 0` is valid (`Other`); an omitted type defaults to Front Cover (`3`). Verification compares bytes and MIME type everywhere, plus picture type and description for containers that serialize them (MP4 `covr` does not).
+
+Lyrics and comments are replace-all collections. Empty text entries are skipped and cannot be verified as present.
+
+### Write formatted number text directly
+
+```swift
+let result = try TagLibMetadataManager.writeTrackNumberText(
+    "03/12",
+    discNumberText: "01/02",
+    to: url
+)
+```
+
+`nil` leaves the disc pair unchanged; an empty string removes it. This API is for renumbering or formatting features where the text is authoritative. Ordinary numeric writes may normalize padding.
+
+### Erase metadata
+
+```swift
+let result = try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+
+for warning in result.warnings {
+    print("Erase warning:", warning)
+}
+```
+
+Verified erase writes an empty model, clears the visible property map, wipes the native metadata container where supported, and re-reads the staged file. Detected residual fields throw `TagLibManagerError.verificationFailed` before commit. Erase is bounded by the metadata surfaces the parser exposes; it is not a forensic scrub of every container byte. For mixed TrueAudio APEv2 surfaces, reconcile with an APE-aware tool first.
+
+### Write through the low-level bridge model
+
+Only use this path when you need a bridge capability the facade does not wrap. It requires the low-level product and `import CTagLibBridge`.
+
+```swift
+import CTagLibBridge
+
+let metadata = try TagLibMetadataExtractor.extractMetadata(from: url)
+metadata.title = "Bridge Title"
+metadata.trackNumber = 1
+metadata.totalTracks = 10
+metadata.trackNumberText = "01/10"
+
+try TagLibMetadataManager.writeTagMetadata(
+    metadata,
+    to: url,
+    verification: .none
+)
+```
+
+`TagLibAudioMetadata` is a writer model for fields the bridge maps. A sparse instance replaces mapped fields and clears them where the format allows; it is not an omission-safe patch. `writeTagMetadata` with `.none` performs no semantic or staged-file readability readback; the transaction validates the original audio before staging and then commits the mutation. Prefer the facade's verified APIs for normal editing.
+
+## Verification, warnings, and commit status
+
+Verified facade writes compare requested values on the staged copy before rename. A mismatch throws `TagLibManagerError.verificationFailed([String])` and nothing is committed. A successful `MetadataWriteResult.warnings` contains non-fatal container advisories; an empty array describes only the checks that API requested.
+
+```swift
+let result = try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
+showWarnings(result.warnings)
+```
+
+The comparison scope differs by API:
+
+| API | Verified scope |
+| --- | --- |
+| `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, artwork, number/advisory expectations, and format-aware storage. |
+| `applyRawMetadataPatch` | The complete visible `PropertyMap` after the delta. |
+| `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields, custom values, number/advisory expectations, artwork, and preserved raw values. |
+| `writeStructuredMetadataWithVerification` | Requested structured collections and properties, including ordered frame values and artwork semantics. |
+| `writeTagMetadata` | Only the checks in `MetadataWriteVerificationContext`; `.none` checks no metadata values. |
+| Direct bridge mutators | Staged-file readability only, not semantic readback. |
+
+A successful write may return `.durable` or `.durabilityUncertain(detail)`. The latter means the rename committed but the final directory sync failed; surface it as a committed state and do not retry blindly. `.durable` means the requested OS-level flush completed, not a hardware or power-loss guarantee.
+
+## Capability discovery
+
+```swift
+let capability = try TagLibMetadataManager.probeFile(at: url)
+
+print(capability.identifier)
+print(capability.isWritable)
+print(capability.structuredWriteSupport)
+print(capability.writeSupport(for: .artwork))
+```
+
+`probeFile` parses the concrete file before returning the declared family capability. It does not test POSIX write permission, ACLs, disk space, or sandbox access; attempt a write or check those separately when an editability decision depends on them.
+
+`capability(forExtension:)` does not open a file:
+
+```swift
+if let capability = TagLibMetadataManager.capability(forExtension: "m4a") {
+    print(capability.extensions)
+    print(capability.supportLevel)
+    print(capability.supportLevel(forExtension: "mp4"))
+}
+```
+
+`formatCapabilities` returns every family, and `readableExtensions`/`writableExtensions` derive extension lists from the registry. `fixtureCovered`, `experimental`, `upstreamSupported`, and `readOnly` are evidence labels, not runtime proof. See [Formats](FORMATS.md).
+
+## Field registry
+
+`MetadataFieldRegistry` is the public field-semantics table. Use it to build editors instead of hard-coding container keys.
+
+```swift
+let basicFields = MetadataFieldRegistry.allSchemas.filter {
+    $0.category == .basic
+}
+
+let title = MetadataFieldRegistry.schema(for: .title)
+let byKey = MetadataFieldRegistry.schema(forPropertyMapKey: "MUSICBRAINZ_TRACKID")
+let id3Fields = MetadataFieldRegistry.schemas(withMappingsFor: .id3v2)
+let writableFields = MetadataFieldRegistry.schemas(storableIn: capability)
+```
+
+`schema(forPropertyMapKey:)` recognizes common qualified prefixes such as `PERFORMER:`, `INVOLVEDPEOPLE:`, `MUSICIANCREDITS:`, `COMMENT:`, and `LYRICS:`. `normalizePropertyMapKey` trims whitespace and uppercases; use it before key comparisons.
+
+## Recipes
+
+### Build a read-only inspector
+
+```swift
+let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+let rawText = TagLibMetadataManager.bestEffortRawMetadataText(from: url)
+
+titleLabel.text = metadata.title
+artistLabel.text = metadata.artist
+debugTextView.text = rawText ?? ""
+```
+
+### Enable controls from capability evidence
+
+```swift
+let capability = try TagLibMetadataManager.probeFile(at: url)
+
+titleField.isEnabled = capability.isWritable
+artworkButton.isEnabled = capability.canWriteArtwork
+structuredButton.isEnabled = capability.structuredWriteSupport != .none
+```
+
+### Save user edits and surface warnings
+
+```swift
+do {
+    let result = try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
+    showWarnings(result.warnings)
+} catch TagLibManagerError.unsupportedFormat {
+    showError("This file type cannot be edited.")
+} catch TagLibManagerError.verificationFailed(let details) {
+    showError("The file was not saved: \(details.joined(separator: "; "))")
+} catch {
+    showError("The file could not be saved.")
+}
+```
+
+### Preserve multi-value artists
+
+```swift
+try TagLibMetadataManager.applyRawMetadataPatch(
+    RawMetadataPatch(valuesToSet: ["ARTIST": ["Primary Artist", "Featured Artist"]]),
+    to: url
+)
+```
+
+### Add a typed or custom field
+
+```swift
+let patch = MetadataPatch(
+    fields: [.catalogNumber: .text("ABC-123")],
+    customFields: ["APP_REVIEW_STATE": .text("Approved")]
+)
+
+try TagLibMetadataManager.applyMetadataPatch(
+    patch,
+    to: url,
+    expectedVersion: snapshot.fileVersion
+)
+```
+
+Schema-known keys such as `CATALOGNUMBER` belong in `fields`; `customFields` rejects known keys and aliases so one semantic field cannot be written through two representations.
+
+### Rebase after a metadata-only conflict
+
+```swift
+let baseline = try TagLibMetadataManager.readSnapshot(
+    from: url,
+    includingAudioContent: true
+)
+
+let current = try TagLibMetadataManager.readSnapshot(
+    from: url,
+    includingAudioContent: true
+)
+
+guard let originalAudio = baseline.audioContentIdentity,
+      let currentAudio = current.audioContentIdentity,
+      let currentVersion = current.fileVersion else {
+    throw MetadataAudioContentError.unavailable // Explicit reload required.
+}
+
+guard originalAudio == currentAudio else {
+    throw MetadataAudioContentError.changed // Audio changed; reload required.
+}
+
+let patch = MetadataPatch(fields: [.title: .text("Reviewed title")])
+try TagLibMetadataManager.applyMetadataPatch(
+    patch,
+    to: url,
+    expectedVersion: currentVersion,
+    expectedAudioContent: originalAudio
+)
+```
+
+This checks audio continuity; it does not choose a field-level merge policy. The metadata conflict still needs an application decision.
+
+### Batch edit with per-file error handling
 
 ```swift
 for url in urls {
-    var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
-    metadata.album = "Batch Album"
-
     do {
-        try TagLibMetadataManager.replaceBasicMetadata(
-            metadata,
-            to: url
-        )
-    } catch TagLibManagerError.verificationFailed(let warnings) {
-        report(url, warnings)
+        var metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+        metadata.album = "Batch Album"
+        _ = try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
+    } catch TagLibManagerError.verificationFailed(let details) {
+        report(url, details)
+    } catch {
+        report(url, [String(describing: error)])
     }
 }
 ```
 
-## Notes for App Integrators
+## Low-level bridge notes
 
-Call extension discovery APIs with extensions, not full paths:
+The public bridge header is `Sources/CTagLibBridge/include/TagLibMetadataExtractor.h`. It exposes Foundation/Objective-C declarations only. Bridge mutators are transactional but do not inherit the facade's semantic verification.
 
-```swift
-TagLibMetadataManager.isReadableExtension(url.pathExtension)
-```
+Enable bridge diagnostics with `TAGLIBAUDIOMETADATA_DEBUG` set to `1`, `true`, `yes`, or `on`. Diagnostics are for troubleshooting and are not a stable output format.
 
-For a concrete user file, prefer `probeFile(at:)`; an extension lookup alone
-does not prove that the bytes are valid audio or safe to offer for editing.
+Use the bridge directly only for a capability the facade does not wrap. For normal applications, the Basic, typed-patch, raw-patch, and structured APIs above are more expressive and safer.
 
-Treat a successful write with warnings as a verified commit with non-fatal
-container advisories. A mismatch in requested metadata throws before commit;
-warnings must not be described as silent write failure. Handle
-`commitStatus == .durabilityUncertain` separately because the rename committed
-even though the final directory sync failed. `.durable` means the requested
-OS-level flush completed; it is not a hardware or power-loss guarantee.
+## Related contracts
 
-Do not assume that a field maps to the same storage key in every container. Use
-`MetadataFieldRegistry` to show mappings and `FormatCapability` to decide which
-controls to expose.
-
-Do not flatten multi-value fields unless your UI has decided to lose that
-structure. Prefer `RawMetadataPatch` for partial exact-array edits; use the
-whole-map values writer only when the caller deliberately owns a replacement or
-merge of the visible PropertyMap.
-
-Use structured metadata for frame-level editors. Use basic metadata for normal
-library editing.
-
-Verified erase throws on any detected residual fields or unverifiable result and leaves the destination unchanged. Successful warnings are non-fatal advisories, not a way to accept partial deletion. Erase is limited to the metadata surfaces exposed by the supported parser; it is not a forensic byte scrub.
-
-When distributing an app, verify that the final product embeds and signs
-`TagLibAudioMetadataTagLib.framework` and that its rpath resolves
-`@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib`. Package
-resolution links the framework; the final application target remains
-responsible for a valid embedded, signed copy.
-See [INSTALLATION.md](INSTALLATION.md).
-
-## Current contracts and evidence
-
-The detailed preservation, verification, transaction, and format boundaries are maintained in one place each:
-
-- [PRESERVATION](PRESERVATION.md) — omission/removal semantics, model fidelity, verification scope, erase, and unsupported behavior.
-- [FORMATS](FORMATS.md) — the 22-family matrix, per-extension evidence levels, and format-specific limitations.
-- [TRANSACTIONS](TRANSACTIONS.md) — atomicity, durability, filesystem checks, thread safety, and concurrency limits.
-- [TESTING](TESTING.md) — test layers, sanitizer and platform commands, opt-in corpus/benchmark checks, and evidence limits.
-- [STATUS](STATUS.md) — the latest known validation state of the current branch.
-- [Engineering records](records/README.md) — historical audits, reviews, remediation, and verification evidence.
-
-A successful write with warnings is a verified commit with non-fatal container advisories, not a silent failure. A mismatch in requested metadata throws before commit. Handle `commitStatus == .durabilityUncertain` separately because the rename already committed. `.durable` means the requested OS-level flush completed; it is not a hardware or power-loss guarantee.
+- [API reference](API_REFERENCE.md) — every public declaration, default, model, and error.
+- [Write semantics](PRESERVATION.md) — what is preserved, what is verified, and what is not promised.
+- [Formats](FORMATS.md) — family/extension evidence and container boundaries.
+- [Transactions](TRANSACTIONS.md) — staging, durability, and process-local concurrency.
+- [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md) — identity algorithm, availability, and rebasing.
+- [Testing](TESTING.md) — how to verify behavior in your environment.
+- [Migration](MIGRATION.md) — deprecated names and behavior changes.

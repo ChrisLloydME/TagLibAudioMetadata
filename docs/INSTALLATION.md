@@ -1,12 +1,10 @@
 # Installation and binary distribution
 
-The root package consumes an immutable, checksum-pinned TagLib 2.3.1 dynamic
-XCFramework. It has no source, static, Homebrew, or system-library fallback.
+The package consumes an immutable, checksum-pinned TagLib 2.3.1 dynamic XCFramework. It has no source, static, Homebrew, or system-library fallback.
 
 ## Add the package
 
-Depend on the Swift facade for normal application code. This version range
-selects the newest compatible tagged release:
+Depend on the Swift facade for normal application code. This version range selects the newest compatible tagged release:
 
 ```swift
 .package(
@@ -17,9 +15,7 @@ selects the newest compatible tagged release:
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
 
-The APIs listed under `[Unreleased]` describe the development checkout, which is
-ahead of the latest tag (`0.5.3`). To evaluate `main` rather than a tagged
-release, opt in explicitly:
+The latest tag is `0.5.3`. The APIs under `[Unreleased]` describe the development checkout, which is ahead of that tag. To evaluate `main` rather than a tagged release, opt in explicitly:
 
 ```swift
 .package(
@@ -28,23 +24,29 @@ release, opt in explicitly:
 )
 ```
 
-To evaluate an unmerged repair, select that branch or its exact revision instead.
-Branch dependencies move over time. Use them only for evaluation or coordinated
-integration; production dependencies should return to a tagged version range or
-an exact release after the next tag exists. This repository does not assign an
-untagged release version in advance.
+To evaluate an unmerged repair, select that branch or its exact revision instead. Branch dependencies move over time. Use them only for evaluation or coordinated integration; production dependencies should return to a tagged version range or an exact release after the next tag exists. The repository does not assign an untagged release version in advance.
 
-Advanced targets that directly use `TagLibMetadataExtractor` or
-`TagLibAudioMetadata` should declare the low-level product explicitly:
+Targets that directly use `TagLibMetadataExtractor` or `TagLibAudioMetadata` must declare the low-level product explicitly:
 
 ```swift
 .product(name: "TagLibAudioMetadataLowLevel", package: "TagLibAudioMetadata")
 ```
 
-Then use `import CTagLibBridge`. Starting in 0.5, importing the facade alone no
-longer exposes bridge declarations.
+```swift
+import CTagLibBridge
+```
 
-For source-compatibility changes, deprecated-name replacements, and the 0.4 to 0.5 product split, see [Compatibility and migration](MIGRATION.md).
+The facade does not re-export bridge declarations. See [Compatibility and migration](MIGRATION.md) for the 0.4 to 0.5 product split.
+
+## Requirements
+
+| Requirement | Value |
+| --- | --- |
+| Swift tools | 6.0 |
+| macOS | 13.0 or later |
+| iOS | 16.0 or later |
+| C++ standard | GNU C++20, configured by `Package.swift` |
+| Network | Required on first resolution to fetch the pinned binary release |
 
 ## Binary identity
 
@@ -60,8 +62,7 @@ For source-compatibility changes, deprecated-name replacements, and the 0.4 to 0
 | Install name | `@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib` |
 | Bundle identifier | `com.chrislloyd.taglibaudiometadata.taglib` |
 
-The asset contains the TagLib and utf8cpp license texts and generated headers.
-SwiftPM validates the entire ZIP against the manifest checksum before use.
+The asset contains the TagLib and utf8cpp license texts and generated headers. SwiftPM validates the entire ZIP against the manifest checksum before use. The single source of binary identity for rebuilds is `scripts/taglib-binary-version.env`.
 
 ## Supported slices
 
@@ -73,11 +74,7 @@ SwiftPM validates the entire ZIP against the manifest checksum before use.
 
 ## Embedding and signing
 
-The selected slice is a dynamic framework. SwiftPM supplies it to the linker,
-but the final app or archive must embed and sign
-`TagLibAudioMetadataTagLib.framework`. In Xcode, inspect the application
-target's Frameworks, Libraries, and Embedded Content and select **Embed & Sign**
-when Xcode has not inferred it.
+The selected slice is a dynamic framework. SwiftPM supplies it to the linker, but the final app or archive must embed and sign `TagLibAudioMetadataTagLib.framework`. In Xcode, inspect the application target's Frameworks, Libraries, and Embedded Content and select **Embed & Sign** when Xcode has not inferred it.
 
 Validate an archive or app, not only a package test bundle:
 
@@ -86,29 +83,21 @@ otool -L /path/to/executable
 codesign --verify --deep --strict /path/to/App.app
 ```
 
-The executable should reference the namespaced install name above. A generic
-`@rpath/TagLib.framework/TagLib` indicates that an old or conflicting artifact
-was linked.
+The executable should reference the namespaced install name above. A generic `@rpath/TagLib.framework/TagLib` indicates that an old or conflicting artifact was linked.
 
 ## Network and offline builds
 
-The release asset is public. For command-line environments where SwiftPM tries
-stored GitHub credentials, use:
+The release asset is public. For command-line environments where SwiftPM tries stored GitHub credentials, use:
 
 ```sh
 swift build --disable-keychain --disable-netrc
 ```
 
-After SwiftPM has cached the verified artifact, ordinary offline builds can use
-that cache. For controlled offline distribution, mirror the exact ZIP and
-update the URL only if the mirrored bytes retain the manifest checksum; any
-byte change needs a new checksum and immutable release revision.
+After SwiftPM has cached the verified artifact, ordinary offline builds can use that cache. For controlled offline distribution, mirror the exact ZIP and update the URL only if the mirrored bytes retain the manifest checksum; any byte change needs a new checksum and immutable release revision.
 
 ## Rebuild and publish
 
-The single source of binary identity is
-`scripts/taglib-binary-version.env`. Rebuild all slices from an unmodified exact
-checkout with:
+Rebuild all slices from an unmodified exact checkout with:
 
 ```sh
 scripts/build-taglib-xcframework.sh --replace
@@ -122,27 +111,23 @@ scripts/build-taglib-xcframework.sh \
   --replace
 ```
 
-The script fixes source revisions, build options, deployment targets, and
-architectures and rejects source-tree modifications. Toolchain metadata and ZIP
-timestamps mean rebuilds are reproducible by source/configuration, not promised
-byte-for-byte. Publish a new release revision, calculate its SwiftPM checksum,
-then update `Package.swift`; never replace an existing asset in place.
+The script fixes source revisions, build options, deployment targets, and architectures and rejects source-tree modifications. Toolchain metadata and ZIP timestamps mean rebuilds are reproducible by source/configuration, not promised byte-for-byte. Publish a new release revision, calculate its SwiftPM checksum, then update `Package.swift`; never replace an existing asset in place.
 
-The `Binary Release` workflow validates the tag/commit relationship, artifact
-layout, licenses, slices, deployment targets, module map, install names, and
-bundle identity before publication.
+The `Binary Release` workflow validates the tag/commit relationship, artifact layout, licenses, slices, deployment targets, module map, install names, and bundle identity before publication.
 
 ## Diagnostics
 
-- Resolution failure: confirm the public release URL is reachable and retry
-  with `--disable-keychain --disable-netrc`.
-- Checksum mismatch: clear the affected SwiftPM artifact cache and confirm the
-  manifest points at the immutable release asset. Do not bypass verification.
-- Link collision or duplicate symbols: inspect `otool -L` and the process image
-  list for another TagLib. The namespaced framework prevents filename and
-  install-name collisions, but not C++ symbol interposition between different
-  TagLib implementations.
-- Launch-time library error: ensure the namespaced framework is embedded,
-  signed, and reachable through the app's `LC_RPATH` entries.
-- Missing low-level module: add the `TagLibAudioMetadataLowLevel` product and
-  `import CTagLibBridge`; do not depend on an implementation target by name.
+| Symptom | Check |
+| --- | --- |
+| Resolution failure | Confirm the public release URL is reachable and retry with `--disable-keychain --disable-netrc`. |
+| Checksum mismatch | Clear the affected SwiftPM artifact cache and confirm the manifest points at the immutable release asset. Do not bypass verification. |
+| Link collision or duplicate symbols | Inspect `otool -L` and the process image list for another TagLib. The namespaced framework prevents filename and install-name collisions, but not C++ symbol interposition between different TagLib implementations. |
+| Launch-time library error | Ensure the namespaced framework is embedded, signed, and reachable through the app's `LC_RPATH` entries. |
+| Missing low-level module | Add the `TagLibAudioMetadataLowLevel` product and `import CTagLibBridge`; do not depend on an implementation target by name. |
+
+## Related documents
+
+- [Installation tests and consumers](TESTING.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
+- [Compatibility and migration](MIGRATION.md)
+- [Architecture](ARCHITECTURE.md)
