@@ -1,69 +1,55 @@
 # Current validation status
 
-This page records the latest known validation state of the code and the limits that remain. It is a status snapshot, not a guarantee and not a chronological log. Historical campaigns belong in [engineering records](records/README.md).
+This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](records/README.md).
 
-## Status snapshot
+## Latest observed run
 
 | Field | Value |
 | --- | --- |
-| Code revision reviewed | `d40f7f9` (`main` at the start of the documentation branch; the documentation branch does not change production code) |
-| Documentation branch | `docs/documentation-architecture-restructure` |
-| Test-run date | 2026-10-19 (Xcode 10:49 CST; SwiftPM 10:37 CST) |
+| Code revision observed | `e31030d` (HEAD at the start of this documentation pass; production behavior is unchanged, with one documentation comment corrected) |
+| Documentation branch | Working tree based on `e31030d`; changes are documentation, documentation-check tooling, and a source comment |
+| Observation date | 2026-10-21 |
 | Host | macOS 27.0.1 (26A434), arm64 |
 | Toolchain | Xcode 27.1 (27A9275), Apple Swift 6.4 |
-| Test declarations | 225: 153 XCTest + 72 Swift Testing |
-| Latest complete suite | Xcode `RunAllTests`: 223 passed, 2 skipped, 0 failed |
-| Additional command-line run | SwiftPM: 222 passed, 2 skipped, 1 environment-dependent failure |
-| Merge status | No merge into `main` was performed. This status is not a merge approval. |
+| Command | `swift test --disable-keychain --disable-netrc --disable-sandbox` with workspace-local Clang/Swift module caches |
+| XCTest | 153 executed: 151 passed, 2 skipped, 0 failed |
+| Swift Testing | 72 tests in 19 suites: 71 passed, 1 failed |
+| Overall | 222 passed, 2 skipped, 1 environment-dependent failure of 225 declarations |
+| Compile result | Debug build succeeded before the test run |
+| Documentation check | `python3 scripts/check-docs.py` passed for 30 Markdown files |
+| Merge status | No merge was performed. This status is not a merge approval. |
 
-### Xcode test run
+The two XCTest skips are the opt-in external corpus and throughput benchmark. The Swift Testing failure was `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` at its own precondition: the agent/sandbox host stripped setuid/setgid bits even though `chmod` reported success (observed mode `0644` instead of `2468`). The production rejection path is covered by the passing Xcode run recorded under the previous revision and by the clean-room record; it was not weakened or skipped for this run.
 
-`RunAllTests` on the `TagLibAudioMetadata-Package` scheme executed all 225 declarations:
+The `--disable-sandbox` flag was required because SwiftPM's manifest sandbox could not launch in this environment. That is a build-isolation limitation, not a package setting.
 
-- 223 passed, 0 failed, 2 skipped, 0 expected failures, 0 not run.
-- The two skips are the opt-in external corpus and throughput benchmark.
-- `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` passed in this runner, confirming the setuid/setgid rejection on a host that preserves the bits.
+## What was not run in this pass
 
-### SwiftPM command-line run
+Do not treat this status as evidence for:
 
-`swift test --disable-keychain --disable-netrc --disable-sandbox` observed:
-
-- **XCTest:** 153 executed, 2 skipped, 0 failures.
-  - `ExternalCorpusPreservationTests` skipped because `TAGLIB_PRESERVATION_CORPUS` was not set.
-  - `SnapshotThroughputBenchmarkTests` skipped because `TAGLIB_BENCHMARK` was not set.
-- **Swift Testing:** 72 tests in 19 suites; 71 passed, 1 failed.
-  - The failure was `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` at its own precondition: the agent sandbox stripped setuid/setgid bits even though `chmod` reported success.
-  - The same test passes in the Xcode run above and passed outside the sandbox during the clean-room remediation. It was not weakened or skipped.
-
-This command-line run used `--disable-sandbox` because SwiftPM's manifest sandbox could not launch in the execution environment. That is a build-isolation limitation, not a package setting.
-
-### What was not run in this pass
-
-The following are configured or documented but were **not** executed during the documentation restructuring:
-
-- AddressSanitizer and ThreadSanitizer suites;
-- Release-mode suite;
+- Xcode `RunAllTests` at the documentation HEAD;
+- AddressSanitizer or ThreadSanitizer;
+- Release-mode tests;
 - strict minimum-platform builds for macOS 13 arm64/x86_64 and iOS 16 device/simulator;
 - both consumer packages;
 - the opt-in external corpus and throughput benchmark;
-- an independent FFprobe/FFmpeg packet comparison;
-- device, minimum-OS, x86_64, or simulator runtime execution.
+- device, minimum-OS, x86_64, or simulator runtime execution;
+- an independent FFprobe/FFmpeg packet comparison for these edits.
 
-Do not treat this status as evidence for those checks.
-
-### Earlier full-suite evidence
+## Previous recorded evidence
 
 | Revision | Evidence | Result |
 | --- | --- | --- |
+| `d40f7f9` | Xcode full suite during the previous documentation pass | 225 declarations: 223 passed, 2 opt-in skips, 0 failed. |
+| `e31030d` | Same revision as this pass; SwiftPM command above | 222 passed, 2 skipped, 1 environment-dependent privilege-bit failure. |
 | `1fff9f0` | Clean-room remediation final campaign | 208 tests; Debug with both opt-ins, Release, ASAN, TSAN, Xcode, five strict platform builds, consumers, and independent eight-format checks passed. |
 | `873cb3e` | Independent audio-identity audit | 222 discovered; 220 passed, 2 opt-in skips, 0 failures in Xcode Debug. iOS Simulator build passed. |
-| `bedd725` / `d40f7f9` | F1 fix and three BWF/iXML regressions | Declarations rose from 222 to 225; all three regressions pass in the current Xcode run. |
 
-The clean-room and audio-identity records remain the detailed evidence for their revisions; they are not restated as current results.
+These are historical snapshots at the revisions shown. They are not current merge approvals and do not prove the current documentation or production tree.
 
 ## Current limitations
 
-These are documented boundaries. They are not silently accepted defects.
+These are documented boundaries, not silently accepted defects. Links point to the canonical contract.
 
 | Area | Limitation |
 | --- | --- |
@@ -72,7 +58,7 @@ These are documented boundaries. They are not silently accepted defects.
 | Structured removal | ASF attributes are upserts; ID3 URL/UFID frames have no individual structured removal operation. |
 | Privilege bits | setuid/setgid files are rejected before staging; clear the bits explicitly before editing. |
 | TrueAudio | Mixed unmodeled APEv2 metadata rejects rather than reconciling with ID3. |
-| Whole-map raw replacement | `.replace` owns the visible PropertyMap; it is not a native archive and can remove WAV INFO or opaque native data. Use `.merge`/`RawMetadataPatch` for preservation. |
+| Whole-map raw replacement | `.replace` owns only the visible PropertyMap; it is not a native archive and cannot reconstruct opaque native data. On WAV, separate RIFF INFO fields can survive and make verification fail. Use `.merge`/`RawMetadataPatch` for preservation, or a structured `.id3v2Only` write when INFO removal is intended. |
 | Concurrency | Coordination is process-local. An external process can race the final identity check and rename. |
 | Durability | `.durable` means an OS-level flush completed; it is not a hardware or power-loss guarantee. |
 | Dependency | The precompiled TagLib binary is not sanitizer-instrumented. Another incompatible TagLib C++ implementation in the same process is an ABI risk. |
@@ -80,8 +66,9 @@ These are documented boundaries. They are not silently accepted defects.
 | Deprecated API | The deprecated `applyMetadataPatch(_:to:expectedVersion:failurePolicy:)` overload is unguarded; it cannot check `expectedAudioContent`. |
 | Format evidence | Speex, S3M, IT, Shorten, MOD, uncommon aliases, and several platform/runtime combinations lack runtime verification. |
 | Audio identity | RF64, RIFX, leading-ID3 FLAC, and malformed AIFF/AIFC have no dedicated negative regressions even though they are documented as unavailable. |
+| Bridge verification | Direct `CTagLibBridge` mutators validate readability but do not perform facade semantic readback. `writeTagMetadata` with `.none` performs no metadata or readability readback beyond the transaction preflight. |
 
-See [FORMATS](FORMATS.md), [PRESERVATION](PRESERVATION.md), [TRANSACTIONS](TRANSACTIONS.md), and [AUDIO_CONTENT_CONTINUITY](AUDIO_CONTENT_CONTINUITY.md) for the contracts.
+See [Formats](FORMATS.md), [Write semantics](PRESERVATION.md), [Transactions](TRANSACTIONS.md), and [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
 
 ## How to interpret prior assessments
 
