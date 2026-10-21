@@ -7,6 +7,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation system reconstruction — 2026-10-21
+
+- Rebuilt the documentation hub around a single canonical owner per topic, explicit evidence vocabulary, and task-based reading paths. Retired the former top-level restructuring report to `docs/records/documentation/` as a historical record.
+- Expanded [the API reference](docs/API_REFERENCE.md) to cover the complete public Swift surface, nested manager types, field schema, structured models, errors, and the public Objective-C bridge.
+- Rewrote [the usage guide](docs/USAGE.md) around task selection and complete recipes; moved detailed write and transaction contracts to their canonical documents instead of duplicating them.
+- Corrected format guidance for per-extension evidence levels, WAV-only RIFF policy, structured write types, tracker allowlists, audio-identity availability, and bridge readback limits.
+- Added `scripts/check-docs.py` and a CI documentation step to validate relative links, heading fragments, table formatting, and hub coverage.
+- Updated current status from a fresh SwiftPM run at `e31030d`: 153 XCTest and 72 Swift Testing declarations, with the known sandbox privilege-bit failure recorded explicitly.
+
 ### Documentation architecture — 2026-10-19
 
 - Restructured current documentation around explicit owners: installation, usage, API reference, formats, preservation, transactions, architecture, testing, status, migration, and development.
