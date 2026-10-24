@@ -1,10 +1,10 @@
 # Public API reference
 
-This is the maintained index of the package's public Swift surface and the public Objective-C bridge. It describes the declarations at the current source revision; the source remains authoritative for exact types and default arguments. Code blocks omit access modifiers and `nonisolated` annotations for readability.
+This is the complete index of the public Swift surface of `TagLibAudioMetadata`. It describes the code at the current revision; the source declarations remain authoritative for exact syntax and default arguments. The public Objective-C surface is documented separately in [Bridge reference](BRIDGE.md), and field-to-container mappings live in [Metadata field schema](FIELD_SCHEMA.md).
 
-Use it with the task-oriented [Usage guide](USAGE.md). Behavioral contracts live in [Write semantics](PRESERVATION.md), [Transactions](TRANSACTIONS.md), and [Formats](FORMATS.md) rather than being repeated here.
+Access modifiers and `nonisolated` annotations are omitted in the declaration blocks for readability. All manager members are `nonisolated static`; all model types are `Sendable` unless noted.
 
-## Availability and products
+## Products and availability
 
 | Item | Value |
 | --- | --- |
@@ -15,30 +15,15 @@ Use it with the task-oriented [Usage guide](USAGE.md). Behavioral contracts live
 | Internal target | `CTagLibBridgeInternalAPI`; not a library product and not supported for external use |
 | Binary dependency | TagLib 2.3.1 dynamic XCFramework, pinned by URL and checksum |
 
-`import TagLibAudioMetadata` exposes the facade. `import CTagLibBridge` is required to name bridge types such as `TagLibAudioMetadata` and `TagLibMetadataExtractor`. The facade does not re-export bridge declarations.
-
-## Extraction options
-
-```swift
-struct MetadataExtractionOptions: OptionSet, Sendable {
-    let rawValue: UInt
-    init(rawValue: UInt)
-    static let basic: MetadataExtractionOptions
-    static let raw: MetadataExtractionOptions
-    static let structured: MetadataExtractionOptions
-    static let propertyMap: MetadataExtractionOptions
-    static let rawFrames: MetadataExtractionOptions
-    static let all: MetadataExtractionOptions
-}
-```
-
-This Swift option set mirrors the bridge's `TagLibMetadataExtractionOptions` bits. `all` is the union of all five bits. The facade's read methods select their own options; direct bridge clients pass the imported `TagLibMetadataExtractionOptions` value to `metadataProjections(for:options:)`.
+`import TagLibAudioMetadata` exposes the facade. Import `CTagLibBridge` and declare the low-level product only when naming bridge types such as `TagLibAudioMetadata` or `TagLibMetadataExtractor`.
 
 ## `TagLibMetadataManager`
 
-`TagLibMetadataManager` is a `public struct` used only through `nonisolated static` members. All reads, writes, and capability queries are synchronous and throwing unless marked otherwise. `URL` parameters must be file URLs for mutation; read APIs reject non-file URLs through their format/validation path.
+`TagLibMetadataManager` is a public struct used as a namespace for the facade's static reads, writes, capability queries, and nested result types. It has no public state or instance API. All members documented below are `nonisolated static` and synchronous. The nested types are listed under [Nested manager types](#nested-manager-types).
 
-### Reads
+`URL` parameters must be file URLs for mutation. Read APIs validate the URL through their format/parser path and reject a non-file URL or a missing regular file.
+
+## Reading metadata
 
 ```swift
 static func readMetadataResult(from url: URL) throws -> BasicMetadata
@@ -51,16 +36,16 @@ static func readStructuredMetadataResult(from url: URL) throws -> StructuredMeta
 static func fileVersion(at url: URL) throws -> MetadataFileVersion
 ```
 
-| API | Returns | Notes |
+| API | Result | Behavior |
 | --- | --- | --- |
-| `readMetadataResult` | Normalized Basic metadata | Reads Basic plus the visible `PropertyMap`; does not build structured inspector models. Rejects a file whose observed identity changes during the read. |
-| `readBasicSnapshot` | Basic metadata and non-optional `MetadataFileVersion` | Focused read for editors that need an optimistic token. The `includingAudioContent` overload also returns an optional audio identity. |
-| `readSnapshot` | Basic, raw, and structured projections plus an optional file version | One parser session. The `includingAudioContent` overload additionally streams the audio identity. Rejects a file changed during extraction with `fileChanged`. |
-| `rawMetadataResult` | `RawMetadataDump` | Visible `PropertyMap` entries and raw ID3v2 frame summaries where the parser exposes them. |
-| `readStructuredMetadataResult` | `StructuredMetadata` | Container-specific frames/atoms/attributes and artwork/lyrics/comments collections. |
-| `fileVersion` | `MetadataFileVersion` | Opaque filesystem revision of an existing regular file; rejects final symlinks and non-regular paths. |
+| `readMetadataResult` | Basic metadata | Reads the Basic projection and visible `PropertyMap` in one extraction. Does not build structured inspector models. Rejects a file whose observed contents change during the read. |
+| `readBasicSnapshot` | Basic metadata plus a non-optional `MetadataFileVersion` | Focused loader for editors. The `includingAudioContent` overload also returns an optional audio identity. |
+| `readSnapshot` | Basic, raw, and structured projections plus the captured file version | One coherent extraction call. The `includingAudioContent` overload also streams the audio identity. Throws `fileChanged` if the file changes during extraction. |
+| `rawMetadataResult` | Visible `PropertyMap` entries and raw ID3v2 frame summaries | The frame summaries are populated only by extraction paths that request them. |
+| `readStructuredMetadataResult` | Container-specific structured projection | ID3v2 frames, MP4 atoms, ASF attributes, artwork, lyrics, comments, and warnings. |
+| `fileVersion` | Opaque `MetadataFileVersion` | Captures an existing regular file without following a final symbolic link. |
 
-Optional convenience readers collapse every failure to `nil`:
+Optional readers collapse every failure to `nil`:
 
 ```swift
 static func bestEffortMetadata(from url: URL) -> BasicMetadata?
@@ -69,11 +54,11 @@ static func bestEffortRawMetadataText(from url: URL) -> String?
 static func bestEffortStructuredMetadata(from url: URL) -> StructuredMetadata?
 ```
 
-`bestEffortRawMetadataText` prefers the bridge's text dump and falls back to a formatted dump of `RawMetadataDump`. It is diagnostic text, not a stable serialization format.
+`bestEffortRawMetadataText` prefers the bridge's text dump and falls back to a deterministic formatted dump of `RawMetadataDump`. It is diagnostic text, not a stable serialization format.
 
 Deprecated read names: `readMetadata(from:)`, `rawMetadata(from:)`, `readStructuredMetadata(from:)`, and `rawMetadataText(from:)`. They forward to the best-effort forms.
 
-### Typed metadata patches
+## Typed metadata patches
 
 ```swift
 static func applyMetadataPatch(
@@ -90,22 +75,24 @@ static func applyMetadataPatch(
 ) throws -> MetadataWriteResult
 ```
 
-The guarded overload requires both guards: `expectedVersion` binds the merge decision to an exact revision, and `expectedAudioContent` requires the encoded audio to match the baseline. Availability is limited to WAV, AIFF/AIFF-C, and native FLAC; see [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
+`applyMetadataPatch` is the recommended partial-edit API. Only explicitly supplied fields, custom fields, advisory state, artwork intent, and formatted number text are changed. The patch is validated before staging; an empty patch returns an empty result without validating the version, audio identity, or format.
 
-An empty patch is a no-op and returns an empty result without validating a version, audio identity, or format. A non-empty patch is validated before staging:
+Validation rules:
 
-- field/value kinds come from `MetadataFieldRegistry`;
-- track/disc components accept `1...Int32.max`; BPM and movement numbering accept `0...Int32.max`;
-- `.artwork`, `.custom`, and `.explicitContent` must use dedicated patch properties;
-- role-qualified fields (`.performer`, `.involvedPeople`, `.musicianCredits`) require a raw or structured API;
-- known custom keys, aliases, case variants, and typed/custom collisions are rejected;
-- `numberText` cannot be combined with typed track/disc components;
-- empty text and value lists are rejected after trimming; `.remove` is the deletion marker;
-- a native pair's first component cannot be removed while retaining an unrepresentable total.
+- Value kinds come from `MetadataFieldRegistry.schema(for:)`. Track/disc components are integers in `1...Int32.max`; BPM and movement numbering are integers in `0...Int32.max`; compilation is Boolean; ordinary fields accept text and, when the schema is multi-value, an array.
+- `.artwork`, `.custom`, and `.explicitContent` cannot be used as `fields`; use `artwork`, `customFields`, and `explicitAdvisory` on `MetadataPatch`.
+- Role-qualified fields (`performer`, `involvedPeople`, `musicianCredits`) require a raw or structured API because their keys carry a role.
+- Custom keys are normalized to uppercase; known schema keys, aliases, case variants, duplicate normalized keys, and a typed/custom collision are rejected.
+- `.text` and `.values` are trimmed once; empty text, empty arrays, and empty elements are errors. `.remove` is the deletion marker.
+- `numberText` cannot be combined with typed `track`, `trackTotal`, `disc`, or `discTotal`.
+- A track/disc first component cannot be removed while retaining a total on formats that cannot represent a missing number with a total. Remove both components to clear the pair.
+- A capability with an explicit `writableFields` allowlist is checked before staging.
 
-The deprecated overload `applyMetadataPatch(_:to:expectedVersion:failurePolicy:)` forwards to the unguarded typed patch. `VerificationFailurePolicy.warn` is deprecated and does not bypass verification.
+The guarded overload requires both `expectedVersion` and `expectedAudioContent`. Availability is limited to WAV, AIFF/AIFF-C, and native FLAC; see [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
 
-### Basic writes
+The deprecated overload `applyMetadataPatch(_:to:expectedVersion:failurePolicy:)` forwards to the unguarded path. `VerificationFailurePolicy.warn` is deprecated and cannot bypass verification.
+
+## Basic replacement and update
 
 ```swift
 static func replaceBasicMetadata(
@@ -120,13 +107,25 @@ static func updateBasicMetadata(
 ) throws -> MetadataWriteResult
 ```
 
-`replaceBasicMetadata` has replacement semantics for the fields `BasicMetadata` explicitly models: empty strings and zero numbers clear those fields where the container allows it. It preserves untouched raw fields, multi-value cardinality, documented aliases, qualified people keys, and unchanged native comment/lyric collections on supported ID3-backed formats. It does not treat the input as a partial patch.
+`replaceBasicMetadata` replaces the complete modeled Basic projection. Empty strings and zero numbers clear those fields where the container allows it. It preserves metadata that `BasicMetadata` cannot represent — untouched multi-value arrays, documented aliases, full recording dates, qualified people keys, unchanged native comment/lyric collections on tested ID3-backed formats, and omitted custom fields — by restoring them from the current raw state. It is not an omission-safe patch.
 
-`updateBasicMetadata` reads a `BasicMetadataSnapshot`, applies the closure in memory, reconciles single-field MP4 year/release-date intent, and calls `replaceBasicMetadata` with the captured file version. It is the recommended Basic read/modify/write convenience.
+`updateBasicMetadata` reads a focused `BasicMetadataSnapshot`, applies the closure in memory, reconciles a single-field MP4 `year`/`releaseDate` intent, and calls `replaceBasicMetadata` with the captured version. It is the recommended Basic read/modify/write convenience.
 
-Deprecated wrappers: `writeMetadata(_:to:)`, `writeMetadata(_:to:expectedVersion:)`, and `writeMetadataWithVerification(_:to:failurePolicy:)`.
+Deprecated wrappers:
 
-### Raw property-map writes
+```swift
+static func writeMetadata(_ metadata: BasicMetadata, to url: URL) throws -> Bool
+static func writeMetadata(_ metadata: BasicMetadata, to url: URL, expectedVersion: MetadataFileVersion? = nil) throws -> Bool
+static func writeMetadataWithVerification(
+    _ metadata: BasicMetadata,
+    to url: URL,
+    failurePolicy: VerificationFailurePolicy = .throw
+) throws -> MetadataWriteResult
+```
+
+## Raw `PropertyMap` writes
+
+### Whole-map writers
 
 ```swift
 static func writeRawMetadataPropertyMapWithVerification(
@@ -153,11 +152,13 @@ static func writeRawMetadataPropertyMap(
 ) throws -> Bool
 ```
 
-- `.replace` owns the complete visible `PropertyMap`. Omitted keys are removed from the visible map. It does not reconstruct native data that TagLib does not expose through `properties()`. On WAV, RIFF INFO is a separate surface and is not removed by this call; omitted INFO keys can remain and cause verification to fail. Use a structured `.id3v2Only` write to remove INFO, or delete both surfaces explicitly.
+- `.replace` owns the complete visible `PropertyMap`. Omitted keys are removed from the visible map. It does not reconstruct native structures that TagLib does not expose. On WAV, RIFF INFO is a separate surface: omitted INFO keys can survive the ID3v2 replacement and make verification fail. Use `.merge` or `RawMetadataPatch` for preservation, or a structured `.id3v2Only` write when INFO removal is intended.
 - `.merge` applies a delta to the visible map, preserves omitted keys and native structures, and treats an empty value or empty array as an explicit removal.
-- Both verified writers compare the requested result before commit unless `verifyAfterWrite` is `false`.
-- The flat writer trims keys/values and drops empty values. The multi-value writer preserves array boundaries but trims and drops empty elements.
-- Keys are TagLib `PropertyMap` keys. Native MP4 `----:` atom identifiers are rejected; use `StructuredMetadata.mp4Atoms`.
+- The flat writer trims keys and values and drops empty values. The values writer trims and drops empty elements while preserving non-empty array boundaries.
+- Both verified writers compare the requested result on the staged copy before commit unless `verifyAfterWrite` is `false`.
+- Keys are prefixless TagLib `PropertyMap` keys. Native MP4 `----:` atom identifiers are rejected; use `StructuredMetadata.mp4Atoms`.
+
+### Preservation-oriented delta
 
 ```swift
 static func applyRawMetadataPatch(
@@ -174,11 +175,13 @@ static func applyRawMetadataPatch(
 ) throws -> MetadataWriteResult
 ```
 
-`RawMetadataPatch` is the preservation-oriented delta. Keys omitted from both `valuesToSet` and `removingKeys` are unchanged. Values and array boundaries are not normalized: duplicate values, empty strings, and whitespace are significant. An empty array is invalid; use `removingKeys`. Keys are normalized to uppercase, must not contain surrounding whitespace or NULs, and conflicts after normalization are rejected. The complete visible `PropertyMap` is verified after the delta. An empty patch is a no-op.
+`RawMetadataPatch` changes only `valuesToSet` and `removingKeys`. Keys omitted from both are unchanged. Array boundaries, duplicate values, empty strings, and whitespace are significant; an empty array is invalid and must be expressed with `removingKeys`. Keys are normalized to uppercase, must not have surrounding whitespace or NULs, and conflicting changes to the same normalized key are rejected. Native MP4 `----:` keys and hidden package formatting keys are rejected. The complete visible `PropertyMap` is verified after the delta.
 
-Deprecated failure-policy overloads exist for both raw writer families and forward without a bypass.
+An empty patch returns an empty result without staging. The guarded overload additionally requires the baseline audio identity and is available only for the same three container families as the typed guard.
 
-### Structured writes
+Deprecated `failurePolicy:` overloads exist for the whole-map writers and forward without a bypass.
+
+## Structured metadata writes
 
 ```swift
 static func writeStructuredMetadataWithVerification(
@@ -192,13 +195,19 @@ static func writeStructuredMetadataWithVerification(
 ) throws -> MetadataWriteResult
 ```
 
-Only collections present in the payload are edited. `includeProperties` controls whether `StructuredMetadata.properties` participates: when `false`, a non-empty properties array is rejected by the Swift facade; when `true`, non-empty properties are applied as a delta and an empty `values` array removes that key. `artwork`, `lyrics`, and `comments` use replace-all semantics when non-empty; include an empty collection in `replacingCollections` to remove the last entries.
+Only top-level collections present in the payload are edited. Omitted collections are preserved.
 
-`riffPolicy` is meaningful for WAV: `.preserveInfo` keeps RIFF INFO, `.id3v2Only` removes it after writing ID3v2, and `.syncBasicFieldsToInfo` is reserved and rejects with `unsupportedWritePolicy`. AIFF/AIFF-C writes use ID3v2; `.preserveInfo` and `.id3v2Only` have no RIFF INFO effect there, while `.syncBasicFieldsToInfo` still rejects as unsupported.
+- `includeProperties == false` rejects a non-empty `properties` array. `includeProperties == true` applies non-empty properties as a delta; an empty `values` array removes that key.
+- Non-empty `artwork`, `lyrics`, and `comments` replace their collection. Empty arrays are omitted by default; include the collection name in `replacingCollections` to remove its final entries.
+- `riffPolicy` is meaningful for WAV. `.preserveInfo` keeps RIFF INFO and `.id3v2Only` removes it after writing ID3v2. AIFF/AIFF-C have no RIFF INFO surface, so those two values have no additional effect there. `.syncBasicFieldsToInfo` is reserved and is rejected for WAV and AIFF/AIFF-C before staging. Other formats ignore the policy value; passing `.syncBasicFieldsToInfo` to an MP4, ASF, or Xiph write is not a validation error, but no synchronization is performed.
+- ID3v2 writable frame types are `text`, `userText`, `url`, `ufid`, `chapter`, `tableOfContents`, and `podcast`. `APIC`, `COMM`, and `USLT` belong in artwork, comments, and lyrics. `unknown` frames are inspection-only.
+- MP4 writable atom types are `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Types such as `coverArtList`, `byteVectorList`, `void`, and `stem` are inspection-only; the bridge ignores them, so they cannot be confirmed as edits.
+- ASF writable attribute types are `string`, `bool`, `int`, `int64`, and `binary`. `guid` is inspection-only and is rejected with a validation error. Attributes are upserts by key, language, stream, and type; there is no individual structured deletion operation.
+- ID3v2 URL and UFID frames have no individual structured removal operation; empty URL/data payloads reject.
 
 The deprecated overload with `failurePolicy:` forwards without a bypass.
 
-### Formatted number text
+## Formatted number text
 
 ```swift
 static func writeTrackNumberText(
@@ -210,9 +219,11 @@ static func writeTrackNumberText(
 ) throws -> MetadataWriteResult
 ```
 
-`nil` leaves that pair unchanged; a non-empty string sets it; an empty string removes it. The text must contain at most one `/` and unsigned decimal components no greater than `Int32.max`. Verification checks numeric equivalence and exact text where the container preserves it. `writeTrackNumberText` intentionally writes formatted text; ordinary numeric Basic/Patch writes may normalize padding.
+`nil` leaves that pair unchanged; a non-empty string sets it; an empty string removes it. The text must contain at most one `/` and unsigned decimal components no greater than `Int32.max`. Verification accepts numeric-equivalent formatting and checks exact text where the container preserves it. Use this API only when formatted text is the authoritative input; ordinary numeric Basic and patch writes may normalize padding.
 
-### Low-level bridge-model write
+On MP4, the writer stores the formatted text in package-private `TAGLIBAUDIOMETADATA_*_TEXT` freeform atoms while native `trkn`/`disk` remain the numeric authority. Legacy `AUDIOMATOR_*_TEXT` values are migrated when the corresponding pair is edited.
+
+## Low-level bridge-model write
 
 ```swift
 static func writeTagMetadata(
@@ -223,9 +234,13 @@ static func writeTagMetadata(
 ) throws -> MetadataWriteResult
 ```
 
-This writes the bridge model through the transactional coordinator. The context defaults to `.none`, which performs no semantic readback. The facade transaction also does not add a staged-file readability readback for this API; supply verification expectations or use a typed/structured API when confirmation matters. The model is a full writer payload for the fields the bridge maps, not an omission-safe patch. Requires `import CTagLibBridge` to name the parameter type.
+This writes the bridge model through the transactional coordinator. The model is a full writer payload for the fields the bridge maps, not an omission-safe patch. A sparse instance clears mapped fields where the format allows it; read current values first for a partial edit.
 
-### Erase
+On MP4, a non-empty `year` and `releaseDate` must agree: `year` is the first four characters of `releaseDate`. A contradictory pair throws `MetadataValidationError.conflictingMP4Date` before staging.
+
+The default `.none` context performs no semantic readback. The facade transaction also does not add a staged-file readability readback for this API: the bridge in-place primitive is called directly inside the staging transaction. Supply verification expectations or use a typed/structured API when confirmation matters. Naming the `TagLibAudioMetadata` parameter requires `import CTagLibBridge`.
+
+## Erase
 
 ```swift
 static func eraseAllMetadataWithVerification(
@@ -236,9 +251,9 @@ static func eraseAllMetadataWithVerification(
 static func eraseAllMetadata(from url: URL) throws -> Bool
 ```
 
-Verified erase writes an empty bridge model, clears the visible property map, wipes the native metadata container where supported, and re-reads the staged file. Detected residual fields throw `verificationFailed` before commit. The erase is bounded by the metadata surfaces the parser exposes; it is not a forensic scrub of every container byte. The `Bool` convenience discards the richer result but still throws on verification failure.
+Verified erase writes an empty bridge model, clears the visible property map, wipes the native metadata container where supported, and re-reads the staged file. Detected residual fields throw `TagLibManagerError.verificationFailed` before commit. The operation is bounded by the metadata surfaces the parser exposes; it is not a forensic scrub of every container byte. The `Bool` convenience discards the richer result but still throws on verification failure.
 
-### Capability discovery
+## Capability discovery
 
 ```swift
 static var formatCapabilities: [FormatCapability]
@@ -251,13 +266,37 @@ static var readableExtensions: [String]
 static var writableExtensions: [String]
 ```
 
-`capability(forExtension:)` and the extension booleans are declared-metadata lookups; they do not open a file. Extension matching is case-insensitive. `probeFile` parses a concrete file before returning the declared family capability. `formatSupportLevel` returns the requested extension's configured level or `.unsupported`.
+`capability(forExtension:)`, `formatSupportLevel(for:)`, `isReadableExtension(_:)`, `isWritableExtension(_:)`, and the extension arrays are declared-registry lookups. They do not open a file. Extension matching is case-insensitive.
 
-Deprecated: `formatCapability(for:)`, `isReadableFormat(_:)`, `isWritableFormat(_:)`.
+`probeFile(at:)` parses a concrete file with the selected parser before returning its declared family capability. It does not test POSIX write permission, ACLs, disk space, or sandbox access.
 
-### Nested manager types
+Deprecated: `formatCapability(for:)`, `isReadableFormat(_:)`, and `isWritableFormat(_:)`.
 
-#### `ArtworkVerificationExpectation`
+## Compatibility overloads
+
+These public overloads preserve source compatibility with pre-`expectedVersion` call sites. They are not separate behaviors; they forward to the version-aware implementations with `nil` or with the deprecated policy ignored.
+
+| Overload | Status |
+| --- | --- |
+| `writeRawMetadataPropertyMap(_:to:mode:)` | Compatibility; forwards with `expectedVersion: nil`. |
+| `writeRawMetadataPropertyMapWithVerification(_:to:mode:verifyAfterWrite:)` | Compatibility; forwards with `expectedVersion: nil`. |
+| `writeRawMetadataPropertyMapValuesWithVerification(_:to:mode:verifyAfterWrite:)` | Compatibility; forwards with `expectedVersion: nil`. |
+| `writeStructuredMetadataWithVerification(_:to:riffPolicy:includeProperties:replacingCollections:verifyAfterWrite:)` | Compatibility; forwards with `expectedVersion: nil`. |
+| `writeTagMetadata(_:to:verification:)` | Compatibility; forwards with `expectedVersion: nil`. |
+| `writeMetadata(_:to:)` | Deprecated; forwards to `replaceBasicMetadata`. |
+| `writeRawMetadataPropertyMapWithVerification(...failurePolicy:)` | Deprecated; policy ignored. |
+| `writeRawMetadataPropertyMapValuesWithVerification(...failurePolicy:)` | Deprecated; policy ignored. |
+| `writeStructuredMetadataWithVerification(...failurePolicy:)` | Deprecated; policy ignored. |
+| `writeTagMetadata(...failurePolicy:)` | Deprecated; policy ignored. |
+| `writeTrackNumberText(...failurePolicy:expectedVersion:)` | Deprecated; policy ignored. |
+| `eraseAllMetadataWithVerification(...failurePolicy:)` | Deprecated; policy ignored. |
+| `applyMetadataPatch(...failurePolicy:)` | Deprecated; forwards to the unguarded path. |
+
+`VerificationFailurePolicy.warn` is retained only so old source compiles. Every verification mismatch still aborts the transaction.
+
+## Nested manager types
+
+### `ArtworkVerificationExpectation`
 
 ```swift
 enum ArtworkVerificationExpectation: Sendable {
@@ -268,9 +307,9 @@ enum ArtworkVerificationExpectation: Sendable {
 }
 ```
 
-`skip` is the default. `present` and `absent` are presence checks; use `expectedArtworkData` and `expectedArtworkMIMEType` in `MetadataWriteVerificationContext` for exact comparisons.
+`skip` is the default. `present` and `absent` are presence checks. For exact bytes and MIME type, set `expectedArtworkData` and `expectedArtworkMIMEType` on `MetadataWriteVerificationContext`.
 
-#### `MetadataWriteVerificationContext`
+### `MetadataWriteVerificationContext`
 
 ```swift
 struct MetadataWriteVerificationContext: Equatable, Sendable {
@@ -290,12 +329,29 @@ struct MetadataWriteVerificationContext: Equatable, Sendable {
     var expectedTextFields: [String: String]
 
     static let none: MetadataWriteVerificationContext
+
+    init(
+        expectedTrackNumber: Int?,
+        expectedTrackTotal: Int?,
+        expectedTrackNumberText: String?,
+        expectedDiscNumber: Int?,
+        expectedDiscTotal: Int?,
+        expectedDiscNumberText: String?,
+        expectedExplicitContent: Bool?,
+        artworkExpectation: ArtworkVerificationExpectation,
+        customFieldKeys: [String],
+        expectedTextFields: [String: String] = [:],
+        expectedExplicitAdvisory: ExplicitAdvisory? = nil,
+        customFieldValues: [String: String] = [:]
+    )
 }
 ```
 
-The initializer requires the first nine parameters in the order shown by the source; `expectedTextFields`, `expectedExplicitAdvisory`, and `customFieldValues` have defaults. `expectedTextFields` keys are camel-case `BasicMetadata` names such as `title`, `albumArtist`, and `encodedBy`, not `PropertyMap` keys. `customFieldValues` compares values; `customFieldKeys` checks key presence. `expectedArtworkData`/`expectedArtworkMIMEType` add exact artwork checks independent of `artworkExpectation`.
+The initializer requires the first nine parameters. `expectedTextFields` keys are camel-case `BasicMetadata` property names such as `title`, `albumArtist`, and `encodedBy`, not `PropertyMap` keys. `customFieldValues` compares values; `customFieldKeys` checks key presence. `expectedArtworkData` and `expectedArtworkMIMEType` are mutable properties that add exact artwork checks independent of `artworkExpectation`.
 
-#### `MetadataCommitStatus` and `MetadataWriteResult`
+`expectedExplicitAdvisory` takes precedence over `expectedExplicitContent` when both are set. `expectedExplicitContent` is the lossy Boolean compatibility check.
+
+### `MetadataCommitStatus` and `MetadataWriteResult`
 
 ```swift
 enum MetadataCommitStatus: Equatable, Sendable {
@@ -311,9 +367,9 @@ struct MetadataWriteResult: Sendable {
 }
 ```
 
-`.durable` means the requested file and parent-directory flushes completed; it is not a hardware or power-loss guarantee. `.durabilityUncertain` means the rename already committed but the final directory sync failed. Do not retry as though nothing happened.
+`.durable` means the requested file and parent-directory flushes completed. It is not a hardware or power-loss guarantee. `.durabilityUncertain(detail)` means the rename already committed but the final directory sync failed; do not retry as though nothing happened. Mismatch warnings are thrown as `verificationFailed` by the verified writers, so a successful result normally carries only residual advisories.
 
-#### `RawPropertyMapWriteMode`
+### `RawPropertyMapWriteMode`
 
 ```swift
 enum RawPropertyMapWriteMode: Sendable {
@@ -322,54 +378,93 @@ enum RawPropertyMapWriteMode: Sendable {
 }
 ```
 
-#### `VerificationFailurePolicy` (deprecated)
+See [Raw `PropertyMap` writes](#raw-propertymap-writes) for the exact map semantics.
+
+### `VerificationFailurePolicy` (deprecated)
 
 ```swift
+@available(*, deprecated, message: "Verification mismatches always abort the transaction. Omit the obsolete failurePolicy parameter.")
 enum VerificationFailurePolicy: Sendable {
     case warn
     case `throw`
 }
 ```
 
-Retained only for source compatibility. Verification mismatches always abort; `.warn` cannot permit a commit.
+Retained only for source compatibility. `.warn` cannot permit a commit.
 
 ## Core value models
 
-### Construction notes
+### Construction rules
 
 - `BasicMetadata` has no public memberwise initializer. Start from `BasicMetadata.empty` and mutate properties, or obtain a value from a read.
 - `MetadataFileVersion` and `MetadataAudioContentIdentity` are opaque: no public initializer, and their stored fields are private.
-- `MetadataSnapshot` and `BasicMetadataSnapshot` have public initializers for constructing values in tests and tools; a value-version of `nil` is allowed only by the `MetadataSnapshot` initializer.
-- `MetadataPatch`, `RawMetadataPatch`, `MetadataWriteVerificationContext`, `MetadataWriteResult`, `MetadataNumberTextPatch`, and the schema/value model structs have public memberwise-style initializers where shown in the source. Model initializers do not perform container validation; use the manager APIs for validated writes.
+- `MetadataSnapshot` and `BasicMetadataSnapshot` have public initializers for tools and tests. `MetadataSnapshot` accepts an optional file version; `BasicMetadataSnapshot` requires a non-optional one.
+- `RawMetadataDump`, `RawPropertyEntry`, `RawID3v2FrameEntry`, the structured model types, `MetadataPatch`, `RawMetadataPatch`, `MetadataWriteVerificationContext`, `MetadataWriteResult`, and the schema/value structs have public memberwise-style initializers as shown below.
+- Model initializers do not perform container validation. Use the manager APIs for validated writes.
 
 ### `BasicMetadata`
 
-`BasicMetadata` is a normalized projection for display and common editing, not a lossless document. It stores text as `String`, numbers as `Int`, flags as `Bool`, and artwork as `Data?`.
+Property declarations are grouped by type below for readability; the source declares each property separately.
 
-| Group | Members |
-| --- | --- |
-| Core | `title`, `artist`, `album`, `albumArtist`, `composer`, `genre`, `comment`, `lyrics` |
-| Numbering | `track`, `trackTotal`, `disc`, `discTotal`, `trackNumberText`, `discNumberText`, `movementNumber`, `movementCount` |
-| Dates | `year` (recording-date/year projection), `releaseDate`, `originalReleaseDate` |
-| People | `conductor`, `remixer`, `producer`, `engineer`, `lyricist`, `originalArtist` |
-| Sorting | `sortTitle`, `sortArtist`, `sortAlbum`, `sortAlbumArtist`, `sortComposer` |
-| Identifiers | `isrc`, `barcode`, `asin`, `catalogNumber`, `musicBrainzArtistID`, `musicBrainzAlbumID`, `musicBrainzAlbumArtistID`, `musicBrainzTrackID`, `musicBrainzReleaseGroupID`, `musicBrainzReleaseTrackID`, `musicBrainzWorkID`, `acoustID`, `acoustIDFingerprint`, `musicIPPUID` |
-| Release/work | `publisher` (maps to TagLib `label`), `copyright`, `releaseType`, `releaseStatus`, `releaseCountry`, `artistType`, `originalAlbum`, `discSubtitle`, `work`, `movement`, `subtitle`, `grouping`, `mood`, `language`, `musicalKey` |
-| Technical | `encodedBy`, `encoderSettings`, `replayGainTrack`, `replayGainAlbum`, `mediaType`, `bpm`, `isCompilation` |
-| Advisory | `explicitAdvisory`; `isExplicit` is a lossy computed Boolean whose setter is deprecated |
-| iTunes | `itunesAlbumID`, `itunesArtistID`, `itunesCatalogID`, `itunesGenreID`, `itunesMediaType`, `itunesPurchaseDate`, `itunesNorm`, `itunesSMPB` |
-| Audio properties | `duration`, `bitrate`, `sampleRate`, `channels`, `bitDepth`, `format` |
-| Artwork | `artworkData`, `artworkMIMEType` |
-| Custom | `customFields`, plus read-only `customFieldValues` and original-projection bookkeeping |
-| Provenance | `provenance: MetadataFieldProvenance` |
+```swift
+struct BasicMetadata: Sendable {
+    // Text
+    var title, artist, album, composer, genre, comment, lyrics: String
+    var year, albumArtist, releaseDate, originalReleaseDate: String
+    var isrc, barcode: String
+    var musicBrainzArtistID, musicBrainzAlbumID, musicBrainzAlbumArtistID: String
+    var musicBrainzTrackID, musicBrainzReleaseGroupID, musicBrainzReleaseTrackID: String
+    var musicBrainzWorkID, acoustID, acoustIDFingerprint, musicIPPUID: String
+    var publisher, copyright, encodedBy, encoderSettings: String
+    var sortTitle, sortArtist, sortAlbum, sortAlbumArtist, sortComposer: String
+    var conductor, remixer, producer, engineer, lyricist: String
+    var subtitle, grouping, movement, mood, language, musicalKey: String
+    var replayGainTrack, replayGainAlbum, mediaType: String
+    var itunesAlbumID, itunesArtistID, itunesCatalogID, itunesGenreID: String
+    var itunesMediaType, itunesPurchaseDate, itunesNorm, itunesSMPB: String
+    var releaseType, releaseStatus, catalogNumber, releaseCountry, artistType: String
+    var asin, originalAlbum, originalArtist, discSubtitle, work: String
 
-Read-only provenance properties are `customFieldValues`, `originalCustomFieldProjection`, `originalStandardFieldValues`, and `originalStandardFieldProjection`. They record read-time cardinality and projections for preservation decisions; callers cannot mutate them.
+    // Numbers and flags
+    var track, trackTotal, disc, discTotal: Int
+    var trackNumberText, discNumberText: String
+    var movementNumber, movementCount, bpm: Int
+    var isCompilation: Bool
+    var explicitAdvisory: ExplicitAdvisory
+    var isExplicit: Bool { get set } // setter deprecated
 
-`BasicMetadata.empty` is a value with empty strings, zero numbers, no artwork, and no custom fields. It is a complete replacement value, not a partial patch.
+    // Audio properties
+    var duration: Double
+    var bitrate: Int
+    var sampleRate: Double
+    var channels: Int
+    var bitDepth: Int
+    var format: String
 
-Multi-value text is flattened into display strings. ID3 generally joins with `", "`; MP4 artist/genre and generic/Xiph use `"; "` in some projections, while native MP4 fields/freeforms may use `", "`. Do not split these strings to reconstruct arrays; use `RawMetadataDump` or `StructuredMetadata`.
+    // Artwork
+    var artworkData: Data?
+    var artworkMIMEType: String?
 
-`MetadataFieldProvenance` contains `trackNumberText`, `discNumberText`, `explicitContent`, and `artwork` values of type `MetadataValueSource`. Its public initializer takes those four values in that order.
+    // Custom fields and provenance
+    var customFields: [String: String]
+    var customFieldValues: [String: [String]] { get }
+    var originalCustomFieldProjection: [String: String] { get }
+    var originalStandardFieldValues: [String: [String]] { get }
+    var originalStandardFieldProjection: [String: String] { get }
+    var provenance: MetadataFieldProvenance
+
+    static let empty: BasicMetadata
+}
+```
+
+Notes:
+
+- `BasicMetadata` is a normalized display/editing projection, not a lossless document. Multi-value fields are display strings whose separator is format-dependent. Do not split them to reconstruct arrays; use `RawMetadataDump` or `StructuredMetadata`.
+- `customFieldValues`, `originalCustomFieldProjection`, `originalStandardFieldValues`, and `originalStandardFieldProjection` are read-only to callers (`internal(set)`). They preserve read-time cardinality and projections for `replaceBasicMetadata`.
+- `isExplicit` is a lossy Boolean computed property. Its getter is `explicitAdvisory == .explicit`; its setter is deprecated and assigns `.clean` for `false`.
+- `BasicMetadata.empty` is a complete replacement value with empty strings, zero numbers, no artwork, and no custom fields.
+
+### `MetadataFieldProvenance` and `MetadataValueSource`
 
 ```swift
 struct MetadataFieldProvenance: Hashable, Sendable {
@@ -377,11 +472,17 @@ struct MetadataFieldProvenance: Hashable, Sendable {
     var discNumberText: MetadataValueSource
     var explicitContent: MetadataValueSource
     var artwork: MetadataValueSource
-    static let unknown: MetadataFieldProvenance
-}
-```
 
-```swift
+    static let unknown: MetadataFieldProvenance
+
+    init(
+        trackNumberText: MetadataValueSource,
+        discNumberText: MetadataValueSource,
+        explicitContent: MetadataValueSource,
+        artwork: MetadataValueSource
+    )
+}
+
 enum MetadataValueSource: String, Hashable, Sendable {
     case nativeTag
     case propertyMap
@@ -392,7 +493,7 @@ enum MetadataValueSource: String, Hashable, Sendable {
 }
 ```
 
-`MetadataFieldProvenance.unknown` is the all-`.none` value.
+`unknown` is the all-`.none` value.
 
 ### `ExplicitAdvisory`
 
@@ -405,9 +506,9 @@ enum ExplicitAdvisory: String, Hashable, Sendable {
 }
 ```
 
-`unspecified` means no advisory field exists. `notExplicit` means a field is present and marked not explicit. `clean` and `explicit` are explicit positive states. The Boolean `BasicMetadata.isExplicit` is `explicitAdvisory == .explicit`; assigning `false` records `.clean`, so it cannot represent absence or not-explicit.
+`unspecified` means no advisory representation exists. `notExplicit` means a field is present and marked not explicit. `clean` and `explicit` are explicit positive states. Assigning `BasicMetadata.isExplicit = false` records `.clean`, not absence or `.notExplicit`.
 
-### `MetadataSnapshot` and `BasicMetadataSnapshot`
+### Snapshots and file versions
 
 ```swift
 struct MetadataSnapshot: Sendable {
@@ -416,30 +517,30 @@ struct MetadataSnapshot: Sendable {
     var structured: StructuredMetadata
     let fileVersion: MetadataFileVersion?
     let audioContentIdentity: MetadataAudioContentIdentity?
+
+    init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata,
+         fileVersion: MetadataFileVersion? = nil)
+    init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata,
+         fileVersion: MetadataFileVersion? = nil,
+         audioContentIdentity: MetadataAudioContentIdentity?)
 }
 
 struct BasicMetadataSnapshot: Sendable {
     var metadata: BasicMetadata
     let fileVersion: MetadataFileVersion
     let audioContentIdentity: MetadataAudioContentIdentity?
+
+    init(metadata: BasicMetadata, fileVersion: MetadataFileVersion)
+    init(metadata: BasicMetadata, fileVersion: MetadataFileVersion,
+         audioContentIdentity: MetadataAudioContentIdentity?)
 }
 
-// MetadataSnapshot
-init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata,
-     fileVersion: MetadataFileVersion? = nil)
-init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata,
-     fileVersion: MetadataFileVersion? = nil,
-     audioContentIdentity: MetadataAudioContentIdentity?)
-
-// BasicMetadataSnapshot
-init(metadata: BasicMetadata, fileVersion: MetadataFileVersion)
-init(metadata: BasicMetadata, fileVersion: MetadataFileVersion,
-     audioContentIdentity: MetadataAudioContentIdentity?)
+struct MetadataFileVersion: Hashable, Sendable { /* opaque */ }
 ```
 
-`MetadataSnapshot` has two initializers: one without an audio identity and one with an explicit optional identity. `BasicMetadataSnapshot` similarly has an initializer with and without an audio identity. A `readSnapshot` result always carries a file version in practice; the public initializer allows `nil` for constructed values. `audioContentIdentity` is `nil` unless explicitly requested and supported; two `nil` identities never prove continuity.
+`readSnapshot` and `readBasicSnapshot` always supply a version. The `MetadataSnapshot` initializer allows `nil` for tools that construct a value without a filesystem observation. `audioContentIdentity` is `nil` unless explicitly requested and supported; two `nil` identities never prove continuity.
 
-`MetadataFileVersion` is an opaque `Hashable, Sendable` value. It has no public initializer. It records device, inode, size, link count, modification time, and status-change time for an observed regular file.
+`MetadataFileVersion` records device, inode, size, link count, modification time, and status-change time for an observed regular file. It is not a content hash and not a cross-process lock.
 
 ### Raw models
 
@@ -447,21 +548,22 @@ init(metadata: BasicMetadata, fileVersion: MetadataFileVersion,
 struct RawMetadataDump: Hashable, Sendable {
     var properties: [RawPropertyEntry]
     var id3v2Frames: [RawID3v2FrameEntry]
+
     static let empty: RawMetadataDump
 }
 
 struct RawPropertyEntry: Identifiable, Hashable, Sendable {
-    var id: UUID
+    @SemanticIdentityExcluded var id: UUID
     var key: String
     var value: String
     var values: [String]
     var count: Int
-    var schema: MetadataFieldSchema?
-    var shouldDisplayAsMultiValue: Bool
+    var schema: MetadataFieldSchema? { get }
+    var shouldDisplayAsMultiValue: Bool { get }
 }
 
 struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
-    var id: UUID
+    @SemanticIdentityExcluded var id: UUID
     var frameID: String
     var value: String
     var description: String?
@@ -469,9 +571,9 @@ struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable {
 }
 ```
 
-`value` is the joined display projection; `values` is authoritative for cardinality. `count` is the bridge-reported count (or `values.count` when absent). `id` is an ephemeral UI identity excluded from semantic equality and hashing.
+`value` is the joined display projection; `values` is authoritative for cardinality. `count` is the bridge-reported count or `values.count` when absent. Raw properties are sorted case-insensitively by key. `id` is an ephemeral UI identity excluded from semantic equality and hashing.
 
-Raw ID3v2 frame summaries are available for the ID3-backed formats whose extraction path requests them (MPEG/ID3, WAV, AIFF, TTA). Other containers expose structured collections instead; do not assume `id3v2Frames` is populated for every file.
+Raw ID3v2 frame summaries are populated for the extraction paths that request them: MPEG/ID3, WAV, AIFF, and TrueAudio. Raw AAC, MP4, ASF, FLAC, Ogg, APE-family, DSD, and tracker formats expose structured collections instead; do not assume `id3v2Frames` is populated for every file.
 
 ### Structured models
 
@@ -485,14 +587,26 @@ struct StructuredMetadata: Hashable, Sendable {
     var lyrics: [StructuredLyrics]
     var comments: [StructuredComment]
     var warnings: [String]
+
+    init(properties: [StructuredPropertyEntry] = [],
+         id3v2Frames: [StructuredID3v2Frame] = [],
+         mp4Atoms: [StructuredMP4Atom] = [],
+         asfAttributes: [StructuredASFAttribute] = [],
+         artwork: [StructuredArtwork] = [],
+         lyrics: [StructuredLyrics] = [],
+         comments: [StructuredComment] = [],
+         warnings: [String] = [])
 }
 
 struct StructuredPropertyEntry: Identifiable, Hashable, Sendable {
+    @SemanticIdentityExcluded var id: UUID
     var key: String
     var values: [String]
+    init(key: String, values: [String])
 }
 
 struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
+    @SemanticIdentityExcluded var id: UUID
     var frameID: String
     var type: String
     var value: String
@@ -502,7 +616,7 @@ struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
     var url: String?
     var owner: String?
     var data: Data?
-    var fields: [String: String]      // reserved; currently ignored
+    var fields: [String: String] // reserved; currently ignored
     var elementID: String?
     var startTimeMilliseconds: Int?
     var endTimeMilliseconds: Int?
@@ -512,9 +626,30 @@ struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
     var isOrdered: Bool?
     var children: [String]
     var embeddedFrameCount: Int?
+
+    init(frameID: String,
+         type: String,
+         value: String = "",
+         values: [String] = [],
+         description: String? = nil,
+         language: String? = nil,
+         url: String? = nil,
+         owner: String? = nil,
+         data: Data? = nil,
+         fields: [String: String] = [:],
+         elementID: String? = nil,
+         startTimeMilliseconds: Int? = nil,
+         endTimeMilliseconds: Int? = nil,
+         startOffset: Int? = nil,
+         endOffset: Int? = nil,
+         isTopLevel: Bool? = nil,
+         isOrdered: Bool? = nil,
+         children: [String] = [],
+         embeddedFrameCount: Int? = nil)
 }
 
 struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
+    @SemanticIdentityExcluded var id: UUID
     var key: String
     var type: String
     var value: String
@@ -522,9 +657,13 @@ struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
     var first: Int?
     var second: Int?
     var freeformDescription: String?
+
+    init(key: String, type: String, value: String = "", values: [String] = [],
+         first: Int? = nil, second: Int? = nil, freeformDescription: String? = nil)
 }
 
 struct StructuredASFAttribute: Identifiable, Hashable, Sendable {
+    @SemanticIdentityExcluded var id: UUID
     var key: String
     var type: String
     var value: String
@@ -534,40 +673,54 @@ struct StructuredASFAttribute: Identifiable, Hashable, Sendable {
     var description: String?
     var language: Int
     var stream: Int
+
+    init(key: String, type: String, value: String = "", data: Data? = nil,
+         pictureType: String? = nil, mimeType: String? = nil,
+         description: String? = nil, language: Int = 0, stream: Int = 0)
 }
 
 struct StructuredArtwork: Identifiable, Hashable, Sendable {
+    @SemanticIdentityExcluded var id: UUID
     var container: String
     var pictureType: String?
     var pictureTypeCode: Int?
     var mimeType: String
     var description: String?
     var data: Data
+
+    init(container: String = "", pictureType: String? = nil, pictureTypeCode: Int? = nil,
+         mimeType: String, description: String? = nil, data: Data)
 }
 
 struct StructuredLyrics: Identifiable, Hashable, Sendable {
+    @SemanticIdentityExcluded var id: UUID
     var language: String
     var description: String
     var text: String
+    init(language: String = "eng", description: String = "", text: String)
 }
 
 struct StructuredComment: Identifiable, Hashable, Sendable {
+    @SemanticIdentityExcluded var id: UUID
     var language: String
     var description: String
     var text: String
+    init(language: String = "eng", description: String = "", text: String)
 }
 ```
 
 Structured write support is container-specific:
 
-| Collection | Written types/containers |
+| Collection | Writable forms |
 | --- | --- |
-| `properties` | Prefixless `PropertyMap` keys on writable formats. Empty `values` removes the key. |
-| `id3v2Frames` | `text`, `userText`, `url`, `ufid`, `chapter`, `tableOfContents`, `podcast` on ID3-backed formats. `APIC`, `COMM`, and `USLT` belong in the dedicated collections. `unknown` is read-only and rejected on write. |
-| `mp4Atoms` | `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair` on MP4. Other read types such as `coverArtList` are inspection-only; readback verification fails if they are supplied (with `verifyAfterWrite: true`). |
-| `asfAttributes` | `string`, `bool`, `int`, `int64`, and `binary` on ASF. `guid` is inspection-only and rejected on write. Attributes are upserts by key/language/stream/type. |
+| `properties` | Prefixless `PropertyMap` keys on writable formats. Empty `values` removes the key. Requires `includeProperties: true`. |
+| `id3v2Frames` | `text`, `userText`, `url`, `ufid`, `chapter`, `tableOfContents`, `podcast` on ID3-backed formats. `APIC`, `COMM`, and `USLT` belong in the dedicated collections. `unknown` is read-only. |
+| `mp4Atoms` | `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, `intPair` on MP4. Other inspected types are ignored by the writer, so they cannot be confirmed as edits. |
+| `asfAttributes` | `string`, `bool`, `int`, `int64`, `binary` on ASF. `guid` is inspection-only and rejected. Attributes are upserts by key/language/stream/type. |
 | `artwork` | ID3v2, MP4, ASF, FLAC/Xiph, and APE-family (one front image). `container` is informational; the writer selects the container from the file format. |
-| `lyrics`, `comments` | ID3v2-backed formats and TrueAudio; replace-all collections. |
+| `lyrics`, `comments` | ID3v2-backed formats and TrueAudio; replace-all collections. Empty text is skipped and cannot be verified as present. |
+
+`StructuredArtwork.pictureTypeCode == 0` is valid (`Other`); an omitted type defaults to Front Cover (`3`). MP4 `covr` artwork is returned both as an artwork entry and as a `coverArtList` MP4 atom; use the artwork collection to replace it. Verification compares bytes and MIME type everywhere, plus picture type and description for containers that serialize them (MP4 does not).
 
 ```swift
 enum StructuredMetadataReplaceableCollection: String, Hashable, Sendable {
@@ -579,17 +732,13 @@ enum StructuredMetadataReplaceableCollection: String, Hashable, Sendable {
 enum RIFFMetadataWritePolicy: String, Hashable, Sendable {
     case id3v2Only
     case preserveInfo
-    case syncBasicFieldsToInfo // reserved; rejects before staging
+    case syncBasicFieldsToInfo // reserved; rejects for WAV/AIFF before staging
 }
 ```
 
-`StructuredMetadataReplaceableCollection` names the collections that use replace-all semantics and can be empty to remove their final entries. `RIFFMetadataWritePolicy` applies to structured WAV writes; `.syncBasicFieldsToInfo` is reserved and rejects with `unsupportedWritePolicy`.
+`StructuredMetadataReplaceableCollection` names the collections that use replace-all semantics and can be empty to remove their final entries. `RIFFMetadataWritePolicy` is meaningful only for structured WAV and AIFF/AIFF-C writes; `.syncBasicFieldsToInfo` is reserved and rejected for those extensions.
 
-`StructuredArtwork.pictureTypeCode == 0` is valid (`Other`); an omitted type defaults to Front Cover (`3`). MP4 `covr` artwork is returned both as an artwork entry and as an MP4 `coverArtList` atom; use the artwork collection to replace it.
-
-`StructuredLyrics.language` and `StructuredComment.language` default to `"eng"`. Empty text is skipped by the writer and cannot be verified as a present entry.
-
-### `MetadataPatch` and related types
+### Patch models
 
 ```swift
 enum MetadataPatchValue: Hashable, Sendable {
@@ -609,6 +758,8 @@ enum MetadataArtworkPatch: Hashable, Sendable {
 struct MetadataNumberTextPatch: Hashable, Sendable {
     var trackNumberText: String?
     var discNumberText: String?
+
+    init(trackNumberText: String? = nil, discNumberText: String? = nil)
     var isEmpty: Bool { get }
 }
 
@@ -618,71 +769,135 @@ struct MetadataPatch: Hashable, Sendable {
     var explicitAdvisory: ExplicitAdvisory?
     var artwork: MetadataArtworkPatch
     var numberText: MetadataNumberTextPatch?
+
+    init(fields: [MetadataFieldKey: MetadataPatchValue] = [:],
+         customFields: [String: MetadataPatchValue] = [:],
+         explicitAdvisory: ExplicitAdvisory? = nil,
+         artwork: MetadataArtworkPatch = .unchanged,
+         numberText: MetadataNumberTextPatch? = nil)
     var isEmpty: Bool { get }
 }
-```
 
-`.text` and `.values` are trimmed once during validation. Empty text, empty value arrays, and empty elements are errors. Track/disc and movement values obey the schema constraints above. `.boolean(false)` encodes `"0"`; it is not deletion. `.remove` is the field-value deletion marker; artwork and formatted number text have their own removal forms.
-
-`MetadataNumberTextPatch` uses three-way optional intent per pair: `nil` leaves it unchanged, a non-empty value sets it, and an empty string removes it.
-
-`RawMetadataPatch` is defined in the raw-write section:
-
-```swift
 struct RawMetadataPatch: Sendable {
     var valuesToSet: [String: [String]]
     var removingKeys: Set<String>
+
+    init(valuesToSet: [String: [String]] = [:], removingKeys: Set<String> = [])
 }
 ```
 
-### Format and schema models
+`.text` and `.values` are trimmed once during validation. Empty text, empty value arrays, and empty elements are errors. `.boolean(false)` encodes `"0"`; it is not deletion. `.remove` is the field-value deletion marker; artwork and formatted number text have their own removal forms.
+
+`MetadataNumberTextPatch` uses three-way optional intent per pair: `nil` leaves it unchanged, a non-empty value sets it, and an empty string removes it.
+
+`RawMetadataPatch` has no `Hashable` or `Equatable` conformance; compare the two stored collections yourself if needed.
+
+## Extraction options
 
 ```swift
+struct MetadataExtractionOptions: OptionSet, Sendable {
+    let rawValue: UInt
+    init(rawValue: UInt)
+
+    static let basic: MetadataExtractionOptions        // 1 << 0
+    static let raw: MetadataExtractionOptions          // 1 << 1
+    static let structured: MetadataExtractionOptions   // 1 << 2
+    static let propertyMap: MetadataExtractionOptions  // 1 << 3
+    static let rawFrames: MetadataExtractionOptions    // 1 << 4
+    static let all: MetadataExtractionOptions          // union of all five
+}
+```
+
+This option set mirrors the bridge's `TagLibMetadataExtractionOptions` bits. The facade read methods select their own options; direct bridge clients pass the imported value to `metadataProjections(for:options:)`. Requesting `.propertyMap` or `.rawFrames` alone returns a `raw` projection; requesting `.raw` includes both.
+
+## Format and capability models
+
+```swift
+enum StructuredMetadataSupport: String, Hashable, Sendable {
+    case none
+    case propertyMap
+    case container
+}
+
 enum FormatSupportLevel: String, Hashable, Sendable {
     case fixtureCovered
     case experimental
     case upstreamSupported
     case readOnly
     case unsupported
-    @available(*, deprecated) case verified
+    @available(*, deprecated, message: "...") case verified
 }
 
-enum StructuredMetadataSupport: String, Hashable, Sendable {
-    case none
-    case propertyMap
-    case container
+struct FormatCapability: Hashable, Sendable, Identifiable {
+    var id: String { identifier }
+    var identifier: String
+    var displayName: String
+    var codecName: String
+    var primaryExtension: String
+    var extensions: [String]
+    var containers: [String]
+    var isReadable: Bool
+    var isWritable: Bool
+    var canReadArtwork: Bool
+    var canWriteArtwork: Bool
+    var preservesMultiValueProperties: Bool
+    var structuredReadSupport: StructuredMetadataSupport
+    var structuredWriteSupport: StructuredMetadataSupport
+    var readOnlyReason: String?
+    var notes: String?
+    var supportLevel: FormatSupportLevel
+    var extensionSupportLevels: [String: FormatSupportLevel]
+    var readableFields: Set<MetadataFieldKey>?
+    var writableFields: Set<MetadataFieldKey>?
+    var metadataFieldFormats: Set<MetadataFieldFormat> { get }
+
+    func supportLevel(forExtension fileExtension: String) -> FormatSupportLevel
+    func readSupport(for field: MetadataFieldKey) -> FormatSupportLevel
+    func writeSupport(for field: MetadataFieldKey) -> FormatSupportLevel
+
+    init(identifier: String,
+         displayName: String,
+         codecName: String,
+         primaryExtension: String,
+         extensions: [String],
+         containers: [String],
+         isReadable: Bool,
+         isWritable: Bool,
+         canReadArtwork: Bool,
+         canWriteArtwork: Bool,
+         preservesMultiValueProperties: Bool,
+         structuredReadSupport: StructuredMetadataSupport,
+         structuredWriteSupport: StructuredMetadataSupport,
+         readOnlyReason: String? = nil,
+         notes: String? = nil,
+         supportLevel: FormatSupportLevel = .upstreamSupported,
+         extensionSupportLevels: [String: FormatSupportLevel] = [:],
+         readableFields: Set<MetadataFieldKey>? = nil,
+         writableFields: Set<MetadataFieldKey>? = nil)
 }
 ```
-
-`FormatCapability` is `Hashable, Sendable, Identifiable`:
 
 | Member | Meaning |
 | --- | --- |
-| `id` / `identifier` | Stable family identifier, e.g. `mp4`, `flac`, `mpeg-id3`. |
-| `displayName`, `codecName` | Human-readable family/codec names. |
-| `primaryExtension`, `extensions` | Primary extension and all aliases, lowercased. |
-| `containers` | TagLib/container surfaces such as `tag`, `propertyMap`, `id3v2`, `mp4`, `xiph`, `ape`, `asf`, `riffInfo`. |
+| `identifier` / `id` | Stable family identifier such as `mp4`, `flac`, or `mpeg-id3`. |
+| `displayName`, `codecName` | Human-readable family and codec names. |
+| `primaryExtension`, `extensions` | Primary extension and all aliases, lowercase. |
+| `containers` | Declared container surfaces: `tag`, `propertyMap`, `id3v1`, `id3v2`, `ape`, `mp4`, `xiph`, `asf`, `riffInfo`. |
 | `isReadable`, `isWritable` | Declared operation availability. |
-| `canReadArtwork`, `canWriteArtwork` | Artwork availability for the family. |
+| `canReadArtwork`, `canWriteArtwork` | Artwork availability. `canWriteArtwork` is false when the family is read-only. |
 | `preservesMultiValueProperties` | Family-level repeated-value support, not a per-field promise. |
-| `structuredReadSupport`, `structuredWriteSupport` | Non-artwork structured inspection/mutation level. |
+| `structuredReadSupport`, `structuredWriteSupport` | Non-artwork structured inspection/mutation level. A `.propertyMap` level can still support structured artwork. |
 | `readOnlyReason`, `notes` | Configured caveats. |
-| `supportLevel` | Evidence level for the capability's requested/primary extension. |
+| `supportLevel` | Evidence level for the capability's requested or primary extension. |
 | `extensionSupportLevels` | Per-extension evidence levels. |
-| `readableFields`, `writableFields` | Optional explicit allowlists; `nil` means infer from mappings. |
+| `readableFields`, `writableFields` | Optional explicit allowlists; `nil` means infer from schema mappings. Currently used by tracker families. |
+| `metadataFieldFormats` | Formats implied by `containers` (plus `.flac` for the native FLAC family). |
 
-```swift
-func supportLevel(forExtension fileExtension: String) -> FormatSupportLevel
-func readSupport(for field: MetadataFieldKey) -> FormatSupportLevel
-func writeSupport(for field: MetadataFieldKey) -> FormatSupportLevel
-var metadataFieldFormats: Set<MetadataFieldFormat> { get }
-```
+`readSupport` and `writeSupport` combine `isReadable`/`isWritable`, the field schema's mappings, artwork flags, explicit allowlists, and the MP4 single-date rule. `supportLevel(forExtension:)` takes a case-insensitive extension and returns `.unsupported` when the family does not register it.
 
-`readSupport`/`writeSupport` combine `isReadable`/`isWritable`, the field schema's mappings, artwork flags, explicit allowlists, and the MP4 single-date rule. `supportLevel` comes from the capability value; to query a different alias, use `supportLevel(forExtension:)` or fetch that extension's capability.
+The format matrix and per-family limitations are in [Formats](FORMATS.md).
 
-`FormatCapability` has a public initializer for tools and tests. In application code, treat values returned by `formatCapabilities` and `capability(forExtension:)` as the authoritative registry data.
-
-#### Field schema types
+### Field schema types
 
 ```swift
 enum MetadataFieldCategory: String, CaseIterable, Hashable, Sendable {
@@ -709,6 +924,7 @@ enum MetadataPatchValueKind: String, CaseIterable, Hashable, Sendable {
 struct MetadataIntegerConstraint: Hashable, Sendable {
     var minimum: Int
     var maximum: Int
+    init(minimum: Int, maximum: Int)
 }
 
 struct MetadataFormatMapping: Hashable, Sendable {
@@ -716,6 +932,8 @@ struct MetadataFormatMapping: Hashable, Sendable {
     var storageKind: MetadataFieldStorageKind
     var keys: [String]
     var note: String?
+    init(format: MetadataFieldFormat, storageKind: MetadataFieldStorageKind,
+         keys: [String], note: String? = nil)
 }
 
 struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
@@ -731,35 +949,47 @@ struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     var isArtworkField: Bool
     var acceptedPatchValueKinds: Set<MetadataPatchValueKind> { get }
     var integerConstraint: MetadataIntegerConstraint? { get }
+
+    init(key: MetadataFieldKey,
+         displayName: String,
+         category: MetadataFieldCategory,
+         propertyMapKeys: [String],
+         mappings: [MetadataFormatMapping] = [],
+         isMultiValue: Bool = false,
+         isPeopleField: Bool = false,
+         isRoleQualified: Bool = false,
+         isArtworkField: Bool = false)
 }
 ```
 
-`acceptedPatchValueKinds` is the typed-patch contract: integer-only for track/disc/movement/BPM, boolean-only for compilation, empty for artwork/explicit/custom, and text/values (values only when multi-value) for ordinary fields. `integerConstraint` supplies the minimum and maximum enforced by typed patches.
+`acceptedPatchValueKinds` is the typed-patch contract: integer-only for track/disc/movement/BPM, Boolean-only for compilation, empty for artwork/explicit/custom, and text/values for ordinary fields. `integerConstraint` supplies the range enforced by typed patches. The complete field list and mappings are in [Metadata field schema](FIELD_SCHEMA.md).
 
-#### `MetadataFieldKey`
+### `MetadataFieldKey`
 
-The enum has these cases (grouped here by their schema category; the source is authoritative for order and mapping details):
+```swift
+enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
+    case title, artist, album, albumArtist, date, releaseDate, originalReleaseDate
+    case track, trackTotal, disc, discTotal
+    case artwork, lyrics, comment, genre, composer, conductor, remixer, performer
+    case producer, engineer, lyricist, involvedPeople, musicianCredits
+    case publisher, copyright, encodedBy, encoderSettings, isrc, barcode
+    case catalogNumber, asin, releaseType, releaseStatus, releaseCountry, mediaType
+    case work, movement, movementNumber, movementCount, discSubtitle, subtitle
+    case grouping, mood, language, musicalKey, bpm, compilation, explicitContent
+    case sortTitle, sortArtist, sortAlbum, sortAlbumArtist, sortComposer
+    case musicBrainzArtistID, musicBrainzAlbumID, musicBrainzAlbumArtistID
+    case musicBrainzTrackID, musicBrainzReleaseGroupID, musicBrainzReleaseTrackID
+    case musicBrainzWorkID, acoustID, acoustIDFingerprint, musicIPPUID
+    case replayGainTrackGain, replayGainAlbumGain
+    case itunesAlbumID, itunesArtistID, itunesCatalogID, itunesGenreID
+    case itunesMediaType, itunesPurchaseDate, itunesNorm, itunesSMPB
+    case originalAlbum, originalArtist, artistType, trackerName, custom
+}
+```
 
-| Category | Cases |
-| --- | --- |
-| `basic` | `title`, `album`, `genre`, `work`, `movement`, `discSubtitle`, `subtitle`, `grouping`, `mood`, `language`, `musicalKey` |
-| `numbering` | `track`, `trackTotal`, `disc`, `discTotal`, `movementNumber`, `movementCount` |
-| `artwork` | `artwork` |
-| `lyricsAndComments` | `lyrics`, `comment` |
-| `dates` | `date`, `releaseDate`, `originalReleaseDate` |
-| `people` | `artist`, `albumArtist`, `composer`, `conductor`, `remixer`, `producer`, `engineer`, `lyricist`, `originalArtist` |
-| `peopleRoles` | `performer`, `involvedPeople`, `musicianCredits` |
-| `sorting` | `sortTitle`, `sortArtist`, `sortAlbum`, `sortAlbumArtist`, `sortComposer` |
-| `identifiers` | `isrc`, `barcode`, `asin`, `musicBrainzArtistID`, `musicBrainzAlbumID`, `musicBrainzAlbumArtistID`, `musicBrainzTrackID`, `musicBrainzReleaseGroupID`, `musicBrainzReleaseTrackID`, `musicBrainzWorkID`, `acoustID`, `acoustIDFingerprint`, `musicIPPUID` |
-| `release` | `publisher`, `copyright`, `catalogNumber`, `releaseType`, `releaseStatus`, `releaseCountry`, `mediaType`, `compilation`, `originalAlbum`, `artistType` |
-| `replayGain` | `replayGainTrackGain`, `replayGainAlbumGain` |
-| `itunes` | `explicitContent`, `itunesAlbumID`, `itunesArtistID`, `itunesCatalogID`, `itunesGenreID`, `itunesMediaType`, `itunesPurchaseDate`, `itunesNorm`, `itunesSMPB` |
-| `technical` | `encodedBy`, `encoderSettings`, `bpm`, `trackerName` |
-| `custom` | `custom` |
+The enum has 79 cases. `trackerName` is a schema key used by tracker formats; `BasicMetadata` has no property for it. Use `MetadataPatch(fields: [.trackerName: ...])` or a structured/raw API where the capability allows it.
 
-`trackerName` is a schema key used by tracker formats; `BasicMetadata` has no property for it. Use `MetadataPatch(fields: [.trackerName: ...])` or a structured/raw API where the capability allows it.
-
-#### `MetadataFieldRegistry`
+### `MetadataFieldRegistry`
 
 ```swift
 enum MetadataFieldRegistry {
@@ -782,9 +1012,9 @@ enum MetadataFieldRegistry {
 }
 ```
 
-`schema(forPropertyMapKey:)` recognizes common qualified prefixes (`PERFORMER:`, `INVOLVEDPEOPLE:`, `MUSICIANCREDITS:`, `COMMENT:`, `LYRICS:`). `normalizePropertyMapKey` trims whitespace and uppercases. `schemas(storableIn:)` returns an empty list for read-only capabilities and excludes the MP4 `.date` field and unsupported artwork.
+`schema(forPropertyMapKey:)` recognizes the qualified prefixes `PERFORMER:`, `INVOLVEDPEOPLE:`, `MUSICIANCREDITS:`, `COMMENT:`, and `LYRICS:`. `normalizePropertyMapKey` trims whitespace and uppercases. `schemas(storableIn:)` returns an empty list for read-only capabilities and excludes the MP4 `.date` field and unsupported artwork.
 
-### Audio-content models
+## Audio-content models
 
 ```swift
 struct MetadataAudioContentIdentity: Hashable, Sendable { /* opaque digest */ }
@@ -792,18 +1022,22 @@ struct MetadataAudioContentIdentity: Hashable, Sendable { /* opaque digest */ }
 enum MetadataAudioContentError: Error, Equatable, Sendable, LocalizedError {
     case unavailable
     case changed
+
+    var errorDescription: String? { get }
 }
 ```
 
 `MetadataAudioContentIdentity` has no public initializer or accessors. Compare values for equality; do not persist them as recording identifiers across package versions. `.unavailable` means the layout is unsupported or ambiguous; `.changed` means the encoded audio or its interpretation parameters differ from the baseline. See [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
 
-### Internal-identity helper
+## Semantic identity helper
 
 ```swift
 @propertyWrapper
 struct SemanticIdentityExcluded: Hashable, Sendable {
     var wrappedValue: UUID
     init(wrappedValue: UUID)
+    static func == (lhs: Self, rhs: Self) -> Bool
+    func hash(into hasher: inout Hasher)
 }
 ```
 
@@ -811,108 +1045,98 @@ Used by model types to keep ephemeral UI identifiers out of synthesized semantic
 
 ## Errors
 
-All error types conform to `Error`, `Sendable`, and `LocalizedError`; the model errors that represent validation values are also `Equatable`.
+All error types conform to `Error`, `Sendable`, and `LocalizedError`; validation-value errors are also `Equatable`.
 
 ### `TagLibManagerError`
 
+```swift
+enum TagLibManagerError: Error, Sendable, LocalizedError {
+    case invalidFile
+    case fileChanged
+    case hardLinkedFile
+    case unsupportedFormat
+    case unsupportedWritePolicy(String)
+    @available(*, deprecated, message: "Use failedToReadWithUnderlying(_:) for throwing read failures.")
+    case failedToRead
+    case failedToReadWithUnderlying(String)
+    case verificationFailed([String])
+    case operationFailed(String)
+    case operationFailedWithUnderlying(NSError)
+    case committedButDurabilityUncertain(String)
+
+    var underlyingError: NSError? { get }
+    var errorDescription: String? { get }
+}
+```
+
 | Case | Meaning |
 | --- | --- |
-| `invalidFile` | The URL is not an existing regular file, or a final symlink was rejected. |
+| `invalidFile` | The URL is not an existing regular file, or a final symbolic link was rejected. |
 | `fileChanged` | The optimistic version or destination identity changed. |
-| `hardLinkedFile` | Atomic replacement would split a hard-linked file identity. |
+| `hardLinkedFile` | Atomic replacement would split a hard-linked file identity. No metadata was committed. |
 | `unsupportedFormat` | The extension is missing or not supported for the requested operation. |
 | `unsupportedWritePolicy(String)` | The selected structured write policy is not implemented for that container. |
+| `failedToRead` | Deprecated; no longer emitted. |
 | `failedToReadWithUnderlying(String)` | The bridge or parser failed while reading. |
 | `verificationFailed([String])` | A verified write could not confirm requested values; nothing was committed. |
-| `operationFailed(String)` | Message-only compatibility case; no longer emitted for native/filesystem failures. |
+| `operationFailed(String)` | Message-only compatibility case; native/filesystem failures use `operationFailedWithUnderlying`. |
 | `operationFailedWithUnderlying(NSError)` | Pre-commit bridge/filesystem failure with a typed cause; inspect `underlyingError`. |
-| `committedButDurabilityUncertain(String)` | Low-level transaction helper committed the rename but the final directory sync failed. High-level writes report this through `MetadataWriteResult.commitStatus`. |
-| `failedToRead` | Deprecated. Use `failedToReadWithUnderlying(_:)`. |
+| `committedButDurabilityUncertain(String)` | The low-level transaction helper committed the rename but the final directory sync failed. High-level writes report this through `MetadataWriteResult.commitStatus`. |
 
 `underlyingError` returns the associated `NSError` for `operationFailedWithUnderlying` and `nil` otherwise.
 
 ### `MetadataPatchValidationError`
 
-`unsupportedField`, `unsupportedFieldForFormat(field:format:)`, `incompatibleValue(field:expected:actual:)`, `integerOutOfRange(field:minimum:maximum:actual:)`, `knownFieldRequiresTypedAPI(customKey:field:)`, `conflictingFieldRepresentations(field:customKey:)`, `duplicateCustomField(normalizedKey:)`, `invalidCustomFieldKey(_:)`, `emptyText(location:)`, `emptyValueList(location:)`, `emptyValue(location:index:)`, `conflictingNumberRepresentations`, `roleQualifiedFieldRequiresRawAPI(_:)`, and `unsupportedPartialPairRemoval(field:format:)`.
+```swift
+enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedError {
+    case unsupportedField(MetadataFieldKey)
+    case unsupportedFieldForFormat(field: MetadataFieldKey, format: String)
+    case incompatibleValue(field: MetadataFieldKey,
+                           expected: Set<MetadataPatchValueKind>,
+                           actual: MetadataPatchValueKind)
+    case integerOutOfRange(field: MetadataFieldKey,
+                           minimum: Int, maximum: Int, actual: Int)
+    case knownFieldRequiresTypedAPI(customKey: String, field: MetadataFieldKey)
+    case conflictingFieldRepresentations(field: MetadataFieldKey, customKey: String)
+    case duplicateCustomField(normalizedKey: String)
+    case invalidCustomFieldKey(String)
+    case emptyText(location: String)
+    case emptyValueList(location: String)
+    case emptyValue(location: String, index: Int)
+    case conflictingNumberRepresentations
+    case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
+    case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
+}
+```
 
 ### `MetadataValidationError`
 
-`propertiesRequireIncludeProperties`, `embeddedNull(location:)`, `unsupportedID3v2FrameType(_:)`, `knownFieldRequiresRawAPI(_:)`, `invalidCustomFieldKey(_:)`, and `conflictingMP4Date(year:releaseDate:)`.
+```swift
+enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError {
+    case propertiesRequireIncludeProperties
+    case embeddedNull(location: String)
+    case unsupportedID3v2FrameType(String)
+    case knownFieldRequiresRawAPI(String)
+    case invalidCustomFieldKey(String)
+    case conflictingMP4Date(year: String, releaseDate: String)
+}
+```
 
 ### `RawMetadataPatchError`
 
-`invalidKey(_:)`, `emptyArray(_:)`, `conflictingKey(_:)`, `embeddedNull(_:)`, and `nativeKeyRequiresStructuredAPI(_:)`.
+```swift
+enum RawMetadataPatchError: Error, Equatable, Sendable, LocalizedError {
+    case invalidKey(String)
+    case emptyArray(String)
+    case conflictingKey(String)
+    case embeddedNull(String)
+    case nativeKeyRequiresStructuredAPI(String)
+}
+```
 
 ### `MetadataAudioContentError`
 
-`unavailable` and `changed`.
-
-## Public Objective-C bridge
-
-Header: `Sources/CTagLibBridge/include/TagLibMetadataExtractor.h`. It exposes Foundation and Objective-C types only; no C++ declarations cross the boundary.
-
-### Classes and constants
-
-| Declaration | Purpose |
-| --- | --- |
-| `TagLibAudioMetadata` | Objective-C model used by `extractMetadata`, `writeMetadata`, and `writeTagMetadata`. Properties are nullable `NSString *` unless marked numeric/Boolean. It also has `artworkData`, `artworkMimeType`, `removeArtwork`, `customFields`, numeric numbering, audio properties, release fields, and `explicitAdvisory`/`explicitContent`. |
-| `TagLibMetadataExtractor` | Class with the read, write, inspection, and capability selectors below. All selectors that enter TagLib are serialized internally. |
-| `TagLibMetadataErrorDomain` | `"TagLibMetadataExtractor"`. |
-| `TagLibMetadataTransactionErrorCodeCommittedButDurabilityUncertain` | `9110`; the bridge's post-rename durability-uncertain outcome. |
-| `TagLibExplicitAdvisory` | `Unspecified = 0`, `Clean = 1`, `Explicit = 2`, `NotExplicit = 3`. |
-| `TagLibMetadataExtractionOptions` | `Basic`, `Raw`, `Structured`, `PropertyMap`, `RawFrames`, `All`. |
-
-`TagLibAudioMetadata` property groups:
-
-| Group | Properties |
-| --- | --- |
-| Core | `title`, `artist`, `album`, `albumArtist`, `composer`, `genre`, `year`, `comment` |
-| Numbering | `trackNumber`, `totalTracks`, `discNumber`, `totalDiscs`, `trackNumberText`, `discNumberText` |
-| Audio | `duration`, `bitrate`, `sampleRate`, `channels`, `bitDepth`, `codec` |
-| Artwork | `artworkData`, `artworkMimeType`, `removeArtwork` |
-| Additional | `bpm`, `compilation`, `explicitAdvisory`, `explicitContent`, `copyright`, `lyrics`, `label`, `isrc`, `encodedBy`, `encoderSettings` |
-| Sorting | `sortTitle`, `sortArtist`, `sortAlbum`, `sortAlbumArtist`, `sortComposer` |
-| Dates | `releaseDate`, `originalReleaseDate` |
-| Personnel | `conductor`, `remixer`, `producer`, `engineer`, `lyricist` |
-| Descriptive | `subtitle`, `grouping`, `movement`, `mood`, `language`, `musicalKey` |
-| MusicBrainz/IDs | `musicBrainzArtistId`, `musicBrainzAlbumId`, `musicBrainzAlbumArtistId`, `musicBrainzTrackId`, `musicBrainzReleaseGroupId`, `musicBrainzReleaseTrackId`, `musicBrainzWorkId`, `acoustId`, `acoustIdFingerprint`, `musicIpPuid` |
-| ReplayGain | `replayGainTrack`, `replayGainAlbum` |
-| Media type | `mediaType` |
-| iTunes | `itunesAlbumId`, `itunesArtistId`, `itunesCatalogId`, `itunesGenreId`, `itunesMediaType`, `itunesPurchaseDate`, `itunesNorm`, `itunesSmpb` |
-| Release | `releaseType`, `releaseStatus`, `catalogNumber`, `barcode`, `releaseCountry`, `artistType`, `asin`, `originalAlbum`, `originalArtist`, `discSubtitle`, `work`, `movementNumber`, `movementCount` |
-| Custom | `customFields` |
-
-`explicitContent` is a Boolean compatibility projection: reading `YES` means `.explicit`; setting `NO` records `.clean`. Use `explicitAdvisory` for lossless state.
-
-### Selectors
-
-| Swift name | Objective-C selector | Purpose |
-| --- | --- | --- |
-| `extractMetadata(from:)` | `extractMetadataFromURL:error:` | Basic bridge model read. |
-| `metadataProjections(for:)` | `metadataProjectionsForURL:error:` | Basic, raw, and structured projections from one parser session. |
-| `metadataProjections(for:options:)` | `metadataProjectionsForURL:options:error:` | Selective projections. |
-| `writeMetadata(_:to:)` | `writeMetadata:toURL:error:` | Transactional bridge-model write; no facade semantic verification. |
-| `writeTrackNumberText(_:discNumberText:to:)` | `writeTrackNumberText:discNumberText:toURL:error:` | Formatted track/disc text write. |
-| `writeTrackNumber(_:totalTracks:padWidth:to:)` | `writeTrackNumber:totalTracks:padWidth:toURL:error:` | Number write with optional zero padding. |
-| `writeRawPropertyMap(_:to:)` | `writeRawPropertyMap:toURL:error:` | Whole-map visible `PropertyMap` replacement (single values). |
-| `writeRawPropertyMapValues(_:to:)` | `writeRawPropertyMapValues:toURL:error:` | Whole-map replacement with value arrays. |
-| `structuredMetadata(for:)` | `structuredMetadataForURL:error:` | Structured projection. |
-| `writeStructuredMetadata(_:to:)` | `writeStructuredMetadata:toURL:error:` | Structured mutation; omitted collections are preserved. |
-| `wipeMetadata(from:)` | `wipeMetadataFromURL:error:` | Native metadata container wipe where supported. |
-| `rawMetadata(for:)` | `rawMetadataForURL:error:` | Raw property/frame dictionary. |
-| `dumpMetadataText(from:)` | `dumpMetadataTextFromURL:error:` | Human-readable diagnostic dump. |
-| `isSupportedFormat(_:)` | `isSupportedFormat:` | Declared readable-extension lookup. |
-| `isWritableFormat(_:)` | `isWritableFormat:` | Declared writable-extension lookup. |
-| `supportedExtensions()` | `supportedExtensions` | All registered extensions. |
-| `writableExtensions()` | `writableExtensions` | Extensions of writable families. |
-| `formatCapability(for:)` | `formatCapabilityForExtension:` | Capability dictionary for an extension. |
-| `formatCapabilities()` | `formatCapabilities` | Capability dictionaries for all families. |
-| `knownMetadataPropertyKeys()` | `knownMetadataPropertyKeys` | Bridge schema property keys. |
-| `metadataFieldMappings()` | `metadataFieldMappings` | Bridge canonical/alias/container mappings. |
-
-The bridge mutators are transactional but do not run the facade's semantic readback. They validate that the staged file remains readable. `writeMetadata(_:to:)` reports a committed-but-durability-uncertain state through error code `9110`; the high-level Swift APIs report it through `MetadataWriteResult.commitStatus`.
-
-`metadataProjections(for:options:)` returns a dictionary whose stable top-level keys are `basic`, `raw`, and `structured`. `raw` contains `properties` and `id3v2Frames`; `structured` contains `properties`, `id3v2Frames`, `mp4Atoms`, `asfAttributes`, `artwork`, `lyrics`, `comments`, and `warnings`. Requesting `.propertyMap` or `.rawFrames` alone returns a `raw` projection; requesting `.raw` includes both.
+`unavailable` and `changed`; see [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
 
 ## Deprecated API map
 
@@ -936,3 +1160,11 @@ The bridge mutators are transactional but do not run the facade's semantic readb
 | `TagLibManagerError.operationFailed` emission | `operationFailedWithUnderlying(_:)`; the case remains for compatibility |
 
 See [Compatibility and migration](MIGRATION.md) for behavioral changes and a migration checklist.
+
+## Related references
+
+- [Bridge reference](BRIDGE.md) — public Objective-C surface.
+- [Metadata field schema](FIELD_SCHEMA.md) — all field mappings and patch constraints.
+- [Formats](FORMATS.md) — capability matrix and container limits.
+- [Write semantics](PRESERVATION.md) — preservation and verification scope.
+- [Transactions](TRANSACTIONS.md) — staging, durability, and concurrency.
