@@ -18,22 +18,22 @@ Remaining caveats concern fixture breadth, dependency guarantees, coarse capabil
 
 ### Method and evidence key
 
-The local, excluded [original audit](../AUDIT_REPORT.md) and committed [remediation report](REMEDIATION_REPORT_2026-10-18.md) were read as historical evidence. The complete remediation diff from `03473c9` to `62504ff` was examined alongside current callers, tests, and documentation. The matrix below independently classifies all **64 findings**. “Verified” applies to the stated invariant and evidence, not every possible file produced by third-party software.
+The local, excluded original audit (`AUDIT_REPORT.md`, not committed) and committed [remediation report](../remediation/REM-2026-10-18-comprehensive-audit.md) were read as historical evidence. The complete remediation diff from `03473c9` to `62504ff` was examined alongside current callers, tests, and documentation. The matrix below independently classifies all **64 findings**. “Verified” applies to the stated invariant and evidence, not every possible file produced by third-party software.
 
 Source references:
 
-- **W**: [Swift writes](../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift), [verification](../Sources/TagLibAudioMetadata/TagLibMetadataManager+Verification.swift), and [reads](../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift).
-- **S**: [Swift structured API](../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift), [native structured mutation](../Sources/CTagLibBridge/Internal/TLStructuredMutation.inc), and [inspection](../Sources/CTagLibBridge/Internal/TLStructuredInspection.inc).
-- **N**: [native delta writer](../Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc), [Basic/native writes](../Sources/CTagLibBridge/Internal/TLWriteBridgeOperations.inc), and [PropertyMap writes](../Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc).
-- **C**: [capability API](../Sources/TagLibAudioMetadata/FormatCapability.swift), [native registry](../Sources/CTagLibBridge/TLFormatRegistry.mm), and [schema](../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift).
-- **I**: [ReviewMetadataIntegrityTests](../Tests/TagLibAudioMetadataTests/Integration/ReviewMetadataIntegrityTests.swift), 15 new tests.
-- **J**: [ReviewNativeContainerTests](../Tests/TagLibAudioMetadataTests/Integration/ReviewNativeContainerTests.swift), 4 new tests.
-- **K**: [ReviewSourceCompatibilityTests](../Tests/TagLibAudioMetadataTests/ReviewSourceCompatibilityTests.swift), 1 new compile test covering 10 function references.
-- **R**: [AuditRemediationRegressionTests](../Tests/TagLibAudioMetadataTests/Integration/AuditRemediationRegressionTests.swift), the previous agent’s 16 tests, inspected and strengthened.
-- **F**: [FixtureMetadataRoundTripTests](../Tests/TagLibAudioMetadataTests/Integration/FixtureMetadataRoundTripTests.swift), including the corrected legacy-warning test.
-- **Q**: [WAVInfoProjectionTests](../Tests/TagLibAudioMetadataTests/Integration/WAVInfoProjectionTests.swift), including independently seeded INAM/INFO preservation checks.
-- **V**: [SnapshotVersionTests](../Tests/TagLibAudioMetadataTests/Transactions/SnapshotVersionTests.swift), [ReliabilityFailureTests](../Tests/TagLibAudioMetadataTests/Transactions/ReliabilityFailureTests.swift), and same-file/concurrency suites.
-- **Docs**: current [README](../README.md), [SUPPORT](SUPPORT.md), [ARCHITECTURE](ARCHITECTURE.md), [THREAD_SAFETY](THREAD_SAFETY.md), [INSTALLATION](INSTALLATION.md), and [CHANGELOG](../CHANGELOG.md).
+- **W**: [Swift writes](../../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift), [verification](../../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Verification.swift), and [reads](../../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift).
+- **S**: [Swift structured API](../../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift), [native structured mutation](../../../Sources/CTagLibBridge/Internal/TLStructuredMutation.inc), and [inspection](../../../Sources/CTagLibBridge/Internal/TLStructuredInspection.inc).
+- **N**: [native delta writer](../../../Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc), [Basic/native writes](../../../Sources/CTagLibBridge/Internal/TLWriteBridgeOperations.inc), and [PropertyMap writes](../../../Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc).
+- **C**: [capability API](../../../Sources/TagLibAudioMetadata/FormatCapability.swift), [native registry](../../../Sources/CTagLibBridge/TLFormatRegistry.mm), and [schema](../../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift).
+- **I**: [ReviewMetadataIntegrityTests](../../../Tests/TagLibAudioMetadataTests/Integration/ReviewMetadataIntegrityTests.swift), 15 new tests.
+- **J**: [ReviewNativeContainerTests](../../../Tests/TagLibAudioMetadataTests/Integration/ReviewNativeContainerTests.swift), 4 new tests.
+- **K**: [ReviewSourceCompatibilityTests](../../../Tests/TagLibAudioMetadataTests/ReviewSourceCompatibilityTests.swift), 1 new compile test covering 10 function references.
+- **R**: [AuditRemediationRegressionTests](../../../Tests/TagLibAudioMetadataTests/Integration/AuditRemediationRegressionTests.swift), the previous agent’s 16 tests, inspected and strengthened.
+- **F**: [FixtureMetadataRoundTripTests](../../../Tests/TagLibAudioMetadataTests/Integration/FixtureMetadataRoundTripTests.swift), including the corrected legacy-warning test.
+- **Q**: [WAVInfoProjectionTests](../../../Tests/TagLibAudioMetadataTests/Integration/WAVInfoProjectionTests.swift), including independently seeded INAM/INFO preservation checks.
+- **V**: [SnapshotVersionTests](../../../Tests/TagLibAudioMetadataTests/Transactions/SnapshotVersionTests.swift), [ReliabilityFailureTests](../../../Tests/TagLibAudioMetadataTests/Transactions/ReliabilityFailureTests.swift), and same-file/concurrency suites.
+- **Docs**: current [README](../../../README.md), [SUPPORT](../../USAGE.md), [ARCHITECTURE](../../ARCHITECTURE.md), [THREAD_SAFETY](../../TRANSACTIONS.md), [INSTALLATION](../../INSTALLATION.md), and [CHANGELOG](../../../CHANGELOG.md).
 
 ### Production findings
 
@@ -167,7 +167,7 @@ Severity reflects the observed failure before the review repair. Confidence is c
 
 ### IV-11 — Defaulted version parameters break function references (Medium; confirmed; regression)
 
-**Location/API:** new version-aware facade overloads. Default arguments preserve many calls but do not preserve function types. Ten representative old method references failed to compile. **Repair:** add exact-arity forwarding overloads in [TagLibMetadataManager+Compatibility.swift](../Sources/TagLibAudioMetadata/TagLibMetadataManager+Compatibility.swift), forwarding to version-aware methods with nil tokens. **Evidence:** K compiles all ten old references plus deprecated warn/unchanged; version-aware tests still pass. **Status:** repaired in `d373341`. This preserves representative source use, not ABI compatibility across separately compiled modules.
+**Location/API:** new version-aware facade overloads. Default arguments preserve many calls but do not preserve function types. Ten representative old method references failed to compile. **Repair:** add exact-arity forwarding overloads in [TagLibMetadataManager+Compatibility.swift](../../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Compatibility.swift), forwarding to version-aware methods with nil tokens. **Evidence:** K compiles all ten old references plus deprecated warn/unchanged; version-aware tests still pass. **Status:** repaired in `d373341`. This preserves representative source use, not ABI compatibility across separately compiled modules.
 
 ### IV-12 — Intentional replacement leaves stale aliases (High; confirmed; incomplete alias repair)
 
@@ -199,7 +199,7 @@ Severity reflects the observed failure before the review repair. Confidence is c
 
 ### IV-19 — DSD structured ID3 collections omitted (Medium; source-confirmed; overlooked pre-existing omission)
 
-**Location/API:** [TLUnifiedExtraction.inc](../Sources/CTagLibBridge/Internal/TLUnifiedExtraction.inc) DSF/DSDIFF dispatch and native capability registry. Unified reads exposed Basic tags but omitted native ID3 collection extraction. **Repair:** append native structured ID3 collections and describe read capability accordingly; write capability remains limited to its implemented path. **Evidence:** source tracing and all builds/cross-builds. **Status:** implemented in `d2ceb80`; **runtime UNVERIFIED** because no DSD fixture was available. This is not evidence that every DSD native structured write is supported. Unsupported replay must reject before commit.
+**Location/API:** [TLUnifiedExtraction.inc](../../../Sources/CTagLibBridge/Internal/TLUnifiedExtraction.inc) DSF/DSDIFF dispatch and native capability registry. Unified reads exposed Basic tags but omitted native ID3 collection extraction. **Repair:** append native structured ID3 collections and describe read capability accordingly; write capability remains limited to its implemented path. **Evidence:** source tracing and all builds/cross-builds. **Status:** implemented in `d2ceb80`; **runtime UNVERIFIED** because no DSD fixture was available. This is not evidence that every DSD native structured write is supported. Unsupported replay must reject before commit.
 
 ### IV-20 — Legacy number writers retain stale totals (Medium; confirmed; incomplete cross-entry-point P-09 repair)
 

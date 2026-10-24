@@ -477,9 +477,10 @@ public struct TagLibMetadataManager {
 
     public enum RawPropertyMapWriteMode: Sendable {
         /// Replace the file's visible TagLib PropertyMap with the provided keys.
-        /// Opaque native structures are not reconstructed by this operation; for
-        /// WAV, replacing the map can remove RIFF INFO fields. Use `.merge` to
-        /// preserve omitted visible keys and native data.
+        /// Opaque native structures are not reconstructed by this operation. On
+        /// WAV, RIFF INFO is a separate surface; omitted INFO fields can remain
+        /// and cause verification to fail. Use `.merge` or a structured
+        /// `.id3v2Only` write when preservation or INFO removal is intended.
         case replace
 
         /// Apply a delta to the current TagLib PropertyMap. Omitted keys and
