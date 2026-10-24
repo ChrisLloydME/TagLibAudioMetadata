@@ -8,7 +8,10 @@ mechanical problems that make documentation hard to maintain:
 * markdown table rows without leading/trailing pipes;
 * a changed set of current documents that is not reflected in the hub;
 * links to retired current-document paths;
-* missing top-level headings.
+* missing top-level headings;
+* stale generated field tables;
+* missing registered format extensions or a stale family/extension count;
+* public manager functions that are not indexed in the API reference.
 
 Run from the repository root or any subdirectory:
 
@@ -20,6 +23,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import unquote
@@ -31,6 +35,8 @@ CURRENT_DOCUMENTS = (
     "INSTALLATION.md",
     "USAGE.md",
     "API_REFERENCE.md",
+    "FIELD_SCHEMA.md",
+    "BRIDGE.md",
     "FORMATS.md",
     "PRESERVATION.md",
     "TRANSACTIONS.md",
@@ -56,11 +62,12 @@ IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 def markdown_files() -> list[Path]:
     files: list[Path] = []
     for root, dirs, names in os.walk(ROOT):
-        dirs[:] = [d for d in dirs if d not in {".git", ".build", ".swiftpm"}]
+        dirs[:] = [d for d in dirs if d not in {".git", ".build", ".swiftpm", ".local"}]
         for name in names:
             if name.endswith(".md"):
                 path = Path(root) / name
-                # The maintainer's local-only audit is intentionally untracked.
+                # Legacy location of the local-only audit; retained as a
+                # defensive skip for working trees created before .local/.
                 if path == ROOT / "AUDIT_REPORT.md":
                     continue
                 files.append(path)
@@ -202,6 +209,83 @@ def check_current_documents(errors: list[str]) -> None:
             errors.append(f"docs/README.md: hub does not link to current document {name}")
 
 
+def check_field_schema(errors: list[str]) -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/generate-field-schema.py"), "--check"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        errors.append(f"docs/FIELD_SCHEMA.md: generated tables are stale: {detail}")
+    source = (ROOT / "Sources/TagLibAudioMetadata/MetadataFieldSchema.swift").read_text(encoding="utf-8")
+    key_block = source.split("public enum MetadataFieldKey", 1)[1].split("public struct MetadataFieldSchema", 1)[0]
+    key_count = len(re.findall(r"^    case \w+$", key_block, re.MULTILINE))
+    field_schema = (ROOT / "docs/FIELD_SCHEMA.md").read_text(encoding="utf-8")
+    reference = (ROOT / "docs/API_REFERENCE.md").read_text(encoding="utf-8")
+    if f"{key_count} fields" not in field_schema:
+        errors.append(f"docs/FIELD_SCHEMA.md: field count does not match MetadataFieldKey ({key_count})")
+    if f"{key_count} cases" not in reference:
+        errors.append(f"docs/API_REFERENCE.md: MetadataFieldKey case count does not match source ({key_count})")
+
+
+def parse_format_registry(errors: list[str]) -> tuple[list[tuple[str, list[str]]], int]:
+    source = (ROOT / "Sources/CTagLibBridge/TLFormatRegistry.mm").read_text(encoding="utf-8")
+    extension_map: dict[str, list[str]] = {}
+    for name, body in re.findall(r"const char \*?(k\w+Extensions)\[\] = \{([^}]*)\};", source):
+        extension_map[name] = re.findall(r'"([^"]+)"', body)
+    fields = source.split("const TLFormatCapabilityDescriptor kDescriptors[] = {", 1)[1].split("};", 1)[0]
+    families: list[tuple[str, list[str]]] = []
+    for line in fields.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        tokens = re.findall(r'"(?:[^"\\]|\\.)*"|\b\w+\b', line)
+        if len(tokens) < 5:
+            continue
+        extension_key = tokens[4]
+        if extension_key not in extension_map:
+            errors.append(f"TLFormatRegistry.mm: unknown extension table {extension_key}")
+            continue
+        families.append((tokens[1].strip('"'), extension_map[extension_key]))
+    extension_count = sum(len(extensions) for _, extensions in families)
+    return families, extension_count
+
+
+def check_formats(errors: list[str]) -> None:
+    families, extension_count = parse_format_registry(errors)
+    text = (ROOT / "docs/FORMATS.md").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    expected_count = f"{len(families)} families and {extension_count} extensions"
+    if expected_count not in text:
+        errors.append(f"docs/FORMATS.md: missing registry count '{expected_count}'")
+    if expected_count not in readme:
+        errors.append(f"README.md: missing registry count '{expected_count}'")
+    for _, extensions in families:
+        for extension in extensions:
+            if f"`{extension}`" not in text:
+                errors.append(f"docs/FORMATS.md: registered extension '{extension}' is not listed")
+
+
+def check_public_api_index(errors: list[str]) -> None:
+    reference = (ROOT / "docs/API_REFERENCE.md").read_text(encoding="utf-8")
+    names: set[str] = set()
+    types: set[str] = set()
+    for path in (ROOT / "Sources/TagLibAudioMetadata").glob("*.swift"):
+        source = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"public\s+nonisolated\s+static\s+func\s+(\w+)", source):
+            names.add(match.group(1))
+        for match in re.finditer(r"public\s+(?:final\s+)?(?:struct|enum|class)\s+(\w+)", source):
+            types.add(match.group(1))
+    for name in sorted(names):
+        if f"`{name}" not in reference and f"{name}(" not in reference:
+            errors.append(f"docs/API_REFERENCE.md: public manager function '{name}' is not indexed")
+    for name in sorted(types):
+        if name not in reference:
+            errors.append(f"docs/API_REFERENCE.md: public type '{name}' is not indexed")
+
+
 def check_retired_paths(errors: list[str]) -> None:
     # Retired paths are rejected when they appear as Markdown link targets in
     # check_links(). Prose mentions are allowed in historical records and the
@@ -220,6 +304,9 @@ def main() -> int:
         check_tables(path, errors)
         check_headings(path, errors)
     check_current_documents(errors)
+    check_field_schema(errors)
+    check_formats(errors)
+    check_public_api_index(errors)
     check_retired_paths(errors)
 
     if errors:
