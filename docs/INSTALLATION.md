@@ -36,7 +36,16 @@ Targets that directly use `TagLibMetadataExtractor` or `TagLibAudioMetadata` mus
 import CTagLibBridge
 ```
 
-The facade does not re-export bridge declarations. See [Compatibility and migration](MIGRATION.md) for the 0.4 to 0.5 product split.
+The facade does not re-export bridge declarations. See [Bridge reference](BRIDGE.md) for the low-level API and [Compatibility and migration](MIGRATION.md) for the 0.4 to 0.5 product split.
+
+## Products and modules
+
+| Product | Module | Use |
+| --- | --- | --- |
+| `TagLibAudioMetadata` | `TagLibAudioMetadata` | Normal application code: models, typed patches, reads, writes, capability queries. |
+| `TagLibAudioMetadataLowLevel` | `CTagLibBridge` | Direct Objective-C bridge use. Requires an explicit product dependency and import. |
+
+`CTagLibBridgeInternalAPI` is a package-internal target used by the facade and tests. It is not a library product; do not depend on it.
 
 ## Requirements
 
@@ -127,7 +136,8 @@ The `Binary Release` workflow validates the tag/commit relationship, artifact la
 
 ## Related documents
 
-- [Installation tests and consumers](TESTING.md)
+- [Bridge reference](BRIDGE.md)
+- [Testing and consumers](TESTING.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Compatibility and migration](MIGRATION.md)
 - [Architecture](ARCHITECTURE.md)

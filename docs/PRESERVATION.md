@@ -1,6 +1,6 @@
 # Write semantics and metadata preservation
 
-This document states what the package promises to preserve, what it verifies, and where those promises end. It is the canonical contract behind the API examples in [Usage](USAGE.md). The source code is authoritative.
+This document is the canonical contract for what the package promises to preserve, what it verifies, and where those promises end. It sits behind the API examples in [Usage](USAGE.md). The source code is authoritative.
 
 ## Semantic preservation, not byte-for-byte archiving
 
@@ -16,7 +16,7 @@ The package edits metadata through TagLib and commits a sibling staging copy wit
 
 | Layer | Types | Fidelity | Best use |
 | --- | --- | --- | --- |
-| Comprehensive snapshot | `MetadataSnapshot` | Basic + raw `PropertyMap` + structured projections from one parser session. Still semantic, not byte-exact. | Editors that need all views and omission-safe patches. |
+| Comprehensive snapshot | `MetadataSnapshot` | Basic + raw `PropertyMap` + structured projections from one extraction call. Still semantic, not byte-exact. | Editors that need all views and omission-safe patches. |
 | Basic | `BasicMetadata`, `BasicMetadataSnapshot` | Normalized common-field projection. Multi-value scalars are display strings. | Library views and ordinary tag editing. |
 | Raw | `RawMetadataDump`, `RawMetadataPatch` | Exact visible `PropertyMap` keys, value arrays, and raw ID3 frame summaries where exposed. Opaque native data may be summarized. | Power-user key/value editors and exact deltas. |
 | Structured | `StructuredMetadata` | Container-aware frames, atoms, attributes, artwork, comments, and lyrics. Unsupported records are summarized or omitted. | Frame/atom-level editors. |
@@ -30,7 +30,7 @@ The high-level patch APIs distinguish **unchanged**, **set**, and **removed**:
 - A field absent from `MetadataPatch` is unchanged.
 - `MetadataPatchValue.remove` removes the field.
 - Empty text, empty arrays, and arrays containing empty elements are validation errors, not deletion aliases.
-- `MetadataArtworkPatch.unchanged` leaves artwork alone; `.replace` replaces the top-level artwork collection; `.removeAll` removes it.
+- `MetadataArtworkPatch.unchanged` leaves artwork alone; `.replace` replaces the top-level artwork collection; `.removeAll` removes it. `.replace([])` also removes everything.
 - `MetadataNumberTextPatch` treats `nil` as unchanged, a nonempty string as set, and an empty string as remove for that pair.
 - `explicitAdvisory = nil` is unchanged; `.unspecified` removes the representation; `.notExplicit`, `.clean`, and `.explicit` store the corresponding state.
 
@@ -55,7 +55,7 @@ A Basic read retains a separate raw-cardinality and provenance baseline. An unre
 
 Basic does not guess cardinality by splitting a display string. It restores captured arrays only for fields it can identify. Unknown fields that the bridge does not model may survive because TagLib saves the native tag, but they are not reconstructed from the Basic model.
 
-Editing or adding a schema-known name through `BasicMetadata.customFields` is rejected; use the typed field or a raw/structured API. Existing native custom attributes whose names overlap the schema may be carried through unchanged.
+Editing or adding a schema-known name through `BasicMetadata.customFields` is rejected; use the typed field or a raw/structured API. Existing native custom attributes whose names overlap the schema may be carried through unchanged when their value is unchanged.
 
 `BasicMetadata.format` reports the parser's codec/format name; it is not a conformance claim. For example, an ALAC `.m4a` is reported as ALAC where the reader exposes that codec. `publisher` maps to TagLib's `label` field.
 
@@ -65,7 +65,7 @@ Editing or adding a schema-known name through `BasicMetadata.customFields` is re
 
 - if only `releaseDate` changed, `year` is projected from its first four characters;
 - if only `year` changed, `releaseDate` keeps its existing suffix after the first four characters;
-- a full `replaceBasicMetadata` with inconsistent MP4 `year`/`releaseDate` projections throws `MetadataValidationError.conflictingMP4Date`.
+- a full `replaceBasicMetadata` with inconsistent non-empty MP4 `year`/`releaseDate` projections throws `MetadataValidationError.conflictingMP4Date`.
 
 `BasicMetadata.year` is a compatibility projection, not a second independent MP4 date field.
 
@@ -119,7 +119,7 @@ The whole-map compatibility writers have two modes:
 - `.replace` replaces the visible `PropertyMap` with the supplied keys. It cannot reconstruct native fields that are not visible through `properties()`. WAV INFO is a separate surface: omitted INFO keys can survive the ID3v2 replacement and cause verification to fail. Use a structured `.id3v2Only` write or an explicit deletion of both surfaces when INFO removal is intended. Use `.replace` only when the caller deliberately owns the complete visible map.
 - `.merge` applies a delta, preserves omitted visible keys, hidden MP4 freeform atoms, and WAV INFO, and removes a key when the supplied value or array is empty. Values and elements are trimmed and empty elements are dropped; array boundaries otherwise remain.
 
-Prefer `RawMetadataPatch` for preservation-oriented partial edits. It is the only raw API that preserves exact value strings and requires explicit removals.
+Prefer `RawMetadataPatch` for preservation-oriented partial edits. It preserves exact value strings within the limits of the native container and requires explicit removals.
 
 ## Structured rules
 
@@ -131,18 +131,18 @@ Prefer `RawMetadataPatch` for preservation-oriented partial edits. It is the onl
 - Opaque ID3 frames returned with `type == "unknown"` are inspection-only. Omit them from writes; omitted frames remain on disk. Supplying one throws `MetadataValidationError.unsupportedID3v2FrameType`.
 - `StructuredArtwork.container` is informational. The writer selects the destination container from the file format; verification compares payload, MIME type, and applicable picture metadata. Picture type `0` (`Other`) is valid; an omitted type defaults to Front Cover (`3`).
 - APE-family artwork writes support one front image. ID3v2, MP4, ASF, FLAC, and Xiph support the entries those containers can store.
-- MP4 atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other read-only item types should be omitted.
+- MP4 atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other inspected item types are ignored by the writer; omit them.
 - ASF attributes are upserts. GUID attributes are inspection-only. There is no individual structured deletion operation.
 - DSD structured writes are PropertyMap deltas and artwork. Replacing native ID3 frame/comment/lyric collections through the structured writer is unsupported. A Basic edit that would require replaying existing DSD native collections rejects rather than normalizing them.
 - ID3 URL and UFID frames have no individual structured removal operation. Empty payloads reject instead of pretending to remove them.
 
 ### RIFF write policy
 
-`RIFFMetadataWritePolicy` applies to structured WAV writes. AIFF/AIFF-C structured writes use ID3v2 and have no RIFF INFO surface, so `.id3v2Only` has no additional effect there; `.syncBasicFieldsToInfo` still rejects because it is not implemented:
+`RIFFMetadataWritePolicy` is meaningful for structured WAV writes. AIFF/AIFF-C have no RIFF INFO surface, so `.id3v2Only` has no additional effect there; `.syncBasicFieldsToInfo` still rejects because it is not implemented. For every other format the policy value is ignored; it does not synchronize Basic fields into RIFF INFO.
 
 - `.preserveInfo` (default): write structured data and keep existing RIFF INFO.
 - `.id3v2Only`: write structured ID3v2 data, then remove RIFF INFO.
-- `.syncBasicFieldsToInfo`: reserved and not implemented; rejects before staging with `unsupportedWritePolicy`.
+- `.syncBasicFieldsToInfo`: reserved and not implemented; rejects for WAV/AIFF with `unsupportedWritePolicy`.
 
 Basic and typed Patch WAV writes target ID3v2 and always leave RIFF INFO untouched. Raw PropertyMap edits follow key ownership: existing INFO keys update INFO, ID3v2 keys update ID3v2, and new keys go to ID3v2.
 
@@ -171,11 +171,11 @@ Verified facade APIs read the staged file back before commit and throw `TagLibMa
 Additional rules:
 
 - Verification mismatches always abort the transaction. `VerificationFailurePolicy.warn` is deprecated and has no bypass effect.
-- `MetadataWriteResult.warnings` contains non-fatal container advisories after a successful verification. An empty warnings array describes only the checks requested by that API.
+- `MetadataWriteResult.warnings` contains residual container advisories after a successful verification. Mismatch warnings are thrown, not returned. An empty warnings array describes only the checks requested by that API.
 - `.present` artwork verification is presence-only; `expectedArtworkData` and `expectedArtworkMIMEType` add exact checks.
 - Basic and typed number checks accept numeric-equivalent formatting. Exact raw map verification compares strings and can reject normalized padding.
 - Structured lyric/comment entries with empty text are skipped by the writer and fail verification if expected as present entries.
-- The raw whole-map writers and `writeStructuredMetadataWithVerification` expose `verifyAfterWrite`. Setting it to `false` opts out of readback comparison for that call; the transaction still stages and commits atomically, but the requested values are not verified. Do not describe such a write as verified.
+- The raw whole-map writers, `writeTrackNumberText`, and `writeStructuredMetadataWithVerification` expose `verifyAfterWrite`. Setting it to `false` opts out of readback comparison for that call; the transaction still stages and commits atomically, but the requested values are not verified. Do not describe such a write as verified.
 - If the final directory sync fails after rename, the write has already committed. `MetadataWriteResult.commitStatus` is `.durabilityUncertain`; do not retry as though nothing happened.
 
 Verification is not a lossless oracle. Metadata that TagLib does not expose cannot be compared by these APIs.
@@ -197,4 +197,4 @@ Preservation and verification happen on a sibling staging copy. The destination 
 - Universal field or codec support for a format whose label is `fixtureCovered`.
 - Cross-process exclusion or hardware/power-loss durability.
 - Behavior that the current tests do not exercise merely because the code compiles.
-- That a successful write with warnings is a partial failure; warnings are non-fatal advisories after the requested checks passed.
+- That a successful write with warnings is a partial failure; warnings are residual advisories after the requested checks passed.

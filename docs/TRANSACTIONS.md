@@ -20,13 +20,13 @@ The short version: a write stages a sibling copy, mutates and (for verified faca
    - Confirm `isRegularFile == true` and `isSymbolicLink != true` through `URLResourceValues`.
    - Open the file with the selected parser; an unreadable or invalid audio file fails before staging.
 3. **Stage.** Create one sibling temporary file in the same directory with `copyfile(COPYFILE_CLONE | COPYFILE_ACL)`.
-   - `COPYFILE_CLONE` is best-effort: it requests a copy-on-write clone, includes stat/xattr/data and no-follow-source behavior, and falls back to an ordinary copy when cloning is unavailable.
+   - `COPYFILE_CLONE` requests a copy-on-write clone and falls back to an ordinary copy when cloning is unavailable.
    - `COPYFILE_ACL` requests ACL preservation.
    - The temporary file must be a regular file.
 4. **Mutate.** Run the write operation on the temporary file. Nested in-place bridge operations detect the active transaction depth and do not create a second staging copy.
 5. **Verify.** Verified facade APIs compare requested metadata and preservation expectations on the temporary file. Direct bridge mutators validate that the staged file remains readable; they do not perform semantic readback.
 6. **Flush.** Open the temporary file and request `F_FULLFSYNC`; on `EINVAL`, `ENOTSUP`, or `ENOTTY`, fall back to `fsync`. Other failures abort before rename.
-7. **Final identity check.** Compare the destination's identity to the captured identity. A change throws `fileChanged` and leaves the staged copy unpublished.
+7. **Final identity check.** Compare the destination identity to the captured identity. A change throws `fileChanged` and leaves the staged copy unpublished.
 8. **Rename.** Atomically rename the temporary file over the destination.
 9. **Directory sync.** Open the parent directory with `O_RDONLY | O_DIRECTORY` and flush it. A failure here means the rename already committed and durability is uncertain.
 
@@ -44,6 +44,8 @@ The internal helper `withAtomicFileMutation` throws `TagLibManagerError.committe
 - The bridge does not run facade semantic verification.
 - The bridge reports durability uncertainty through its `NSError` contract.
 - In-place primitives live in `CTagLibBridgeInternalAPI`, which is not a library product.
+
+The bridge transaction also validates the staged file after mutation, so a direct bridge write checks readability even though it does not compare requested values. See [Bridge reference](BRIDGE.md).
 
 ## Preconditions and rejection cases
 
@@ -68,13 +70,13 @@ The final directory flush failure is the only normal path where a caller sees an
 - Atomic rename provides pathname-level all-or-nothing commit on one volume.
 - It does not preserve inode identity and does not update sibling hard links. Hard-linked files are rejected instead.
 - The staging copy requests ACL preservation; clone/copy semantics include data, stat, and extended attributes on the tested macOS filesystem.
-- A successful clone does not copy setuid/setgid bits. The transaction rejects those files rather than silently dropping or restoring privilege bits.
+- The transaction does not rely on clone/copy preserving setuid/setgid bits: it rejects those files before staging rather than silently dropping or restoring privilege bits.
 - Production does not run a separate deployment-specific metadata-preservation audit. Quarantine, immutable flags, security-scoped URLs, and sandbox behavior remain integration responsibilities.
 - The caller needs read access to the file and create/rename access in its parent directory. Sibling-copy creation requires write access to the parent directory.
 
 ## Durability semantics
 
-`.durable` means the package requested and completed an OS-level flush (`F_FULLFSYNC`, or `fsync` where the filesystem rejects the stronger request) for the staged file and the parent directory. It is not:
+`.durable` means the package requested and completed an OS-level flush (`F_FULLFSYNC`, or `fsync` where the filesystem rejects the stronger request) for the staged file and for the parent directory. It is not:
 
 - a hardware cache-flush guarantee;
 - a power-loss guarantee;
