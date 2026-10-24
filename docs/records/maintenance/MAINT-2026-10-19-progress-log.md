@@ -8,7 +8,7 @@ Last updated: 2026-10-19
 - Evaluated all AUD-01 through AUD-20 findings, repaired confirmed integrity defects, added explicit safe-failure boundaries, and documented remaining API/coverage limitations.
 - Added 22 Swift Testing regressions, independent native checks, and a generated AIFF fixture; the suite now contains 208 tests.
 - Final verification passed Debug (all opt-ins enabled), Release, ASAN, TSAN, Xcode tests, five strict platform builds, both consumers, and an independent eight-format metadata/encoded-packet preservation experiment.
-- The authoritative handover is [CLEAN_ROOM_REMEDIATION_2026-10-19.md](docs/CLEAN_ROOM_REMEDIATION_2026-10-19.md). Main remains unchanged and no merge was performed.
+- The authoritative handover is [CLEAN_ROOM_REMEDIATION_2026-10-19.md](../remediation/REM-2026-10-19-clean-room.md). Main remains unchanged and no merge was performed.
 
 ## Prior task — independent post-remediation review
 

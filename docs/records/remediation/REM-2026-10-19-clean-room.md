@@ -1,6 +1,6 @@
 # Clean-Room Audit Remediation — 2026-10-19
 
-Completion date: 2026-10-19. This is the authoritative handover for remediation of [CLEAN_ROOM_AUDIT_2026-10-19.md](CLEAN_ROOM_AUDIT_2026-10-19.md). The audit and earlier historical audit/remediation reports were preserved unchanged. The conclusions below come from current implementation inspection, focused reproductions, committed regressions, native parsers, and final executed checks; the auditor's suggested designs were not treated as instructions.
+Completion date: 2026-10-19. This is the authoritative handover for remediation of [CLEAN_ROOM_AUDIT_2026-10-19.md](../audits/AUD-2026-10-19-clean-room.md). The audit and earlier historical audit/remediation reports were preserved unchanged. The conclusions below come from current implementation inspection, focused reproductions, committed regressions, native parsers, and final executed checks; the auditor's suggested designs were not treated as instructions.
 
 ## A. Executive Summary
 

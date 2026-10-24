@@ -36,7 +36,7 @@ The assignment adds 13 tests, including compile coverage, and preserves previous
 
 ### Genuine acquired fixtures
 
-All four files were copied unchanged from [TagLib 2.3.1 commit 54ae7d8ac45755e286a5c574280f48d5bef93aef](https://github.com/taglib/taglib/tree/54ae7d8ac45755e286a5c574280f48d5bef93aef/tests/data), the same upstream revision already used by this repository. License texts remain in ThirdParty/TagLib. Full SHA-256 values and redistribution provenance are recorded in [Audio/README](../Tests/TagLibAudioMetadataTests/Audio/README.md).
+All four files were copied unchanged from [TagLib 2.3.1 commit 54ae7d8ac45755e286a5c574280f48d5bef93aef](https://github.com/taglib/taglib/tree/54ae7d8ac45755e286a5c574280f48d5bef93aef/tests/data), the same upstream revision already used by this repository. License texts remain in ThirdParty/TagLib. Full SHA-256 values and redistribution provenance are recorded in [Audio/README](../../../Tests/TagLibAudioMetadataTests/Audio/README.md).
 
 | Local fixture | Upstream file | Bytes | Independent validation |
 |---|---|---|---|
@@ -47,13 +47,13 @@ All four files were copied unchanged from [TagLib 2.3.1 commit 54ae7d8ac45755e28
 
 These are genuine format files, not renamed substitutes or header-only fuzz fixtures. The pinned TagLib binary recognizes them at runtime through the package. Upstream tests independently specify DSD64 stereo and APE/MPC 44.1 kHz stereo. FFmpeg reports DSD’s packed byte rate as 352,800 Hz while TagLib reports the one-bit rate 2,822,400 Hz; tests compare the correct quantities. Decoder-delay accounting differs for the short MPC fixture, so exact duration equality across readers is not asserted.
 
-[HardeningFixtureSupport](../Tests/TagLibAudioMetadataTests/Integration/HardeningFixtureSupport.swift) supplies bounded test-only native readers and builders. DSF metadata pointers/chunk lengths and DSDIFF FRM8/chunk bounds are checked; ID3v2.4 frames are seeded with independently specified language, description, payload and opaque data. The DSF layout follows [Sony’s specification](https://dsd-guide.com/sites/default/files/white-papers/DSFFileFormatSpec_E.pdf); [TagLib’s DSDIFF reference](https://taglib.org/api/namespaceTagLib_1_1DSDIFF.html) distinguishes the conventional ID3 extension from the underlying DSDIFF standard.
+[HardeningFixtureSupport](../../../Tests/TagLibAudioMetadataTests/Integration/HardeningFixtureSupport.swift) supplies bounded test-only native readers and builders. DSF metadata pointers/chunk lengths and DSDIFF FRM8/chunk bounds are checked; ID3v2.4 frames are seeded with independently specified language, description, payload and opaque data. The DSF layout follows [Sony’s specification](https://dsd-guide.com/sites/default/files/white-papers/DSFFileFormatSpec_E.pdf); [TagLib’s DSDIFF reference](https://taglib.org/api/namespaceTagLib_1_1DSDIFF.html) distinguishes the conventional ID3 extension from the underlying DSDIFF standard.
 
 APEv2 inspection validates footer size/count, item bounds and flags. Keys are compared case-insensitively as required by the native tag identity; initial mixed-case assertions were corrected rather than changing valid production normalization. APE/MPC artwork writes intentionally support one front cover. The test independently seeds an additional back image and checks preservation/removal through public APIs.
 
 ### Independent ASF metadata oracle
 
-[HardeningASFTests](../Tests/TagLibAudioMetadataTests/Integration/HardeningASFTests.swift) implements a targeted, test-only reader of ASF objects and native attribute records. It checks 64-bit sizes without overflowing Int, record counts/lengths, UTF-16 boundaries, object boundaries and bounded Header Extension depth. Malformed/truncated object and record tests require rejection.
+[HardeningASFTests](../../../Tests/TagLibAudioMetadataTests/Integration/HardeningASFTests.swift) implements a targeted, test-only reader of ASF objects and native attribute records. It checks 64-bit sizes without overflowing Int, record counts/lengths, UTF-16 boundaries, object boundaries and bounded Header Extension depth. Malformed/truncated object and record tests require rejection.
 
 The reader follows ASF Header/Extension, Extended Content Description, Metadata and Metadata Library layouts, not package-generated expected projections. [Microsoft’s file-structure documentation](https://learn.microsoft.com/en-us/windows/win32/medfound/asf-file-structure) identifies the object and media-data boundaries. The independently seeded library includes language-list records, stream 1, repeated names with differing identities, WORD/DWORD/QWORD/Boolean/string/binary/GUID values. Initial fixture construction mistakes (Boolean width and duplicate empty library objects) were diagnosed and corrected before relying on runtime results. They were not reported as production failures.
 
@@ -61,9 +61,9 @@ Native expected values are explicit. An unrelated WM/Picture entry is captured a
 
 ### Encoded-payload oracle and generated corpus
 
-[HardeningAudioPayloadTests](../Tests/TagLibAudioMetadataTests/Integration/HardeningAudioPayloadTests.swift) skips FLAC metadata blocks, reconstructs Ogg packets independently of page repagination, excludes only Vorbis/Opus comment packets, and removes recognized ID3/APE tag regions for relevant formats. Encoded audio and immutable codec-header payloads must remain equal after each real operation. It does not use whole-file equality as an audio oracle.
+[HardeningAudioPayloadTests](../../../Tests/TagLibAudioMetadataTests/Integration/HardeningAudioPayloadTests.swift) skips FLAC metadata blocks, reconstructs Ogg packets independently of page repagination, excludes only Vorbis/Opus comment packets, and removes recognized ID3/APE tag regions for relevant formats. Encoded audio and immutable codec-header payloads must remain equal after each real operation. It does not use whole-file equality as an audio oracle.
 
-[scripts/make-preservation-corpus.py](../scripts/make-preservation-corpus.py) creates a new output directory and eight FFmpeg-generated 731 Hz, stereo 48 kHz, 0.15-second tone containers with explicit title/artist/album/comment/date/track/disc/custom metadata. It never reads user music or overwrites an existing corpus. Native experimental Vorbis/Opus encoders are explicitly enabled; encoder availability is a prerequisite, not silently skipped.
+[scripts/make-preservation-corpus.py](../../../scripts/make-preservation-corpus.py) creates a new output directory and eight FFmpeg-generated 731 Hz, stereo 48 kHz, 0.15-second tone containers with explicit title/artist/album/comment/date/track/disc/custom metadata. It never reads user music or overwrites an existing corpus. Native experimental Vorbis/Opus encoders are explicitly enabled; encoder availability is a prerequisite, not silently skipped.
 
 FFmpeg’s TTA muxer emits APEv2 while the pinned TTA reader projects ID3. The script independently prepends valid ID3v2.4 with known values so the visible-map assertions have real unrelated metadata to protect. All eight final generated files decoded successfully. The original three partial/diagnostic corpus attempts were not used as passing evidence.
 
@@ -74,7 +74,7 @@ The generated files remain disposable under /tmp; the reproducible script is com
 ### VH-01 — Verified ASF WORD update creates conflicting DWORD sibling
 
 - **Severity/confidence:** High; independently reproduced.
-- **Location:** [TLStructuredMutation.inc](../Sources/CTagLibBridge/Internal/TLStructuredMutation.inc), ApplyStructuredASFAttributes.
+- **Location:** [TLStructuredMutation.inc](../../../Sources/CTagLibBridge/Internal/TLStructuredMutation.inc), ApplyStructuredASFAttributes.
 - **Trigger:** Existing native WORD (type 5), key HARDEN_WORD, language 0/stream 1, value 42. Submit the public int projection with value 7.
 - **Evidence:** The operation returned verified success, but independent parsing found both the old WORD and a new DWORD (type 3). The verifier’s int projection could find the new numeric value without detecting the stale native sibling.
 - **Root cause:** WORD and DWORD share public type int, while the writer always constructed an unsigned-int DWORD before identity-based upsert.
@@ -85,7 +85,7 @@ The generated files remain disposable under /tmp; the reproducible script is com
 ### VH-02 — Normalized ASF number totals do not persist
 
 - **Severity/confidence:** Medium; independently reproduced as a verified-write failure/rollback, not successful corruption in that facade path.
-- **Location:** [TLPropertyMapCodec.inc](../Sources/CTagLibBridge/Internal/TLPropertyMapCodec.inc), [TLPropertyMapWrites.inc](../Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc), [TLPropertyMapDelta.inc](../Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc), and normalized pair validation.
+- **Location:** [TLPropertyMapCodec.inc](../../../Sources/CTagLibBridge/Internal/TLPropertyMapCodec.inc), [TLPropertyMapWrites.inc](../../../Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc), [TLPropertyMapDelta.inc](../../../Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc), and normalized pair validation.
 - **Trigger:** The strengthened enabled corpus test requests track 3/12 through the public typed API on generated WMA.
 - **Evidence:** Verification reported expected total 12, observed 0. An independent native regression covers Basic replacement, typed partial updates and formatted number writes.
 - **Root cause:** Shared generic writers supplied separate TRACKTOTAL/DISCTOTAL keys that the pinned ASF PropertyMap encoder does not store.
@@ -96,7 +96,7 @@ The generated files remain disposable under /tmp; the reproducible script is com
 ### VH-03 — Unsupported ASF GUID write changes native type when verification is disabled
 
 - **Severity/confidence:** Medium; independently reproduced.
-- **Location:** [TLStructuredMutation.inc](../Sources/CTagLibBridge/Internal/TLStructuredMutation.inc), native structured payload validation.
+- **Location:** [TLStructuredMutation.inc](../../../Sources/CTagLibBridge/Internal/TLStructuredMutation.inc), native structured payload validation.
 - **Trigger:** Independently seeded native GUID attribute, then request type guid with changed 16-byte data and verifyAfterWrite false.
 - **Evidence:** No error was thrown and the original file changed. The encoder used the binary ByteVector constructor rather than GuidType. This was an unsupported type substitution, even though semantic readback had been explicitly disabled.
 - **Root cause:** The pinned public TagLib Attribute constructors expose binary but no GUID constructor; the bridge accepted both under the binary construction path.
@@ -162,10 +162,10 @@ An overhead is measurable, but **no actionable historical performance regression
 
 ## H. Documentation changes
 
-- [README](../README.md), current capability evidence and tests now identify the genuine new fixtures.
-- [SUPPORT](SUPPORT.md) states DSD read/write differences, safe rejection when Basic native replay is unsupported, APE front-image write limits, ASF integer-width behavior, GUID inspection-only status, normalized pair semantics and reproducible opt-in commands.
-- [Audio provenance](../Tests/TagLibAudioMetadataTests/Audio/README.md) records upstream paths, hashes, formats, license location and independent decoding.
-- [CHANGELOG](../CHANGELOG.md) records this phase’s repairs and coverage. Patch release summaries use verified existing targets: 0.5.1 cafcf40, 0.5.2 62dcf9b, 0.5.3 03473c9, with selected supporting commits and no invented publication dates.
+- [README](../../../README.md), current capability evidence and tests now identify the genuine new fixtures.
+- [SUPPORT](../../USAGE.md) states DSD read/write differences, safe rejection when Basic native replay is unsupported, APE front-image write limits, ASF integer-width behavior, GUID inspection-only status, normalized pair semantics and reproducible opt-in commands.
+- [Audio provenance](../../../Tests/TagLibAudioMetadataTests/Audio/README.md) records upstream paths, hashes, formats, license location and independent decoding.
+- [CHANGELOG](../../../CHANGELOG.md) records this phase’s repairs and coverage. Patch release summaries use verified existing targets: 0.5.1 cafcf40, 0.5.2 62dcf9b, 0.5.3 03473c9, with selected supporting commits and no invented publication dates.
 - Historical AUDIT_REPORT.md and the prior remediation/independent-review reports remain untouched. Their unverified-status descriptions are historical; this document records the later evidence.
 
 A transient documentation edit used a truncated tool read; its omitted content was restored from the committed source and the intended small diff was reviewed before committing. No truncation or historical record rewrite is present in the branch.

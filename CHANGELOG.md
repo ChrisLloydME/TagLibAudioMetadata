@@ -7,6 +7,34 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation system completion — 2026-10-24
+
+- Split the reference layer into a complete Swift API reference, a generated metadata field schema, and a dedicated public Objective-C bridge reference; the field tables are generated from `MetadataFieldSchema.swift`.
+- Rewrote the README, documentation hub, usage guide, format matrix, preservation contract, transaction contract, architecture map, installation guide, testing guide, migration guide, and development guide against the current source.
+- Added `scripts/generate-field-schema.py` and extended `scripts/check-docs.py` to validate generated field tables, format-registry extension/count coverage, and public manager-function index coverage.
+- Corrected the privilege-test description and current validation status: the test requests `0o4644`, `0o2644`, and `0o6644`; the sandbox host strips those bits and reports `0o644`.
+- Clarified structured `RIFFMetadataWritePolicy` scope, `writeTagMetadata` readback limits, MP4 inspection-only atom types, and the distinction between thrown verification failures and residual warnings.
+- Refreshed the current validation snapshot at production revision `fefdb88`: 222 passed, 2 opt-in skips, and one environment-dependent privilege-bit failure of 225 declarations.
+- Moved the local-only independent audit out of the repository root into ignored `.local/audits/`, and documented the local-only boundary.
+
+### Documentation system reconstruction — 2026-10-21
+
+- Rebuilt the documentation hub around a single canonical owner per topic, explicit evidence vocabulary, and task-based reading paths. Retired the former top-level restructuring report to `docs/records/documentation/` as a historical record.
+- Expanded [the API reference](docs/API_REFERENCE.md) to cover the complete public Swift surface, nested manager types, field schema, structured models, errors, and the public Objective-C bridge.
+- Rewrote [the usage guide](docs/USAGE.md) around task selection and complete recipes; moved detailed write and transaction contracts to their canonical documents instead of duplicating them.
+- Corrected format guidance for per-extension evidence levels, WAV-only RIFF policy, structured write types, tracker allowlists, audio-identity availability, and bridge readback limits.
+- Added `scripts/check-docs.py` and a CI documentation step to validate relative links, heading fragments, table formatting, and hub coverage.
+- Updated current status from a fresh SwiftPM run at `e31030d`: 153 XCTest and 72 Swift Testing declarations, with the known sandbox privilege-bit failure recorded explicitly.
+
+### Documentation architecture — 2026-10-19
+
+- Restructured current documentation around explicit owners: installation, usage, API reference, formats, preservation, transactions, architecture, testing, status, migration, and development.
+- Moved audits, reviews, remediation reports, verification campaigns, migrations, and the maintenance log into `docs/records/` with a centralized investigation index and finding register.
+- Added record conventions and a template for future audits, incidents, remediation, and verification work.
+- Replaced the mixed current/historical support guide with [the usage guide](docs/USAGE.md) and separated [format evidence](docs/FORMATS.md), [preservation semantics](docs/PRESERVATION.md), and [transaction/concurrency guarantees](docs/TRANSACTIONS.md).
+- Added [current validation status](docs/STATUS.md) and [testing guidance](docs/TESTING.md); the latest recorded test run and its environment-dependent privilege-bit failure are explicit.
+- Corrected the read-only format summary (MOD and Shorten, not the whole tracker family), documented the audio-identity source-compatibility caveat and the unguarded deprecated patch overload, and removed stale "current status" material from the README.
+
 ### Audio-content continuity — 2026-10-19
 
 - Added opt-in, coherent `MetadataAudioContentIdentity` tokens to full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C and native FLAC, with bounded SHA-256 streaming and container-specific metadata exclusions.
@@ -23,7 +51,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added single-field MP4 date reconciliation to Basic updates and a precise error for contradictory full replacements; raw native atom keys now reject explicitly and require structured atoms.
 - Completed native ASF erase, exact Basic artwork verification, and additional bit-depth projections. Related independent checks repaired stale ASF common-field aliases and unchanged native APE date spelling.
 - Reject privileged files before transactional staging and unreconciled TrueAudio APEv2 metadata before commit; encoder-only TrueAudio provenance remains preserved.
-- Added 22 regression tests and a generated AIFF fixture. Debug, Release, sanitizers, strict platform builds, both consumers, opt-in corpus/benchmark, and independent eight-format checks passed; details and limitations are in [the clean-room remediation report](docs/CLEAN_ROOM_REMEDIATION_2026-10-19.md).
+- Added 22 regression tests and a generated AIFF fixture. Debug, Release, sanitizers, strict platform builds, both consumers, opt-in corpus/benchmark, and independent eight-format checks passed; details and limitations are in [the clean-room remediation report](docs/records/remediation/REM-2026-10-19-clean-room.md).
 
 ### Verification hardening — 2026-10-18
 
@@ -37,7 +65,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Enabled and strengthened the corpus test with reproducible generated tones;
   measured snapshot/write/flush costs through the existing opt-in benchmark.
 - Expanded legacy reader, erase, deprecated and version-aware source compilation.
-- See `docs/VERIFICATION_HARDENING_2026-10-18.md` for evidence and limitations.
+- See `docs/records/verification/VER-2026-10-18-verification-hardening.md` for evidence and limitations.
 
 ### Independent remediation verification — 2026-10-18
 
@@ -62,7 +90,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Added independent MP4 atom/audio checks, ASF sibling payload checks, constructed
   APE/ID3 inputs, and source-compatibility coverage. TrueAudio structured ID3
   collections now work and report `.container` support.
-- See `docs/INDEPENDENT_REVIEW_2026-10-18.md` for per-finding evidence, exact
+- See `docs/records/reviews/REV-2026-10-18-post-remediation.md` for per-finding evidence, exact
   verification results, limitations, and the merge assessment.
 
 ### Remediation — 2026-10-18
@@ -98,14 +126,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
   OS-level flush, not a hardware/power-loss guarantee.
 - Added regression coverage and generated fixtures for ALAC, ASF/WMA, TrueAudio,
   and WavPack, plus independent RIFF INFO parsing and WAV policy tests.
-
-### Historical release provenance
-
-The 0.5.1–0.5.3 summaries below were reconstructed from existing tag boundaries
-during verification hardening. They are selected changes verified from commit
-history, not contemporaneous release announcements. Tag target commit dates
-are not asserted to be release publication dates; historical verification
-results and complete compatibility guarantees are not reconstructed.
 
 ### Fixed
 
@@ -159,6 +179,14 @@ results and complete compatibility guarantees are not reconstructed.
 - Made native MP4/M4A `trkn` and `disk` pairs authoritative over conflicting
   legacy freeform number aliases, and removed those aliases during number
   writes so totals cannot become stale.
+
+## Historical release provenance (0.5.1–0.5.3)
+
+The 0.5.1–0.5.3 summaries below were reconstructed from existing tag boundaries
+during verification hardening. They are selected changes verified from commit
+history, not contemporaneous release announcements. Tag target commit dates
+are not asserted to be release publication dates; historical verification
+results and complete compatibility guarantees are not reconstructed.
 
 ## [0.5.3] - reconstructed tag summary
 
