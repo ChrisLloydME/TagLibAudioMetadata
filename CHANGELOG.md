@@ -7,6 +7,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation system completion — 2026-10-24
+
+- Split the reference layer into a complete Swift API reference, a generated metadata field schema, and a dedicated public Objective-C bridge reference; the field tables are generated from `MetadataFieldSchema.swift`.
+- Rewrote the README, documentation hub, usage guide, format matrix, preservation contract, transaction contract, architecture map, installation guide, testing guide, migration guide, and development guide against the current source.
+- Added `scripts/generate-field-schema.py` and extended `scripts/check-docs.py` to validate generated field tables, format-registry extension/count coverage, and public manager-function index coverage.
+- Corrected the privilege-test description and current validation status: the test requests `0o4644`, `0o2644`, and `0o6644`; the sandbox host strips those bits and reports `0o644`.
+- Clarified structured `RIFFMetadataWritePolicy` scope, `writeTagMetadata` readback limits, MP4 inspection-only atom types, and the distinction between thrown verification failures and residual warnings.
+- Refreshed the current validation snapshot at production revision `fefdb88`: 222 passed, 2 opt-in skips, and one environment-dependent privilege-bit failure of 225 declarations.
+- Moved the local-only independent audit out of the repository root into ignored `.local/audits/`, and documented the local-only boundary.
+
 ### Documentation system reconstruction — 2026-10-21
 
 - Rebuilt the documentation hub around a single canonical owner per topic, explicit evidence vocabulary, and task-based reading paths. Retired the former top-level restructuring report to `docs/records/documentation/` as a historical record.
