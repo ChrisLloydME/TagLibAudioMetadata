@@ -47,12 +47,12 @@ See [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
 | `TagLibManagerError.failedToRead` | `failedToReadWithUnderlying(_:)` |
 | Message-only `operationFailed` emission | `operationFailedWithUnderlying(_:)`; the old case remains for compatibility |
 
-Deprecated declarations remain callable where source compatibility is practical. Do not build new code on them.
+Deprecated declarations remain callable where source compatibility is practical. Do not build new code on them. The complete compatibility-overload table is in the [API reference](API_REFERENCE.md#compatibility-overloads).
 
 ### Behavior changes to account for
 
 1. **Basic replacement vs. update.** `replaceBasicMetadata` replaces the complete modeled Basic projection; empty/default fields clear values. `updateBasicMetadata` captures a version and is the safe read/modify/write form. Do not treat `BasicMetadata.empty` as a partial patch.
-2. **Verification always throws.** A mismatch aborts before commit. `warnings` are non-fatal container advisories.
+2. **Verification always throws.** A mismatch aborts before commit. `warnings` on a successful result are residual container advisories.
 3. **Low-level product.** Starting in 0.5, the facade does not re-export `CTagLibBridge`. Add `.product(name: "TagLibAudioMetadataLowLevel", ...)` and `import CTagLibBridge` if you name bridge types.
 4. **Raw native keys.** Raw APIs accept prefixless TagLib `PropertyMap` keys. `----:` native MP4 atom keys reject; use `StructuredMetadata.mp4Atoms`.
 5. **MP4 dates.** MP4 has one `©day` atom. `.date` is unsupported for typed MP4 writes; use `.releaseDate` or `updateBasicMetadata`. A full Basic replacement must supply consistent non-empty year/releaseDate projections.
@@ -63,6 +63,7 @@ Deprecated declarations remain callable where source compatibility is practical.
 10. **ASF and structured removal.** ASF attributes are upserts. ID3 URL/UFID frames have no individual structured removal; empty payloads reject.
 11. **Structured writes are collection-scoped.** Omitted collections are preserved; non-empty artwork/lyrics/comments replace their collection. Empty collections require `replacingCollections` to remove the final entries.
 12. **`writeTagMetadata` is not a patch.** It writes the bridge model's mapped fields. Read current values first if you intend a partial edit, and supply a verification context if you need readback.
+13. **RIFF policy scope.** `RIFFMetadataWritePolicy` is meaningful only for structured WAV and AIFF/AIFF-C writes. `.syncBasicFieldsToInfo` rejects for those extensions; other formats ignore the policy value.
 
 ### Source-compatibility caveat: untyped function references
 
@@ -102,6 +103,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - [ ] Use typed function references if you store API references.
 - [ ] Pass `expectedVersion` when editing from a snapshot.
 - [ ] Adopt the audio guard only if automatic conflict rebasing needs it; require explicit reload when an identity is missing.
+- [ ] Check `RIFFMetadataWritePolicy` scope if you write structured metadata to non-RIFF formats.
 - [ ] Verify the final app embeds and signs the namespaced framework.
 - [ ] Run your own type, integration, and distribution checks; the package's tests do not validate your app.
 

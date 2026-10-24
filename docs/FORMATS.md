@@ -102,6 +102,24 @@ MP4 has one standard date atom. A typed `.date` patch for MP4 fails before stagi
 
 `BasicMetadata` scalar text fields are display projections. ID3 generally joins values with `", "`; MP4 artist/genre and generic/Xiph projections use `"; "`, while some native MP4 fields and freeforms use `", "`. Use raw or structured metadata when arrays are authoritative.
 
+## Structured write surfaces
+
+The capability level is not enough to know which structured collections a format accepts. The bridge dispatches by format:
+
+| Format family | Properties | ID3v2 frames | MP4 atoms | ASF attributes | Lyrics/comments | Artwork |
+| --- | --- | --- | --- | --- | --- | --- |
+| MPEG/ID3, raw AAC | Yes | Yes (ID3 types) | — | — | Yes | Yes |
+| MP4 | Yes | — | Yes | — | Ignored by the structured writer; Basic comment/lyrics use native atoms | Yes |
+| WAV, AIFF/AIFF-C | Yes | Yes | — | — | Yes | Yes |
+| TrueAudio | Yes | Yes | — | — | Yes | Yes |
+| ASF/WMA | Yes | — | — | Yes | — | Yes |
+| FLAC, Ogg Vorbis/Opus/FLAC/Speex | Yes | — | — | — | — | Yes (complex pictures) |
+| APE, WavPack, Musepack | Yes | — | — | — | — | One front image |
+| DSF, DSDIFF | Yes | — | — | — | — | Yes (ID3 picture path) |
+| Shorten, MOD, S3M, IT, XM | Read-only or PropertyMap-only; no structured collections beyond the fallback delta | — | — | — | — | — |
+
+For DSD, the descriptor says `propertyMap` structured write support even though artwork is written through the native ID3 picture path. "Properties" means the visible `PropertyMap` delta; native ID3 frames/comments/lyrics are inspection-only through the structured writer.
+
 ## Format-specific limitations
 
 ### ID3v2 and mixed tag surfaces
@@ -119,7 +137,7 @@ MP4 has one standard date atom. A typed `.date` patch for MP4 fails before stagi
 - Native advisory is `rtng`; recognized freeform aliases (`ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT`) are removed when the advisory changes.
 - `.date` is unsupported for typed writes. Use `.releaseDate` or `updateBasicMetadata`.
 - `covr` is returned both as an artwork entry and as a `coverArtList` MP4 atom. Use the artwork collection to replace it; `coverArtList` is inspection-only for direct atom writes.
-- Structured atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other item types should be omitted.
+- Structured atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other item types are ignored by the writer; they are inspection-only.
 
 ### WAV, AIFF, and RIFF INFO
 
@@ -127,6 +145,7 @@ MP4 has one standard date atom. A typed `.date` patch for MP4 fails before stagi
 - Raw PropertyMap edits on WAV follow key ownership: existing INFO keys update INFO, ID3v2 keys update ID3v2, and new keys go to ID3v2.
 - A verified deletion that would expose a retained INFO fallback is rejected; use a raw deletion to clear both surfaces.
 - AIFF/AIFF-C structured writes use ID3v2. They have no RIFF INFO surface, so `.id3v2Only` has no additional effect there; `.syncBasicFieldsToInfo` still rejects as unsupported. The shared capability container mask still lists `riffInfo`; treat that entry as WAV-specific.
+- `RIFFMetadataWritePolicy` is ignored by formats other than WAV and AIFF/AIFF-C. Passing `.syncBasicFieldsToInfo` to MP4, ASF, or Xiph does not throw, but it also does not synchronize anything.
 - AIFF/AIFF-C have a generated PCM fixture and focused tests, but the family label remains `upstreamSupported`.
 
 ### APE-family (APE, WavPack, Musepack)
@@ -165,7 +184,7 @@ MP4 has one standard date atom. A typed `.date` patch for MP4 fails before stagi
 
 ### Source-only or unverified families
 
-Speex, S3M, IT, Shorten, MOD, uncommon aliases, minimum-OS runtime, device runtime, and x86_64 runtime lack runtime verification in this repository. Do not present their configured labels as tested behavior.
+Speex, S3M, IT, Shorten, MOD, uncommon aliases, minimum-OS runtime, device runtime, and x86_64 runtime lack runtime verification in this repository. Do not present their configured labels as tested behavior. Shorten and MOD are additionally read-only.
 
 ## Audio-content identity availability
 

@@ -2,7 +2,7 @@
 
 `TagLibAudioMetadata` is a Swift package for reading, editing, verifying, and erasing audio metadata on macOS and iOS. A Swift facade is backed by an Objective-C++ bridge to a checksum-pinned, namespaced TagLib 2.3.1 XCFramework.
 
-The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, and raw multi-value `PropertyMap` data. It is a semantic metadata editor, not a lossless native-tag archive: omitted data is preserved where TagLib exposes and saves it, but opaque native payloads are not promised to round-trip byte for byte.
+The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, and raw multi-value `PropertyMap` data. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
 ## At a glance
 
@@ -12,7 +12,7 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 | Products | `TagLibAudioMetadata` (Swift facade) and `TagLibAudioMetadataLowLevel` (`CTagLibBridge`) |
 | Format coverage | 22 families and 37 extensions; query `FormatCapability` rather than hard-coding the matrix |
 | Reads | Basic, raw `PropertyMap`, structured container models, and an optional audio-content identity |
-| Writes | Typed, raw, structured, Basic replacement, and erase APIs; verified writes read the staged copy before commit |
+| Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, and verified erase |
 | Commit model | Sibling staging copy, atomic rename, file and parent-directory sync; process-local coordination only |
 
 ## Requirements
@@ -34,7 +34,7 @@ dependencies: [
 ]
 ```
 
-The range selects the newest compatible tagged release. The latest tag at the time of writing is `0.5.3`; release history is in the [changelog](CHANGELOG.md). APIs under `[Unreleased]` are on the development branch and are not part of a tag. Production dependencies should select a tag or an exact revision.
+The range selects the newest compatible tagged release. The latest tag at the time of writing is `0.5.3`; release history is in the [changelog](CHANGELOG.md). Production dependencies should select a tag or an exact revision.
 
 Most targets need only the facade product:
 
@@ -57,13 +57,11 @@ Targets that name bridge types must also declare the low-level product and impor
 import CTagLibBridge
 ```
 
-The facade does not re-export bridge declarations. Package-internal in-place primitives are not a supported product.
-
-The TagLib binary is a dynamic framework. SwiftPM links it, but the final app or archive must embed and sign `TagLibAudioMetadataTagLib.framework` and resolve `@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib`. See [Installation](docs/INSTALLATION.md) for slices, binary identity, offline builds, and diagnostics.
+The facade does not re-export bridge declarations. The TagLib binary is a dynamic framework: the final app or archive must embed and sign `TagLibAudioMetadataTagLib.framework` and resolve `@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib`. See [Installation](docs/INSTALLATION.md) for slices, binary identity, offline builds, and diagnostics.
 
 ## Quick start
 
-Read a coherent snapshot containing the Basic, raw, and structured projections from one parser session:
+Read one coherent snapshot instead of opening the file three times:
 
 ```swift
 import TagLibAudioMetadata
@@ -102,7 +100,7 @@ for warning in result.warnings {
 }
 ```
 
-Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. Verification mismatches throw before commit; warnings are non-fatal container advisories. Do not mix typed track/disc fields with `numberText` in one patch.
+Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. Do not mix typed track/disc fields with `numberText` in one patch. Verification mismatches throw before commit; a successful result carries only residual container advisories.
 
 For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The older `writeMetadata` and `writeMetadataWithVerification` names are deprecated because replacement semantics were easy to mistake for a partial update.
 
@@ -138,8 +136,8 @@ The capability registry contains 22 families and 37 extensions. `fixtureCovered`
 | Evidence level | Families / extensions |
 | --- | --- |
 | Fixture-covered | MP3 (`mp3`), M4A (AAC and ALAC fixtures), FLAC, Ogg Vorbis (`ogg`), Ogg FLAC (`oga`), WAV, raw AAC (`aac`), FastTracker XM, TrueAudio (`tta`), WavPack (`wv`), ASF/WMA (`wma`), APE (`ape`), Musepack (`mpc`), DSF (`dsf`), DSDIFF (`dff`), Opus (`opus`) |
-| Experimental | S3M, Impulse Tracker (title/comment writes only) |
-| Read-only | MOD (`.mod`, `.module`, `.nst`, `.wow`) and Shorten |
+| Experimental | S3M and Impulse Tracker (`s3m`, `it`); title/comment writes only |
+| Read-only | MOD (`.mod`, `.module`, `.nst`, `.wow`) and Shorten (`shn`) |
 | Upstream-supported (unverified here) | Remaining aliases and families, including AIFF/AIFF-C, Speex, and less-common MP4 extensions |
 
 AIFF/AIFF-C has a generated PCM fixture and focused tests, but its configured family label remains `upstreamSupported`. Query `FormatCapability` for the extension and field in question rather than hard-coding this table. Fixture provenance and hashes are in [Tests/TagLibAudioMetadataTests/Audio/README.md](Tests/TagLibAudioMetadataTests/Audio/README.md).
@@ -175,7 +173,9 @@ Start at the [documentation hub](docs/README.md), which maps tasks to the canoni
 | Documentation hub and ownership | [docs/README.md](docs/README.md) |
 | Installation, binary identity, signing | [docs/INSTALLATION.md](docs/INSTALLATION.md) |
 | Task-based API guide and recipes | [docs/USAGE.md](docs/USAGE.md) |
-| Complete public API reference | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
+| Complete Swift API reference | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
+| Field registry and container mappings | [docs/FIELD_SCHEMA.md](docs/FIELD_SCHEMA.md) |
+| Public Objective-C bridge | [docs/BRIDGE.md](docs/BRIDGE.md) |
 | Format capability and limitations | [docs/FORMATS.md](docs/FORMATS.md) |
 | Preservation, omission, and verification | [docs/PRESERVATION.md](docs/PRESERVATION.md) |
 | Transactions, durability, thread safety | [docs/TRANSACTIONS.md](docs/TRANSACTIONS.md) |

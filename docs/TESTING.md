@@ -38,6 +38,12 @@ swift test --disable-keychain --disable-netrc --sanitize=thread
 
 Some restricted environments cannot launch SwiftPM's manifest sandbox or write to the default module cache. `--disable-sandbox` and a workspace-local module cache can work around that, but they weaken or alter build isolation. Use them only when the environment requires it and state that in the verification record.
 
+```sh
+CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-module-cache" \
+SWIFT_MODULE_CACHE_PATH="$PWD/.build/module-cache" \
+swift test --disable-keychain --disable-netrc --disable-sandbox
+```
+
 ### Minimum-platform builds
 
 The CI matrix compiles these triples:
@@ -82,7 +88,7 @@ TAGLIB_PRESERVATION_CORPUS=/tmp/taglib-preservation-corpus \
   swift test --disable-sandbox --filter ExternalCorpusPreservationTests
 ```
 
-The generator writes eight valid tone containers with known metadata. It is a controlled synthetic corpus, not a curated application or user-library corpus. The test requires an actual track mutation, total persistence, and non-empty unrelated visible metadata.
+The generator writes eight valid tone containers with known metadata: FLAC, MP3, M4A/AAC, Ogg Vorbis, Opus, ASF/WMA, WavPack, and TrueAudio (with an independently seeded ID3v2 tag). It is a controlled synthetic corpus, not a curated application or user-library corpus. The test requires an actual track mutation, total persistence, and non-empty unrelated visible metadata.
 
 ### Snapshot throughput
 
@@ -111,7 +117,7 @@ These oracles are intentionally bounded. They do not establish universal codec c
 
 | Job | What it does |
 | --- | --- |
-| `build-and-test` | Clean build, strict warning build, `swift test`, both consumers, a documentation check, and a dynamic-link/binary-boundary audit. |
+| `build-and-test` | Documentation check, clean build, strict warning build, `swift test`, both consumers, and a dynamic-link/binary-boundary audit. |
 | `address-sanitizer` | Full test suite under AddressSanitizer. |
 | `release-build-and-test` | Release-mode tests against real fixtures. |
 | `thread-sanitizer` | Full test suite under ThreadSanitizer. |
@@ -122,9 +128,15 @@ The CI configuration is evidence only for runs that actually executed. A configu
 
 ## Known environment-dependent test
 
-`CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` sets setuid/setgid bits with `chmod` and verifies that both transaction engines reject the file without changing inode, mode, or bytes.
+`CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` tries three permission sets: `0o4644` (setuid), `0o2644` (setgid), and `0o6644` (both). It verifies that both transaction engines reject the file without changing inode, mode, or bytes. The test's own precondition requires the requested bits to survive `chmod`.
 
-Some agent/sandbox environments silently strip those bits even when `chmod` reports success. In that environment the test fails at its own `before.st_mode` precondition. This is a host restriction, not a production defect. Run the test outside the sandbox; do not weaken or skip it to make a suite green. The clean-room remediation record documents a successful run outside the sandbox, and the current status records whether the latest observed run saw this limitation.
+Some agent/sandbox environments silently strip those bits even when `chmod` reports success. In that environment the test fails at:
+
+```swift
+#expect(before.st_mode & 0o7777 == permissions)
+```
+
+The observed mode is typically `0o644`, and the failure is a host restriction, not a production defect. Run the test outside the sandbox; do not weaken or skip it to make a suite green. The clean-room remediation record documents a successful run outside the sandbox, and [Status](STATUS.md) records whether the latest observed run saw this limitation.
 
 ## What passing tests establish
 

@@ -17,13 +17,13 @@ CTagLibBridge ──► TagLibAudioMetadataTagLib.xcframework (TagLib 2.3.1)
 
 Application code normally imports `TagLibAudioMetadata`. The facade calls stable Objective-C declarations in `CTagLibBridge`; C++ types remain private to Objective-C++ translation units. The bridge dynamically links the checksum-pinned `TagLibAudioMetadataTagLib` binary target.
 
-`TagLibAudioMetadataLowLevel` makes direct bridge use intentional. The facade does not re-export bridge declarations, so direct bridge clients must declare the low-level product and `import CTagLibBridge`. The public bridge header contains read, write, inspection, and capability APIs; unsafe in-place mutation and same-entry coordination declarations live in `CTagLibBridgeInternalAPI`, a package-internal target that is not a library product.
+The low-level product makes direct bridge use intentional. The facade does not re-export bridge declarations, so direct bridge clients must declare `TagLibAudioMetadataLowLevel` and `import CTagLibBridge`. The public bridge header contains read, write, inspection, and capability APIs; unsafe in-place mutation and same-entry coordination declarations live in `CTagLibBridgeInternalAPI`, a package-internal target that is not a library product.
 
 The framework name, Mach-O install name, bundle identifier, headers, and module map are namespaced. This prevents a generic `TagLib.framework` from being mistaken for this package's artifact. It cannot fully isolate the C++ ABI: TagLib symbols are still exported, so a process that also loads an incompatible TagLib build risks symbol interposition. A stable C shim or hidden/private C++ exports would be required for stronger isolation.
 
 ## Read pipeline
 
-`readSnapshot(from:)` opens one TagLib `FileRef` and derives Basic, raw, and structured projections during the same locked parser session:
+`readSnapshot(from:)` runs one locked extraction call and derives Basic, raw, and structured projections from the same extension-selected parser session:
 
 ```text
 MetadataFileVersion
@@ -43,6 +43,8 @@ Swift value models (copies of strings, arrays, data)
 final identity check ──► MetadataSnapshot
 ```
 
+For Ogg families the extractor opens the extension-selected `FileRef` and then a concrete `TagLib::Ogg::*::File` to confirm the codec identification packet; both operations occur inside the same serialized extraction call. The public contract is one coherent read, not a guarantee of one C++ file object for every parser family.
+
 An identity check rejects a file changed during extraction. The Swift models are copies; no TagLib object escapes the parser interval.
 
 Legacy Basic, raw, and structured entry points remain available. The unified snapshot eliminates three independent parses when an editor needs all views. `BasicMetadata` is normalized for convenience and is deliberately not a lossless round-trip representation. Raw and structured projections retain semantic multi-value and supported container-specific information, but unknown or opaque native payloads may be represented only by type/display summaries. `MetadataSnapshot` is therefore a comprehensive semantic snapshot, not a native byte-for-byte serialization.
@@ -51,8 +53,8 @@ Selective extraction avoids building unrequested projections:
 
 | Call | Bridge options | Result |
 | --- | --- | --- |
-| `readSnapshot` | all | Basic, raw, structured in one parser session. |
-| `readMetadataResult` / `readBasicSnapshot` | Basic + PropertyMap | Basic and raw cardinality; no structured inspector models. |
+| `readSnapshot` | all | Basic, raw, structured in one extraction call. |
+| `readMetadataResult` / `readBasicSnapshot` | basic + PropertyMap | Basic and raw cardinality; no structured inspector models. |
 | `rawMetadataResult` | raw | Visible `PropertyMap` and raw frame summaries where exposed. |
 | `readStructuredMetadataResult` | structured | Structured collections only. |
 | `TagLibMetadataExtractor.metadataProjections(for:options:)` | caller selected | The requested subset of `basic`, `raw`, `structured`. |
@@ -61,7 +63,7 @@ The unified bridge still constructs its internal Basic carrier during a structur
 
 `readBasicSnapshot(from:)` returns the focused Basic projection with an exact optimistic-concurrency token. `updateBasicMetadata(at:_:)` uses this path before the version-checked replacement, so a Basic read/modify/write does not build unused structured inspector models.
 
-Callers that split read and write across UI events should retain the token and pass it to `applyMetadataPatch`, `applyRawMetadataPatch`, `replaceBasicMetadata`, `writeStructuredMetadataWithVerification`, whole-map raw writes, or `writeTagMetadata`. Without `expectedVersion`, a write intentionally targets the file state current when its transaction begins rather than the state previously shown to the user.
+Callers that split read and write across UI events should retain the token and pass it to `applyMetadataPatch`, `applyRawMetadataPatch`, `replaceBasicMetadata`, `writeStructuredMetadataWithVerification`, the whole-map raw writers, or `writeTagMetadata`. Without `expectedVersion`, a write intentionally targets the file state current when its transaction begins rather than the state previously shown to the user.
 
 ## Audio-content continuity
 
@@ -83,7 +85,7 @@ The facade transaction coordinator performs:
 
 Public bridge mutators use the same transaction principles when called directly, but perform only staged-file readability checks after mutation; they do not inherit the facade's semantic verification. See [Transactions](TRANSACTIONS.md).
 
-A complex `MetadataPatch` can open and save the staged file separately for number pairs, advisory, PropertyMap values, and artwork. Consolidating these into one container-aware bridge delta remains follow-up work; the current design keeps the proven transaction and mutation paths instead of expanding the risk surface. The transaction is still one copy and one rename.
+A complex `MetadataPatch` can open and save the staged file separately for number pairs, advisory, property-map values, and artwork. Consolidating these into one container-aware bridge delta remains follow-up work; the current design keeps the proven transaction and mutation paths instead of expanding the risk surface. The transaction is still one copy and one rename.
 
 ## Metadata model and write semantics
 
@@ -120,15 +122,15 @@ If rename succeeds but the final parent-directory sync fails, the new file is al
 
 `MetadataFieldRegistry` is the Swift source of public field semantics. It defines each `MetadataFieldKey` once, with display name, category, `PropertyMap` aliases, container mappings, multi-value/people/role/artwork flags, accepted typed-patch kinds, and integer constraints. The bridge has a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
 
-The tables are not generated from one machine-readable file yet. Adding a generator remains a maintainability improvement rather than an unverified claim of completion. Until then, a schema change requires updating both sides and the parity tests.
+The tables are not generated from one machine-readable source yet. The documentation tables are generated from the Swift registry, but adding a production schema still requires updating both the Swift table and the bridge mapping and running the parity tests. Until a shared generator exists, treat the cross-language tests as the guardrail.
 
 `FormatCapability` separates read/write mechanics from evidence through `FormatSupportLevel`. UI code should query the extension and field being edited because aliases and container fields can have different evidence levels. The complete matrix and its limits are in [Formats](FORMATS.md).
 
 ## Performance and concurrency
 
-A complete snapshot uses one parser session rather than three. A facade edit uses one clone-or-copy staging operation rather than a nested two-copy path. Basic post-write verification derives Basic and PropertyMap checks from one extraction instead of two.
+A complete snapshot uses one extraction call rather than three. A facade edit uses one clone-or-copy staging operation rather than a nested two-copy path. Basic post-write verification derives Basic and PropertyMap checks from one extraction instead of two.
 
-A complex Patch can still open and save the staged file separately for number pairs, advisory, PropertyMap values, and artwork. This is a deliberate trade-off: fewer, simpler mutation paths with known verification behavior rather than a larger one-shot encoder.
+A complex Patch can still open and save the staged file separately for number pairs, advisory, property-map values, and artwork. This is a deliberate trade-off: fewer, simpler mutation paths with known verification behavior rather than a larger one-shot encoder.
 
 A process-wide recursive mutex covers TagLib object lifetimes and Objective-C objects populated while traversing them. Swift model conversion and filesystem copy, flush, and rename work are outside the lock. Same-entry transactions also share a directory-identity/name lock. Coordination is process-local, not a cross-process lock. See [Transactions](TRANSACTIONS.md).
 
@@ -137,12 +139,12 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | Path | Responsibility |
 | --- | --- |
 | `Package.swift` | Products, targets, platform minimums, binary pin, C++20. |
-| `Sources/TagLibAudioMetadata/TagLibMetadataManager.swift` | Static facade entry points, nested write/result types, transaction coordinator. |
+| `Sources/TagLibAudioMetadata/TagLibMetadataManager.swift` | Static facade entry points, nested write/result types, transaction coordinator, file identity. |
 | `.../TagLibMetadataManager+Read.swift` | Basic/raw/snapshot reads, bridge projection conversion, diagnostic dump. |
 | `.../TagLibMetadataManager+Write.swift` | Basic replacement/update, bridge-model write, raw whole-map writes, erase, number text. |
 | `.../TagLibMetadataManager+Structured.swift` | Structured conversion, validation, write, verification. |
-| `.../TagLibMetadataManager+Verification.swift` | Verification contexts, warning construction, raw normalization helpers. |
-| `.../TagLibMetadataManager+Compatibility.swift` | Deprecated-signature forwarding overloads. |
+| `.../TagLibMetadataManager+Verification.swift` | Verification helpers, warning construction, raw normalization, explicit provenance. |
+| `.../TagLibMetadataManager+Compatibility.swift` | Deprecated-signature and pre-`expectedVersion` forwarding overloads. |
 | `.../MetadataSnapshotPatch.swift` | Snapshot/version models, `MetadataPatch`, typed patch validation and application. |
 | `.../RawMetadataPatch.swift` | Exact raw delta validation, application, and verification. |
 | `.../MetadataAudioContentIdentity.swift` | Opt-in bounded audio scanner and guarded-write checks. |
@@ -158,7 +160,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `Sources/CTagLibBridgeInternalAPI/` | Non-product in-place mutation and coordination declarations used by the facade/tests. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |
 | `IntegrationTests/Consumer/` | Facade-only and low-level consumer packages. |
-| `scripts/` | Binary build and preservation-corpus generation. |
+| `scripts/` | Binary build, preservation-corpus generation, documentation checks and field-table generation. |
 | `docs/` | Current documentation; historical records under `docs/records/`. |
 
 Public headers do not expose internal C++ declarations.
