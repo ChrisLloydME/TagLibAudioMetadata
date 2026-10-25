@@ -47,7 +47,12 @@ jobs:
         run: |
           test ! -d Sources/CTagLibBridge/taglib
           BIN_PATH=$(swift build --disable-keychain --disable-netrc --show-bin-path)
-          TEST_BINARY="$BIN_PATH/TagLibAudioMetadataPackageTests.xctest/Contents/MacOS/TagLibAudioMetadataPackageTests"
+          # SwiftPM 6.4 names the test bundle after the test target and may use a
+          # different bin path; discover the executable instead of hard-coding it.
+          TEST_BUNDLE=$(find "$BIN_PATH" -maxdepth 1 -name '*.xctest' -type d -print -quit)
+          test -n "$TEST_BUNDLE"
+          TEST_BINARY=$(find "$TEST_BUNDLE/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit)
+          test -n "$TEST_BINARY"
           FRAMEWORK="$BIN_PATH/TagLibAudioMetadataTagLib.framework"
           FRAMEWORK_RESOURCES="$FRAMEWORK/Versions/A/Resources"
           otool -L "$TEST_BINARY" | grep '@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib'
