@@ -98,9 +98,15 @@ The repair is `102ddc7` on `fix/pre-release-assessment-f01-f02`. The branch was 
 - **The old-toolchain probes are compile-only.** They establish why those toolchains are no longer supported, not that any package version runs correctly on them.
 - **No release decision is made here.** No tag was created. The pre-release assessment's release hold and any final release approval remain maintainer decisions.
 
+## Addendum — 0.6.0 release readiness (2026-10-25)
+
+The repair was merged through PR #14 as `2bf8d02`. The release candidate adds `c46daa5`, which fixes Swift 6.4 test-bundle discovery in the CI dynamic-link audit; package and test source were unchanged. Hosted CI run [40164904366](https://github.com/ChrisLloydME/TagLibAudioMetadata/actions/runs/40164904366) passed all nine executed jobs on `c46daa5`; `remote-tag-consumer` was skipped because no tag existed.
+
+The release commit names the reviewed delta `[0.6.0] - 2026-10-25` in the changelog and adds documentation only. No remaining release blocker was identified within this record's scope. The runtime and platform limits above remain. The tag itself has not been created; that release action remains with the maintainer.
+
 ## References
 
-- Commits: `32d945d` (assessment target); `102ddc7` (`Require Swift 6.4 and rewrite changelog by release`).
+- Commits: `32d945d` (assessment target); `102ddc7` (`Require Swift 6.4 and rewrite changelog by release`); `c46daa5` (`Discover the SwiftPM test bundle in the link audit`); `2bf8d02` (merge of PR #14).
 - Manifest and integration: `Package.swift`; `IntegrationTests/Consumer/Package.swift`; `.github/workflows/ci.yml`.
 - Documentation: [`CHANGELOG.md`](../../../CHANGELOG.md); [`docs/MIGRATION.md`](../../MIGRATION.md); [`docs/STATUS.md`](../../STATUS.md); [`README.md`](../../../README.md).
 - External evidence: the 2026-10-25 pre-release assessment (`ASSESSMENT.md`, outside this repository) and the notarized Swift 6.0.3, 6.2.4, 6.3, and 6.4 toolchain packages from swift.org.

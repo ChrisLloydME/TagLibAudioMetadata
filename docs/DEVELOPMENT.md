@@ -22,7 +22,7 @@ This document is for contributors and automated agents working on the package it
 ## Source-of-truth rules
 
 - Current source code, `Package.swift`, and the test target are authoritative for behavior and dependency identity. CI configuration is authoritative only for which checks are configured, not for whether they passed.
-- `CHANGELOG.md` is release history. It can describe unreleased work; do not assign an untagged version number.
+- `CHANGELOG.md` is release history. Assign a version number only in a commit approved for tagging; otherwise keep changes under an unreleased section.
 - Current documents under `docs/` describe the current revision. If a current document and the code disagree, the code wins and the document should be fixed.
 - Files under `docs/records/` describe past investigations at named revisions. They are immutable evidence, not current contracts.
 - Historical records must not be rewritten to match current behavior. Add an addendum or a superseding record.
@@ -121,14 +121,14 @@ Use [records/CONVENTIONS.md](records/CONVENTIONS.md) and [records/TEMPLATE.md](r
 
 ## Release process
 
-1. Ensure the changelog's `[Unreleased]` section describes the release and current docs match the code.
+1. Ensure the changelog's current release section describes the release and current docs match the code.
 2. Confirm the pinned binary identity in `Package.swift` and `scripts/taglib-binary-version.env`.
 3. Run the test, sanitizer, release, strict-platform, consumer, and documentation checks that apply.
 4. Create a tag from the reviewed commit. The tag is the release boundary; do not rewrite it.
 5. The `remote-tag-consumer` CI job verifies a clean consumer can resolve the published tag.
 6. Do not replace an existing binary release asset. Publish a new immutable release revision and update the manifest checksum.
 
-The repository does not assign an untagged release version in advance. The README's dependency example selects a tagged range; evaluating `main` or a branch is an explicit choice.
+The release version is assigned in the changelog only in the release commit. The README's dependency example selects a tagged range; evaluating `main` or a branch is an explicit choice.
 
 ## Binary dependency maintenance
 

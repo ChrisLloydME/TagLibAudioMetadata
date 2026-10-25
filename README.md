@@ -29,12 +29,12 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.5.0"
+        from: "0.6.0"
     )
 ]
 ```
 
-The range selects the newest compatible tagged release. The latest tag at the time of writing is `0.5.3`; release history is in the [changelog](CHANGELOG.md). Production dependencies should select a tag or an exact revision.
+The range selects the newest compatible tagged release. The latest tag is `0.6.0`; release history is in the [changelog](CHANGELOG.md). Production dependencies should select a tag or an exact revision.
 
 Most targets need only the facade product:
 

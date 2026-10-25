@@ -6,8 +6,9 @@ This page records the latest known validation state and the limits that remain. 
 
 | Field | Value |
 | --- | --- |
-| Production source revision | `102ddc7` (`Require Swift 6.4 and rewrite changelog by release`) on `fix/pre-release-assessment-f01-f02` |
-| Working tree | Clean after this documentation commit; package manifest, changelog, and source are in the `102ddc7` commit |
+| Release | `0.6.0` (2026-10-25) |
+| Production source revision | `c46daa5` (`Discover the SwiftPM test bundle in the link audit`), merged as `2bf8d02` |
+| Working tree | Clean after this release documentation commit; package manifest, changelog, and source are in the `c46daa5`/`2bf8d02` tree |
 | Observation date | 2026-10-25 |
 | Host | macOS 27.0.1 (26A434), arm64 |
 | Toolchain | Xcode 27.1 (27A9275), Apple Swift 6.4 |
@@ -15,11 +16,14 @@ This page records the latest known validation state and the limits that remain. 
 | XCTest | 153 executed: 151 passed, 2 skipped, 0 failed |
 | Swift Testing | 71 tests in 18 suites: 71 passed, 0 failed (privilege test skipped) |
 | Overall | 222 passed, 2 skipped, 0 failed of 224 exercised declarations; the full run including the privilege test reports 222 passed, 2 skipped, 1 environment-dependent failure of 225 |
-| Xcode suite | `RunAllTests` at `102ddc7`: 223 passed, 2 opt-in skips, 0 failed of 225; the privilege regression passed |
+| Xcode suite | `RunAllTests` at `102ddc7` (source-equivalent to `c46daa5`; that commit changes CI only): 223 passed, 2 opt-in skips, 0 failed of 225; the privilege regression passed |
+| Hosted CI | [Run 40164904366](https://github.com/ChrisLloydME/TagLibAudioMetadata/actions/runs/40164904366) at `c46daa5`: all nine executed jobs passed; `remote-tag-consumer` was skipped because no tag existed yet |
 | Minimum toolchain | Swift tools 6.4. Swift 6.0/6.1 reject the source syntax; Swift 6.2.4 and 6.3 cannot import macOS 26.5/27 SDK modules. Older toolchains are rejected at manifest resolution. |
 | Additional checks | Release, AddressSanitizer, ThreadSanitizer, strict warnings-as-errors, five minimum-platform builds, and both consumers passed |
 | Documentation check | `python3 scripts/check-docs.py` passes for the current tree |
-| Merge status | No merge or tag was performed. This status is not a release approval. |
+| Merge status | Merged to `main` as `2bf8d02`; tag `0.6.0` has not been created. This release commit is tag-ready. |
+
+The `0.6.0` release delta from `0.5.3` is documented in the changelog. The release code is `c46daa5`, merged as `2bf8d02`; the commit containing this page adds documentation only. Hosted CI passed on the release code. The tag itself has not been created.
 
 The two XCTest skips are the opt-in external corpus and throughput benchmark. The full SwiftPM run's Swift Testing failure was `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` at its own precondition: the requested permissions were `0o4644`, `0o2644`, and `0o6644`, but the sandbox host stripped the privilege bits and reported mode `420` decimal (`0o644`). The production rejection path is covered by the passing Xcode run at the same revision and by the clean-room record; it was not weakened or skipped in the Xcode run.
 
@@ -29,17 +33,18 @@ The `--disable-sandbox` flag was required because SwiftPM's manifest sandbox cou
 
 Do not treat this status as evidence for:
 
-- a hosted CI run of the updated workflow;
+- a tag-triggered `remote-tag-consumer` run; the job requires the published tag;
 - the opt-in external corpus and throughput benchmark;
 - device, minimum-OS, x86_64, or simulator runtime execution;
 - an independent FFprobe/FFmpeg packet comparison for these edits;
-- a release, signing, archive, or publication exercise.
+- a release-signing, archive, or publication exercise beyond the hosted CI build and test.
 
 ## Previous recorded evidence
 
 | Revision | Evidence | Result |
 | --- | --- | --- |
-| `102ddc7` | This repair, final campaign | Xcode 223 passed, 2 opt-in skips, 0 failed; SwiftPM Debug 222 passed, 2 skipped with the privilege test skipped; Release, ASAN, TSAN, strict, five platform builds, and both consumers passed. |
+| `c46daa5` | `0.6.0` release candidate, merged as `2bf8d02` | Hosted CI [run 40164904366](https://github.com/ChrisLloydME/TagLibAudioMetadata/actions/runs/40164904366): all nine executed jobs passed, with `remote-tag-consumer` skipped until tagging. |
+| `102ddc7` | Release source campaign | Xcode 223 passed, 2 opt-in skips, 0 failed; SwiftPM Debug 222 passed, 2 skipped with the privilege test skipped; Release, ASAN, TSAN, strict, five platform builds, and both consumers passed. |
 | `32d945d` | External pre-release assessment target | Xcode 223 passed, 2 opt-in skips, 0 failed; SwiftPM Debug with both opt-ins 225 passed; Release and sanitizers 223 passed, 2 skipped. The assessment held tagging for F-01/F-02. |
 | `d40f7f9` | Xcode full suite during the previous documentation pass | 225 declarations: 223 passed, 2 opt-in skips, 0 failed. |
 | `e31030d` | SwiftPM command with the same environment caveats | 222 passed, 2 skipped, 1 environment-dependent privilege-bit failure of 225 declarations. |
@@ -79,7 +84,7 @@ See [Formats](FORMATS.md), [Write semantics](PRESERVATION.md), [Transactions](TR
 - **READY WITH CAVEATS** in the clean-room remediation describes revision `1fff9f0`, not the current HEAD.
 - **READY WITH CAVEATS** in the audio-identity audit describes `873cb3e` and was conditional on fixing F1 and qualifying the documentation. F1 was fixed in `bedd725`; F2/F3 remain limitations.
 - **NOT READY TO MERGE** in the clean-room audit describes `615bc8c` and was superseded by the remediation.
-- **NOT READY TO TAG** in the 2026-10-25 pre-release assessment describes `32d945d`; its F-01 and F-02 findings are repaired at `102ddc7`. The release decision remains open pending final review; Swift 6.0 is no longer a supported toolchain.
+- **NOT READY TO TAG** in the 2026-10-25 pre-release assessment describes `32d945d`; its F-01 and F-02 findings are repaired in the `0.6.0` release, and hosted CI passed on `c46daa5`. The tag itself is created only by the maintainer; Swift 6.0 is no longer a supported toolchain.
 - No historical verdict is a current merge decision. A new release or merge decision requires a fresh review of the target revision.
 
 ## Updating this page

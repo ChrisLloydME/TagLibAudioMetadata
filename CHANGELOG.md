@@ -3,10 +3,9 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
-Changes are grouped by release. The Unreleased section describes changes since the
-most recent tag (`0.5.3`), not a chronological work log.
+## [0.6.0] - 2026-10-25
 
-## [Unreleased]
+Changes since `0.5.3`.
 
 ### Added
 
