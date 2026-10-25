@@ -13,11 +13,14 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-26
+    # Swift 6.4 is the declared minimum; this job is also the minimum-toolchain gate.
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Toolchain
         run: swift --version
+      - name: Verify minimum Swift tools
+        run: swift package --disable-keychain --disable-netrc dump-package > /dev/null
       - name: Documentation checks
         run: python3 scripts/check-docs.py
       - name: Verify remote binary boundary
@@ -61,7 +64,7 @@ jobs:
           test -z "$(find Sources/CTagLibBridge -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.cxx' \) -print -quit)"
 
   address-sanitizer:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Address Sanitizer
@@ -78,14 +81,14 @@ jobs:
         run: swift test --disable-keychain --disable-netrc -c release
 
   thread-sanitizer:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Thread Sanitizer
         run: swift test --disable-keychain --disable-netrc --sanitize=thread
 
   minimum-platform-builds:
-    runs-on: macos-26
+    runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
@@ -114,7 +117,7 @@ jobs:
 
   remote-tag-consumer:
     if: github.ref_type == 'tag' && !startsWith(github.ref_name, 'taglib-binary-')
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Build a clean consumer from the published tag

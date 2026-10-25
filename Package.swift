@@ -1,4 +1,5 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.4
+// Swift 6.0-6.3 cannot import current Apple SDKs; keep this aligned with the minimum supported Xcode toolchain.
 
 import PackageDescription
 

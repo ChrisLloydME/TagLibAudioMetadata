@@ -51,7 +51,7 @@ The facade does not re-export bridge declarations. See [Bridge reference](BRIDGE
 
 | Requirement | Value |
 | --- | --- |
-| Swift tools | 6.0 |
+| Swift tools | 6.4 |
 | macOS | 13.0 or later |
 | iOS | 16.0 or later |
 | C++ standard | GNU C++20, configured by `Package.swift` |
