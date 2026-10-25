@@ -8,7 +8,7 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 
 | Topic | Summary |
 | --- | --- |
-| Platforms | macOS 13+, iOS 16+, Swift tools 6.0, GNU C++20 |
+| Platforms | macOS 13+, iOS 16+, Swift tools 6.4, GNU C++20 |
 | Products | `TagLibAudioMetadata` (Swift facade) and `TagLibAudioMetadataLowLevel` (`CTagLibBridge`) |
 | Format coverage | 22 families and 37 extensions; query `FormatCapability` rather than hard-coding the matrix |
 | Reads | Basic, raw `PropertyMap`, structured container models, and an optional audio-content identity |
@@ -17,7 +17,7 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 
 ## Requirements
 
-- Swift tools 6.0
+- Swift tools 6.4
 - macOS 13 or later
 - iOS 16 or later
 - An Xcode toolchain with GNU C++20 support

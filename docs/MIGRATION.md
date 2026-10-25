@@ -16,6 +16,10 @@ The latest tagged release is `0.5.3`. The development branch is ahead of that ta
 
 These changes are additive or source-compatible with the 0.5 line unless noted.
 
+### Minimum Swift tools
+
+The package manifest now requires Swift tools 6.4. Toolchains older than 6.4 are rejected at manifest resolution. Swift 6.0 and 6.1 reject the source syntax, and Swift 6.3 cannot import macOS 26.5/27 SDK modules because its Clang lacks the SDK's `-target-arch-variant` support, so the previous 6.0 declaration could admit consumers that could not compile the package. Update Xcode or the Swift toolchain before resolving this version; the public source API is otherwise unchanged for 0.5 consumers.
+
 ### Audio-content continuity
 
 - `readSnapshot(from:includingAudioContent:)` and `readBasicSnapshot(from:includingAudioContent:)` are additive. Default reads still return `nil` audio identity and do not scan audio.

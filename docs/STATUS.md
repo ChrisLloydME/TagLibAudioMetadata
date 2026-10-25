@@ -6,20 +6,22 @@ This page records the latest known validation state and the limits that remain. 
 
 | Field | Value |
 | --- | --- |
-| Production source revision | `fefdb88` (`HEAD` when this documentation pass started) |
-| Working tree | Documentation, generated field tables, documentation-check tooling, and documentation records only; production source is unchanged |
-| Observation date | 2026-10-24 |
+| Production source revision | `102ddc7` (`Require Swift 6.4 and rewrite changelog by release`) on `fix/pre-release-assessment-f01-f02` |
+| Working tree | Clean after this documentation commit; package manifest, changelog, and source are in the `102ddc7` commit |
+| Observation date | 2026-10-25 |
 | Host | macOS 27.0.1 (26A434), arm64 |
 | Toolchain | Xcode 27.1 (27A9275), Apple Swift 6.4 |
-| Command | `swift test --disable-keychain --disable-netrc --disable-sandbox` with workspace-local Clang/Swift module caches |
+| Command | `swift test --disable-keychain --disable-netrc --disable-sandbox --skip CleanRoomPrivilegeTests` with workspace-local Clang/Swift module caches |
 | XCTest | 153 executed: 151 passed, 2 skipped, 0 failed |
-| Swift Testing | 72 tests in 19 suites: 71 passed, 1 environment-dependent failure |
-| Overall | 222 passed, 2 skipped, 1 environment-dependent failure of 225 declarations |
-| Compile result | Debug build succeeded before the test run |
+| Swift Testing | 71 tests in 18 suites: 71 passed, 0 failed (privilege test skipped) |
+| Overall | 222 passed, 2 skipped, 0 failed of 224 exercised declarations; the full run including the privilege test reports 222 passed, 2 skipped, 1 environment-dependent failure of 225 |
+| Xcode suite | `RunAllTests` at `102ddc7`: 223 passed, 2 opt-in skips, 0 failed of 225; the privilege regression passed |
+| Minimum toolchain | Swift tools 6.4. Swift 6.0/6.1 reject the source syntax; Swift 6.2.4 and 6.3 cannot import macOS 26.5/27 SDK modules. Older toolchains are rejected at manifest resolution. |
+| Additional checks | Release, AddressSanitizer, ThreadSanitizer, strict warnings-as-errors, five minimum-platform builds, and both consumers passed |
 | Documentation check | `python3 scripts/check-docs.py` passes for the current tree |
-| Merge status | No merge was performed. This status is not a merge approval. |
+| Merge status | No merge or tag was performed. This status is not a release approval. |
 
-The two XCTest skips are the opt-in external corpus and throughput benchmark. The Swift Testing failure was `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` at its own precondition: the requested permissions were `0o4644`, `0o2644`, and `0o6644`, but the sandbox host stripped the privilege bits and reported mode `420` decimal (`0o644`). The production rejection path is covered by the passing Xcode run recorded under the previous revision and by the clean-room record; it was not weakened or skipped for this run.
+The two XCTest skips are the opt-in external corpus and throughput benchmark. The full SwiftPM run's Swift Testing failure was `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` at its own precondition: the requested permissions were `0o4644`, `0o2644`, and `0o6644`, but the sandbox host stripped the privilege bits and reported mode `420` decimal (`0o644`). The production rejection path is covered by the passing Xcode run at the same revision and by the clean-room record; it was not weakened or skipped in the Xcode run.
 
 The `--disable-sandbox` flag was required because SwiftPM's manifest sandbox could not launch in this environment. That is a build-isolation limitation, not a package setting. Workspace-local module caches were used for the same reason.
 
@@ -27,19 +29,18 @@ The `--disable-sandbox` flag was required because SwiftPM's manifest sandbox cou
 
 Do not treat this status as evidence for:
 
-- Xcode `RunAllTests` at this documentation HEAD;
-- AddressSanitizer or ThreadSanitizer;
-- Release-mode tests;
-- strict minimum-platform builds for macOS 13 arm64/x86_64 and iOS 16 device/simulator;
-- both consumer packages;
+- a hosted CI run of the updated workflow;
 - the opt-in external corpus and throughput benchmark;
 - device, minimum-OS, x86_64, or simulator runtime execution;
-- an independent FFprobe/FFmpeg packet comparison for these edits.
+- an independent FFprobe/FFmpeg packet comparison for these edits;
+- a release, signing, archive, or publication exercise.
 
 ## Previous recorded evidence
 
 | Revision | Evidence | Result |
 | --- | --- | --- |
+| `102ddc7` | This repair, final campaign | Xcode 223 passed, 2 opt-in skips, 0 failed; SwiftPM Debug 222 passed, 2 skipped with the privilege test skipped; Release, ASAN, TSAN, strict, five platform builds, and both consumers passed. |
+| `32d945d` | External pre-release assessment target | Xcode 223 passed, 2 opt-in skips, 0 failed; SwiftPM Debug with both opt-ins 225 passed; Release and sanitizers 223 passed, 2 skipped. The assessment held tagging for F-01/F-02. |
 | `d40f7f9` | Xcode full suite during the previous documentation pass | 225 declarations: 223 passed, 2 opt-in skips, 0 failed. |
 | `e31030d` | SwiftPM command with the same environment caveats | 222 passed, 2 skipped, 1 environment-dependent privilege-bit failure of 225 declarations. |
 | `1fff9f0` | Clean-room remediation final campaign | 208 tests; Debug with both opt-ins, Release, ASAN, TSAN, Xcode, five strict platform builds, consumers, and independent eight-format checks passed. |
@@ -64,6 +65,7 @@ These are documented boundaries, not silently accepted defects. Links point to t
 | Durability | `.durable` means an OS-level flush completed; it is not a hardware or power-loss guarantee. |
 | Dependency | The precompiled TagLib binary is not sanitizer-instrumented. Another incompatible TagLib C++ implementation in the same process is an ABI risk. |
 | Compatibility | Untyped function references to overloaded names such as `readSnapshot` can be ambiguous. Typed references remain the supported compatibility shape. |
+| Minimum toolchain | Swift tools 6.4 is required. Swift 6.0–6.3 cannot compile against current Apple SDKs and are rejected at manifest resolution. This is a deliberate compatibility narrowing; the macOS 13/iOS 16 deployment targets are unchanged. See [MIGRATION](MIGRATION.md#minimum-swift-tools) and [REM-2026-10-25](records/remediation/REM-2026-10-25-pre-release-assessment-repairs.md). |
 | Deprecated API | The deprecated `applyMetadataPatch(_:to:expectedVersion:failurePolicy:)` overload is unguarded; it cannot check `expectedAudioContent`. |
 | Format evidence | Speex, S3M, IT, Shorten, MOD, uncommon aliases, and several platform/runtime combinations lack runtime verification. Shorten and MOD are read-only. |
 | Audio identity | RF64, RIFX, leading-ID3 FLAC, and malformed AIFF/AIFC have no dedicated negative regressions even though they are documented as unavailable. |
@@ -77,6 +79,7 @@ See [Formats](FORMATS.md), [Write semantics](PRESERVATION.md), [Transactions](TR
 - **READY WITH CAVEATS** in the clean-room remediation describes revision `1fff9f0`, not the current HEAD.
 - **READY WITH CAVEATS** in the audio-identity audit describes `873cb3e` and was conditional on fixing F1 and qualifying the documentation. F1 was fixed in `bedd725`; F2/F3 remain limitations.
 - **NOT READY TO MERGE** in the clean-room audit describes `615bc8c` and was superseded by the remediation.
+- **NOT READY TO TAG** in the 2026-10-25 pre-release assessment describes `32d945d`; its F-01 and F-02 findings are repaired at `102ddc7`. The release decision remains open pending final review; Swift 6.0 is no longer a supported toolchain.
 - No historical verdict is a current merge decision. A new release or merge decision requires a fresh review of the target revision.
 
 ## Updating this page

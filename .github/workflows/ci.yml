@@ -13,11 +13,14 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-26
+    # Swift 6.4 is the declared minimum; this job is also the minimum-toolchain gate.
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Toolchain
         run: swift --version
+      - name: Verify minimum Swift tools
+        run: swift package --disable-keychain --disable-netrc dump-package > /dev/null
       - name: Documentation checks
         run: python3 scripts/check-docs.py
       - name: Verify remote binary boundary
@@ -44,7 +47,12 @@ jobs:
         run: |
           test ! -d Sources/CTagLibBridge/taglib
           BIN_PATH=$(swift build --disable-keychain --disable-netrc --show-bin-path)
-          TEST_BINARY="$BIN_PATH/TagLibAudioMetadataPackageTests.xctest/Contents/MacOS/TagLibAudioMetadataPackageTests"
+          # SwiftPM 6.4 names the test bundle after the test target and may use a
+          # different bin path; discover the executable instead of hard-coding it.
+          TEST_BUNDLE=$(find "$BIN_PATH" -maxdepth 1 -name '*.xctest' -type d -print -quit)
+          test -n "$TEST_BUNDLE"
+          TEST_BINARY=$(find "$TEST_BUNDLE/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit)
+          test -n "$TEST_BINARY"
           FRAMEWORK="$BIN_PATH/TagLibAudioMetadataTagLib.framework"
           FRAMEWORK_RESOURCES="$FRAMEWORK/Versions/A/Resources"
           otool -L "$TEST_BINARY" | grep '@rpath/TagLibAudioMetadataTagLib.framework/TagLibAudioMetadataTagLib'
@@ -61,7 +69,7 @@ jobs:
           test -z "$(find Sources/CTagLibBridge -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.cxx' \) -print -quit)"
 
   address-sanitizer:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Address Sanitizer
@@ -78,14 +86,14 @@ jobs:
         run: swift test --disable-keychain --disable-netrc -c release
 
   thread-sanitizer:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Thread Sanitizer
         run: swift test --disable-keychain --disable-netrc --sanitize=thread
 
   minimum-platform-builds:
-    runs-on: macos-26
+    runs-on: xcode-27
     strategy:
       fail-fast: false
       matrix:
@@ -114,7 +122,7 @@ jobs:
 
   remote-tag-consumer:
     if: github.ref_type == 'tag' && !startsWith(github.ref_name, 'taglib-binary-')
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - name: Build a clean consumer from the published tag
