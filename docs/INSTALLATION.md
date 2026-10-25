@@ -9,13 +9,13 @@ Depend on the Swift facade for normal application code. This version range selec
 ```swift
 .package(
     url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-    from: "0.5.0"
+    from: "0.6.0"
 )
 
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
 
-The latest tag is `0.5.3`. The APIs under `[Unreleased]` describe the development checkout, which is ahead of that tag. To evaluate `main` rather than a tagged release, opt in explicitly:
+The latest tag is `0.6.0`. Release notes describe the delta from `0.5.3`. To evaluate `main` or an unreleased repair rather than a tagged release, opt in explicitly:
 
 ```swift
 .package(
@@ -24,7 +24,7 @@ The latest tag is `0.5.3`. The APIs under `[Unreleased]` describe the developmen
 )
 ```
 
-To evaluate an unmerged repair, select that branch or its exact revision instead. Branch dependencies move over time. Use them only for evaluation or coordinated integration; production dependencies should return to a tagged version range or an exact release after the next tag exists. The repository does not assign an untagged release version in advance.
+To evaluate an unmerged repair, select that branch or its exact revision instead. Branch dependencies move over time. Use them only for evaluation or coordinated integration; production dependencies should use a tagged version range or an exact release. The repository assigns a release version only in the release commit.
 
 Targets that directly use `TagLibMetadataExtractor` or `TagLibAudioMetadata` must declare the low-level product explicitly:
 

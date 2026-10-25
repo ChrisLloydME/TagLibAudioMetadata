@@ -2,7 +2,7 @@
 
 This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. It does not assign a version number to untagged work.
 
-The latest tagged release is `0.5.3`. The development branch is ahead of that tag; additions are described under `[Unreleased]` in the [changelog](../CHANGELOG.md). The historical TagLib 2.3.1 migration report is preserved as [MIG-2026-09-01](records/migrations/MIG-2026-09-01-taglib-2.3.1.md).
+The current release is `0.6.0`; changes since `0.5.3` are described in the [changelog](../CHANGELOG.md). The historical TagLib 2.3.1 migration report is preserved as [MIG-2026-09-01](records/migrations/MIG-2026-09-01-taglib-2.3.1.md).
 
 ## Compatibility promises
 
@@ -12,7 +12,7 @@ The latest tagged release is `0.5.3`. The development branch is ahead of that ta
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.
 
-## Migrating to the current unreleased state
+## Migrating from 0.5.3 to 0.6.0
 
 These changes are additive or source-compatible with the 0.5 line unless noted.
 
