@@ -8,7 +8,7 @@ Access modifiers and `nonisolated` annotations are omitted in the declaration bl
 
 | Item | Value |
 | --- | --- |
-| Swift tools | 6.0 |
+| Swift tools | 6.4 |
 | Minimum platforms | macOS 13, iOS 16 |
 | Swift product | `TagLibAudioMetadata` (module `TagLibAudioMetadata`) |
 | Low-level product | `TagLibAudioMetadataLowLevel` (module `CTagLibBridge`) |

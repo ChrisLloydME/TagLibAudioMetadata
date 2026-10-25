@@ -50,6 +50,7 @@ Records were written before the 2026-10-19 documentation restructuring. They may
 | [DOC-2026-10-19-documentation-restructure](documentation/DOC-2026-10-19-documentation-restructure.md) | 2026-10-19 | Documentation record | `docs/documentation-architecture-restructure` | Historical. Superseded as a current owner map by `DOC-2026-10-21`. | Previous documentation problems, then-current architecture, record system, corrections, verification, and commits. |
 | [DOC-2026-10-21-documentation-reconstruction](documentation/DOC-2026-10-21-documentation-reconstruction.md) | 2026-10-21 | Documentation record | `e31030d` working tree | Historical. Its owner map was current for that pass; `DOC-2026-10-24` adds the missing reference layer and supersedes its current-owner role. | Rebuilt the owner map and API index, corrected WAV/format/bridge guidance, moved the prior report, added the docs check, and refreshed status. |
 | [DOC-2026-10-24-documentation-completion](documentation/DOC-2026-10-24-documentation-completion.md) | 2026-10-24 | Documentation record | `fefdb88` production source; documentation-only working tree | Final for its revision. The current reference layer is in [docs/API_REFERENCE.md](../API_REFERENCE.md), [docs/FIELD_SCHEMA.md](../FIELD_SCHEMA.md), and [docs/BRIDGE.md](../BRIDGE.md). Production behavior unchanged. | Added generated field schema and bridge references, completed the Swift API index, rewrote the current topic documents, extended the docs check, and refreshed status. |
+| [REM-2026-10-25-pre-release-assessment-repairs](remediation/REM-2026-10-25-pre-release-assessment-repairs.md) | 2026-10-25 | Remediation | `fix/pre-release-assessment-f01-f02`, based on `32d945d`; repair `102ddc7` | Final for its revision. Closes the external pre-release assessment's F-01 and F-02. F-01 is resolved by requiring Swift 6.4; F-02 by a release-based changelog rewrite. | Raised the minimum Swift tools from 6.0 to 6.4 after 6.0.3, 6.2.4, and 6.3 could not import SDK 27 modules; rewrote the changelog around version deltas. Swift 6.4 Xcode, Debug, Release, ASAN, TSAN, strict, platform, and consumer checks passed. |
 
 ### Local-only original audit
 
@@ -66,6 +67,7 @@ This table is a map, not a replacement for the records' complete matrices. "Clai
 | VER-2026-10-18 | VH-01..VH-03 | Fixed, with focused regressions. | VER-2026-10-18 section D. |
 | AUD-2026-10-19 clean-room | AUD-01..AUD-20 | Fixed or bounded; complete matrix in the remediation record. | REM-2026-10-19 section B. |
 | AUD-2026-10-19 audio identity | F1..F8 | F1 fixed; F2/F3 open limitations; F4 corrected; F5 partially closed; F6/F7 informational; F8 no defect. | This index and the audit record. |
+| External pre-release assessment 2026-10-25 | F-01..F-02 | Both repaired. F-01 is closed by raising the minimum to Swift 6.4 after older-toolchain and SDK-import probes; F-02 by replacing dated work sections with release-based deltas. | REM-2026-10-25. |
 
 ## Selected cross-record findings
 
@@ -107,6 +109,7 @@ These are the items a future maintainer or agent should not describe as fully so
 ## Evidence confidence
 
 - Records written before 2026-10-19 use different test totals and different definitions of "verified". Read the record's own scope and environment.
+- From 2026-10-25 the package requires Swift tools 6.4. Swift 6.0–6.3 are not supported and cannot import current Apple SDKs; older records that mention tools 6.0 describe their revision, not the current manifest.
 - The clean-room audit observed 186 tests; the remediation final campaign reported 208. The audio-identity work raised the count to 222 before the three BWF regressions, for 225 test declarations at the current HEAD.
 - Test totals are not evidence that arbitrary files, formats, platforms, or metadata variants are safe.
 - The current validation state, including the last executed suite observed during the documentation pass, is in [docs/STATUS.md](../STATUS.md).

@@ -6,7 +6,7 @@ This document is for contributors and automated agents working on the package it
 
 | Path | Purpose |
 | --- | --- |
-| `Package.swift` | Swift tools 6.0 manifest; products, targets, binary dependency, platform minimums. |
+| `Package.swift` | Swift tools 6.4 manifest; products, targets, binary dependency, platform minimums. |
 | `Sources/TagLibAudioMetadata/` | Swift facade: models, schema, reads, writes, structured conversion, patches, verification. |
 | `Sources/CTagLibBridge/` | Public Objective-C bridge, Objective-C++ implementation, private headers, format registry, and transaction coordinator. |
 | `Sources/CTagLibBridgeInternalAPI/` | Package-internal in-place mutation declarations used by the facade. Not a library product. |
