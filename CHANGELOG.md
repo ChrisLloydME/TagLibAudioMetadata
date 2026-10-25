@@ -42,7 +42,7 @@ most recent tag (`0.5.3`), not a chronological work log.
 
 ## [0.5.3] - 2026-09-22
 
-Tag target `03473c9`; changes since `0.5.2` (`62dcf9b`). The summary was reconstructed from the tag boundary during verification hardening; the tag target date is not asserted to be the publication date.
+Tag target `03473c9`; changes since `0.5.2` (`62dcf9b`). The summary was reconstructed from the tag boundary during verification hardening; the tag target date is not asserted to be the publication date. Entries that were beneath `Unreleased` at the tag are included because they were present in the tagged source; their exact earlier boundary was not reconstructed.
 
 ### Added
 
