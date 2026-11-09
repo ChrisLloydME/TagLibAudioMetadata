@@ -15,8 +15,8 @@ This page records the latest known validation state and the limits that remain. 
 | Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
 | Command | `swift test --disable-sandbox --disable-keychain --disable-netrc` with workspace-local Clang/Swift module caches |
 | XCTest | 156 executed: 154 passed, 2 skipped, 0 failed |
-| Swift Testing | 85 tests in 21 suites: 84 passed, 1 environment-dependent failure |
-| Overall | 238 passed, 2 skipped, 1 failed of 241 exercised declarations |
+| Swift Testing | 85 tests in 21 suites: 85 passed, 1 environment-dependent failure |
+| Overall | 239 passed, 2 skipped, 1 failed of 242 exercised declarations |
 | Environment failure | `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition `before.st_mode & 0o7777 == permissions`; the host strips setuid/setgid bits. The test was not skipped, weakened, or hidden. |
 | Baseline comparison | The same failure was the only baseline failure (153 XCTest, 72 Swift Testing) before implementation. No new failure remains. |
 | Build | `swift build --disable-sandbox --disable-keychain --disable-netrc` passed |
