@@ -916,7 +916,50 @@ extension TagLibMetadataManager {
         verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
         let exactVerification = verification
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
-            let current = try readBasicMetadataAndRaw(from: mutationURL)
+            let current = try readBasicMetadataRawAndStructured(from: mutationURL)
+            let numberingIdentifier = capability(forExtension: ext)?.identifier ?? ext
+            let isID3Primary = ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"]
+                .contains(numberingIdentifier)
+            let numberInventory = numberingInventory(
+                raw: current.raw,
+                structured: current.structured,
+                isMP4: isMP4Family,
+                isID3: isID3Primary,
+                version: nil
+            )
+            if meta.track != current.metadata.track,
+               meta.trackTotal == current.metadata.trackTotal {
+                if numberInventory.track.total.state == .recoveredLegacy {
+                    m.totalTracks = numberInventory.track.total.recoveredValue ?? 0
+                } else if numberInventory.track.total.isUnresolved {
+                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                        field: "trackTotal",
+                        identities: numberInventory.track.total.identities
+                    )
+                }
+            }
+            if meta.disc != current.metadata.disc,
+               meta.discTotal == current.metadata.discTotal {
+                if numberInventory.disc.total.state == .recoveredLegacy {
+                    m.totalDiscs = numberInventory.disc.total.recoveredValue ?? 0
+                } else if numberInventory.disc.total.isUnresolved {
+                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                        field: "discTotal",
+                        identities: numberInventory.disc.total.identities
+                    )
+                }
+            }
+            var adjustedVerification = exactVerification
+            if Int(m.totalTracks) != meta.trackTotal || Int(m.totalDiscs) != meta.discTotal {
+                adjustedVerification.expectedTrackTotal = Int(m.totalTracks)
+                adjustedVerification.expectedDiscTotal = Int(m.totalDiscs)
+                adjustedVerification.expectedTrackNumberText = numberTextPreservingFormatting(
+                    meta.trackNumberText, number: meta.track, total: Int(m.totalTracks)
+                )
+                adjustedVerification.expectedDiscNumberText = numberTextPreservingFormatting(
+                    meta.discNumberText, number: meta.disc, total: Int(m.totalDiscs)
+                )
+            }
             // A PropertyMap cannot carry ID3 comment/lyric languages or the
             // original description spelling. Preserve the native collections
             // when their scalar Basic projection was not edited.
@@ -1096,7 +1139,7 @@ extension TagLibMetadataManager {
                 )
                 try throwOnVerificationFailures(nativeVerification.failures)
             }
-            var warnings = metadataWriteWarnings(for: mutationURL, verification: exactVerification)
+            var warnings = metadataWriteWarnings(for: mutationURL, verification: adjustedVerification)
             warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)

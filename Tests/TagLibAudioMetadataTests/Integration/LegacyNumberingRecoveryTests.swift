@@ -192,4 +192,42 @@ struct LegacyNumberingRecoveryTests {
         #expect(atoms.first { $0.freeformDescription == "AUDIOMATOR_DISCNUMBER_TEXT" }?.values == ["01/02"])
         #expect(atoms.first { $0.freeformDescription == "TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }?.values == ["01/02"])
     }
+
+    @Test func basicTrackEditReconcilesSoleOrphanTotalBeforeWriting() throws {
+        let url = try copy("m4a")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 0),
+                .init(key: "----:com.apple.iTunes:TRACKTOTAL", type: "stringList", values: ["12"]),
+            ]),
+            to: url
+        )
+        try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.track = 5 }
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        #expect(snapshot.basic.track == 5)
+        #expect(snapshot.basic.trackTotal == 12)
+        let atoms = snapshot.structured.mp4Atoms
+        #expect(atoms.first { $0.key == "trkn" }?.first == 5)
+        #expect(atoms.first { $0.key == "trkn" }?.second == 12)
+        #expect(atoms.first { $0.freeformDescription == "TRACKTOTAL" } == nil)
+    }
+
+    @Test func basicPairEditRejectsAmbiguousOrphanTotalWithoutMutation() throws {
+        let url = try copy("m4a")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            StructuredMetadata(mp4Atoms: [
+                .init(key: "trkn", type: "intPair", first: 3, second: 0),
+                .init(key: "----:com.apple.iTunes:TRACKTOTAL", type: "stringList", values: ["12"]),
+                .init(key: "----:com.apple.iTunes:TOTALTRACKS", type: "stringList", values: ["15"]),
+            ]),
+            to: url
+        )
+        let original = try Data(contentsOf: url)
+        #expect(throws: (any Error).self) {
+            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.track = 5 }
+        }
+        #expect(try Data(contentsOf: url) == original)
+    }
 }
