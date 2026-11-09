@@ -11,8 +11,8 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 | Platforms | macOS 13+, iOS 16+, Swift tools 6.4, GNU C++20 |
 | Products | `TagLibAudioMetadata` (Swift facade) and `TagLibAudioMetadataLowLevel` (`CTagLibBridge`) |
 | Format coverage | 22 families and 37 extensions; query `FormatCapability` rather than hard-coding the matrix |
-| Reads | Basic, raw `PropertyMap`, structured container models, and an optional audio-content identity |
-| Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, and verified erase |
+| Reads | Basic, raw `PropertyMap`, structured container models, numbering inventory, and an optional audio-content identity |
+| Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, explicit number normalization, and verified erase |
 | Commit model | Sibling staging copy, atomic rename, file and parent-directory sync; process-local coordination only |
 
 ## Requirements
@@ -101,6 +101,8 @@ for warning in result.warnings {
 ```
 
 Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. Do not mix typed track/disc fields with `numberText` in one patch. Verification mismatches throw before commit; a successful result carries only residual container advisories.
+
+Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` writes the YEAR slot, `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension.
 
 For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The older `writeMetadata` and `writeMetadataWithVerification` names are deprecated because replacement semantics were easy to mistake for a partial update.
 

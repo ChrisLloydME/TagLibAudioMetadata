@@ -84,6 +84,7 @@ docs/
 - Update [Migration](MIGRATION.md) when a public API is deprecated or its behavior changes.
 - Update [API reference](API_REFERENCE.md) when a public declaration is added, removed, or given a new default.
 - Regenerate [Field schema](FIELD_SCHEMA.md) after changing `MetadataFieldSchema.swift`.
+- Regenerate `MetadataMappingCatalog.swift` after a normative matrix change, and keep the bridge mapping table in parity. Production code never parses Markdown.
 
 ### Documentation checks and generation
 
@@ -104,14 +105,16 @@ Run it before committing:
 python3 scripts/check-docs.py
 ```
 
-The field tables are generated from the Swift registry:
+The field tables are generated from the Swift registry and the checked-in native catalog:
 
 ```sh
+python3 scripts/generate-mapping-registry.py --write
+python3 scripts/generate-mapping-registry.py --check
 python3 scripts/generate-field-schema.py --write
 python3 scripts/generate-field-schema.py --check
 ```
 
-`check-docs.py` runs the `--check` form, so a source change that adds or removes a field fails until the document is regenerated. The generator is a documentation helper; it does not modify Swift or bridge code.
+`check-docs.py` runs the field-schema `--check` form, so a source change that adds or removes a field fails until the document is regenerated. The mapping generator reads `docs/METADATA_MAPPING_SPEC.md` at development time and writes explicit Swift. Neither generator modifies the bridge; the cross-language parity tests remain the guardrail for the bridge table.
 
 CI runs the same documentation check in the `build-and-test` job. The script deliberately does not attempt to verify prose or Swift signatures; those require review and the compiler.
 

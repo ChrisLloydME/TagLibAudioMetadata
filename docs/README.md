@@ -25,7 +25,9 @@ The source code, `Package.swift`, and the test target are the final authority fo
 5. [Transactions](TRANSACTIONS.md) — staged writes, durability, concurrency.
 6. [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md) — guarded conflict rebasing, if needed.
 
-For the accepted future compatibility design, read [Metadata mapping specification](METADATA_MAPPING_SPEC.md). It defines AM-TLAM-MAPPING-2.2, with native-field interoperability precedence, a per-format target matrix and legacy numbering recovery/retirement, mirrored in AudioMator, and is explicitly not implemented by the current API or generated field tables.
+For the normative mapping contract, read [Metadata mapping specification](METADATA_MAPPING_SPEC.md). It defines AM-TLAM-MAPPING-2.2, with native-field interoperability precedence, a per-format target matrix, independent Year/date semantics, legacy numbering recovery/retirement, and the MP4/MKV exclusive registrations. The package-side implementation status by section is recorded in the specification; the AudioMator copy is maintained separately by the application maintainer.
+
+For package-only implementation through an Xcode ACP agent, use the [mapping refactor agent prompt](plans/MAPPING_REFACTOR_AGENT_PROMPT.md). It defines phased work, tool discovery, repository boundaries and evidence-based acceptance gates; it is an assignment, not a claim of completed implementation.
 
 ### I am maintaining the package
 
@@ -45,7 +47,7 @@ For the accepted future compatibility design, read [Metadata mapping specificati
 | Installation and distribution | [Installation](INSTALLATION.md) | Products, requirement matrix, binary identity, slices, embedding, offline builds, diagnostics. | Format behavior. |
 | Task-based usage | [Usage](USAGE.md) | Choosing a layer, first read/write recipes, error handling, common tasks. | Complete signatures; deep preservation or transaction rules. |
 | Complete Swift surface | [API reference](API_REFERENCE.md) | Every public Swift declaration, default, nested type, model, and error. | Per-field container mappings; bridge selectors. |
-| Field registry | [Field schema](FIELD_SCHEMA.md) | `MetadataFieldKey`, schemas, `PropertyMap`/ID3v2/MP4 mappings, patch value constraints, registry lookup rules. | Capability evidence per family. |
+| Field registry | [Field schema](FIELD_SCHEMA.md) | `MetadataFieldKey`, semantic keys, exact native targets, `PropertyMap`/ID3v2/MP4/Vorbis/APE/ASF/RIFF mappings, patch value constraints, registry lookup rules. | Capability evidence per family. |
 | Objective-C bridge | [Bridge reference](BRIDGE.md) | Low-level product, bridge model, selectors, projection shapes, bridge transaction boundary. | Swift facade conveniences. |
 | Format capability | [Formats](FORMATS.md) | 22-family registry matrix, container surfaces, evidence levels, per-format limits, fixtures. | General write semantics. |
 | Preservation and verification | [Write semantics](PRESERVATION.md) | Model fidelity, omission/removal, Basic preservation, raw/structured write rules, verification scope, erase. | Staging mechanics. |

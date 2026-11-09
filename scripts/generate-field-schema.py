@@ -22,6 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "Sources/TagLibAudioMetadata/MetadataFieldSchema.swift"
+CATALOG = ROOT / "Sources/TagLibAudioMetadata/MetadataMappingCatalog.swift"
 DOCUMENT = ROOT / "docs/FIELD_SCHEMA.md"
 BEGIN = "<!-- BEGIN GENERATED FIELD TABLES -->"
 END = "<!-- END GENERATED FIELD TABLES -->"
@@ -83,6 +84,62 @@ def named_array(text: str, name: str) -> list[str]:
             depth -= 1
         index += 1
     return quoted_values(text[start : index - 1])
+
+
+CATALOG_FAMILIES = (
+    "id3v23",
+    "id3v24",
+    "mp4",
+    "vorbisComment",
+    "apev2",
+    "asf",
+    "riffInfo",
+)
+
+
+def catalog_profiles() -> dict[str, dict[str, list[dict[str, str]]]]:
+    """Return semantic key -> family -> explicit native targets."""
+    if not CATALOG.exists():
+        return {}
+    text = CATALOG.read_text(encoding="utf-8")
+    profiles: dict[str, dict[str, list[dict[str, str]]]] = {}
+    for block in re.findall(r"MetadataTargetProfile\((.*?)\n        \),", text, re.S):
+        semantic_match = re.search(r'semanticKey:\s*"((?:[^"\\]|\\.)*)"', block)
+        if not semantic_match:
+            continue
+        semantic = unescape(semantic_match.group(1))
+        targets: dict[str, list[dict[str, str]]] = {family: [] for family in CATALOG_FAMILIES}
+        for target_match in re.finditer(
+            r"MetadataNativeTarget\(family: \.(\w+), storage: \.(\w+), "
+            r'nativeIdentity: "((?:[^"\\]|\\.)*)"(.*?)\)',
+            block,
+            re.S,
+        ):
+            family, storage, identity, tail = target_match.groups()
+            component_match = re.search(r"numberComponent: \.(\w+)", tail)
+            targets.setdefault(family, []).append(
+                {
+                    "storage": storage,
+                    "identity": unescape(identity),
+                    "component": component_match.group(1) if component_match else "",
+                }
+            )
+        profiles[semantic] = targets
+    return profiles
+
+
+def native_cell(targets: list[dict[str, str]]) -> str:
+    if not targets:
+        return "—"
+    rendered = []
+    for target in targets:
+        identity = target["identity"]
+        if target["storage"] == "mp4Freeform":
+            identity = f"----:com.apple.iTunes:{identity}"
+        if target["component"]:
+            identity = f"{identity} ({target['component']})"
+        rendered.append(f"`{identity}`")
+    return ", ".join(rendered)
 
 
 def balanced_entries(block: str) -> list[str]:
@@ -174,16 +231,32 @@ def code_list(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values) if values else "—"
 
 
-def render_field_table(field: dict[str, object]) -> list[str]:
-    id3 = list(field["id3"])  # type: ignore[arg-type]
-    id3.extend(f"TXXX:{value}" for value in field["id3_user"])  # type: ignore[arg-type]
-    mp4 = list(field["mp4"])  # type: ignore[arg-type]
-    mp4.extend(
-        f"----:com.apple.iTunes:{value}" for value in field["mp4_freeform"]  # type: ignore[arg-type]
-    )
-    if field["key"] == "artwork":
-        id3 = ["APIC"]
-        mp4 = ["covr"]
+SEMANTIC_OVERRIDES = {
+    "date": "YEAR",
+    "year": "YEAR",
+    "standaloneDate": "DATE",
+    "publisher": "LABEL",
+    "encoderSettings": "ENCODING",
+    "mediaType": "MEDIA",
+    "movement": "MOVEMENTNAME",
+    "explicitContent": "ITUNESADVISORY",
+    "itunesOwner": "OWNER",
+    "tvShowSort": "SHOWSORT",
+    "custom": "<explicit key>",
+}
+
+
+def semantic_key(field: dict[str, object]) -> str:
+    key = str(field["key"])
+    if key in SEMANTIC_OVERRIDES:
+        return SEMANTIC_OVERRIDES[key]
+    property_keys = list(field["property_keys"])  # type: ignore[arg-type]
+    return property_keys[0].upper() if property_keys else key.upper()
+
+
+def render_field_table(field: dict[str, object], profiles: dict[str, dict[str, list[dict[str, str]]]]) -> list[str]:
+    semantic = semantic_key(field)
+    targets = profiles.get(semantic, {family: [] for family in CATALOG_FAMILIES})
     flags = []
     if field["multi"]:
         flags.append("multi")
@@ -194,13 +267,18 @@ def render_field_table(field: dict[str, object]) -> list[str]:
     if field["artwork"]:
         flags.append("artwork")
     return [
-        f"| `{field['key']}` | {field['display']} | {code_list(field['property_keys'])} | "
-        f"{code_list(id3)} | {code_list(mp4)} | {', '.join(flags) or '—'} |"
+        f"| `{field['key']}` | {field['display']} | `{semantic}` | "
+        f"{code_list(list(field['property_keys']))} | "
+        f"{native_cell(targets['id3v23'])} | {native_cell(targets['id3v24'])} | "
+        f"{native_cell(targets['mp4'])} | {native_cell(targets['vorbisComment'])} | "
+        f"{native_cell(targets['apev2'])} | {native_cell(targets['asf'])} | "
+        f"{native_cell(targets['riffInfo'])} | {', '.join(flags) or '—'} |"
     ]
 
 
 def render() -> str:
     fields = parse_fields()
+    profiles = catalog_profiles()
     by_category: "OrderedDict[str, list[dict[str, object]]]" = OrderedDict(
         (category, []) for category in CATEGORY_ORDER
     )
@@ -218,11 +296,13 @@ def render() -> str:
         lines.append(f"### {CATEGORY_TITLES.get(category, category)}")
         lines.append("")
         lines.append(
-            "| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |"
+            "| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |"
         )
-        lines.append("| --- | --- | --- | --- | --- | --- |")
+        lines.append(
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+        )
         for field in category_fields:
-            lines.extend(render_field_table(field))
+            lines.extend(render_field_table(field, profiles))
         lines.append("")
     lines.append(END)
     return "\n".join(lines)

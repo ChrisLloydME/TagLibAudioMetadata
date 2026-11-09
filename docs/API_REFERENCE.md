@@ -109,7 +109,7 @@ static func updateBasicMetadata(
 
 `replaceBasicMetadata` replaces the complete modeled Basic projection. Empty strings and zero numbers clear those fields where the container allows it. It preserves metadata that `BasicMetadata` cannot represent — untouched multi-value arrays, documented aliases, full recording dates, qualified people keys, unchanged native comment/lyric collections on tested ID3-backed formats, and omitted custom fields — by restoring them from the current raw state. It is not an omission-safe patch.
 
-`updateBasicMetadata` reads a focused `BasicMetadataSnapshot`, applies the closure in memory, reconciles a single-field MP4 `year`/`releaseDate` intent, and calls `replaceBasicMetadata` with the captured version. It is the recommended Basic read/modify/write convenience.
+`updateBasicMetadata` reads a focused `BasicMetadataSnapshot`, applies the closure in memory, and calls `replaceBasicMetadata` with the captured version. It performs no Year/date reconciliation and is the recommended Basic read/modify/write convenience.
 
 Deprecated wrappers:
 
@@ -221,7 +221,7 @@ static func writeTrackNumberText(
 
 `nil` leaves that pair unchanged; a non-empty string sets it; an empty string removes it. The text must contain at most one `/` and unsigned decimal components no greater than `Int32.max`. Verification accepts numeric-equivalent formatting and checks exact text where the container preserves it. Use this API only when formatted text is the authoritative input; ordinary numeric Basic and patch writes may normalize padding.
 
-On MP4, the writer stores the formatted text in package-private `TAGLIBAUDIOMETADATA_*_TEXT` freeform atoms while native `trkn`/`disk` remain the numeric authority. Legacy `AUDIOMATOR_*_TEXT` values are migrated when the corresponding pair is edited.
+On MP4, the writer stores only the native `trkn`/`disk` pair. It never creates private `AUDIOMATOR_*_TEXT` or `TAGLIBAUDIOMETADATA_*_TEXT` atoms, and it does not rename legacy provenance. Exact text padding has no portable atom, so a formatted write displays the normalized pair; use `planNumberNormalization` for explicit legacy cleanup.
 
 ## Low-level bridge-model write
 
@@ -236,7 +236,7 @@ static func writeTagMetadata(
 
 This writes the bridge model through the transactional coordinator. The model is a full writer payload for the fields the bridge maps, not an omission-safe patch. A sparse instance clears mapped fields where the format allows it; read current values first for a partial edit.
 
-On MP4, a non-empty `year` and `releaseDate` must agree: `year` is the first four characters of `releaseDate`. A contradictory pair throws `MetadataValidationError.conflictingMP4Date` before staging.
+On MP4, `year` writes `©day` as complete text and `releaseDate` writes the independent `RELEASEDATE` freeform. They do not need to agree and are never reconciled. `MetadataValidationError.conflictingMP4Date` is retained only for source compatibility and is not produced.
 
 The default `.none` context performs no semantic readback. The facade transaction also does not add a staged-file readability readback for this API: the bridge in-place primitive is called directly inside the staging transaction. Supply verification expectations or use a typed/structured API when confirmation matters. Naming the `TagLibAudioMetadata` parameter requires `import CTagLibBridge`.
 
@@ -893,7 +893,7 @@ struct FormatCapability: Hashable, Sendable, Identifiable {
 | `readableFields`, `writableFields` | Optional explicit allowlists; `nil` means infer from schema mappings. Currently used by tracker families. |
 | `metadataFieldFormats` | Formats implied by `containers` (plus `.flac` for the native FLAC family). |
 
-`readSupport` and `writeSupport` combine `isReadable`/`isWritable`, the field schema's mappings, artwork flags, explicit allowlists, and the MP4 single-date rule. `supportLevel(forExtension:)` takes a case-insensitive extension and returns `.unsupported` when the family does not register it.
+`readSupport` and `writeSupport` combine `isReadable`/`isWritable`, the field schema's native target capability, artwork flags, and explicit allowlists. `supportLevel(forExtension:)` takes a case-insensitive extension and returns `.unsupported` when the family does not register it.
 
 The format matrix and per-family limitations are in [Formats](FORMATS.md).
 
@@ -907,12 +907,11 @@ enum MetadataFieldCategory: String, CaseIterable, Hashable, Sendable {
 }
 
 enum MetadataFieldFormat: String, CaseIterable, Hashable, Sendable {
-    case tagLibPropertyMap, id3v2, mp4, xiph, ape, asf, flac
-    case matroska // reserved; no family is registered
+    case tagLibPropertyMap, id3v2, mp4, xiph, ape, asf, riffInfo, flac, matroska
 }
 
 enum MetadataFieldStorageKind: String, Hashable, Sendable {
-    case nativeTag, propertyMap, textFrame, userTextFrame,
+    case nativeTag, propertyMap, textFrame, userTextFrame, extensionFrame,
          mp4Atom, mp4Freeform, complexProperty, binary
     case pattern // reserved; no schema currently uses it
 }
@@ -941,53 +940,62 @@ struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     var key: MetadataFieldKey
     var displayName: String
     var category: MetadataFieldCategory
+    var semanticKey: String
     var propertyMapKeys: [String]
-    var mappings: [MetadataFormatMapping]
+    var nativeTargets: [MetadataNativeTarget]
+    var isCanonicalSemanticOwner: Bool
+    var isLegacyYearAlias: Bool
     var isMultiValue: Bool
     var isPeopleField: Bool
     var isRoleQualified: Bool
     var isArtworkField: Bool
+    var writeUnsupportedReason: String?
+    var mappingContractVersion: String
+    var mappings: [MetadataFormatMapping] { get }
     var acceptedPatchValueKinds: Set<MetadataPatchValueKind> { get }
     var integerConstraint: MetadataIntegerConstraint? { get }
 
-    init(key: MetadataFieldKey,
-         displayName: String,
-         category: MetadataFieldCategory,
-         propertyMapKeys: [String],
-         mappings: [MetadataFormatMapping] = [],
-         isMultiValue: Bool = false,
-         isPeopleField: Bool = false,
-         isRoleQualified: Bool = false,
-         isArtworkField: Bool = false)
+    func targets(for family: MetadataNativeFamily) -> [MetadataNativeTarget]
+    func writeTarget(for family: MetadataNativeFamily) -> MetadataNativeTarget?
+    func capability(for family: MetadataNativeFamily) -> MetadataMappingCapability
+    func capability(for format: MetadataFieldFormat) -> MetadataMappingCapability
 }
 ```
 
-`acceptedPatchValueKinds` is the typed-patch contract: integer-only for track/disc/movement/BPM, Boolean-only for compilation, empty for artwork/explicit/custom, and text/values for ordinary fields. `integerConstraint` supplies the range enforced by typed patches. The complete field list and mappings are in [Metadata field schema](FIELD_SCHEMA.md).
+`nativeTargets` is the explicit 2.2 target registry. `mappings` is derived from it for compatibility with older callers and is never hand-maintained.
 
 ### `MetadataFieldKey`
 
 ```swift
 enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
-    case title, artist, album, albumArtist, date, releaseDate, originalReleaseDate
+    case title, artist, album, albumArtist, date, year, standaloneDate
+    case releaseDate, originalReleaseDate
     case track, trackTotal, disc, discTotal
     case artwork, lyrics, comment, genre, composer, conductor, remixer, performer
     case producer, engineer, lyricist, involvedPeople, musicianCredits
     case publisher, copyright, encodedBy, encoderSettings, isrc, barcode
     case catalogNumber, asin, releaseType, releaseStatus, releaseCountry, mediaType
     case work, movement, movementNumber, movementCount, discSubtitle, subtitle
-    case grouping, mood, language, musicalKey, bpm, compilation, explicitContent
+    case grouping, contentGroup, artists, mood, language, musicalKey, bpm
+    case compilation, explicitContent
     case sortTitle, sortArtist, sortAlbum, sortAlbumArtist, sortComposer
     case musicBrainzArtistID, musicBrainzAlbumID, musicBrainzAlbumArtistID
     case musicBrainzTrackID, musicBrainzReleaseGroupID, musicBrainzReleaseTrackID
     case musicBrainzWorkID, acoustID, acoustIDFingerprint, musicIPPUID
     case replayGainTrackGain, replayGainAlbumGain
+    case replayGainTrackPeak, replayGainAlbumPeak
     case itunesAlbumID, itunesArtistID, itunesCatalogID, itunesGenreID
     case itunesMediaType, itunesPurchaseDate, itunesNorm, itunesSMPB
-    case originalAlbum, originalArtist, artistType, trackerName, custom
+    case originalAlbum, originalArtist, artistType, trackerName
+    case director, itunesAccount, itunesComposerID, itunesCountryID
+    case itunesGapless, itunesHDVideo, itunesOwner, rate, showMovement
+    case storeDescription, tvEpisode, tvEpisodeID, tvNetwork, tvSeason
+    case tvShow, tvShowSort
+    case custom
 }
 ```
 
-The enum has 79 cases. `trackerName` is a schema key used by tracker formats; `BasicMetadata` has no property for it. Use `MetadataPatch(fields: [.trackerName: ...])` or a structured/raw API where the capability allows it.
+The enum has 101 cases: the 79 cases in 0.6.0 plus `year`, `standaloneDate`, `contentGroup`, `artists`, `replayGainTrackPeak`, `replayGainAlbumPeak`, and the sixteen MP4-exclusive identities registered in contract 2.2. `date` remains a deprecated YEAR-slot spelling for source compatibility; `year` is the canonical YEAR identity, and `standaloneDate` is the independent DATE identity. Supplying both `date` and `year` in one patch is rejected.
 
 ### `MetadataFieldRegistry`
 
@@ -995,14 +1003,18 @@ The enum has 79 cases. `trackerName` is a schema key used by tracker formats; `B
 enum MetadataFieldRegistry {
     static let allSchemas: [MetadataFieldSchema]
     static let schemasByKey: [MetadataFieldKey: MetadataFieldSchema]
+    static let canonicalSchemas: [MetadataFieldSchema]
+    static let schemasBySemanticKey: [String: MetadataFieldSchema]
     static let canonicalPropertyMapKeys: Set<String>
     static let multiValuePropertyMapKeys: Set<String>
     static let peoplePropertyMapKeys: Set<String>
     static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>]
     static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey]
     static let propertyMapKeyOwners: [String: Set<MetadataFieldKey>]
+    static let duplicatePreferredWriteTargets: [String: [MetadataFieldKey]]
 
     static func schema(for key: MetadataFieldKey) -> MetadataFieldSchema?
+    static func canonicalSchema(forSemanticKey key: String) -> MetadataFieldSchema?
     static func schema(forPropertyMapKey key: String) -> MetadataFieldSchema?
     static func schemas(withMappingsFor format: MetadataFieldFormat) -> [MetadataFieldSchema]
     static func schemas(storableIn capability: FormatCapability) -> [MetadataFieldSchema]
@@ -1012,7 +1024,162 @@ enum MetadataFieldRegistry {
 }
 ```
 
-`schema(forPropertyMapKey:)` recognizes the qualified prefixes `PERFORMER:`, `INVOLVEDPEOPLE:`, `MUSICIANCREDITS:`, `COMMENT:`, and `LYRICS:`. `normalizePropertyMapKey` trims whitespace and uppercases. `schemas(storableIn:)` returns an empty list for read-only capabilities and excludes the MP4 `.date` field and unsupported artwork.
+`schema(forPropertyMapKey:)` recognizes the qualified prefixes `PERFORMER:`, `INVOLVEDPEOPLE:`, `MUSICIANCREDITS:`, `COMMENT:`, and `LYRICS:`. `schemas(storableIn:)` enumerates canonical semantic owners only; `.date` remains addressable but is not a second semantic field. A capability's field support is derived from native target state, not from the legacy mapping projection.
+
+## Mapping and numbering types
+
+```swift
+enum MetadataNativeFamily: String, CaseIterable, Hashable, Sendable {
+    case id3v23, id3v24, mp4, vorbisComment, apev2, asf, riffInfo, matroska
+}
+
+enum MetadataNativeStorageKind: String, Hashable, Sendable {
+    case textFrame, userTextFrame, extensionFrame, engineTextKey,
+         extensionTextKey, qualifiedTextFrame, roleFrame, identifierFrame,
+         binaryFrame, mp4Atom, mp4Freeform, mp4Integer, intPair, textKey,
+         asfAttribute, riffInfoKey, complexProperty, matroskaSimpleTag, unsupported
+}
+
+enum MetadataValueShape: String, CaseIterable, Hashable, Sendable {
+    case text, textArray, integer, boolean, advisory, intPair,
+         pictureCollection, roleText, opaque
+}
+
+enum MetadataNumberComponent: String, CaseIterable, Hashable, Sendable {
+    case number, total
+}
+
+struct MetadataNativeTarget: Hashable, Sendable {
+    var family: MetadataNativeFamily
+    var storage: MetadataNativeStorageKind
+    var nativeIdentity: String
+    var shape: MetadataValueShape
+    var preferredWrite: Bool
+    var numberComponent: MetadataNumberComponent?
+    var note: String?
+}
+
+struct MetadataTargetProfile: Hashable, Sendable {
+    var semanticKey: String
+    var shape: MetadataValueShape
+    var targets: [MetadataNativeTarget]
+    var writeUnsupportedReason: String?
+    func targets(for family: MetadataNativeFamily) -> [MetadataNativeTarget]
+    func writeTarget(for family: MetadataNativeFamily) -> MetadataNativeTarget?
+    func capability(for family: MetadataNativeFamily) -> MetadataMappingCapability
+    var aggregateCapability: MetadataMappingCapability { get }
+}
+
+enum MetadataMappingCapability: String, CaseIterable, Hashable, Sendable {
+    case native, conventionalExtension, readOnly, unsupported, ambiguous
+    var isWritable: Bool { get }
+}
+
+struct MetadataTargetCapability: Hashable, Sendable {
+    var family: MetadataNativeFamily
+    var capability: MetadataMappingCapability
+    var canRoundTrip: Bool
+    var normalizesText: Bool
+    var fixtureCovered: Bool
+    var reason: String?
+}
+
+enum MetadataMappingCatalog {
+    static let contractVersion: String
+    static let decisionDate: String
+    static let profiles: [MetadataTargetProfile]
+    static let semanticKeys: [String]
+    static func profile(forSemanticKey key: String) -> MetadataTargetProfile?
+}
+
+enum MetadataNumberComponentState: String, Hashable, Sendable {
+    case absent, native, recoveredLegacy, ambiguous, invalid
+}
+
+struct MetadataNumberComponentInventory: Hashable, Sendable {
+    var state: MetadataNumberComponentState
+    var nativeValue: Int?
+    var recoveredValue: Int?
+    var candidates: [String]
+    var identities: [String]
+    var resolvedValue: Int? { get }
+    var isUnresolved: Bool { get }
+}
+
+struct MetadataNumberPrivateTextInventory: Hashable, Sendable {
+    var identity: String
+    var description: String
+    var namespace: String
+    var values: [String]
+    var parsedNumber: Int?
+    var parsedTotal: Int?
+    var isStrictlyNumeric: Bool
+}
+
+struct MetadataNumberGroupInventory: Hashable, Sendable {
+    var number: MetadataNumberComponentInventory
+    var total: MetadataNumberComponentInventory
+    var nativeIdentities: [String]
+    var legacyAliasIdentities: [String]
+    var privateTexts: [MetadataNumberPrivateTextInventory]
+    var warnings: [String]
+    var hasUnresolvedComponents: Bool { get }
+}
+
+struct MetadataNumberingInventory: Hashable, Sendable {
+    var track: MetadataNumberGroupInventory
+    var disc: MetadataNumberGroupInventory
+    var fileVersion: MetadataFileVersion?
+    var warnings: [String]
+}
+
+enum MetadataNumberResolutionPolicy: Hashable, Sendable {
+    case useNative
+    case useLegacy
+    case replace(number: Int?, total: Int?)
+}
+
+enum MetadataNumberGroup: String, CaseIterable, Hashable, Sendable {
+    case track, disc
+}
+
+struct MetadataNumberNormalizationPlan: Hashable, Sendable {
+    var groups: Set<MetadataNumberGroup>
+    var fileVersion: MetadataFileVersion
+    var trackNumber: Int?
+    var trackTotal: Int?
+    var discNumber: Int?
+    var discTotal: Int?
+    var removals: [String]
+    var privateRemovals: [String]
+    var warnings: [String]
+    var inventory: MetadataNumberingInventory
+}
+```
+
+`MetadataMappingCatalog` is generated from the normative matrix by `scripts/generate-mapping-registry.py` and checked in. Production code never parses Markdown. `nativeIdentity` is exact: frame ID, MP4 atom, freeform description, text key, ASF attribute, or Matroska tag name plus target level.
+
+## Numbering inventory and explicit normalization
+
+```swift
+static func numberingInventory(at url: URL) throws -> MetadataNumberingInventory
+
+static func planNumberNormalization(
+    at url: URL,
+    policy: MetadataNumberResolutionPolicy,
+    groups: Set<MetadataNumberGroup> = [.track, .disc]
+) throws -> MetadataNumberNormalizationPlan
+
+static func applyNumberNormalization(
+    _ plan: MetadataNumberNormalizationPlan,
+    to url: URL,
+    expectedVersion: MetadataFileVersion? = nil
+) throws -> MetadataWriteResult
+```
+
+`numberingInventory` reports native components, legacy standalone aliases, and both private MP4 namespaces with exact value arrays. Native positive components are authoritative; a sole valid orphan total is `.recoveredLegacy`; contradictory or malformed candidates are `.ambiguous`/`.invalid` and are retained.
+
+`planNumberNormalization` requires an explicit policy and records the captured file version, the resolved after-pair, exact selected removals, and warnings. `applyNumberNormalization` writes the native pair first, retires only the selected aliases in the same transaction, verifies both persistence and removal, and rejects a stale version before staging. It never retries a successful commit after a durability warning.
 
 ## Audio-content models
 
@@ -1118,7 +1285,9 @@ enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError {
     case unsupportedID3v2FrameType(String)
     case knownFieldRequiresRawAPI(String)
     case invalidCustomFieldKey(String)
-    case conflictingMP4Date(year: String, releaseDate: String)
+    case invalidYearText(String)
+    case conflictingMP4Date(year: String, releaseDate: String) // legacy; not produced
+    case ambiguousNumberRecovery(field: String, identities: [String])
 }
 ```
 
