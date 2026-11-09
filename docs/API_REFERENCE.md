@@ -85,7 +85,7 @@ Validation rules:
 - Custom keys are normalized to uppercase; known schema keys, aliases, case variants, duplicate normalized keys, and a typed/custom collision are rejected.
 - `.text` and `.values` are trimmed once; empty text, empty arrays, and empty elements are errors. `.remove` is the deletion marker.
 - `numberText` cannot be combined with typed `track`, `trackTotal`, `disc`, or `discTotal`.
-- A track/disc first component cannot be removed while retaining a total on formats that cannot represent a missing number with a total. Remove both components to clear the pair.
+- Removing a track/disc number preserves its total: tested MP4 uses a native 0/total pair and ID3 uses /total. Unverified layouts such as ASF total-only still reject the operation. MP4 components are bounded by 65535; other typed pair components by Int32.max.
 - A capability with an explicit `writableFields` allowlist is checked before staging.
 
 The guarded overload requires both `expectedVersion` and `expectedAudioContent`. Availability is limited to WAV, AIFF/AIFF-C, and native FLAC; see [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md).
@@ -1102,6 +1102,7 @@ struct MetadataNumberComponentInventory: Hashable, Sendable {
     var recoveredValue: Int?
     var candidates: [String]
     var identities: [String]
+    var hasUnresolvedNativeValues: Bool
     var resolvedValue: Int? { get }
     var isUnresolved: Bool { get }
 }
@@ -1144,16 +1145,16 @@ enum MetadataNumberGroup: String, CaseIterable, Hashable, Sendable {
 }
 
 struct MetadataNumberNormalizationPlan: Hashable, Sendable {
-    var groups: Set<MetadataNumberGroup>
-    var fileVersion: MetadataFileVersion
-    var trackNumber: Int?
-    var trackTotal: Int?
-    var discNumber: Int?
-    var discTotal: Int?
-    var removals: [String]
-    var privateRemovals: [String]
-    var warnings: [String]
-    var inventory: MetadataNumberingInventory
+    let groups: Set<MetadataNumberGroup>
+    let fileVersion: MetadataFileVersion
+    let trackNumber: Int?
+    let trackTotal: Int?
+    let discNumber: Int?
+    let discTotal: Int?
+    let removals: [String]
+    let privateRemovals: [String]
+    let warnings: [String]
+    let inventory: MetadataNumberingInventory
 }
 ```
 
@@ -1179,7 +1180,7 @@ static func applyNumberNormalization(
 
 `numberingInventory` reports native components, legacy standalone aliases, and both private MP4 namespaces with exact value arrays. Native positive components are authoritative; a sole valid orphan total is `.recoveredLegacy`; contradictory or malformed candidates are `.ambiguous`/`.invalid` and are retained.
 
-`planNumberNormalization` requires an explicit policy and records the captured file version, the resolved after-pair, exact selected removals, and warnings. `applyNumberNormalization` writes the native pair first, retires only the selected aliases in the same transaction, verifies both persistence and removal, and rejects a stale version before staging. It never retries a successful commit after a durability warning.
+`planNumberNormalization` requires an explicit policy and records the captured file version, the resolved after-pair, exact selected removals, and warnings. Plan fields are immutable. A supplied `expectedVersion` must equal `plan.fileVersion`; it cannot revalidate an old plan after another edit. Empty group plans validate the captured version and leave bytes unchanged. `.replace` applies to each selected group; unselected groups are neither resolved nor modified. `.useLegacy` chooses a unique legacy candidate when one exists, otherwise the native component; `.useNative` cannot discard malformed or multi-valued native data without an explicit replacement. Verification checks absence as well as positive native values, selected retirement across all representations, and exact untouched group data. `applyNumberNormalization` writes the native pair first, retires only the selected aliases in the same transaction, verifies both persistence and removal, and rejects a stale version before staging. It never retries a successful commit after a durability warning.
 
 ## Audio-content models
 

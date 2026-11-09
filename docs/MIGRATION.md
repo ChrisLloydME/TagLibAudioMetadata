@@ -157,3 +157,9 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - That a deprecated overload behaves like the replacement in every respect.
 - That a package update changes an application's conflict policy automatically.
 - That an untagged `main` state is a release.
+
+## Numbering acceptance repairs
+
+Normalization plans now expose immutable properties and reject any expectedVersion different from the captured plan token. Rebuild stale plans instead of substituting a newer token. Native-versus-alias disagreement blocks ordinary typed, Basic and formatted edits of the touched group; obtain an explicit normalization plan to resolve it. Unselected ambiguous groups remain untouched and do not block the edit.
+
+Use `.useNative` for actual native components in MP4, ID3, Xiph/APE and ASF; ordinary total keys are not private data. `.useLegacy` can restore the sole valid private formatted pair, including a total-only value. `.replace(number:total:)` targets the selected track/disc groups, not an implicit track group. Removing a number retains a total on tested MP4 and ID3 layouts; MP4 uses an absent-number sentinel internally, not a displayed ordinal zero. Exact native/alias removal and untouched groups are verified before publication.

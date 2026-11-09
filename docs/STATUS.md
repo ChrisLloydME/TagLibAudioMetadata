@@ -2,7 +2,24 @@
 
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](records/README.md).
 
-## Latest observed run
+## Numbering acceptance repairs (2026-11-09)
+
+The eight findings in the [independent acceptance review](records/reviews/REV-2026-11-09-mapping-acceptance.md) are repaired in the working tree based on `3d50871`. See the [repair record](records/remediation/REM-2026-11-09-numbering-acceptance-repairs.md). The original rejected review is retained as baseline evidence; it does not describe the repaired working tree.
+
+| Check | Final observed result |
+| --- | --- |
+| Strict production build | Passed with Swift warnings-as-errors and C/Objective-C Werror |
+| Debug and Release XCTest | Each: 156 declarations, 154 passed, two existing opt-in skips, zero failures |
+| Debug and Release Swift Testing | Each: 108 passed across 24 suites, zero failures |
+| Independent acceptance probes | All eight passed in both configurations |
+| Additional repair regressions | Seven passed, including native cleanup across FLAC/Ogg/APE/WavPack/ASF |
+| Privilege-bit regression | Passed with approved access |
+| Public facade and low-level consumers | Both passed |
+| Documentation/generators | Documentation, mapping catalog and field-schema checks passed |
+
+Stable `/Applications/Xcode.app` and local compiler caches were used with approved access and `--disable-sandbox --disable-keychain --disable-netrc`. No dependency binary, application repository, release or remote branch changed. RATE, media-kind label vocabulary and MKV codec boundaries remain as documented. Sanitizers, minimum-platform/iOS runtime and application adoption were not executed. These results close the eight numbering findings; they do not establish universal mapping or application conformance.
+
+## Earlier implementation-run evidence
 
 | Field | Value |
 | --- | --- |

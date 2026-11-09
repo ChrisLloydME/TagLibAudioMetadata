@@ -239,7 +239,7 @@ print(plan.removals, plan.privateRemovals)
 try TagLibMetadataManager.applyNumberNormalization(plan, to: url)
 ```
 
-`planNumberNormalization` requires a headless policy; there is no implicit application preference. `.useNative` keeps only native pairs, `.useLegacy` requires unambiguous recovery, and `.replace(number:total:)` supplies an explicit pair. The apply step writes the native pair first, retires only the selected aliases in the same transaction, and verifies persistence and removal.
+`planNumberNormalization` requires a headless policy; there is no implicit application preference. `.useNative` keeps actual native components, `.useLegacy` selects an unambiguous legacy candidate (falling back only to an existing native component), and `.replace(number:total:)` supplies an explicit pair for each selected group. Neither policy resolves or modifies unselected groups. A stale plan must be rebuilt; passing a newer expectedVersion cannot override the captured token. Private-only numeric text is an explicit recovery source, not a reason to erase a total. The apply step writes the native pair first, retires only the selected aliases in the same transaction, and verifies persistence and removal.
 
 #### Year, date, and release date
 
