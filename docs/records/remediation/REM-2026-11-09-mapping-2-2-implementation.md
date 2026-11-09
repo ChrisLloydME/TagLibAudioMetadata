@@ -105,7 +105,7 @@ python3 scripts/generate-field-schema.py --check
 - MKV native read/write codec is not implemented; only target registrations exist.
 - Cross-tool fixtures, independent FFprobe/FFmpeg oracles, AIFF/Opus date conformance, ASan, TSan, minimum-platform builds, iOS runtime, x86_64, and device tests were not run in this pass. Release-mode tests and a strict Swift `-warnings-as-errors` build did run and matched the Debug result.
 - The privilege-bit test cannot pass on this host; the production path was not weakened.
-- AudioMator, the mirrored specification, and application adoption were not touched. Package-only migration instructions are in [MIGRATION.md](../../operations/MIGRATION.md#working-tree-changes-for-mapping-contract-2-2).
+- AudioMator, the mirrored specification, and application adoption were not touched. Package-only migration instructions are in [MIGRATION.md](../../operations/MIGRATION.md#migrating-from-0-6-0-to-0-7-0).
 
 ## References
 

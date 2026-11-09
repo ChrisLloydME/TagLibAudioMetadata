@@ -3,11 +3,11 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0] - 2026-11-09
 
 ### Added
 
-- Package-side implementation of `AM-TLAM-MAPPING-2.2`: an explicit semantic/native target registry, generated `MetadataMappingCatalog`, native target capability states, and a 101-case `MetadataFieldKey` surface.
+- Package-side implementation of `AM-TLAM-MAPPING-2.2`: an explicit semantic/native target registry, declarative `MetadataMappingCatalog`, native target capability states, and a 101-case `MetadataFieldKey` surface.
 - `year` (canonical YEAR) and `standaloneDate` (independent DATE), plus `contentGroup`, `artists`, `replayGainTrackPeak`, and `replayGainAlbumPeak`.
 - MP4-exclusive identities for director, account, composer/country IDs, gapless, HD video, owner, rating, show movement, store description, TV episode/network/season/show/sort, and native media kind. `rate` is read-only for typed writes.
 - Gated MKV target registrations for TV episode and season (`PART_NUMBER@TargetTypeValue=50/60`), with no advertised write capability.

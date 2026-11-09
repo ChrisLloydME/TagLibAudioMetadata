@@ -2,7 +2,7 @@
 
 `TagLibAudioMetadata` reads, edits, verifies, and erases audio metadata on macOS and iOS. A Swift facade wraps an Objective-C++ bridge to a checksum-pinned TagLib 2.3.1 XCFramework. This guide takes you from package resolution to a first read and a first verified patch.
 
-The working tree includes unreleased mapping contract 2.2 changes. The latest tagged release is `0.6.0`; use the [migration guide](../operations/MIGRATION.md) when adopting the working-tree behavior from a tag.
+Version `0.7.0` includes mapping contract 2.2 changes. Use the [migration guide](../operations/MIGRATION.md) when upgrading from `0.6.0` or earlier.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ The TagLib binary is a dynamic framework. The final app or archive must embed an
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.6.0"
+        from: "0.7.0"
     )
 ]
 ```

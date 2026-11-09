@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe the working tree, including unreleased mapping contract 2.2 behavior; the latest tagged release is `0.6.0`. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe `0.7.0`, including mapping contract 2.2 behavior. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 

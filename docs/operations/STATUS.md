@@ -2,14 +2,14 @@
 
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
 
-The current documentation describes the working tree, including the unreleased package-side `AM-TLAM-MAPPING-2.2` implementation. The latest tagged release remains `0.6.0` (2026-10-25). Results below are the latest observed Debug and Release runs after repairing the field write-capability checks.
+The current documentation describes `0.7.0`, including the package-side `AM-TLAM-MAPPING-2.2` implementation. Results below are the latest observed Debug and Release runs after repairing the field write-capability checks.
 
 ## Latest observed run (2026-11-09)
 
 | Field | Value |
 | --- | --- |
-| Source revision | `a9c5d6f` plus the working-tree `FormatCapability.writeSupport` repair, regression tests, and matching documentation |
-| Branch | `codex/metadata-mapping-spec` |
+| Source revision | `6020eeb`, merged unchanged into `main` as `bca0463`; release preparation changes documentation only |
+| Branch | `main` |
 | Host | macOS 27.2, arm64 |
 | Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
 | Debug command | `swift test --disable-sandbox --disable-keychain --disable-netrc` with workspace-local Clang/Swift module caches |
@@ -29,11 +29,17 @@ The two XCTest skips are the opt-in external corpus and throughput benchmark. `-
 
 Earlier restricted runs failed the privilege test's own precondition because the host stripped setuid/setgid bits after `chmod`. The latest runs used expanded filesystem access and passed the unchanged test; it was not skipped or weakened.
 
-## What was not run in this pass
+## Hosted release-candidate verification
 
-Do not treat this status as evidence for:
+[CI run 42604530085](https://github.com/ChrisLloydME/TagLibAudioMetadata/actions/runs/42604530085) passed on merged revision `bca046343309fdc9f5e7618900a1eb5b67bae418`. All nine executed jobs succeeded: strict build/tests/consumers/link audit, Release tests, AddressSanitizer, ThreadSanitizer, and the five minimum-platform builds (macOS 13 arm64/x86_64, iOS 16 arm64, iOS 16 Simulator arm64/x86_64). The `remote-tag-consumer` job was skipped because this was a branch push; it runs after publishing the tag.
 
-- AddressSanitizer, ThreadSanitizer, minimum-platform builds, iOS runtime, x86_64, or physical-device execution;
+The release-preparation diff contains documentation only and retains the same production source, tests, manifest, and binary dependency. The tag-triggered run remains a separate release gate.
+
+## Remaining verification limits
+
+Do not treat the local or hosted runs above as evidence for:
+
+- minimum-OS runtime, iOS runtime, x86_64 runtime, or physical-device execution;
 - cross-tool fixtures or an independent FFprobe/FFmpeg oracle for the 2.2 mappings;
 - AIFF, raw Opus, or raw AAC independent-date conformance;
 - the MKV native codec, typed `RATE` scale, or a verified media-kind label vocabulary;
