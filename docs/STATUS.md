@@ -15,12 +15,12 @@ This page records the latest known validation state and the limits that remain. 
 | Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
 | Command | `swift test --disable-sandbox --disable-keychain --disable-netrc` with workspace-local Clang/Swift module caches |
 | XCTest | 156 executed: 154 passed, 2 skipped, 0 failed |
-| Swift Testing | 85 tests in 21 suites: 87 passed, 1 environment-dependent failure |
-| Overall | 241 passed, 2 skipped, 1 failed of 244 exercised declarations |
+| Swift Testing | 85 tests in 21 suites: 92 passed, 1 environment-dependent failure |
+| Overall | 243 passed, 2 skipped, 1 failed of 246 exercised declarations |
 | Environment failure | `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition `before.st_mode & 0o7777 == permissions`; the host strips setuid/setgid bits. The test was not skipped, weakened, or hidden. |
 | Baseline comparison | The same failure was the only baseline failure (153 XCTest, 72 Swift Testing) before implementation. No new failure remains. |
 | Build | `swift build --disable-sandbox --disable-keychain --disable-netrc` passed; strict Swift `-warnings-as-errors` build passed |
-| Release test | `swift test -c release` produced the same 156 XCTest / 88 Swift Testing results, including the same privilege-bit environment failure |
+| Release test | `swift test -c release` produced the same 156 XCTest / 93 Swift Testing results, including the same privilege-bit environment failure |
 | Documentation check | `python3 scripts/check-docs.py` passed for 37 Markdown files |
 | Generated checks | `scripts/generate-mapping-registry.py --check` and `scripts/generate-field-schema.py --check` passed |
 | Merge status | Local implementation branch only. No tag, push, PR, merge, release, or binary rebuild was performed. |

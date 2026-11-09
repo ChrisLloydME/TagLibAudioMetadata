@@ -31,6 +31,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Advisory present `0` is distinct from absence and is not lost on unrelated writes; unknown codes such as MP4 `4` are preserved rather than recoded.
 - MP4 store IDs, TV numbers, Boolean atoms, and exclusive text/atom fields read back through their exact native locations.
 - ID3 date writes preserve the existing tag major version and replace frame values instead of appending a second value.
+- Supplying both the deprecated `.date` YEAR spelling and `.year` in one typed patch now rejects before staging with `MetadataPatchValidationError.conflictingYearRepresentations`.
 - Stale summary assertions for MP4 single-date ownership, private-number migration, legacy advisory recoding, and padded MP4 text were replaced with target-contract assertions.
 
 ## [0.6.0] - 2026-10-25
