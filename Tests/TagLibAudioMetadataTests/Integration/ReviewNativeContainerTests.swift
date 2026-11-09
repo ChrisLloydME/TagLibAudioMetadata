@@ -85,7 +85,9 @@ struct ReviewNativeContainerTests {
             #expect(before.items["trkn"]?.count == 1)
             #expect(before.items["disk"]?.count == 1)
             #expect(before.items["covr"]?.first?.range(of: try #require(seed.artworkData)) != nil)
-            #expect(before.items["----"]?.contains { $0.range(of: Data("TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT".utf8)) != nil } == true)
+            #expect(before.items["----"]?.contains {
+                $0.range(of: Data("TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT".utf8)) != nil
+            } != true)
             #expect(!before.audio.isEmpty)
 
             try TagLibMetadataManager.writeStructuredMetadataWithVerification(

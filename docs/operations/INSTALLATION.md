@@ -2,6 +2,8 @@
 
 The package consumes an immutable, checksum-pinned TagLib 2.3.1 dynamic XCFramework. It has no source, static, Homebrew, or system-library fallback.
 
+This page applies to the current working tree and tagged releases alike. The working tree contains unreleased mapping contract 2.2 behavior; the latest tag is `0.6.0`. Use the [migration guide](MIGRATION.md) when comparing behavior across releases.
+
 ## Add the package
 
 Depend on the Swift facade for normal application code. This version range selects the newest compatible tagged release:
@@ -36,7 +38,7 @@ Targets that directly use `TagLibMetadataExtractor` or `TagLibAudioMetadata` mus
 import CTagLibBridge
 ```
 
-The facade does not re-export bridge declarations. See [Bridge reference](BRIDGE.md) for the low-level API and [Compatibility and migration](MIGRATION.md) for the 0.4 to 0.5 product split.
+The facade does not re-export bridge declarations. See [Bridge reference](../reference/BRIDGE.md) for the low-level API and [Compatibility and migration](MIGRATION.md) for the 0.4 to 0.5 product split.
 
 ## Products and modules
 
@@ -136,8 +138,8 @@ The `Binary Release` workflow validates the tag/commit relationship, artifact la
 
 ## Related documents
 
-- [Bridge reference](BRIDGE.md)
+- [Bridge reference](../reference/BRIDGE.md)
 - [Testing and consumers](TESTING.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Compatibility and migration](MIGRATION.md)
-- [Architecture](ARCHITECTURE.md)
+- [Architecture](../explanation/ARCHITECTURE.md)

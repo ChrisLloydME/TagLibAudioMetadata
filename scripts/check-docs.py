@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Structural checks for the repository documentation.
+"""Structural and generated-artifact checks for the repository documentation.
 
-This is intentionally not a prose linter or a Swift API checker. It catches the
+This is intentionally not a prose linter or a Swift compiler. It catches the
 mechanical problems that make documentation hard to maintain:
 
 * broken relative links and heading fragments;
-* markdown table rows without leading/trailing pipes;
+* Markdown table rows without leading/trailing pipes;
 * a changed set of current documents that is not reflected in the hub;
 * links to retired current-document paths;
 * missing top-level headings;
-* stale generated field tables;
+* stale generated reference pages;
 * missing registered format extensions or a stale family/extension count;
-* public manager functions that are not indexed in the API reference.
+* public Swift declarations that are absent from the generated reference;
+* public bridge selectors and constants that are absent from the bridge page.
 
 Run from the repository root or any subdirectory:
 
@@ -32,27 +33,49 @@ ROOT = Path(__file__).resolve().parent.parent
 
 CURRENT_DOCUMENTS = (
     "README.md",
-    "INSTALLATION.md",
-    "USAGE.md",
-    "API_REFERENCE.md",
-    "FIELD_SCHEMA.md",
-    "BRIDGE.md",
-    "FORMATS.md",
-    "PRESERVATION.md",
-    "TRANSACTIONS.md",
-    "AUDIO_CONTENT_CONTINUITY.md",
-    "ARCHITECTURE.md",
-    "TESTING.md",
-    "STATUS.md",
-    "MIGRATION.md",
-    "DEVELOPMENT.md",
-    "THIRD_PARTY_NOTICES.md",
+    "guide/GETTING_STARTED.md",
+    "guide/READING.md",
+    "guide/WRITING.md",
+    "guide/CAPABILITIES.md",
+    "reference/API.md",
+    "reference/MODELS.md",
+    "reference/FIELDS.md",
+    "reference/FORMATS.md",
+    "reference/BRIDGE.md",
+    "reference/MAPPING_SPEC.md",
+    "reference/MAPPING_MATRIX.md",
+    "explanation/ARCHITECTURE.md",
+    "explanation/PRESERVATION.md",
+    "explanation/TRANSACTIONS.md",
+    "explanation/AUDIO_CONTENT_CONTINUITY.md",
+    "operations/INSTALLATION.md",
+    "operations/TESTING.md",
+    "operations/STATUS.md",
+    "operations/DEVELOPMENT.md",
+    "operations/MIGRATION.md",
+    "operations/THIRD_PARTY_NOTICES.md",
 )
 
 RETIRED_PATHS = {
     "docs/SUPPORT.md",
     "docs/THREAD_SAFETY.md",
     "docs/DOCUMENTATION_RESTRUCTURING_REPORT.md",
+    "docs/USAGE.md",
+    "docs/API_REFERENCE.md",
+    "docs/FIELD_SCHEMA.md",
+    "docs/BRIDGE.md",
+    "docs/FORMATS.md",
+    "docs/PRESERVATION.md",
+    "docs/TRANSACTIONS.md",
+    "docs/AUDIO_CONTENT_CONTINUITY.md",
+    "docs/ARCHITECTURE.md",
+    "docs/TESTING.md",
+    "docs/STATUS.md",
+    "docs/MIGRATION.md",
+    "docs/DEVELOPMENT.md",
+    "docs/THIRD_PARTY_NOTICES.md",
+    "docs/INSTALLATION.md",
+    "docs/METADATA_MAPPING_SPEC.md",
 }
 
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
@@ -65,12 +88,7 @@ def markdown_files() -> list[Path]:
         dirs[:] = [d for d in dirs if d not in {".git", ".build", ".swiftpm", ".local"}]
         for name in names:
             if name.endswith(".md"):
-                path = Path(root) / name
-                # Legacy location of the local-only audit; retained as a
-                # defensive skip for working trees created before .local/.
-                if path == ROOT / "AUDIT_REPORT.md":
-                    continue
-                files.append(path)
+                files.append(Path(root) / name)
     return sorted(files)
 
 
@@ -209,25 +227,26 @@ def check_current_documents(errors: list[str]) -> None:
             errors.append(f"docs/README.md: hub does not link to current document {name}")
 
 
-def check_field_schema(errors: list[str]) -> None:
+def run_generator(name: str, errors: list[str]) -> None:
     result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts/generate-field-schema.py"), "--check"],
+        [sys.executable, str(ROOT / "scripts" / name), "--check"],
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
-        errors.append(f"docs/FIELD_SCHEMA.md: generated tables are stale: {detail}")
-    source = (ROOT / "Sources/TagLibAudioMetadata/MetadataFieldSchema.swift").read_text(encoding="utf-8")
-    key_block = source.split("public enum MetadataFieldKey", 1)[1].split("public struct MetadataFieldSchema", 1)[0]
-    key_count = len(re.findall(r"^    case \w+$", key_block, re.MULTILINE))
-    field_schema = (ROOT / "docs/FIELD_SCHEMA.md").read_text(encoding="utf-8")
-    reference = (ROOT / "docs/API_REFERENCE.md").read_text(encoding="utf-8")
-    if f"{key_count} fields" not in field_schema:
-        errors.append(f"docs/FIELD_SCHEMA.md: field count does not match MetadataFieldKey ({key_count})")
-    if f"{key_count} cases" not in reference:
-        errors.append(f"docs/API_REFERENCE.md: MetadataFieldKey case count does not match source ({key_count})")
+        errors.append(f"{name} --check failed: {detail}")
+
+
+def check_generated_pages(errors: list[str]) -> None:
+    for generator in (
+        "generate-api-reference.py",
+        "generate-field-schema.py",
+        "generate-format-matrix.py",
+        "generate-mapping-matrix.py",
+    ):
+        run_generator(generator, errors)
 
 
 def parse_format_registry(errors: list[str]) -> tuple[list[tuple[str, list[str]]], int]:
@@ -235,7 +254,9 @@ def parse_format_registry(errors: list[str]) -> tuple[list[tuple[str, list[str]]
     extension_map: dict[str, list[str]] = {}
     for name, body in re.findall(r"const char \*?(k\w+Extensions)\[\] = \{([^}]*)\};", source):
         extension_map[name] = re.findall(r'"([^"]+)"', body)
-    fields = source.split("const TLFormatCapabilityDescriptor kDescriptors[] = {", 1)[1].split("};", 1)[0]
+    fields = source.split("const TLFormatCapabilityDescriptor kDescriptors[] = {", 1)[1].split(
+        "};", 1
+    )[0]
     families: list[tuple[str, list[str]]] = []
     for line in fields.splitlines():
         line = line.strip()
@@ -249,27 +270,30 @@ def parse_format_registry(errors: list[str]) -> tuple[list[tuple[str, list[str]]
             errors.append(f"TLFormatRegistry.mm: unknown extension table {extension_key}")
             continue
         families.append((tokens[1].strip('"'), extension_map[extension_key]))
-    extension_count = sum(len(extensions) for _, extensions in families)
-    return families, extension_count
+    return families, sum(len(extensions) for _, extensions in families)
 
 
 def check_formats(errors: list[str]) -> None:
     families, extension_count = parse_format_registry(errors)
-    text = (ROOT / "docs/FORMATS.md").read_text(encoding="utf-8")
+    formats = (ROOT / "docs/reference/FORMATS.md").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     expected_count = f"{len(families)} families and {extension_count} extensions"
-    if expected_count not in text:
-        errors.append(f"docs/FORMATS.md: missing registry count '{expected_count}'")
+    if expected_count not in formats:
+        errors.append(f"docs/reference/FORMATS.md: missing registry count '{expected_count}'")
     if expected_count not in readme:
         errors.append(f"README.md: missing registry count '{expected_count}'")
     for _, extensions in families:
         for extension in extensions:
-            if f"`{extension}`" not in text:
-                errors.append(f"docs/FORMATS.md: registered extension '{extension}' is not listed")
+            if f"`{extension}`" not in formats:
+                errors.append(
+                    f"docs/reference/FORMATS.md: registered extension '{extension}' is not listed"
+                )
 
 
 def check_public_api_index(errors: list[str]) -> None:
-    reference = (ROOT / "docs/API_REFERENCE.md").read_text(encoding="utf-8")
+    api = (ROOT / "docs/reference/API.md").read_text(encoding="utf-8")
+    models = (ROOT / "docs/reference/MODELS.md").read_text(encoding="utf-8")
+    declarations = api + "\n" + models
     names: set[str] = set()
     types: set[str] = set()
     for path in (ROOT / "Sources/TagLibAudioMetadata").glob("*.swift"):
@@ -279,17 +303,48 @@ def check_public_api_index(errors: list[str]) -> None:
         for match in re.finditer(r"public\s+(?:final\s+)?(?:struct|enum|class)\s+(\w+)", source):
             types.add(match.group(1))
     for name in sorted(names):
-        if f"`{name}" not in reference and f"{name}(" not in reference:
-            errors.append(f"docs/API_REFERENCE.md: public manager function '{name}' is not indexed")
+        if f"`{name}" not in declarations and f"{name}(" not in declarations:
+            errors.append(f"docs/reference/API.md: public manager function '{name}' is not indexed")
     for name in sorted(types):
-        if name not in reference:
-            errors.append(f"docs/API_REFERENCE.md: public type '{name}' is not indexed")
+        if f"`{name}`" not in declarations:
+            errors.append(f"docs/reference/MODELS.md: public type '{name}' is not indexed")
 
+
+def check_bridge_index(errors: list[str]) -> None:
+    header = (ROOT / "Sources/CTagLibBridge/include/TagLibMetadataExtractor.h").read_text(
+        encoding="utf-8"
+    )
+    bridge = (ROOT / "docs/reference/BRIDGE.md").read_text(encoding="utf-8")
+    for match in re.finditer(
+        r"\+\s*\([^)]*\)\s*(\w+)((?:\s*:\s*\([^)]*\)\s*\w+)*)", header
+    ):
+        name = match.group(1)
+        if name not in bridge:
+            errors.append(f"docs/reference/BRIDGE.md: bridge selector '{name}' is not indexed")
+    for match in re.finditer(r"NS_SWIFT_NAME\(([^)]*)\)", header):
+        name = match.group(1).split("(")[0].rstrip(":")
+        if name and name not in bridge:
+            errors.append(f"docs/reference/BRIDGE.md: Swift bridge name '{name}' is not indexed")
+    for block in re.finditer(
+        r"typedef\s+NS_(?:ENUM|OPTIONS)\([^)]*\)\s*\{([^}]*)\}\s*(\w+);",
+        header,
+        re.S,
+    ):
+        body, type_name = block.groups()
+        if type_name not in bridge:
+            errors.append(f"docs/reference/BRIDGE.md: bridge type '{type_name}' is not indexed")
+        for case_name in re.findall(r"(\w+)\s*=", body):
+            if case_name not in bridge:
+                errors.append(
+                    f"docs/reference/BRIDGE.md: bridge constant '{case_name}' is not indexed"
+                )
+    for name in re.findall(r"FOUNDATION_EXPORT\s+NSErrorDomain\s+const\s+(\w+)", header):
+        if name not in bridge:
+            errors.append(f"docs/reference/BRIDGE.md: bridge constant '{name}' is not indexed")
 
 def check_retired_paths(errors: list[str]) -> None:
     # Retired paths are rejected when they appear as Markdown link targets in
-    # check_links(). Prose mentions are allowed in historical records and the
-    # changelog, where they are legitimate historical coordinates.
+    # check_links(). Prose mentions stay legal in historical records.
     return
 
 
@@ -304,9 +359,10 @@ def main() -> int:
         check_tables(path, errors)
         check_headings(path, errors)
     check_current_documents(errors)
-    check_field_schema(errors)
+    check_generated_pages(errors)
     check_formats(errors)
     check_public_api_index(errors)
+    check_bridge_index(errors)
     check_retired_paths(errors)
 
     if errors:

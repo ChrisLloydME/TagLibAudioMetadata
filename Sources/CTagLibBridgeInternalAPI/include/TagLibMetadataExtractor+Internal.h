@@ -27,6 +27,11 @@ NS_SWIFT_NAME(writeRawPropertyMapInPlace(_:to:));
                                   toURL:(NSURL *)fileURL
                                   error:(NSError *_Nullable *_Nullable)error
 NS_SWIFT_NAME(writeRawPropertyMapValuesInPlace(_:to:));
++ (BOOL)applyNativeTextKeyValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
+                          removingKeys:(NSArray<NSString *> *)keysToRemove
+                                 toURL:(NSURL *)fileURL
+                                 error:(NSError **)error
+NS_SWIFT_NAME(applyNativeTextKeyValuesInPlace(_:removingKeys:to:));
 + (BOOL)applyPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
                          removingKeys:(NSArray<NSString *> *)keysToRemove
                                 toURL:(NSURL *)fileURL

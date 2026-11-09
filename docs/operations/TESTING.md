@@ -9,14 +9,14 @@ The single SwiftPM test target is organized physically by layer:
 | Directory | Coverage |
 | --- | --- |
 | `Capabilities/` | Public capability model, field-level support, and cross-language schema consistency. |
-| `Integration/` | Real-fixture round trips, container projections, native parsers, artwork, dates, numbers, and raw metadata. |
+| `Integration/` | Real-fixture round trips, container projections, native parsers, artwork, dates, numbers, legacy numbering recovery, MP4-exclusive fields, and raw metadata. |
 | `Transactions/` | Stale versions, failure atomicity, preservation, same-entry coordination, privilege rejection, and audio-content identity. |
 | `Concurrency/` | Cross-format reads/writes, M4A stress, and same-file contention. |
 | `ModelSemantics/` | Pure value-model contracts. |
 | `Performance/` | Opt-in, non-gating throughput experiments. |
 | Root-level tests | Public Objective-C selectors, Swift nested types, deprecated function references, and no unsolicited console output. |
 
-The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
+The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision. The 2.2 mapping work adds `LegacyNumberingRecoveryTests` and `MP4ExclusiveFieldTests`, and extends the capability, date, advisory, and preservation fixtures. The latest observed counts and the environment-dependent privilege failure are in [Status](STATUS.md).
 
 ## Standard commands
 
@@ -74,6 +74,25 @@ swift run --disable-keychain --disable-netrc \
 ```
 
 The facade consumer uses only the public product. The low-level consumer explicitly imports `CTagLibBridge`. Neither consumer proves an embedding application's signing or rpath configuration.
+
+## Documentation checks
+
+The documentation pipeline is separate from the build and runs before tests in CI:
+
+```sh
+python3 scripts/check-docs.py
+```
+
+`check-docs.py` validates links, headings, tables, current-document coverage, bridge selector coverage, and freshness of every generated reference page. Regenerate a stale page with:
+
+```sh
+python3 scripts/generate-api-reference.py --write
+python3 scripts/generate-field-schema.py --write
+python3 scripts/generate-format-matrix.py --write
+python3 scripts/generate-mapping-matrix.py --write
+```
+
+The generators read Swift and Objective-C++ source; no Markdown is converted into production code. Do not hand-edit generated sections between their markers.
 
 ## Opt-in checks
 
@@ -154,4 +173,8 @@ When a test uses the package reader as both writer and expected-value source, th
 
 ## Reporting a verification result
 
-Record the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not report a compile-only check as runtime verification. Put campaign narratives in [engineering records](records/README.md) and update [Status](STATUS.md) only when the latest known state changes. See [Record conventions](records/CONVENTIONS.md) for the record format.
+Record the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not report a compile-only check as runtime verification. Put campaign narratives in [engineering records](../records/README.md) and update [Status](STATUS.md) only when the latest known state changes. See [Record conventions](../records/CONVENTIONS.md) for the record format.
+
+## Numbering acceptance regressions
+
+`IndependentAcceptanceProbes` retains the eight originally failing acceptance cases. `NumberingRepairRegressionTests` adds cross-format native cleanup, both private namespaces and foreign lookalikes, explicit legacy resolution, native absence/removal, malformed multi-value rejection, empty-group byte preservation, MP4 bounds and formatted orphan-total preservation. Repairs and exact observed results are in the [numbering acceptance repair record](../records/remediation/REM-2026-11-09-numbering-acceptance-repairs.md). These suites use temporary fixture copies; they do not operate on a user library.

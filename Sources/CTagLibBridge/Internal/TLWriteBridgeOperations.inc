@@ -95,12 +95,6 @@
             tag->setGenre(NSStringToTagString(metadata.genre));
             tag->setComment(NSStringToTagString(metadata.comment));
 
-            if (metadata.year.length > 0) {
-                tag->setYear(ValidatedBasicYearValue(metadata.year));
-            } else {
-                tag->setYear(0);
-            }
-
             if (metadata.trackNumber > 0) {
                 tag->setTrack((unsigned int)metadata.trackNumber);
             } else {
@@ -112,6 +106,21 @@
             if (id3v2Tag) {
                 ApplyWritableTextMappingsToID3v2Tag(id3v2Tag, metadata);
                 SetID3v2LyricsFrame(id3v2Tag, metadata.lyrics);
+                // YEAR is exact text in the version-appropriate frame; DATE is
+                // the independent TDAT / TXXX(DATE) identity.
+                SetVersionedID3v2TextFrames(
+                    id3v2Tag,
+                    metadata.year,
+                    @"TYER",
+                    @"TDRC"
+                );
+                SetVersionedID3v2TextFrames(
+                    id3v2Tag,
+                    metadata.standaloneDate,
+                    @"TDAT",
+                    nil,
+                    @"DATE"
+                );
 
                 NSString *trackString = BuildNumberTextPreservingFormatting(
                     metadata.trackNumberText,
@@ -133,7 +142,10 @@
                 // as well produces duplicate year/date representations.
 
                 // Explicit advisory (absent = unspecified, 1 = explicit, 2 = clean).
-                ApplyCanonicalID3v2Advisory(id3v2Tag, metadata.explicitAdvisory);
+                if (!(metadata.explicitAdvisory == TagLibExplicitAdvisoryUnspecified &&
+                      TrimmedStringOrNil(metadata.explicitAdvisoryRawValue))) {
+                    ApplyCanonicalID3v2Advisory(id3v2Tag, metadata.explicitAdvisory);
+                }
                 ApplyCustomFieldsToID3v2Tag(id3v2Tag, metadata.customFields);
 
                 if (!ApplyPictureComplexProperties(id3v2Tag,
@@ -154,7 +166,7 @@
             // lossy duplicate of multi-value ID3v2 fields.
             if (!mpegFile.save(TagLib::MPEG::File::ID3v2,
                                TagLib::File::StripNone,
-                               TagLib::ID3v2::v4,
+                               ID3v2SaveVersion(id3v2Tag),
                                TagLib::File::DoNotDuplicate)) {
                 if (error) {
                     *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -189,32 +201,6 @@
             return NO;
         }
 
-        const bool hadNeutralTrackNumberFormatting =
-            tag->itemMap().contains(kTagLibAudioMetadataMP4TrackNumberTextKey);
-        const bool hadLegacyTrackNumberFormatting =
-            tag->itemMap().contains(kLegacyAudioMatorMP4TrackNumberTextKey);
-        const bool hadNeutralDiscNumberFormatting =
-            tag->itemMap().contains(kTagLibAudioMetadataMP4DiscNumberTextKey);
-        const bool hadLegacyDiscNumberFormatting =
-            tag->itemMap().contains(kLegacyAudioMatorMP4DiscNumberTextKey);
-        const bool hadTrackNumberFormatting = hadNeutralTrackNumberFormatting || hadLegacyTrackNumberFormatting;
-        const bool hadDiscNumberFormatting = hadNeutralDiscNumberFormatting || hadLegacyDiscNumberFormatting;
-        NSString *existingTrackNumberFormatting = hadTrackNumberFormatting
-            ? MP4TextItemValue(
-                tag->itemMap(),
-                hadNeutralTrackNumberFormatting
-                    ? kTagLibAudioMetadataMP4TrackNumberTextKey
-                    : kLegacyAudioMatorMP4TrackNumberTextKey
-            )
-            : nil;
-        NSString *existingDiscNumberFormatting = hadDiscNumberFormatting
-            ? MP4TextItemValue(
-                tag->itemMap(),
-                hadNeutralDiscNumberFormatting
-                    ? kTagLibAudioMetadataMP4DiscNumberTextKey
-                    : kLegacyAudioMatorMP4DiscNumberTextKey
-            )
-            : nil;
         const TagLib::MP4::Item::IntPair originalTrackPair = tag->itemMap().contains("trkn")
             ? tag->itemMap()["trkn"].toIntPair()
             : TagLib::MP4::Item::IntPair(0, 0);
@@ -234,11 +220,9 @@
         tag->setGenre(NSStringToTagString(metadata.genre));
         tag->setComment(NSStringToTagString(metadata.comment));
 
-        if (metadata.year.length > 0) {
-            tag->setYear(ValidatedBasicYearValue(metadata.year));
-        } else {
-            tag->setYear(0);
-        }
+        // YEAR is stored as complete text in ©day. Never truncate it to a
+        // four-character year or derive it from another date field.
+        SetMP4TextItem(tag, "\xA9" "day", metadata.year);
 
         if (metadata.trackNumber > 0) {
             tag->setTrack((unsigned int)metadata.trackNumber);
@@ -250,31 +234,15 @@
         // names so new formats and editor UIs can share the same mapping vocabulary.
         ApplyWritableTextMappingsToMP4Tag(tag, metadata);
         SetMP4TextItem(tag, "\xA9" "lyr", metadata.lyrics);
-
-        if (hadTrackNumberFormatting && trackPairChanged) {
-            SetMP4TextItem(tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
-            SetMP4TextItem(
-                tag,
-                kTagLibAudioMetadataMP4TrackNumberTextKey,
-                BuildSynchronizedNumberTextPreservingFormatting(
-                    existingTrackNumberFormatting,
-                    metadata.trackNumber,
-                    metadata.totalTracks
-                )
-            );
-        }
-        if (hadDiscNumberFormatting && discPairChanged) {
-            SetMP4TextItem(tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
-            SetMP4TextItem(
-                tag,
-                kTagLibAudioMetadataMP4DiscNumberTextKey,
-                BuildSynchronizedNumberTextPreservingFormatting(
-                    existingDiscNumberFormatting,
-                    metadata.discNumber,
-                    metadata.totalDiscs
-                )
-            );
-        }
+        SetMP4TextItem(tag, "----:com.apple.iTunes:DATE", metadata.standaloneDate);
+        SetMP4TextItem(tag, "----:com.apple.iTunes:RELEASEDATE", metadata.releaseDate);
+        SetMP4TextItem(tag, "----:com.apple.iTunes:ORIGINALDATE", metadata.originalReleaseDate);
+        SetMP4UnsignedDecimalItem(tag, "plID", metadata.itunesAlbumId);
+        SetMP4UnsignedDecimalItem(tag, "atID", metadata.itunesArtistId);
+        SetMP4UnsignedDecimalItem(tag, "cnID", metadata.itunesCatalogId);
+        SetMP4UnsignedDecimalItem(tag, "geID", metadata.itunesGenreId);
+        SetMP4UnsignedDecimalItem(tag, "stik", metadata.itunesMediaType);
+        SetMP4TextItem(tag, "purd", metadata.itunesPurchaseDate);
 
         SetMP4IntPairItem(tag, "trkn", metadata.trackNumber, metadata.totalTracks);
         SetMP4IntPairItem(tag, "disk", metadata.discNumber, metadata.totalDiscs);
@@ -290,9 +258,19 @@
         }
 
         ApplyCustomFieldsToMP4Tag(tag, metadata.customFields);
-        // Keep Basic and Patch writes canonical: rtng is authoritative and all
-        // explicitly recognized legacy/freeform aliases are removed.
-        ApplyCanonicalMP4Advisory(tag, metadata.explicitAdvisory);
+        // Keep Basic writes canonical, but never recode an unknown historic
+        // code during an unrelated save.
+        if (metadata.explicitAdvisory == TagLibExplicitAdvisoryUnspecified &&
+            TrimmedStringOrNil(metadata.explicitAdvisoryRawValue)) {
+            unsigned long long rawAdvisory = 0;
+            if (ParseUnsignedDecimalString(metadata.explicitAdvisoryRawValue,
+                                           std::numeric_limits<unsigned int>::max(),
+                                           rawAdvisory)) {
+                tag->setItem("rtng", TagLib::MP4::Item((unsigned int)rawAdvisory));
+            }
+        } else {
+            ApplyCanonicalMP4Advisory(tag, metadata.explicitAdvisory);
+        }
 
         if (!ApplyPictureComplexProperties(tag,
                                            metadata,

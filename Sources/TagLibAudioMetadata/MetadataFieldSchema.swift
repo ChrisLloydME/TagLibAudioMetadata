@@ -29,6 +29,7 @@ public enum MetadataFieldFormat: String, CaseIterable, Hashable, Sendable {
     case xiph
     case ape
     case asf
+    case riffInfo
     case flac
     /// Reserved for a future Matroska family; no family is registered.
     case matroska
@@ -42,6 +43,7 @@ public enum MetadataFieldStorageKind: String, Hashable, Sendable {
     case mp4Atom
     case mp4Freeform
     case complexProperty
+    case extensionFrame
     case binary
     /// Reserved for future pattern-based fields; no schema currently uses it.
     case pattern
@@ -89,6 +91,8 @@ public enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
     case album
     case albumArtist
     case date
+    case year
+    case standaloneDate
     case releaseDate
     case originalReleaseDate
     case track
@@ -127,6 +131,8 @@ public enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
     case discSubtitle
     case subtitle
     case grouping
+    case contentGroup
+    case artists
     case mood
     case language
     case musicalKey
@@ -150,6 +156,8 @@ public enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
     case musicIPPUID
     case replayGainTrackGain
     case replayGainAlbumGain
+    case replayGainTrackPeak
+    case replayGainAlbumPeak
     case itunesAlbumID
     case itunesArtistID
     case itunesCatalogID
@@ -162,6 +170,25 @@ public enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
     case originalArtist
     case artistType
     case trackerName
+
+    // MP4-exclusive registrations from AM-TLAM-MAPPING-2.2 section 8.1.
+    case director
+    case itunesAccount
+    case itunesComposerID
+    case itunesCountryID
+    case itunesGapless
+    case itunesHDVideo
+    case itunesOwner
+    case rate
+    case showMovement
+    case storeDescription
+    case tvEpisode
+    case tvEpisodeID
+    case tvNetwork
+    case tvSeason
+    case tvShow
+    case tvShowSort
+
     case custom
 }
 
@@ -170,19 +197,47 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     public var key: MetadataFieldKey
     public var displayName: String
     public var category: MetadataFieldCategory
+    /// Stable semantic identity shared by presentation aliases. It is not the
+    /// engine PropertyMap key and may differ from the Swift case spelling.
+    public var semanticKey: String
+    /// Display/import and engine PropertyMap aliases. Presentation names do
+    /// not create additional stored fields.
     public var propertyMapKeys: [String]
-    public var mappings: [MetadataFormatMapping]
+    /// Explicit native read/write targets from the mapping catalog.
+    public var nativeTargets: [MetadataNativeTarget]
+    /// Exactly one schema owns a semantic key for canonical enumeration.
+    public var isCanonicalSemanticOwner: Bool
+    /// The legacy `.date` spelling addresses the YEAR slot; it is not a
+    /// standalone DATE identity.
+    public var isLegacyYearAlias: Bool
     public var isMultiValue: Bool
     public var isPeopleField: Bool
     public var isRoleQualified: Bool
     public var isArtworkField: Bool
+    /// A concrete reason typed writes are withheld despite readable targets.
+    public var writeUnsupportedReason: String?
+    public var mappingContractVersion: String
+
+    /// A compatibility projection of the native target table in the older
+    /// format-mapping vocabulary. It is derived, never hand-maintained, so the
+    /// two views cannot drift.
+    public var mappings: [MetadataFormatMapping] {
+        MetadataFieldSchema.formatMappings(
+            for: nativeTargets,
+            propertyKeys: propertyMapKeys,
+            isArtworkField: isArtworkField
+        )
+    }
 
     /// Value representations accepted by the high-level typed patch API.
     public var acceptedPatchValueKinds: Set<MetadataPatchValueKind> {
         switch key {
-        case .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount, .bpm:
+        case .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount, .bpm,
+             .itunesAlbumID, .itunesArtistID, .itunesCatalogID, .itunesGenreID,
+             .itunesComposerID, .itunesCountryID, .itunesMediaType, .rate,
+             .tvEpisode, .tvSeason:
             [.integer]
-        case .compilation:
+        case .compilation, .itunesGapless, .itunesHDVideo, .showMovement:
             [.boolean]
         case .artwork, .explicitContent, .custom:
             []
@@ -192,10 +247,20 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     }
 
     /// Numeric limits shared with the Objective-C++ bridge's integer validation.
+    /// MP4 pair components have narrower native limits; the planner applies
+    /// those per destination family.
     public var integerConstraint: MetadataIntegerConstraint? {
         switch key {
         case .track, .trackTotal, .disc, .discTotal:
             MetadataIntegerConstraint(minimum: 1, maximum: Int(Int32.max))
+        case .itunesAlbumID, .itunesArtistID, .itunesCatalogID, .itunesGenreID,
+             .itunesComposerID, .itunesCountryID,
+             .tvEpisode, .tvSeason:
+            MetadataIntegerConstraint(minimum: 0, maximum: Int(UInt32.max))
+        case .itunesMediaType:
+            MetadataIntegerConstraint(minimum: 0, maximum: 255)
+        case .rate:
+            MetadataIntegerConstraint(minimum: 0, maximum: Int(Int32.max))
         case .movementNumber, .movementCount, .bpm:
             MetadataIntegerConstraint(minimum: 0, maximum: Int(Int32.max))
         default:
@@ -207,32 +272,149 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         key: MetadataFieldKey,
         displayName: String,
         category: MetadataFieldCategory,
+        semanticKey: String,
         propertyMapKeys: [String],
-        mappings: [MetadataFormatMapping] = [],
+        nativeTargets: [MetadataNativeTarget] = [],
+        isCanonicalSemanticOwner: Bool = true,
+        isLegacyYearAlias: Bool = false,
         isMultiValue: Bool = false,
         isPeopleField: Bool = false,
         isRoleQualified: Bool = false,
-        isArtworkField: Bool = false
+        isArtworkField: Bool = false,
+        writeUnsupportedReason: String? = nil,
+        mappingContractVersion: String = MetadataMappingCatalog.contractVersion
     ) {
         self.key = key
         self.displayName = displayName
         self.category = category
+        self.semanticKey = semanticKey
         self.propertyMapKeys = propertyMapKeys
-        self.mappings = mappings
+        self.nativeTargets = nativeTargets
+        self.isCanonicalSemanticOwner = isCanonicalSemanticOwner
+        self.isLegacyYearAlias = isLegacyYearAlias
         self.isMultiValue = isMultiValue
         self.isPeopleField = isPeopleField
         self.isRoleQualified = isRoleQualified
         self.isArtworkField = isArtworkField
+        self.writeUnsupportedReason = writeUnsupportedReason
+        self.mappingContractVersion = mappingContractVersion
+    }
+
+    public func targets(for family: MetadataNativeFamily) -> [MetadataNativeTarget] {
+        nativeTargets.filter { $0.family == family }
+    }
+
+    /// The single preferred write location for a family. Components of one
+    /// numeric pair intentionally share a native slot; their semantic keys
+    /// differ and the patch planner resolves both together.
+    public func writeTarget(for family: MetadataNativeFamily) -> MetadataNativeTarget? {
+        nativeTargets.first { $0.family == family && $0.preferredWrite }
+    }
+
+    public func capability(for family: MetadataNativeFamily) -> MetadataMappingCapability {
+        MetadataTargetProfile(
+            semanticKey: semanticKey,
+            shape: MetadataValueShape(rawValue: nativeTargets.first?.shape.rawValue ?? "text") ?? .text,
+            targets: nativeTargets,
+            writeUnsupportedReason: writeUnsupportedReason
+        ).capability(for: family)
+    }
+
+    public func capability(for format: MetadataFieldFormat) -> MetadataMappingCapability {
+        let families: [MetadataNativeFamily] = switch format {
+        case .id3v2: [.id3v23, .id3v24]
+        case .mp4: [.mp4]
+        case .xiph: [.vorbisComment]
+        case .ape: [.apev2]
+        case .asf: [.asf]
+        case .riffInfo: [.riffInfo]
+        case .matroska: [.matroska]
+        case .flac: [.vorbisComment]
+        case .tagLibPropertyMap: []
+        }
+        let states = families.map { capability(for: $0) }
+        if states.contains(.native) { return .native }
+        if states.contains(.conventionalExtension) { return .conventionalExtension }
+        if states.contains(.ambiguous) { return .ambiguous }
+        if states.contains(.readOnly) { return .readOnly }
+        return .unsupported
+    }
+
+    public var aggregateCapability: MetadataMappingCapability {
+        let states = MetadataNativeFamily.allCases.map { capability(for: $0) }
+        if states.contains(.native) { return .native }
+        if states.contains(.conventionalExtension) { return .conventionalExtension }
+        if states.contains(.readOnly) { return .readOnly }
+        return .unsupported
+    }
+
+    private static func formatMappings(
+        for targets: [MetadataNativeTarget],
+        propertyKeys: [String],
+        isArtworkField: Bool
+    ) -> [MetadataFormatMapping] {
+        var result: [MetadataFormatMapping] = []
+        if !propertyKeys.isEmpty {
+            result.append(.init(format: .tagLibPropertyMap, storageKind: .propertyMap, keys: propertyKeys))
+        }
+        var seen = Set<MetadataFormatMapping>()
+        for target in targets {
+            let mapping: MetadataFormatMapping? = switch target.family {
+            case .id3v23, .id3v24:
+                switch target.storage {
+                case .userTextFrame:
+                    .init(format: .id3v2, storageKind: .userTextFrame, keys: [target.nativeIdentity])
+                case .extensionFrame:
+                    .init(format: .id3v2, storageKind: .extensionFrame, keys: [target.nativeIdentity])
+                case .binaryFrame:
+                    .init(format: .id3v2, storageKind: .binary, keys: [target.nativeIdentity])
+                case .identifierFrame:
+                    .init(format: .id3v2, storageKind: .binary, keys: ["UFID"])
+                default:
+                    .init(format: .id3v2, storageKind: .textFrame, keys: [target.nativeIdentity])
+                }
+            case .mp4:
+                switch target.storage {
+                case .mp4Freeform:
+                    .init(format: .mp4, storageKind: .mp4Freeform,
+                          keys: ["----:com.apple.iTunes:\(target.nativeIdentity)"])
+                case .binaryFrame:
+                    .init(format: .mp4, storageKind: .binary, keys: [target.nativeIdentity])
+                default:
+                    .init(format: .mp4, storageKind: .mp4Atom, keys: [target.nativeIdentity])
+                }
+            case .vorbisComment:
+                .init(format: .xiph, storageKind: .propertyMap, keys: [target.nativeIdentity])
+            case .apev2:
+                .init(format: .ape, storageKind: .propertyMap, keys: [target.nativeIdentity])
+            case .asf:
+                .init(format: .asf, storageKind: .propertyMap, keys: [target.nativeIdentity])
+            case .riffInfo:
+                .init(format: .riffInfo, storageKind: .textFrame, keys: [target.nativeIdentity])
+            case .matroska:
+                .init(format: .matroska, storageKind: .nativeTag, keys: [target.nativeIdentity])
+            }
+            if let mapping, seen.insert(mapping).inserted {
+                result.append(mapping)
+            }
+        }
+        if isArtworkField, !result.contains(where: { $0.format == .flac }) {
+            result.append(.init(format: .flac, storageKind: .complexProperty, keys: ["PICTURE"]))
+        }
+        return result
     }
 }
 
 public enum MetadataFieldRegistry {
     public nonisolated static let allSchemas: [MetadataFieldSchema] = [
         schema(.title, "Title", .basic, ["TITLE"], id3: ["TIT2"], mp4: ["\u{00A9}nam"]),
-        schema(.artist, "Artist", .people, ["ARTIST", "ARTISTS"], id3: ["TPE1"], mp4: ["\u{00A9}ART"], multi: true, people: true),
+        schema(.artist, "Artist", .people, ["ARTIST"], id3: ["TPE1"], mp4: ["\u{00A9}ART"], multi: true, people: true),
         schema(.album, "Album", .basic, ["ALBUM"], id3: ["TALB"], mp4: ["\u{00A9}alb"]),
         schema(.albumArtist, "Album Artist", .people, ["ALBUMARTIST", "ALBUM ARTIST"], id3: ["TPE2"], mp4: ["aART"], multi: true, people: true),
-        schema(.date, "Recording Date", .dates, ["DATE", "YEAR"], id3: ["TDRC", "TYER"]),
+        schema(.date, "Recording Date (legacy YEAR spelling)", .dates, ["DATE", "YEAR"], semantic: "YEAR",
+               id3: ["TDRC", "TYER"], legacyYearAlias: true),
+        schema(.year, "Year", .dates, ["YEAR", "DATE"], semantic: "YEAR"),
+        schema(.standaloneDate, "Date", .dates, ["STANDALONEDATE"], semantic: "DATE"),
         schema(.releaseDate, "Release Date", .dates, ["RELEASEDATE"], id3: ["TDRL"], mp4: ["\u{00A9}day"]),
         schema(.originalReleaseDate, "Original Release Date", .dates, ["ORIGINALDATE", "ORIGINAL YEAR"], id3: ["TDOR"], mp4Freeform: ["ORIGINAL YEAR"]),
         schema(.track, "Track Number", .numbering, ["TRACKNUMBER", "TRACK"], id3: ["TRCK"], mp4: ["trkn"]),
@@ -243,15 +425,9 @@ public enum MetadataFieldRegistry {
             key: .artwork,
             displayName: "Artwork",
             category: .artwork,
+            semanticKey: "PICTURE",
             propertyMapKeys: ["PICTURE"],
-            mappings: [
-                .init(format: .id3v2, storageKind: .binary, keys: ["APIC"]),
-                .init(format: .mp4, storageKind: .binary, keys: ["covr"]),
-                .init(format: .flac, storageKind: .complexProperty, keys: ["PICTURE"]),
-                .init(format: .xiph, storageKind: .complexProperty, keys: ["PICTURE"]),
-                .init(format: .ape, storageKind: .complexProperty, keys: ["PICTURE"]),
-                .init(format: .asf, storageKind: .complexProperty, keys: ["PICTURE", "WM/Picture"]),
-            ],
+            nativeTargets: MetadataMappingCatalog.profile(forSemanticKey: "PICTURE")?.targets ?? [],
             isArtworkField: true
         ),
         schema(.lyrics, "Lyrics", .lyricsAndComments, ["LYRICS"], id3: ["USLT"], mp4: ["\u{00A9}lyr"]),
@@ -284,7 +460,9 @@ public enum MetadataFieldRegistry {
         schema(.movementCount, "Movement Count", .numbering, ["MOVEMENTCOUNT"], id3: ["MVIN"], mp4Freeform: ["MOVEMENTCOUNT"]),
         schema(.discSubtitle, "Disc Subtitle", .basic, ["DISCSUBTITLE"], id3: ["TSST"], mp4Freeform: ["DISCSUBTITLE"]),
         schema(.subtitle, "Subtitle", .basic, ["SUBTITLE"], id3: ["TIT3"], mp4Freeform: ["SUBTITLE"]),
-        schema(.grouping, "Grouping", .basic, ["GROUPING"], id3: ["TIT1"], mp4: ["\u{00A9}grp"], multi: true),
+        schema(.grouping, "Grouping", .basic, ["GROUPING"], multi: true),
+        schema(.contentGroup, "Content Group", .basic, ["CONTENTGROUP"]),
+        schema(.artists, "Artists", .people, ["ARTISTS"], multi: true, people: true),
         schema(.mood, "Mood", .basic, ["MOOD"], id3: ["TMOO"], mp4Freeform: ["MOOD"], multi: true),
         schema(.language, "Language", .basic, ["LANGUAGE"], id3: ["TLAN"], mp4Freeform: ["LANGUAGE"], multi: true),
         schema(.musicalKey, "Musical Key", .basic, ["INITIALKEY", "KEY"], id3: ["TKEY"], mp4Freeform: ["INITIALKEY"]),
@@ -308,6 +486,8 @@ public enum MetadataFieldRegistry {
         schema(.musicIPPUID, "MusicIP PUID", .identifiers, ["MUSICIP_PUID", "MUSICIP PUID"], id3User: ["MusicIP PUID"], mp4Freeform: ["MusicIP PUID"]),
         schema(.replayGainTrackGain, "ReplayGain Track Gain", .replayGain, ["REPLAYGAIN_TRACK_GAIN"], id3User: ["REPLAYGAIN_TRACK_GAIN"], mp4Freeform: ["REPLAYGAIN_TRACK_GAIN"]),
         schema(.replayGainAlbumGain, "ReplayGain Album Gain", .replayGain, ["REPLAYGAIN_ALBUM_GAIN"], id3User: ["REPLAYGAIN_ALBUM_GAIN"], mp4Freeform: ["REPLAYGAIN_ALBUM_GAIN"]),
+        schema(.replayGainTrackPeak, "ReplayGain Track Peak", .replayGain, ["REPLAYGAIN_TRACK_PEAK"], id3User: ["REPLAYGAIN_TRACK_PEAK"], mp4Freeform: ["REPLAYGAIN_TRACK_PEAK"]),
+        schema(.replayGainAlbumPeak, "ReplayGain Album Peak", .replayGain, ["REPLAYGAIN_ALBUM_PEAK"], id3User: ["REPLAYGAIN_ALBUM_PEAK"], mp4Freeform: ["REPLAYGAIN_ALBUM_PEAK"]),
         schema(.itunesAlbumID, "iTunes Album ID", .itunes, ["ITUNESALBUMID"], id3User: ["ITUNESALBUMID"], mp4Freeform: ["ITUNESALBUMID"]),
         schema(.itunesArtistID, "iTunes Artist ID", .itunes, ["ITUNESARTISTID"], id3User: ["ITUNESARTISTID"], mp4Freeform: ["ITUNESARTISTID"]),
         schema(.itunesCatalogID, "iTunes Catalog ID", .itunes, ["ITUNESCATALOGID"], id3User: ["ITUNESCATALOGID"], mp4Freeform: ["ITUNESCATALOGID"]),
@@ -320,21 +500,43 @@ public enum MetadataFieldRegistry {
         schema(.originalArtist, "Original Artist", .people, ["ORIGINALARTIST"], id3: ["TOPE"], mp4Freeform: ["ORIGINALARTIST"], multi: true, people: true),
         schema(.artistType, "Artist Type", .release, ["MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"], id3User: ["ARTISTTYPE"], mp4Freeform: ["ARTISTTYPE"]),
         schema(.trackerName, "Tracker Name", .technical, ["TRACKERNAME"]),
+        schema(.director, "Director", .people, ["DIRECTOR"], multi: true, people: true),
+        schema(.itunesAccount, "iTunes Account", .itunes, ["ITUNESACCOUNT"]),
+        schema(.itunesComposerID, "iTunes Composer ID", .itunes, ["ITUNESCOMPOSERID"]),
+        schema(.itunesCountryID, "iTunes Storefront ID", .itunes, ["ITUNESCOUNTRYID"]),
+        schema(.itunesGapless, "Gapless Playback", .itunes, ["ITUNESGAPLESS", "GAPLESSPLAYBACK"]),
+        schema(.itunesHDVideo, "HD Video", .itunes, ["ITUNESHDVIDEO", "HDVIDEO"]),
+        schema(.itunesOwner, "Owner", .itunes, ["ITUNESOWNER", "OWNER"], semantic: "OWNER"),
+        schema(.rate, "Rating", .itunes, ["RATE"]),
+        schema(.showMovement, "Show Work and Movement", .itunes, ["SHOWMOVEMENT", "SHOWWORKMOVEMENT"]),
+        schema(.storeDescription, "Store Description", .itunes, ["STOREDESCRIPTION"]),
+        schema(.tvEpisode, "TV Episode", .itunes, ["TVEPISODE"]),
+        schema(.tvEpisodeID, "TV Episode ID", .itunes, ["TVEPISODEID"]),
+        schema(.tvNetwork, "TV Network", .itunes, ["TVNETWORK"]),
+        schema(.tvSeason, "TV Season", .itunes, ["TVSEASON"]),
+        schema(.tvShow, "TV Show", .itunes, ["TVSHOW"]),
+        schema(.tvShowSort, "TV Show Sort", .itunes, ["TVSHOWSORT", "SHOWSORT"], semantic: "SHOWSORT"),
         MetadataFieldSchema(
             key: .custom,
             displayName: "Custom Field",
             category: .custom,
+            semanticKey: "<explicit key>",
             propertyMapKeys: [],
-            mappings: [
-                .init(format: .id3v2, storageKind: .userTextFrame, keys: ["TXXX:<description>"]),
-                .init(format: .mp4, storageKind: .mp4Freeform, keys: ["----:com.apple.iTunes:<description>"]),
-                .init(format: .tagLibPropertyMap, storageKind: .propertyMap, keys: ["<property key>"]),
-            ]
+            nativeTargets: MetadataMappingCatalog.profile(forSemanticKey: "<explicit key>")?.targets ?? [],
+            isMultiValue: true
         ),
     ]
 
     public nonisolated static let schemasByKey: [MetadataFieldKey: MetadataFieldSchema] =
         Dictionary(uniqueKeysWithValues: allSchemas.map { ($0.key, $0) })
+
+    /// One preferred semantic owner for each semantic key. Legacy API aliases
+    /// such as `.date` remain addressable but are excluded here.
+    public nonisolated static let canonicalSchemas: [MetadataFieldSchema] =
+        allSchemas.filter(\.isCanonicalSemanticOwner)
+
+    public nonisolated static let schemasBySemanticKey: [String: MetadataFieldSchema] =
+        Dictionary(uniqueKeysWithValues: canonicalSchemas.map { ($0.semanticKey, $0) })
 
     public nonisolated static let canonicalPropertyMapKeys: Set<String> =
         Set(allSchemas.flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
@@ -346,10 +548,18 @@ public enum MetadataFieldRegistry {
         Set(allSchemas.filter(\.isPeopleField).flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
 
     /// Property-map keys with intentionally composite semantic ownership.
-    public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [:]
+    /// YEAR/DATE are owned by both the canonical `.year` identity and the
+    /// legacy `.date` spelling; `.year` is the explicit preferred owner.
+    public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [
+        "DATE": [.date, .year],
+        "YEAR": [.date, .year],
+    ]
 
     /// The explicit owner used by scalar lookup when a storage key is shared.
-    public nonisolated static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey] = [:]
+    public nonisolated static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey] = [
+        "DATE": .year,
+        "YEAR": .year,
+    ]
 
     public nonisolated static let propertyMapKeyOwners: [String: Set<MetadataFieldKey>] = {
         var result: [String: Set<MetadataFieldKey>] = [:]
@@ -363,6 +573,10 @@ public enum MetadataFieldRegistry {
 
     public nonisolated static func schema(for key: MetadataFieldKey) -> MetadataFieldSchema? {
         schemasByKey[key]
+    }
+
+    public nonisolated static func canonicalSchema(forSemanticKey key: String) -> MetadataFieldSchema? {
+        schemasBySemanticKey[key.uppercased()]
     }
 
     public nonisolated static func schema(forPropertyMapKey key: String) -> MetadataFieldSchema? {
@@ -382,7 +596,6 @@ public enum MetadataFieldRegistry {
         return owner.flatMap { schemasByKey[$0] }
     }
 
-
     nonisolated static func schema(forHighLevelCustomKey key: String) -> MetadataFieldSchema? {
         let normalized = normalizePropertyMapKey(key)
         let prefixes = ["----:COM.APPLE.ITUNES:", "TXXX:"]
@@ -400,23 +613,22 @@ public enum MetadataFieldRegistry {
 
     public nonisolated static func schemas(storableIn capability: FormatCapability) -> [MetadataFieldSchema] {
         guard capability.isWritable else { return [] }
-        let formats = capability.metadataFieldFormats
-        return allSchemas.filter { schema in
+        return canonicalSchemas.filter { schema in
             if let writableFields = capability.writableFields, !writableFields.contains(schema.key) {
-                return false
-            }
-            if capability.identifier == "mp4", schema.key == .date {
                 return false
             }
             if schema.isArtworkField, !capability.canWriteArtwork {
                 return false
             }
-            return schema.mappings.contains { formats.contains($0.format) }
+            return capability.metadataFieldFormats.contains { format in
+                schema.capability(for: format).isWritable
+            }
         }
     }
 
     public nonisolated static func schema(_ key: MetadataFieldKey, hasMappingFor format: MetadataFieldFormat) -> Bool {
-        schema(for: key)?.mappings.contains { $0.format == format } ?? false
+        guard let schema = schema(for: key) else { return false }
+        return schema.capability(for: format) != .unsupported
     }
 
     public nonisolated static func shouldDisplayRawPropertyAsMultiValue(_ key: String) -> Bool {
@@ -432,46 +644,84 @@ public enum MetadataFieldRegistry {
         key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 
+    /// Independent writable fields must not own one native slot twice. The two
+    /// components of a numeric pair legitimately share `TRCK`/`trkn`, so they
+    /// are grouped by shared semantic pair rather than reported as collisions.
+    public nonisolated static let duplicatePreferredWriteTargets: [String: [MetadataFieldKey]] = {
+        var owners: [String: [MetadataFieldKey]] = [:]
+        for schema in allSchemas where schema.key != .custom {
+            for target in schema.nativeTargets where target.preferredWrite {
+                let component = target.numberComponent?.rawValue ?? "-"
+                let identity = "\(target.family.rawValue)|\(target.nativeIdentity)|\(component)"
+                owners[identity, default: []].append(schema.key)
+            }
+        }
+        return owners.filter { entry in
+            guard entry.value.count > 1 else { return false }
+            let schemas = entry.value.compactMap { schemasByKey[$0] }
+            // Role-qualified performer/musician/involved collections share one
+            // native role frame by contract; they are components of a shared
+            // collection, not independent writable slots.
+            if schemas.allSatisfy(\.isRoleQualified) { return false }
+            return Set(schemas.map(\.semanticKey)).count > 1
+        }
+    }()
+
+    private nonisolated static let semanticKeyOverrides: [MetadataFieldKey: String] = [
+        .date: "YEAR",
+        .year: "YEAR",
+        .standaloneDate: "DATE",
+        .publisher: "LABEL",
+        .encoderSettings: "ENCODING",
+        .mediaType: "MEDIA",
+        .movement: "MOVEMENTNAME",
+        .explicitContent: "ITUNESADVISORY",
+        .itunesOwner: "OWNER",
+        .tvShowSort: "SHOWSORT",
+        .custom: "<explicit key>",
+    ]
+
+    private nonisolated static func semanticKey(
+        for key: MetadataFieldKey,
+        propertyKeys: [String]
+    ) -> String {
+        if let override = semanticKeyOverrides[key] { return override }
+        return (propertyKeys.first ?? key.rawValue).uppercased()
+    }
+
     private nonisolated static func schema(
         _ key: MetadataFieldKey,
         _ name: String,
         _ category: MetadataFieldCategory,
         _ propertyKeys: [String],
+        semantic: String? = nil,
         id3: [String] = [],
         id3User: [String] = [],
         mp4: [String] = [],
         mp4Freeform: [String] = [],
         multi: Bool = false,
         people: Bool = false,
-        role: Bool = false
+        role: Bool = false,
+        legacyYearAlias: Bool = false
     ) -> MetadataFieldSchema {
-        var mappings: [MetadataFormatMapping] = [
-            .init(format: .tagLibPropertyMap, storageKind: .propertyMap, keys: propertyKeys),
-            .init(format: .xiph, storageKind: .propertyMap, keys: propertyKeys),
-            .init(format: .ape, storageKind: .propertyMap, keys: propertyKeys),
-            .init(format: .asf, storageKind: .propertyMap, keys: propertyKeys),
-        ]
-        if !id3.isEmpty {
-            mappings.append(.init(format: .id3v2, storageKind: .textFrame, keys: id3))
-        }
-        if !id3User.isEmpty {
-            mappings.append(.init(format: .id3v2, storageKind: .userTextFrame, keys: id3User))
-        }
-        if !mp4.isEmpty {
-            mappings.append(.init(format: .mp4, storageKind: .mp4Atom, keys: mp4))
-        }
-        if !mp4Freeform.isEmpty {
-            mappings.append(.init(format: .mp4, storageKind: .mp4Freeform, keys: mp4Freeform.map { "----:com.apple.iTunes:\($0)" }))
-        }
+        // Native identity is owned by the generated catalog; the legacy
+        // id3/mp4 arguments remain only as descriptive call-site hints.
+        _ = (id3, id3User, mp4, mp4Freeform)
+        let semanticKey = semantic ?? semanticKey(for: key, propertyKeys: propertyKeys)
+        let profile = MetadataMappingCatalog.profile(forSemanticKey: semanticKey)
         return MetadataFieldSchema(
             key: key,
             displayName: name,
             category: category,
+            semanticKey: semanticKey,
             propertyMapKeys: propertyKeys,
-            mappings: mappings,
+            nativeTargets: profile?.targets ?? [],
+            isCanonicalSemanticOwner: !legacyYearAlias,
+            isLegacyYearAlias: legacyYearAlias,
             isMultiValue: multi,
             isPeopleField: people,
-            isRoleQualified: role
+            isRoleQualified: role,
+            writeUnsupportedReason: profile?.writeUnsupportedReason
         )
     }
 }

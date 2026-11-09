@@ -3,13 +3,55 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Package-side implementation of `AM-TLAM-MAPPING-2.2`: an explicit semantic/native target registry, generated `MetadataMappingCatalog`, native target capability states, and a 101-case `MetadataFieldKey` surface.
+- `year` (canonical YEAR) and `standaloneDate` (independent DATE), plus `contentGroup`, `artists`, `replayGainTrackPeak`, and `replayGainAlbumPeak`.
+- MP4-exclusive identities for director, account, composer/country IDs, gapless, HD video, owner, rating, show movement, store description, TV episode/network/season/show/sort, and native media kind. `rate` is read-only for typed writes.
+- Gated MKV target registrations for TV episode and season (`PART_NUMBER@TargetTypeValue=50/60`), with no advertised write capability.
+- `numberingInventory(at:)`, `planNumberNormalization(at:policy:groups:)`, and `applyNumberNormalization(_:to:expectedVersion:)`, with exact native/legacy/private component states and version-guarded retirement.
+- `explicitAdvisoryRawValue` for unknown existing advisory codes and exact native provenance.
+
+### Changed
+
+- YEAR is complete stored text and is no longer truncated to four characters. YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent in reads, writes, Basic updates, and verification. MP4 `©day` is YEAR; RELEASEDATE and DATE use explicit freeform extensions.
+- `updateBasicMetadata` and `replaceBasicMetadata` no longer reconcile MP4 dates; `MetadataValidationError.conflictingMP4Date` is retained only for source compatibility.
+- Conductor writes `©con`, publisher `©pub`, work `©wrk`, content group `©grp`, grouping `GROUPING`, encoded-by `©enc`, encoder settings `©too`, and media type `MEDIA` on MP4.
+- Basic preservation uses exact native collections instead of whole-map engine `PropertyMap` replay.
+- Typed pair edits recover a sole valid orphan total before writing the native pair.
+
+### Documentation
+
+- Rebuilt the documentation system around the code: guides, generated API/model/field/format references, an authoritative Swift mapping catalog and generated matrix, corrected contracts, and stronger documentation checks.
+
+### Removed
+
+- Default-write creation and renaming of the private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` MP4 namespaces, including formatted-number convenience APIs.
+
+### Fixed
+
+- Field write-capability queries honor read-only and unavailable native targets instead of treating a PropertyMap alias as write permission. MP4 `RATE` remains readable but reports `.unsupported` for writes; PropertyMap-only tracker allowlists retain their behavior.
+- Number normalization preserves native Xiph/APE/ASF fields, isolates track/disc removals and checks untouched native arrays.
+- Plans remain bound to their captured version; a newer expected token cannot authorize a stale plan. Selected replacements, nil/absence verification and empty group plans now follow their explicit scope.
+- Native-versus-legacy conflicts require explicit resolution; private-only pairs can be recovered before their exact source atoms are retired.
+- Track/disc edits no longer resolve an unselected ambiguous group. Formatted convenience writes preserve recoverable orphan totals.
+- MP4 total-only pairs and ID3 /total text retain totals when only the number is removed; native MP4 pair bounds are checked before staging.
+
+- Advisory present `0` is distinct from absence and is not lost on unrelated writes; unknown codes such as MP4 `4` are preserved rather than recoded.
+- MP4 store IDs, TV numbers, Boolean atoms, and exclusive text/atom fields read back through their exact native locations.
+- ID3 date writes preserve the existing tag major version and replace frame values instead of appending a second value.
+- Supplying both the deprecated `.date` YEAR spelling and `.year` in one typed patch now rejects before staging with `MetadataPatchValidationError.conflictingYearRepresentations`.
+- Stale summary assertions for MP4 single-date ownership, private-number migration, legacy advisory recoding, and padded MP4 text were replaced with target-contract assertions.
+
 ## [0.6.0] - 2026-10-25
 
 Changes since `0.5.3`.
 
 ### Added
 
-- Opt-in audio-content continuity: `MetadataAudioContentIdentity` tokens on full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C, and native FLAC, with bounded SHA-256 streaming and container-specific metadata exclusions. Typed and raw rebase overloads require both the baseline audio token and the exact current file version. See [the continuity contract](docs/AUDIO_CONTENT_CONTINUITY.md).
+- Opt-in audio-content continuity: `MetadataAudioContentIdentity` tokens on full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C, and native FLAC, with bounded SHA-256 streaming and container-specific metadata exclusions. Typed and raw rebase overloads require both the baseline audio token and the exact current file version. See [the continuity contract](docs/explanation/AUDIO_CONTENT_CONTINUITY.md).
 - `MetadataValidationError`, `operationFailed`, role-qualified and partial-pair patch errors, `ArtworkVerificationExpectation.skip`, and `operationFailedWithUnderlying`/`underlyingError` for preserving native and filesystem causes.
 - `expectedVersion` on structured, whole-map raw, and low-level tag writes.
 - Dedicated structured artwork paths for raw AAC, APE/WavPack/Musepack, ASF, and TrueAudio; artwork verification checks container-supported MIME type, picture type, description, and image data.

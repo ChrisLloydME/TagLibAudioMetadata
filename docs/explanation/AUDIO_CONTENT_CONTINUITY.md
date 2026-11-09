@@ -105,7 +105,7 @@ These are optimistic checks, not a filesystem snapshot or cross-process lock. An
 
 ## Evidence and verification
 
-The feature was added on top of `1310e4f` in the `fix/audio-content-continuity` work. An independent audit at `873cb3e` found that WAVE `bext`/`iXML` relocation could invalidate a metadata-only identity; that finding was fixed in `bedd725` with focused regressions. The remaining findings are compatibility limitations or evidence gaps. See the [audio-identity audit](records/audits/AUD-2026-10-19-audio-content-identity.md) and [records index](records/README.md).
+The feature was added on top of `1310e4f` in the `fix/audio-content-continuity` work. An independent audit at `873cb3e` found that WAVE `bext`/`iXML` relocation could invalidate a metadata-only identity; that finding was fixed in `bedd725` with focused regressions. The remaining findings are compatibility limitations or evidence gaps. See the [audio-identity audit](../records/audits/AUD-2026-10-19-audio-content-identity.md) and [records index](../records/README.md).
 
 `AudioContentIdentityTests` covers opt-in identities across snapshot projections, metadata/artwork/erase edits, WAVE ancillary relocation, guarded typed/raw rebases, changed audio or interpretation parameters, stale versions, unavailable layouts, malformed/ambiguous layouts, AIFF-C and odd chunk padding, streaming boundary races, and a non-gating cost probe. Passing tests are evidence for those fixtures, not proof for every file or platform.
 

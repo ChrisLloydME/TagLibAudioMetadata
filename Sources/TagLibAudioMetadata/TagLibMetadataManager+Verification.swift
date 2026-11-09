@@ -181,20 +181,21 @@ extension TagLibMetadataManager {
         guard hasVerificationExpectations(verification) else { return [] }
 
         var warnings: [String] = []
-        let projections = try? bridgeMetadataProjectionDictionary(
-            from: url,
-            options: [.basic, .propertyMap]
-        )
+        let projections = try? bridgeMetadataProjectionDictionary(from: url, options: .all)
         let rawDump = (projections?["raw"] as? [String: NSObject]).map {
             rawMetadataDump(fromBridgeDictionary: $0)
         }
+        let structured = (projections?["structured"] as? [String: NSObject]).map {
+            structuredMetadata(fromBridgeDictionary: $0)
+        } ?? StructuredMetadata()
         let afterWrite: BasicMetadata? = {
             guard let bridgeBasic = projections?["basic"] as? TagLibAudioMetadata,
                   let rawDump else { return nil }
             return basicMetadata(
                 fromBridgeMetadata: bridgeBasic,
                 rawDump: rawDump,
-                fileExtension: url.pathExtension
+                fileExtension: url.pathExtension,
+                structured: structured
             )
         }()
 
