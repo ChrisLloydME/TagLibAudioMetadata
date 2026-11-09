@@ -32,6 +32,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Field write-capability queries honor read-only and unavailable native targets instead of treating a PropertyMap alias as write permission. MP4 `RATE` remains readable but reports `.unsupported` for writes; PropertyMap-only tracker allowlists retain their behavior.
 - Number normalization preserves native Xiph/APE/ASF fields, isolates track/disc removals and checks untouched native arrays.
 - Plans remain bound to their captured version; a newer expected token cannot authorize a stale plan. Selected replacements, nil/absence verification and empty group plans now follow their explicit scope.
 - Native-versus-legacy conflicts require explicit resolution; private-only pairs can be recovered before their exact source atoms are retired.

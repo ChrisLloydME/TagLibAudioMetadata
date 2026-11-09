@@ -15,19 +15,19 @@
 | [`bestEffortRawMetadata`](#besteffortrawmetadata) | — | [TagLibMetadataManager+Read.swift:708](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L708) |
 | [`bestEffortRawMetadataText`](#besteffortrawmetadatatext) | — | [TagLibMetadataManager+Read.swift:743](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L743) |
 | [`bestEffortStructuredMetadata`](#besteffortstructuredmetadata) | — | [TagLibMetadataManager+Structured.swift:464](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift#L464) |
-| [`capability`](#capability) | — | [FormatCapability.swift:144](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L144) |
+| [`capability`](#capability) | — | [FormatCapability.swift:155](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L155) |
 | [`eraseAllMetadata`](#eraseallmetadata) | — | [TagLibMetadataManager+Write.swift:1252](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1252) |
 | [`eraseAllMetadataWithVerification`](#eraseallmetadatawithverification) | all deprecated | [TagLibMetadataManager+Write.swift:591](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L591) |
 | [`fileVersion`](#fileversion) | — | [MetadataSnapshotPatch.swift:282](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L282) |
-| [`formatCapability`](#formatcapability) | all deprecated | [FormatCapability.swift:151](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L151) |
-| [`formatSupportLevel`](#formatsupportlevel) | — | [FormatCapability.swift:172](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L172) |
+| [`formatCapability`](#formatcapability) | all deprecated | [FormatCapability.swift:162](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L162) |
+| [`formatSupportLevel`](#formatsupportlevel) | — | [FormatCapability.swift:183](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L183) |
 | [`isReadableExtension`](#isreadableextension) | — | [TagLibMetadataManager.swift:498](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L498) |
 | [`isReadableFormat`](#isreadableformat) | all deprecated | [TagLibMetadataManager.swift:506](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L506) |
 | [`isWritableExtension`](#iswritableextension) | — | [TagLibMetadataManager.swift:502](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L502) |
 | [`isWritableFormat`](#iswritableformat) | all deprecated | [TagLibMetadataManager.swift:511](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L511) |
 | [`numberingInventory`](#numberinginventory) | — | [MetadataNumberInventory.swift:263](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L263) |
 | [`planNumberNormalization`](#plannumbernormalization) | — | [MetadataNumberInventory.swift:397](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L397) |
-| [`probeFile`](#probefile) | — | [FormatCapability.swift:164](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L164) |
+| [`probeFile`](#probefile) | — | [FormatCapability.swift:175](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L175) |
 | [`rawMetadata`](#rawmetadata) | all deprecated | [TagLibMetadataManager+Read.swift:713](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L713) |
 | [`rawMetadataResult`](#rawmetadataresult) | — | [TagLibMetadataManager+Read.swift:718](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L718) |
 | [`rawMetadataText`](#rawmetadatatext) | all deprecated | [TagLibMetadataManager+Read.swift:805](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L805) |
@@ -209,7 +209,7 @@ func capability(
 
 > Returns declared capability for an extension. This does not inspect a file.
 
-Source: [FormatCapability.swift:144](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L144)
+Source: [FormatCapability.swift:155](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L155)
 
 ## `eraseAllMetadata`
 
@@ -285,7 +285,7 @@ func formatCapability(
 ) -> FormatCapability?
 ```
 
-Source: [FormatCapability.swift:151](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L151)
+Source: [FormatCapability.swift:162](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L162)
 
 ## `formatSupportLevel`
 
@@ -297,7 +297,7 @@ func formatSupportLevel(
 ) -> FormatSupportLevel
 ```
 
-Source: [FormatCapability.swift:172](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L172)
+Source: [FormatCapability.swift:183](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L183)
 
 ## `isReadableExtension`
 
@@ -400,7 +400,7 @@ func probeFile(
 > permission, ACLs, disk space, or sandbox access; attempt a write or check
 > those separately when an editability decision depends on them.
 
-Source: [FormatCapability.swift:164](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L164)
+Source: [FormatCapability.swift:175](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L175)
 
 ## `rawMetadata`
 
@@ -993,7 +993,7 @@ Source: [TagLibMetadataManager+Write.swift:358](../../Sources/TagLibAudioMetadat
 var formatCapabilities: [FormatCapability]
 ```
 
-Source: [FormatCapability.swift:139](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L139)
+Source: [FormatCapability.swift:150](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L150)
 
 ### `function`
 
