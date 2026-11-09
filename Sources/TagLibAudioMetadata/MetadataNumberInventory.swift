@@ -341,8 +341,6 @@ extension TagLibMetadataManager {
         isID3: Bool,
         version: MetadataFileVersion?
     ) -> MetadataNumberingInventory {
-        let trackNativeKey = isMP4 ? "trkn" : "TRCK"
-        let discNativeKey = isMP4 ? "disk" : "TPOS"
         let trackAliasDescriptions = ["TRACKNUMBER", "TRACK", "TRACKTOTAL", "TOTALTRACKS"]
         let discAliasDescriptions = ["DISCNUMBER", "DISC", "DISCTOTAL", "TOTALDISCS"]
         let privateDescriptions = [
