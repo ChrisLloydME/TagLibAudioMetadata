@@ -172,6 +172,8 @@ struct MP4ExclusiveFieldTests {
     @Test func mediaKindUnknownCodeIsPreservedAndRateWriteIsRefused() throws {
         let url = try copy("m4a")
         defer { try? FileManager.default.removeItem(at: url) }
+        let capability = try #require(TagLibMetadataManager.capability(forExtension: "m4a"))
+        #expect(capability.writeSupport(for: .rate) == .unsupported)
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(mp4Atoms: [.init(key: "stik", type: "uint", value: "250")]),
             to: url

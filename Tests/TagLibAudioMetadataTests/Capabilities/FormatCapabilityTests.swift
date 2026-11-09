@@ -3,6 +3,29 @@ import TagLibAudioMetadata
 import CTagLibBridge
 
 final class FormatCapabilityTests: XCTestCase {
+    func testReadOnlyMP4RateRemainsReadableButIsNotAdvertisedWritable() throws {
+        for ext in ["m4a", "mp4"] {
+            let capability = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: ext))
+            XCTAssertNotEqual(capability.readSupport(for: .rate), .unsupported, ext)
+            XCTAssertEqual(capability.writeSupport(for: .rate), .unsupported, ext)
+            XCTAssertEqual(capability.writeSupport(for: .itunesMediaType), capability.supportLevel, ext)
+            XCTAssertEqual(capability.writeSupport(for: .title), capability.supportLevel, ext)
+            XCTAssertEqual(capability.writeSupport(for: .artwork), capability.supportLevel, ext)
+        }
+    }
+
+    func testPropertyMapAliasDoesNotInventNativeWriteSupport() throws {
+        let asf = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "wma"))
+        XCTAssertEqual(asf.writeSupport(for: .releaseDate), .unsupported)
+        XCTAssertEqual(asf.writeSupport(for: .year), asf.supportLevel)
+        XCTAssertEqual(asf.writeSupport(for: .standaloneDate), asf.supportLevel)
+
+        let tracker = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "xm"))
+        XCTAssertEqual(tracker.writeSupport(for: .title), tracker.supportLevel)
+        XCTAssertEqual(tracker.writeSupport(for: .trackerName), tracker.supportLevel)
+        XCTAssertEqual(tracker.writeSupport(for: .rate), .unsupported)
+    }
+
     func testReadableExtensionsComeFromCapabilities() {
         let capabilityExtensions = TagLibMetadataManager.formatCapabilities.flatMap(\.extensions)
 
