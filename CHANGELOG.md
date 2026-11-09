@@ -28,6 +28,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Number normalization preserves native Xiph/APE/ASF fields, isolates track/disc removals and checks untouched native arrays.
+- Plans remain bound to their captured version; a newer expected token cannot authorize a stale plan. Selected replacements, nil/absence verification and empty group plans now follow their explicit scope.
+- Native-versus-legacy conflicts require explicit resolution; private-only pairs can be recovered before their exact source atoms are retired.
+- Track/disc edits no longer resolve an unselected ambiguous group. Formatted convenience writes preserve recoverable orphan totals.
+- MP4 total-only pairs and ID3 /total text retain totals when only the number is removed; native MP4 pair bounds are checked before staging.
+
 - Advisory present `0` is distinct from absence and is not lost on unrelated writes; unknown codes such as MP4 `4` are preserved rather than recoded.
 - MP4 store IDs, TV numbers, Boolean atoms, and exclusive text/atom fields read back through their exact native locations.
 - ID3 date writes preserve the existing tag major version and replace frame values instead of appending a second value.

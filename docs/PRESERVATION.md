@@ -95,7 +95,8 @@ Applied changes use exact native targets: MP4 atoms/freeforms, ID3 text/user-tex
 ### Number pairs
 
 - ID3-backed formats use combined `TRCK`/`TPOS`; movement number/count uses `MVIN`. MP4 uses native `trkn`/`disk`. Xiph uses `TRACKNUMBER`/`TRACKTOTAL`; APE uses `TRACK`/`TRACKTOTAL`; ASF uses native text pairs.
-- Native positive components are authoritative. Legacy standalone totals are recovered by `numberingInventory(at:)`; typed edits write the resolved pair before retiring that touched group's aliases.
+- Positive native components remain visible even when legacy values disagree, but the inventory reports ambiguity and blocks ordinary edits of that group until explicit resolution. Native Xiph/APE keys and ASF attributes are classified as native. Standalone or private-only legacy totals can be recovered through an explicit normalization plan. Untouched groups are not resolved or cleaned. Typed edits preserve a sole recoverable total before writing the touched native pair.
+- Removing a number retains its total through MP4 0/total or ID3 /total; bounds are checked before mutation. ASF total-only remains rejected without a verified codec. Normalization plans are immutable and permanently bound to their captured version.
 - An unrelated Basic edit preserves orphan totals and both private namespaces. It does not canonicalize a pair merely because the file was loaded.
 - Private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed by any default write surface, including formatted-number convenience APIs. `planNumberNormalization` + `applyNumberNormalization` is the only cleanup path and removes only explicitly listed identities under the captured version.
 - MP4 advisory uses `rtng`; recognized freeform aliases are removed only when the advisory is explicitly changed.
