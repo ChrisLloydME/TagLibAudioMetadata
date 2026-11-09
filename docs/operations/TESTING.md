@@ -75,6 +75,25 @@ swift run --disable-keychain --disable-netrc \
 
 The facade consumer uses only the public product. The low-level consumer explicitly imports `CTagLibBridge`. Neither consumer proves an embedding application's signing or rpath configuration.
 
+## Documentation checks
+
+The documentation pipeline is separate from the build and runs before tests in CI:
+
+```sh
+python3 scripts/check-docs.py
+```
+
+`check-docs.py` validates links, headings, tables, current-document coverage, bridge selector coverage, and freshness of every generated reference page. Regenerate a stale page with:
+
+```sh
+python3 scripts/generate-api-reference.py --write
+python3 scripts/generate-field-schema.py --write
+python3 scripts/generate-format-matrix.py --write
+python3 scripts/generate-mapping-matrix.py --write
+```
+
+The generators read Swift and Objective-C++ source; no Markdown is converted into production code. Do not hand-edit generated sections between their markers.
+
 ## Opt-in checks
 
 ### External preservation corpus
@@ -154,8 +173,8 @@ When a test uses the package reader as both writer and expected-value source, th
 
 ## Reporting a verification result
 
-Record the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not report a compile-only check as runtime verification. Put campaign narratives in [engineering records](records/README.md) and update [Status](STATUS.md) only when the latest known state changes. See [Record conventions](records/CONVENTIONS.md) for the record format.
+Record the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not report a compile-only check as runtime verification. Put campaign narratives in [engineering records](../records/README.md) and update [Status](STATUS.md) only when the latest known state changes. See [Record conventions](../records/CONVENTIONS.md) for the record format.
 
 ## Numbering acceptance regressions
 
-`IndependentAcceptanceProbes` retains the eight originally failing acceptance cases. `NumberingRepairRegressionTests` adds cross-format native cleanup, both private namespaces and foreign lookalikes, explicit legacy resolution, native absence/removal, malformed multi-value rejection, empty-group byte preservation, MP4 bounds and formatted orphan-total preservation. Repairs and exact observed results are in the [numbering acceptance repair record](records/remediation/REM-2026-11-09-numbering-acceptance-repairs.md). These suites use temporary fixture copies; they do not operate on a user library.
+`IndependentAcceptanceProbes` retains the eight originally failing acceptance cases. `NumberingRepairRegressionTests` adds cross-format native cleanup, both private namespaces and foreign lookalikes, explicit legacy resolution, native absence/removal, malformed multi-value rejection, empty-group byte preservation, MP4 bounds and formatted orphan-total preservation. Repairs and exact observed results are in the [numbering acceptance repair record](../records/remediation/REM-2026-11-09-numbering-acceptance-repairs.md). These suites use temporary fixture copies; they do not operate on a user library.

@@ -13,7 +13,7 @@ Create a record for:
 - a dependency, binary, or platform migration;
 - a maintenance pass with decisions or validation worth preserving.
 
-Do not create a record for a routine test run, a single typo fix, or a change fully described by a commit and the changelog. Put routine validation in [docs/STATUS.md](../STATUS.md).
+Do not create a record for a routine test run, a single typo fix, or a change fully described by a commit and the changelog. Put routine validation in [docs/STATUS.md](../operations/STATUS.md).
 
 ## Record types and identifiers
 
@@ -125,5 +125,5 @@ Avoid unsupported guarantees, invented test counts, and claims that a compile-on
 3. Write findings with stable IDs and evidence.
 4. Add the row to the investigation index.
 5. Add any actionable or bounded item to the open register.
-6. Run the link check described in [DEVELOPMENT.md](../DEVELOPMENT.md).
+6. Run the link check described in [DEVELOPMENT.md](../operations/DEVELOPMENT.md).
 7. Commit the record and index update together.

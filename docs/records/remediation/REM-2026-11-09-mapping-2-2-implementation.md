@@ -3,7 +3,7 @@
 - **Record ID:** REM-2026-11-09
 - **Date:** 2026-11-09
 - **Type:** Remediation / implementation
-- **Contract:** `AM-TLAM-MAPPING-2.2` in [METADATA_MAPPING_SPEC.md](../../METADATA_MAPPING_SPEC.md)
+- **Contract:** `AM-TLAM-MAPPING-2.2` in [METADATA_MAPPING_SPEC.md](../../reference/MAPPING_SPEC.md)
 - **Assignment:** [MAPPING_REFACTOR_AGENT_PROMPT.md](../../plans/MAPPING_REFACTOR_AGENT_PROMPT.md)
 - **Branch:** `codex/metadata-mapping-spec`
 - **Implementation commits:** `67031a3` (`Implement AM-TLAM-MAPPING-2.2 package semantics`) and `73f8d9c` (`Add native ASF independent date attributes`)
@@ -105,12 +105,12 @@ python3 scripts/generate-field-schema.py --check
 - MKV native read/write codec is not implemented; only target registrations exist.
 - Cross-tool fixtures, independent FFprobe/FFmpeg oracles, AIFF/Opus date conformance, ASan, TSan, minimum-platform builds, iOS runtime, x86_64, and device tests were not run in this pass. Release-mode tests and a strict Swift `-warnings-as-errors` build did run and matched the Debug result.
 - The privilege-bit test cannot pass on this host; the production path was not weakened.
-- AudioMator, the mirrored specification, and application adoption were not touched. Package-only migration instructions are in [MIGRATION.md](../../MIGRATION.md#migrating-to-mapping-contract-2-2).
+- AudioMator, the mirrored specification, and application adoption were not touched. Package-only migration instructions are in [MIGRATION.md](../../operations/MIGRATION.md#working-tree-changes-for-mapping-contract-2-2).
 
 ## References
 
 - Branch: `codex/metadata-mapping-spec`
 - Implementation commits: `67031a3`, `73f8d9c`
-- Contract: [METADATA_MAPPING_SPEC.md](../../METADATA_MAPPING_SPEC.md)
-- Current docs: [STATUS.md](../../STATUS.md), [FIELD_SCHEMA.md](../../FIELD_SCHEMA.md), [PRESERVATION.md](../../PRESERVATION.md), [MIGRATION.md](../../MIGRATION.md)
+- Contract: [METADATA_MAPPING_SPEC.md](../../reference/MAPPING_SPEC.md)
+- Current docs: [STATUS.md](../../operations/STATUS.md), [FIELD_SCHEMA.md](../../reference/FIELDS.md), [PRESERVATION.md](../../explanation/PRESERVATION.md), [MIGRATION.md](../../operations/MIGRATION.md)
 - Tests: `Tests/TagLibAudioMetadataTests/Capabilities/FormatCapabilityTests.swift`, `Capabilities/MappingContractCoverageTests.swift`, `Integration/FixtureMetadataRoundTripTests.swift`, `Integration/CleanRoomContractTests.swift`, `Integration/ReviewMetadataIntegrityTests.swift`, `Integration/LegacyNumberingRecoveryTests.swift`, `Integration/MP4ExclusiveFieldTests.swift`

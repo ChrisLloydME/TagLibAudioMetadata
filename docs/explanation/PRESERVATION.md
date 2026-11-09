@@ -1,6 +1,6 @@
 # Write semantics and metadata preservation
 
-This document is the canonical contract for what the package promises to preserve, what it verifies, and where those promises end. It sits behind the API examples in [Usage](USAGE.md). The source code is authoritative.
+This document is the canonical contract for what the package promises to preserve, what it verifies, and where those promises end. It sits behind the API examples in the [writing guide](../guide/WRITING.md). The source code is authoritative.
 
 ## Semantic preservation, not byte-for-byte archiving
 
@@ -36,27 +36,29 @@ The high-level patch APIs distinguish **unchanged**, **set**, and **removed**:
 
 An empty `MetadataPatch` or `RawMetadataPatch` is a no-op. It returns without staging, without checking `expectedVersion`, and without evaluating an audio guard. Validate that a patch has content before treating a guarded call as a continuity check.
 
-`BasicMetadata` is different because it is a full projection, not a patch:
+`BasicMetadata` is a full projection, not a patch:
 
-- `replaceBasicMetadata` has replacement semantics for fields Basic explicitly models. Empty strings and zero numeric values clear those fields where the container allows it.
+- `replaceBasicMetadata` has replacement semantics for fields the Basic replacement path actually writes. Empty strings and zero numeric values clear those fields where the container allows it.
 - `updateBasicMetadata(at:_:)` reads a focused Basic snapshot, applies the closure, and passes the captured version to the replacement.
 - Removing a key from `BasicMetadata.customFields` does not request deletion. Use `MetadataPatch(customFields: [key: .remove])` or a raw API. An explicitly supplied empty custom value clears that entry.
+- The MP4-exclusive Basic properties are a documented exception: they are read into `BasicMetadata` but `replaceBasicMetadata` does not write them because the bridge writer model has no matching properties. Use `MetadataPatch` or structured writes for `director`, store IDs, TV fields, and related Booleans.
 
 ## Basic preservation rules
 
-A Basic read retains a separate raw-cardinality and provenance baseline. An unrelated Basic edit restores untouched data where the format and bridge support it, including:
+A Basic read retains raw cardinality and provenance for fields that Basic cannot fully represent. An unrelated Basic edit restores untouched data through exact native collections, including:
 
-- standard multi-value arrays such as `ARTIST`, `COMPOSER`, `ALBUMARTIST`, and `GENRE`, written back through exact native collections;
-- complete YEAR text and independent DATE, RELEASEDATE, and ORIGINALDATE slots;
-- documented aliases such as `PUBLISHER`, `CATALOG`, `ORIGINAL YEAR`, and MusicBrainz space forms on Xiph/APE;
-- role-qualified people keys such as `PERFORMER:GUITAR`;
-- schema-known fields Basic cannot express, such as `INVOLVEDPEOPLE` and `TRACKERNAME`;
-- unknown custom fields;
-- unchanged native comment and lyric collections, including languages and descriptions, on tested ID3-backed formats.
+- standard multi-value arrays that are managed by the Basic writer, through exact MP4 atoms, ID3 multi-value frames, or Xiph/APE text keys;
+- complete YEAR text and independent DATE, RELEASEDATE, and ORIGINALDATE slots (these are explicitly skipped by the generic raw-preservation loop and written through their own slots);
+- on Xiph/APE families, all visible text keys (including role-qualified and schema-known keys) through their exact physical spelling;
+- on tested ID3-backed formats, multi-value frames for schema fields that the Basic writer does not edit;
+- unchanged native comment and lyric collections, including languages and descriptions, on tested ID3-backed formats;
+- unknown Xiph/APE text keys and custom fields that the writer carries through.
+
+The implementation does **not** replay a whole engine `PropertyMap` or use `preservedStandardValues`; that helper exists but has no caller. Preservation uses exact native paths: MP4 atoms/freeforms, Xiph/APE native text keys, ID3 multi-value frames, and restored native comment/lyric collections. This avoids rewriting independent YEAR/DATE frames through an ambiguous engine projection.
 
 Basic does not guess cardinality by splitting a display string. It restores captured arrays only for fields it can identify. Unknown fields that the bridge does not model may survive because TagLib saves the native tag, but they are not reconstructed from the Basic model.
 
-Editing or adding a schema-known name through `BasicMetadata.customFields` is rejected; use the typed field or a raw/structured API. Existing native custom attributes whose names overlap the schema may be carried through unchanged when their value is unchanged.
+Editing or adding a schema-known name through `BasicMetadata.customFields` is rejected; use the typed field or a raw/structured API. Existing native custom attributes whose names overlap the schema may be carried through unchanged when their value is unchanged. The current validation does not reject the package-reserved hidden formatting names in custom data; do not use those names.
 
 `BasicMetadata.format` reports the parser's codec/format name; it is not a conformance claim. For example, an ALAC `.m4a` is reported as ALAC where the reader exposes that codec. `publisher` maps to the native MP4 `©pub` atom and ID3 `TPUB`.
 
@@ -67,11 +69,14 @@ Editing or adding a schema-known name through `BasicMetadata.customFields` is re
 There is no Year/date reconciliation:
 
 - changing `year` writes only YEAR;
-- changing `date` writes only the standalone DATE slot;
+- changing `date` writes the same YEAR slot (legacy spelling);
+- changing `standaloneDate` writes only the standalone DATE slot;
 - changing `releaseDate` writes only RELEASEDATE;
 - clearing one field never clears another;
 - `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid simultaneously;
 - complete YEAR text such as `2021-07-15` round-trips without truncation.
+
+`replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with `isRepresentableYearText` and throw `MetadataValidationError.invalidYearText` for non-date text such as `"Spring 2021"`. The typed `applyMetadataPatch(.year:)` path does not run that Basic-specific validator; container/bridge validation still applies.
 
 `updateBasicMetadata` captures a version and performs no cross-field intent resolution. The legacy `MetadataValidationError.conflictingMP4Date` case is retained for source compatibility but is not produced.
 
@@ -85,9 +90,8 @@ There is no Year/date reconciliation:
 - `.artwork`, `.custom`, and `.explicitContent` must use their dedicated patch properties.
 - Role-qualified fields such as `.performer`, `.involvedPeople`, and `.musicianCredits` are rejected; use `RawMetadataPatch` or `StructuredMetadata`.
 - Known keys, aliases, case variants, and typed/custom collisions are rejected in `customFields`.
-- A patch cannot mix typed track/disc fields with `numberText`; `date` and `year` cannot both be supplied.
+- A patch cannot mix typed track/disc fields with `numberText`; `.date` and `.year` cannot both be supplied.
 - Empty text and value arrays are rejected after trimming.
-- A partial removal of a paired first component is rejected where a retained total cannot be represented.
 - A capability with an explicit writable-field allowlist is checked before staging. Raw APIs are not restricted by that high-level preflight.
 
 Applied changes use exact native targets: MP4 atoms/freeforms, ID3 text/user-text/versioned frames, or native Xiph/APE text keys. The bridge does not rebuild omitted Swift fields into a replacement map. Number pairs, advisory values, and artwork use container-aware paths.
@@ -96,15 +100,15 @@ Applied changes use exact native targets: MP4 atoms/freeforms, ID3 text/user-tex
 
 - ID3-backed formats use combined `TRCK`/`TPOS`; movement number/count uses `MVIN`. MP4 uses native `trkn`/`disk`. Xiph uses `TRACKNUMBER`/`TRACKTOTAL`; APE uses `TRACK`/`TRACKTOTAL`; ASF uses native text pairs.
 - Positive native components remain visible even when legacy values disagree, but the inventory reports ambiguity and blocks ordinary edits of that group until explicit resolution. Native Xiph/APE keys and ASF attributes are classified as native. Standalone or private-only legacy totals can be recovered through an explicit normalization plan. Untouched groups are not resolved or cleaned. Typed edits preserve a sole recoverable total before writing the touched native pair.
-- Removing a number retains its total through MP4 0/total or ID3 /total; bounds are checked before mutation. ASF total-only remains rejected without a verified codec. Normalization plans are immutable and permanently bound to their captured version.
+- Removing a number retains its total through MP4 `0/total`, ID3 `/total`, or separate Xiph/APE keys. ASF rejects a number-zero-plus-total pair without a verified codec. Bounds are checked before mutation. Normalization plans are immutable and permanently bound to their captured version.
 - An unrelated Basic edit preserves orphan totals and both private namespaces. It does not canonicalize a pair merely because the file was loaded.
-- Private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed by any default write surface, including formatted-number convenience APIs. `planNumberNormalization` + `applyNumberNormalization` is the only cleanup path and removes only explicitly listed identities under the captured version.
-- MP4 advisory uses `rtng`; recognized freeform aliases are removed only when the advisory is explicitly changed.
+- Private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are not created or renamed by default write surfaces, including formatted-number convenience APIs. `planNumberNormalization` + `applyNumberNormalization` is the only cleanup path and removes only explicitly listed identities under the captured version.
+- MP4 advisory uses `rtng`; recognized freeform aliases are removed when the advisory is explicitly changed. A Basic replacement always supplies an advisory projection and therefore can remove recognized MP4 freeform advisory aliases even when the caller did not intentionally edit the advisory.
 - Text-backed Booleans encode false as `"0"`; `.remove` makes the field absent. MP4 Boolean atoms distinguish present `0` from absence.
 
 ### Dates
 
-- `.year` (canonical) and `.date` (deprecated spelling, mutually exclusive) own the YEAR slot.
+- `.year` (canonical) and `.date` (legacy spelling, mutually exclusive) own the YEAR slot.
 - `.standaloneDate` owns the independent DATE slot.
 - `.releaseDate` owns RELEASEDATE.
 - `.originalReleaseDate` owns ORIGINALDATE.
@@ -136,8 +140,11 @@ Prefer `RawMetadataPatch` for preservation-oriented partial edits. It preserves 
 
 - With `includeProperties == true`, supplied properties are a **delta**. Omitted keys and native structures are preserved. An empty `values` array removes that key.
 - With `includeProperties == false`, a non-empty `properties` array is rejected by the Swift facade.
-- `artwork`, `lyrics`, and `comments` use replace-all semantics when non-empty. Empty arrays are omitted by default; include the collection in `replacingCollections` to remove its final entries.
+- `artwork` uses replace-all semantics when non-empty. Empty arrays are omitted by default; include the collection in `replacingCollections` to remove its final entries.
+- `lyrics` and `comments` use replace-all semantics on ID3-backed formats and TrueAudio. MP4 ignores structured `comments`/`lyrics`; APE-family and FLAC/Ogg reject them. The facade then fails verification if those entries were expected. Use Basic or native atoms for MP4 comments/lyrics and an ID3-capable API for the others.
 - Opaque ID3 frames returned with `type == "unknown"` are inspection-only. Omit them from writes; omitted frames remain on disk. Supplying one throws `MetadataValidationError.unsupportedID3v2FrameType`.
+- ID3 writable frame types are `text`, `versionedText`, `userText`, `url`, `ufid`, `chapter`, `tableOfContents`, and `podcast`. `versionedText` requires the version-specific `v23ID`/`v24ID` or description fields; `APIC`, `COMM`, and `USLT` belong in the dedicated collections.
+- `StructuredID3v2Frame.fields` is merged into the bridge payload dictionary. Leave it empty; a key can overwrite `id`, `type`, `value`, or `values`.
 - `StructuredArtwork.container` is informational. The writer selects the destination container from the file format; verification compares payload, MIME type, and applicable picture metadata. Picture type `0` (`Other`) is valid; an omitted type defaults to Front Cover (`3`).
 - APE-family artwork writes support one front image. ID3v2, MP4, ASF, FLAC, and Xiph support the entries those containers can store.
 - MP4 atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other inspected item types are ignored by the writer; omit them.
@@ -171,7 +178,7 @@ Verified facade APIs read the staged file back before commit and throw `TagLibMa
 | --- | --- |
 | `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, artwork, number/advisory expectations, and format-aware storage. |
 | `applyRawMetadataPatch` | The complete visible `PropertyMap` after the delta. |
-| `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields, custom-field values, number/advisory expectations, artwork, and preservation data. |
+| `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields, custom-field values, number/advisory expectations, artwork, and preservation data. The MP4-exclusive Basic properties are not written or verified by this path. |
 | `writeStructuredMetadataWithVerification` | Requested structured collections and properties, with ordered frame values and artwork semantics. |
 | `writeTrackNumberText` | Track/disc numbers and text where the container preserves exact text. |
 | `writeTagMetadata` | Only the checks in `MetadataWriteVerificationContext`; `.none` checks no metadata values. |
@@ -207,3 +214,4 @@ Preservation and verification happen on a sibling staging copy. The destination 
 - Cross-process exclusion or hardware/power-loss durability.
 - Behavior that the current tests do not exercise merely because the code compiles.
 - That a successful write with warnings is a partial failure; warnings are residual advisories after the requested checks passed.
+- That `replaceBasicMetadata` writes every property present on `BasicMetadata`; the MP4-exclusive fields are read/patch-only at that surface.
