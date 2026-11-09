@@ -172,6 +172,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
     case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
     case ambiguousNumberRecovery(field: String, identities: [String])
+    case conflictingYearRepresentations
 
     public var errorDescription: String? {
         switch self {
@@ -206,6 +207,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(field.rawValue) requires a positive number when its paired total is present for \(format); set the number or remove both components."
         case .ambiguousNumberRecovery(let field, let identities):
             return "\(field) has ambiguous legacy numbering recovery; resolve the exact identities explicitly: \(identities.joined(separator: ", "))."
+        case .conflictingYearRepresentations:
+            return "Use either the deprecated .date YEAR spelling or .year in one patch, not both."
         }
     }
 }
@@ -285,6 +288,9 @@ extension TagLibMetadataManager {
     }
 
     nonisolated private static func validate(_ patch: MetadataPatch) throws -> ValidatedMetadataPatch {
+        if patch.fields[.date] != nil && patch.fields[.year] != nil {
+            throw MetadataPatchValidationError.conflictingYearRepresentations
+        }
         var normalizedFields: [MetadataFieldKey: MetadataPatchValue] = [:]
         for (field, value) in patch.fields {
             guard field != .artwork, field != .custom, field != .explicitContent,
