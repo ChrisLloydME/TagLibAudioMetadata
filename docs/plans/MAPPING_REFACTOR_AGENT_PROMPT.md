@@ -1,10 +1,13 @@
 # Agent prompt: implement the metadata mapping refactor
 
+> **Status: historical assignment.** The package-side implementation has been completed and the current contracts are the Swift sources and `docs/reference/`. This prompt is retained as evidence of the assignment scope and acceptance gates; it is not a current design authority.
+
+
 Copy the instructions below into the agent session opened on this repository. This is an implementation assignment, not a request for another design proposal. The agent may use Xcode Code Intelligence's available ACP tools for source navigation, builds, test discovery, test execution and diagnostics. Tool names vary: discover the actual tools instead of inventing names or assuming a terminal exists.
 
 ## Assignment
 
-Implement the package-side `AM-TLAM-MAPPING-2.2` contract in `docs/METADATA_MAPPING_SPEC.md`. Read that entire file before editing. It is the normative target and includes the complete matrix, independent date rules, legacy total recovery, private formatting retirement, four-state advisory, 26 MP4-exclusive entries and two MKV-exclusive target registrations. This prompt supplies execution order and acceptance gates; it does not replace that specification.
+Implement the package-side `AM-TLAM-MAPPING-2.2` contract in `docs/reference/MAPPING_SPEC.md`. Read that entire file before editing. It is the normative target and includes the complete matrix, independent date rules, legacy total recovery, private formatting retirement, four-state advisory, 26 MP4-exclusive entries and two MKV-exclusive target registrations. This prompt supplies execution order and acceptance gates; it does not replace that specification.
 
 You have access to **this repository only**. Do not open, read, edit, compile or test any sibling repository, application project, resolved dependency source, external engine checkout or user music library. References to a companion application or mirrored specification in the contract are context, not permission to access them. Implement package APIs and report the public migration instructions for the application maintainer. Leave cross-repository synchronization to the maintainer.
 
@@ -24,7 +27,7 @@ Complete the authorized implementation and tests without stopping after a plan o
 
 ## Read and inspect first
 
-Read `docs/METADATA_MAPPING_SPEC.md`, `docs/ARCHITECTURE.md`, `docs/FIELD_SCHEMA.md`, `docs/PRESERVATION.md`, `docs/TRANSACTIONS.md`, `docs/AUDIO_CONTENT_CONTINUITY.md`, `docs/API_REFERENCE.md`, `docs/TESTING.md`, `docs/DEVELOPMENT.md` and `Package.swift`. Current-state documents may describe old behavior; the explicit 2.2 target is the authorized change. Do not rewrite historical evidence to match new behavior.
+Read `docs/reference/MAPPING_SPEC.md`, `docs/explanation/ARCHITECTURE.md`, `docs/reference/FIELDS.md`, `docs/explanation/PRESERVATION.md`, `docs/explanation/TRANSACTIONS.md`, `docs/explanation/AUDIO_CONTENT_CONTINUITY.md`, `docs/reference/API.md`, `docs/operations/TESTING.md`, `docs/operations/DEVELOPMENT.md` and `Package.swift`. Current-state documents may describe old behavior; the explicit 2.2 target is the authorized change. Do not rewrite historical evidence to match new behavior.
 
 Inspect these implementation paths before changing them:
 
@@ -124,7 +127,7 @@ Existing tests may assert behavior the contract intentionally replaces, such as 
 
 ## Phase 7: documentation and final verification
 
-Update actual implemented behavior in `docs/API_REFERENCE.md`, `docs/FIELD_SCHEMA.md`, `docs/FORMATS.md`, `docs/USAGE.md`, `docs/PRESERVATION.md`, `docs/MIGRATION.md`, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, README and the unreleased changelog as applicable. Regenerate FIELD_SCHEMA from the actual registry; never hand-edit its generated tables. Update public type/manager API indexes and any count checks when adding cases. Update the spec's implementation status by section; do not mark the entire target implemented while an activation gate is incomplete.
+Update actual implemented behavior in `docs/reference/API.md`, `docs/reference/FIELDS.md`, `docs/reference/FORMATS.md`, `docs/guide/WRITING.md`, `docs/explanation/PRESERVATION.md`, `docs/operations/MIGRATION.md`, `docs/explanation/ARCHITECTURE.md`, `docs/operations/TESTING.md`, README and the unreleased changelog as applicable. Regenerate FIELD_SCHEMA from the actual registry; never hand-edit its generated tables. Update public type/manager API indexes and any count checks when adding cases. Update the spec's implementation status by section; do not mark the entire target implemented while an activation gate is incomplete.
 
 If Python/terminal execution is available, run:
 
@@ -149,7 +152,7 @@ swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Con
 swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataLowLevelConsumer
 ```
 
-Run the full default suite in Debug and Release after focused tests pass. Run both public consumers and the strict warning check when the tools support them. Use supported macOS and iOS/iOS Simulator build destinations to compile the public products; minimum-platform matrix commands are documented in `docs/TESTING.md`. Unavailable destinations are unverified, never silently counted as passed. Sanitizers and the full CI matrix remain separately reported if not run; this task does not require adding performance benchmarks or downloading a new corpus.
+Run the full default suite in Debug and Release after focused tests pass. Run both public consumers and the strict warning check when the tools support them. Use supported macOS and iOS/iOS Simulator build destinations to compile the public products; minimum-platform matrix commands are documented in `docs/operations/TESTING.md`. Unavailable destinations are unverified, never silently counted as passed. Sanitizers and the full CI matrix remain separately reported if not run; this task does not require adding performance benchmarks or downloading a new corpus.
 
 An environment that strips setuid/setgid bits can fail the privilege-test precondition. Keep that test intact, identify the exact precondition and report the environment limitation. Cache/manifest access errors are environment issues: use only approved tool permissions, do not diagnose them as source failures or suppress them. Do not rebuild the external engine to get around a binary limitation; provide a minimal reproduction and gate the affected operation instead.
 

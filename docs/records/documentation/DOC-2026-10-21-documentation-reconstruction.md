@@ -132,5 +132,5 @@ The review deliberately did not:
 
 - Commits: `e31030d` Record documentation restructuring report and final status (starting revision)
 - Tests: `Tests/TagLibAudioMetadataTests/`; `AudioContentIdentityTests`, `FixtureMetadataRoundTripTests`, `Capabilities/FormatCapabilityTests`
-- Current documentation: [hub](../../README.md), [API reference](../../API_REFERENCE.md), [formats](../../FORMATS.md), [status](../../STATUS.md)
+- Current documentation: [hub](../../README.md), [API reference](../../reference/API.md), [formats](../../reference/FORMATS.md), [status](../../operations/STATUS.md)
 - Related records: [previous documentation pass](DOC-2026-10-19-documentation-restructure.md), [audio-identity audit](../audits/AUD-2026-10-19-audio-content-identity.md)

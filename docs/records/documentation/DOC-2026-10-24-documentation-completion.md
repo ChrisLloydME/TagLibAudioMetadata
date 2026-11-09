@@ -151,5 +151,5 @@ The review deliberately did not:
 - Commits: `fefdb88` Record documentation reconstruction in changelog (production source baseline)
 - Source: `Sources/TagLibAudioMetadata/`, `Sources/CTagLibBridge/include/TagLibMetadataExtractor.h`, `Sources/CTagLibBridge/TLFormatRegistry.mm`, `Sources/CTagLibBridge/Internal/TLMetadataCore.inc`
 - Tests: `Tests/TagLibAudioMetadataTests/Capabilities/FormatCapabilityTests.swift`; `Tests/TagLibAudioMetadataTests/Transactions/CleanRoomPrivilegeTests.swift`; `Tests/TagLibAudioMetadataTests/Transactions/AudioContentIdentityTests.swift`
-- Current documentation: [hub](../../README.md), [API reference](../../API_REFERENCE.md), [field schema](../../FIELD_SCHEMA.md), [bridge](../../BRIDGE.md), [formats](../../FORMATS.md), [status](../../STATUS.md)
+- Current documentation: [hub](../../README.md), [API reference](../../reference/API.md), [field schema](../../reference/FIELDS.md), [bridge](../../reference/BRIDGE.md), [formats](../../reference/FORMATS.md), [status](../../operations/STATUS.md)
 - Related records: [2026-10-21 reconstruction](DOC-2026-10-21-documentation-reconstruction.md), [2026-10-19 restructure](DOC-2026-10-19-documentation-restructure.md)

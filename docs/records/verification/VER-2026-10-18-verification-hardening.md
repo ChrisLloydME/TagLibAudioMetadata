@@ -163,7 +163,7 @@ An overhead is measurable, but **no actionable historical performance regression
 ## H. Documentation changes
 
 - [README](../../../README.md), current capability evidence and tests now identify the genuine new fixtures.
-- [SUPPORT](../../USAGE.md) states DSD read/write differences, safe rejection when Basic native replay is unsupported, APE front-image write limits, ASF integer-width behavior, GUID inspection-only status, normalized pair semantics and reproducible opt-in commands.
+- [SUPPORT](../../guide/WRITING.md) states DSD read/write differences, safe rejection when Basic native replay is unsupported, APE front-image write limits, ASF integer-width behavior, GUID inspection-only status, normalized pair semantics and reproducible opt-in commands.
 - [Audio provenance](../../../Tests/TagLibAudioMetadataTests/Audio/README.md) records upstream paths, hashes, formats, license location and independent decoding.
 - [CHANGELOG](../../../CHANGELOG.md) records this phase’s repairs and coverage. Patch release summaries use verified existing targets: 0.5.1 cafcf40, 0.5.2 62dcf9b, 0.5.3 03473c9, with selected supporting commits and no invented publication dates.
 - Historical AUDIT_REPORT.md and the prior remediation/independent-review reports remain untouched. Their unverified-status descriptions are historical; this document records the later evidence.

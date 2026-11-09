@@ -22,6 +22,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Basic preservation uses exact native collections instead of whole-map engine `PropertyMap` replay.
 - Typed pair edits recover a sole valid orphan total before writing the native pair.
 
+### Documentation
+
+- Rebuilt the documentation system around the code: guides, generated API/model/field/format references, an authoritative Swift mapping catalog and generated matrix, corrected contracts, and stronger documentation checks.
+
 ### Removed
 
 - Default-write creation and renaming of the private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` MP4 namespaces, including formatted-number convenience APIs.
@@ -46,7 +50,7 @@ Changes since `0.5.3`.
 
 ### Added
 
-- Opt-in audio-content continuity: `MetadataAudioContentIdentity` tokens on full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C, and native FLAC, with bounded SHA-256 streaming and container-specific metadata exclusions. Typed and raw rebase overloads require both the baseline audio token and the exact current file version. See [the continuity contract](docs/AUDIO_CONTENT_CONTINUITY.md).
+- Opt-in audio-content continuity: `MetadataAudioContentIdentity` tokens on full and Basic snapshots for RIFF WAVE, AIFF/AIFF-C, and native FLAC, with bounded SHA-256 streaming and container-specific metadata exclusions. Typed and raw rebase overloads require both the baseline audio token and the exact current file version. See [the continuity contract](docs/explanation/AUDIO_CONTENT_CONTINUITY.md).
 - `MetadataValidationError`, `operationFailed`, role-qualified and partial-pair patch errors, `ArtworkVerificationExpectation.skip`, and `operationFailedWithUnderlying`/`underlyingError` for preserving native and filesystem causes.
 - `expectedVersion` on structured, whole-map raw, and low-level tag writes.
 - Dedicated structured artwork paths for raw AAC, APE/WavPack/Musepack, ASF, and TrueAudio; artwork verification checks container-supported MIME type, picture type, description, and image data.

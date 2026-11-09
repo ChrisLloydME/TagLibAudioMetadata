@@ -11,7 +11,7 @@
 | Environment | macOS 27.0.1 (26A434), arm64; Xcode 27.1 (27A9275); Apple Swift 6.4; Swift 6.0.3, 6.2.4, and 6.3 release toolchains for minimum-version probes |
 | Supersedes | `none` |
 | Superseded by | `none` |
-| Related records | [`REM-2026-10-19-clean-room`](REM-2026-10-19-clean-room.md), [`AUD-2026-10-19-audio-content-identity`](../audits/AUD-2026-10-19-audio-content-identity.md), [current status](../../STATUS.md) |
+| Related records | [`REM-2026-10-19-clean-room`](REM-2026-10-19-clean-room.md), [`AUD-2026-10-19-audio-content-identity`](../audits/AUD-2026-10-19-audio-content-identity.md), [current status](../../operations/STATUS.md) |
 | Scope | Repair of the external 2026-10-25 pre-release assessment's F-01 minimum-toolchain finding and F-02 changelog release-boundary finding. No production or test Swift source was changed. This is not a new format, security, or release-certification review. |
 
 ## Summary
@@ -108,5 +108,5 @@ The release commit names the reviewed delta `[0.6.0] - 2026-10-25` in the change
 
 - Commits: `32d945d` (assessment target); `102ddc7` (`Require Swift 6.4 and rewrite changelog by release`); `c46daa5` (`Discover the SwiftPM test bundle in the link audit`); `2bf8d02` (merge of PR #14).
 - Manifest and integration: `Package.swift`; `IntegrationTests/Consumer/Package.swift`; `.github/workflows/ci.yml`.
-- Documentation: [`CHANGELOG.md`](../../../CHANGELOG.md); [`docs/MIGRATION.md`](../../MIGRATION.md); [`docs/STATUS.md`](../../STATUS.md); [`README.md`](../../../README.md).
+- Documentation: [`CHANGELOG.md`](../../../CHANGELOG.md); [`docs/MIGRATION.md`](../../operations/MIGRATION.md); [`docs/STATUS.md`](../../operations/STATUS.md); [`README.md`](../../../README.md).
 - External evidence: the 2026-10-25 pre-release assessment (`ASSESSMENT.md`, outside this repository) and the notarized Swift 6.0.3, 6.2.4, 6.3, and 6.4 toolchain packages from swift.org.
