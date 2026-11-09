@@ -25,4 +25,44 @@ struct CleanRoomASFTests {
             #expect(basic.title.isEmpty && basic.customFields.isEmpty && basic.artworkData == nil)
         }
     }
+
+    @Test func typedYearDateAndReleaseDateStayIndependent() throws {
+        try HardeningFixture.withCopy("wma", name: "testAudioFile") { url in
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [
+                    .year: .text("2004"),
+                    .standaloneDate: .text("2003-02-01"),
+                    .originalReleaseDate: .text("1999"),
+                ]),
+                to: url
+            )
+            var basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(basic.year == "2004")
+            #expect(basic.date == "2003-02-01")
+            #expect(basic.originalReleaseDate == "1999")
+
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.year: .text("2005")]),
+                to: url
+            )
+            basic = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(basic.year == "2005")
+            #expect(basic.date == "2003-02-01")
+            #expect(basic.originalReleaseDate == "1999")
+
+            // The specification declares no ASF typed RELEASEDATE target.
+            let before = try Data(contentsOf: url)
+            #expect(throws: (any Error).self) {
+                try TagLibMetadataManager.applyMetadataPatch(
+                    MetadataPatch(fields: [.releaseDate: .text("2017-06-09")]),
+                    to: url
+                )
+            }
+            #expect(try Data(contentsOf: url) == before)
+
+            let attributes = try IndependentASF.attributes(try Data(contentsOf: url))
+            #expect(attributes.contains { $0.name.uppercased().contains("YEAR") })
+            #expect(attributes.contains { $0.name.uppercased().contains("DATE") && $0.name.uppercased() != "YEAR" })
+        }
+    }
 }

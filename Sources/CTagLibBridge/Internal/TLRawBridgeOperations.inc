@@ -588,13 +588,11 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
             (void)padWidth;
             mp4Tag->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
             SetMP4IntPairItem(mp4Tag, "trkn", trackNumber, totalTracks);
-            SetMP4TextItem(mp4Tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
-            SetMP4TextItem(mp4Tag, kTagLibAudioMetadataMP4TrackNumberTextKey, trimmedTrackText);
+            // Exact MP4 text padding is not portable metadata; report native
+            // normalization instead of persisting a private atom.
             } else {
                 mp4Tag->removeItem("trkn");
                 mp4Tag->setTrack(0);
-                SetMP4TextItem(mp4Tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
-                SetMP4TextItem(mp4Tag, kTagLibAudioMetadataMP4TrackNumberTextKey, nil);
             }
         }
 
@@ -610,12 +608,8 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
                 }
                 (void)padWidth;
                 SetMP4IntPairItem(mp4Tag, "disk", discNumber, totalDiscs);
-                SetMP4TextItem(mp4Tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
-                SetMP4TextItem(mp4Tag, kTagLibAudioMetadataMP4DiscNumberTextKey, trimmedDiscText);
             } else {
                 mp4Tag->removeItem("disk");
-                SetMP4TextItem(mp4Tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
-                SetMP4TextItem(mp4Tag, kTagLibAudioMetadataMP4DiscNumberTextKey, nil);
             }
         }
 

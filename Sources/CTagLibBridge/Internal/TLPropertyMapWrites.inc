@@ -219,7 +219,11 @@ static void SetID3v2TextFrame(TagLib::ID3v2::Tag *tag,
         tag->addFrame(textFrame);
     }
 
-    textFrame->setText(tValue);
+    // setText(const String&) appends in TagLib 2.x; use the list overload so an
+    // ordinary set replaces the frame's complete value array.
+    TagLib::StringList textList;
+    textList.append(tValue);
+    textFrame->setText(textList);
 }
 
 // Ensure an ID3v2 user text frame (TXXX) with given description exists and set its text
@@ -355,6 +359,11 @@ static NSString * _Nullable GetAcoustIdFingerprint(TagLibAudioMetadata *m) { ret
 static NSString * _Nullable GetMusicIpPuid(TagLibAudioMetadata *m) { return m.musicIpPuid; }
 static NSString * _Nullable GetReplayGainTrack(TagLibAudioMetadata *m) { return m.replayGainTrack; }
 static NSString * _Nullable GetReplayGainAlbum(TagLibAudioMetadata *m) { return m.replayGainAlbum; }
+static NSString * _Nullable GetReplayGainTrackPeak(TagLibAudioMetadata *m) { return m.replayGainTrackPeak; }
+static NSString * _Nullable GetReplayGainAlbumPeak(TagLibAudioMetadata *m) { return m.replayGainAlbumPeak; }
+static NSString * _Nullable GetStandaloneDate(TagLibAudioMetadata *m) { return m.standaloneDate; }
+static NSString * _Nullable GetContentGroup(TagLibAudioMetadata *m) { return m.contentGroup; }
+static NSString * _Nullable GetArtists(TagLibAudioMetadata *m) { return m.artists; }
 static NSString * _Nullable GetProducer(TagLibAudioMetadata *m) { return m.producer; }
 static NSString * _Nullable GetEngineer(TagLibAudioMetadata *m) { return m.engineer; }
 static NSString * _Nullable GetBPM(TagLibAudioMetadata *m) { return StringFromIntegerField(m.bpm); }
@@ -385,47 +394,49 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { "TSOA", nullptr, "soal", nullptr, GetSortAlbum },
     { "TSO2", nullptr, "soaa", nullptr, GetSortAlbumArtist },
     { "TSOC", nullptr, "soco", nullptr, GetSortComposer },
-    { "TPE3", nullptr, nullptr, "CONDUCTOR", GetConductor },
+    { "TPE3", nullptr, "\xA9" "con", nullptr, GetConductor },
     { "TPE4", nullptr, nullptr, "REMIXER", GetRemixer },
     { "TEXT", nullptr, nullptr, "LYRICIST", GetLyricist },
-    { "TENC", nullptr, "\xA9" "too", nullptr, GetEncodedBy },
-    { "TSSE", nullptr, nullptr, "ENCODERSETTINGS", GetEncoderSettings },
+    { "TENC", nullptr, "\xA9" "enc", nullptr, GetEncodedBy },
+    { "TSSE", nullptr, "\xA9" "too", nullptr, GetEncoderSettings },
     { "TSRC", nullptr, nullptr, "ISRC", GetISRC },
     { "TCOP", nullptr, "cprt", nullptr, GetCopyright },
     { "TIT3", nullptr, nullptr, "SUBTITLE", GetSubtitle },
-    { "TIT1", nullptr, "\xA9" "grp", nullptr, GetGrouping },
+    { "GRP1", nullptr, nullptr, "GROUPING", GetGrouping },
+    { "TIT1", nullptr, "\xA9" "grp", nullptr, GetContentGroup },
     { "TLAN", nullptr, nullptr, "LANGUAGE", GetLanguage },
     { "TKEY", nullptr, nullptr, "INITIALKEY", GetMusicalKey },
     { "TMOO", nullptr, nullptr, "MOOD", GetMood },
-    { "TMED", nullptr, nullptr, "MEDIATYPE", GetMediaType },
+    { "TMED", nullptr, nullptr, "MEDIA", GetMediaType },
     { "MVNM", nullptr, nullptr, "MOVEMENT", GetMovement },
     { "MVIN", nullptr, nullptr, nullptr, GetMovementNumberPair },
     { nullptr, nullptr, nullptr, "MOVEMENTNUMBER", GetMovementNumber },
     { nullptr, nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
     { "TCMP", nullptr, nullptr, nullptr, GetCompilation },
-    { "TDRL", nullptr, "\xA9" "day", nullptr, GetReleaseDate },
+    { "TDRL", nullptr, nullptr, "RELEASEDATE", GetReleaseDate },
     { "TDRC", nullptr, nullptr, nullptr, GetDate },
-    { "TDOR", nullptr, nullptr, "ORIGINAL YEAR", GetOriginalReleaseDate },
-    { "TPUB", nullptr, nullptr, "LABEL", GetLabel },
-    { nullptr, "RELEASETYPE", nullptr, "RELEASETYPE", GetReleaseType },
-    { nullptr, "RELEASESTATUS", nullptr, "RELEASESTATUS", GetReleaseStatus },
+    { nullptr, nullptr, nullptr, "DATE", GetStandaloneDate },
+    { "TDOR", nullptr, nullptr, "ORIGINALDATE", GetOriginalReleaseDate },
+    { "TPUB", nullptr, "\xA9" "pub", nullptr, GetLabel },
+    { nullptr, "MusicBrainz Album Type", nullptr, "MusicBrainz Album Type", GetReleaseType },
+    { nullptr, "MusicBrainz Album Status", nullptr, "MusicBrainz Album Status", GetReleaseStatus },
     { nullptr, "BARCODE", nullptr, "BARCODE", GetBarcode },
     { nullptr, "CATALOGNUMBER", nullptr, "CATALOGNUMBER", GetCatalogNumber },
     { nullptr, "ASIN", nullptr, "ASIN", GetASIN },
     { "TOAL", nullptr, nullptr, "ORIGINALALBUM", GetOriginalAlbum },
     { "TOPE", nullptr, nullptr, "ORIGINALARTIST", GetOriginalArtist },
     { "TSST", nullptr, nullptr, "DISCSUBTITLE", GetDiscSubtitle },
-    { nullptr, "WORK", nullptr, "WORK", GetWork },
-    { nullptr, "ITUNESALBUMID", nullptr, "ITUNESALBUMID", GetItunesAlbumId },
-    { nullptr, "ITUNESARTISTID", nullptr, "ITUNESARTISTID", GetItunesArtistId },
-    { nullptr, "ITUNESCATALOGID", nullptr, "ITUNESCATALOGID", GetItunesCatalogId },
-    { nullptr, "ITUNESGENREID", nullptr, "ITUNESGENREID", GetItunesGenreId },
-    { nullptr, "ITUNESMEDIATYPE", nullptr, "ITUNESMEDIATYPE", GetItunesMediaType },
-    { nullptr, "ITUNESPURCHASEDATE", nullptr, "ITUNESPURCHASEDATE", GetItunesPurchaseDate },
-    { nullptr, "ITUNNORM", nullptr, "ITUNNORM", GetItunesNorm },
-    { nullptr, "ITUNSMPB", nullptr, "ITUNSMPB", GetItunesSmpb },
-    { nullptr, "RELEASECOUNTRY", nullptr, "MusicBrainz Album Release Country", GetReleaseCountry },
-    { nullptr, "ARTISTTYPE", nullptr, "ARTISTTYPE", GetArtistType },
+    { nullptr, "WORK", "\xA9" "wrk", nullptr, GetWork },
+    { nullptr, "ITUNESALBUMID", nullptr, nullptr, GetItunesAlbumId },
+    { nullptr, "ITUNESARTISTID", nullptr, nullptr, GetItunesArtistId },
+    { nullptr, "ITUNESCATALOGID", nullptr, nullptr, GetItunesCatalogId },
+    { nullptr, "ITUNESGENREID", nullptr, nullptr, GetItunesGenreId },
+    { nullptr, "ITUNESMEDIATYPE", nullptr, nullptr, GetItunesMediaType },
+    { nullptr, "ITUNESPURCHASEDATE", nullptr, nullptr, GetItunesPurchaseDate },
+    { nullptr, "iTunNORM", nullptr, "iTunNORM", GetItunesNorm },
+    { nullptr, "iTunSMPB", nullptr, "iTunSMPB", GetItunesSmpb },
+    { nullptr, "MusicBrainz Album Release Country", nullptr, "MusicBrainz Album Release Country", GetReleaseCountry },
+    { nullptr, "MusicBrainz Artist Type", nullptr, "MusicBrainz Artist Type", GetArtistType },
     { nullptr, "MusicBrainz Artist Id", nullptr, "MusicBrainz Artist Id", GetMusicBrainzArtistId },
     { nullptr, "MusicBrainz Album Id", nullptr, "MusicBrainz Album Id", GetMusicBrainzAlbumId },
     { nullptr, "MusicBrainz Album Artist Id", nullptr, "MusicBrainz Album Artist Id", GetMusicBrainzAlbumArtistId },
@@ -440,6 +451,9 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { nullptr, "ENGINEER", nullptr, "ENGINEER", GetEngineer },
     { nullptr, "REPLAYGAIN_TRACK_GAIN", nullptr, "REPLAYGAIN_TRACK_GAIN", GetReplayGainTrack },
     { nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", GetReplayGainAlbum },
+    { nullptr, "REPLAYGAIN_TRACK_PEAK", nullptr, "REPLAYGAIN_TRACK_PEAK", GetReplayGainTrackPeak },
+    { nullptr, "REPLAYGAIN_ALBUM_PEAK", nullptr, "REPLAYGAIN_ALBUM_PEAK", GetReplayGainAlbumPeak },
+    { nullptr, "ARTISTS", nullptr, "ARTISTS", GetArtists },
 };
 
 static BOOL ValidateWritableMetadataStrings(TagLibAudioMetadata *metadata, NSError **error)
@@ -468,6 +482,48 @@ static BOOL ValidateWritableMetadataStrings(TagLibAudioMetadata *metadata, NSErr
         if (!validate(key) || !validate(metadata.customFields[key])) return NO;
     }
     return YES;
+}
+
+static void SetMP4UnsignedDecimalItem(TagLib::MP4::Tag *tag,
+                                      const char *key,
+                                      NSString * _Nullable value)
+{
+    if (!tag || !key) return;
+    NSString *trimmed = TrimmedStringOrNil(value);
+    if (!trimmed) {
+        tag->removeItem(key);
+        return;
+    }
+    unsigned long long parsed = 0;
+    if (!ParseUnsignedDecimalString(trimmed, std::numeric_limits<unsigned int>::max(), parsed)) {
+        return;
+    }
+    tag->setItem(key, TagLib::MP4::Item((unsigned int)parsed));
+}
+
+// Writes exact YEAR/DATE text without four-character truncation. The bridge
+// picks the frame identity that matches the existing tag version and removes
+// the other version's identity so a stale copy cannot resurface.
+static void SetVersionedID3v2TextFrames(TagLib::ID3v2::Tag *tag,
+                                        NSString * _Nullable value,
+                                        NSString * v23Identifier,
+                                        NSString * _Nullable v24Identifier,
+                                        NSString * _Nullable v24UserTextDescription = nil)
+{
+    if (!tag) return;
+    if (v23Identifier.length == 4) SetID3v2TextFrame(tag, v23Identifier.UTF8String, nil);
+    if (v24Identifier.length == 4) SetID3v2TextFrame(tag, v24Identifier.UTF8String, nil);
+    if (v24UserTextDescription.length > 0) {
+        RemoveID3v2UserTextFrames(tag, @[ v24UserTextDescription ]);
+    }
+    if (!TrimmedStringOrNil(value)) return;
+    const bool version3 = tag->header() && tag->header()->majorVersion() == 3;
+    if (!version3 && v24UserTextDescription.length > 0) {
+        SetID3v2UserTextFrame(tag, v24UserTextDescription.UTF8String, value);
+        return;
+    }
+    NSString *chosen = version3 ? v23Identifier : (v24Identifier ?: v23Identifier);
+    if (chosen.length == 4) SetID3v2TextFrame(tag, chosen.UTF8String, value);
 }
 
 static void ApplyWritableTextMappingsToID3v2Tag(TagLib::ID3v2::Tag *tag,
@@ -633,9 +689,13 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     metadata.composer = FirstStringFromProperty(properties, {"COMPOSER"}, true) ?: metadata.composer;
     metadata.albumArtist = FirstStringFromProperty(properties, {"ALBUMARTIST", "ALBUM ARTIST"}, true) ?: metadata.albumArtist;
 
-    NSString *dateValue = FirstStringFromProperty(properties, {"DATE", "YEAR"});
+    NSString *dateValue = FirstStringFromProperty(properties, {"YEAR"});
     if (dateValue.length > 0 && metadata.year.length == 0) {
-        metadata.year = dateValue.length >= 4 ? [dateValue substringToIndex:4] : dateValue;
+        metadata.year = dateValue;
+    }
+    NSString *standaloneDate = FirstStringFromProperty(properties, {"DATE"});
+    if (standaloneDate.length > 0) {
+        metadata.standaloneDate = standaloneDate;
     }
 
     NSString *releaseDateValue = FirstStringFromProperty(properties, {"RELEASEDATE"});

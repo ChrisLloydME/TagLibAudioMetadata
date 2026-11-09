@@ -47,23 +47,25 @@ For Ogg families the extractor opens the extension-selected `FileRef` and then a
 
 An identity check rejects a file changed during extraction. The Swift models are copies; no TagLib object escapes the parser interval.
 
-Legacy Basic, raw, and structured entry points remain available. The unified snapshot eliminates three independent parses when an editor needs all views. `BasicMetadata` is normalized for convenience and is deliberately not a lossless round-trip representation. Raw and structured projections retain semantic multi-value and supported container-specific information, but unknown or opaque native payloads may be represented only by type/display summaries. `MetadataSnapshot` is therefore a comprehensive semantic snapshot, not a native byte-for-byte serialization.
+### Extraction options
 
-Selective extraction avoids building unrequested projections:
+The bridge supports five option bits: `basic`, `raw`, `structured`, `propertyMap`, and `rawFrames`. The facade's read methods select them as follows:
 
-| Call | Bridge options | Result |
+| Facade call | Bridge options | Returned projection |
 | --- | --- | --- |
-| `readSnapshot` | all | Basic, raw, structured in one extraction call. |
-| `readMetadataResult` / `readBasicSnapshot` | basic + PropertyMap | Basic and raw cardinality; no structured inspector models. |
-| `rawMetadataResult` | raw | Visible `PropertyMap` and raw frame summaries where exposed. |
-| `readStructuredMetadataResult` | structured | Structured collections only. |
-| `TagLibMetadataExtractor.metadataProjections(for:options:)` | caller selected | The requested subset of `basic`, `raw`, `structured`. |
+| `readSnapshot(from:)` | `.all` | Basic, raw, and structured. |
+| `readMetadataResult(from:)` | `.all` | Basic only (raw and structured are derived internally). |
+| `readBasicSnapshot(from:)` | `.all` | Basic plus version (structured is derived internally). |
+| `rawMetadataResult(from:)` | `.raw` | Visible `PropertyMap` and raw frame summaries where exposed. |
+| `readStructuredMetadataResult(from:)` | `.structured` | Structured collections only. |
+
+`readMetadataResult` and `readBasicSnapshot` are lighter in returned model construction and public API surface, not in native extraction work: Basic metadata needs the structured projection to resolve exact MP4 and ID3 date/number identities. They do not return `StructuredMetadata`.
 
 The unified bridge still constructs its internal Basic carrier during a structured-only traversal; removing that allocation requires a wider format-extractor split. This is an implementation detail, not a public contract.
 
-`readBasicSnapshot(from:)` returns the focused Basic projection with an exact optimistic-concurrency token. `updateBasicMetadata(at:_:)` uses this path before the version-checked replacement, so a Basic read/modify/write does not build unused structured inspector models.
+`updateBasicMetadata(at:_:)` reads a focused Basic snapshot, applies the closure, and passes the captured version to the version-checked replacement.
 
-Callers that split read and write across UI events should retain the token and pass it to `applyMetadataPatch`, `applyRawMetadataPatch`, `replaceBasicMetadata`, `writeStructuredMetadataWithVerification`, the whole-map raw writers, or `writeTagMetadata`. Without `expectedVersion`, a write intentionally targets the file state current when its transaction begins rather than the state previously shown to the user.
+Callers that split read and write across UI events should retain the token and pass it to `applyMetadataPatch`, `applyRawMetadataPatch`, `replaceBasicMetadata`, `writeStructuredMetadataWithVerification`, the whole-map raw writers, or `writeTagMetadata`. Without `expectedVersion`, a write intentionally targets the file state current when its transaction begins.
 
 ## Audio-content continuity
 
@@ -89,7 +91,7 @@ A complex `MetadataPatch` can open and save the staged file separately for numbe
 
 ## Metadata model and write semantics
 
-`MetadataPatch` expresses omission explicitly: absent fields are unchanged, `.remove` clears a property, `explicitAdvisory` retains all four advisory states, and artwork distinguishes unchanged, replacement, and removal. Typed fields are validated for kind and numeric range against `MetadataFieldRegistry` before staging. Schema-known keys are rejected from `customFields`, including aliases and case variants. Role-qualified fields such as `.performer` are rejected by the typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are part of the key. Partial removal of a paired first component is rejected on native pair formats when a retained total cannot be represented.
+`MetadataPatch` expresses omission explicitly: absent fields are unchanged, `.remove` clears a property, `explicitAdvisory` retains all four advisory states, and artwork distinguishes unchanged, replacement, and removal. Typed fields are validated for kind and numeric range against `MetadataFieldRegistry` before staging. Schema-known keys are rejected from `customFields`, including aliases and case variants. Role-qualified fields such as `.performer` are rejected by the typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are part of the key.
 
 Most property changes are applied as a bridge delta to the current `PropertyMap`; MP4 track/disc pairs and advisory data use native `trkn`, `disk`, and `rtng` mutation, while ID3 advisory uses the supported `TXXX` representation. TagLib still saves the affected native tag, so the guarantee is semantic omission rather than byte-for-byte container preservation.
 
@@ -104,27 +106,34 @@ Number pairs use container-aware paths:
 - generic/Xiph formats use separate number/total keys;
 - ASF combines totals into native text attributes.
 
-Track/disc integers begin at one; movement and BPM begin at zero. Native `trkn`/`disk` pairs are authoritative on MP4. Changing a numeric component lazily migrates legacy AudioMator formatting provenance to a package-neutral key while preserving padding; an unchanged pair preserves legacy text and storage exactly. Dedicated number-text APIs remain the explicit formatted-input path.
+Track/disc integers begin at one; movement and BPM begin at zero. Native `trkn`/`disk` pairs are authoritative on MP4. Numeric writes do not create or rename the legacy `AUDIOMATOR_*_TEXT` or `TAGLIBAUDIOMETADATA_*_TEXT` atoms; existing values are preserved until an explicit normalization plan retires selected identities. Dedicated number-text APIs are the explicit formatted-input path.
 
-`BasicMetadata` has replacement semantics only for fields it explicitly models. Schema-known non-Basic fields, full recording dates, documented aliases, qualified people keys, and custom fields absent from its projection are restored from the current raw state where supported. `BasicMetadata` multi-value scalars are display strings with format-dependent separators and are not a lossless array representation. Removing a custom dictionary key does not request deletion; callers use `MetadataPatchValue.remove`.
+`BasicMetadata` has replacement semantics only for fields the Basic replacement path actually writes. It preserves untouched multi-value arrays through exact native collections, restores unchanged native ID3 comment/lyric collections, and carries Xiph/APE text keys through their exact physical spelling. Other opaque or unmodeled data may survive because TagLib saves the native tag, but it is not reconstructed from the Basic model. `BasicMetadata` multi-value scalars are display strings with format-dependent separators and are not a lossless array representation. Removing a custom dictionary key does not request deletion; callers use `MetadataPatchValue.remove`.
 
-Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered value cardinality. `TXXX` descriptions identify frames and are kept separate from their payload arrays. Structured verification compares those arrays element by element.
+The MP4-exclusive Basic properties (`director`, store IDs, TV fields, and related Booleans) are readable through `BasicMetadata` but are not written by `replaceBasicMetadata`: the bridge writer model has no corresponding properties. Use `MetadataPatch` or structured writes for those fields; see [Write semantics](PRESERVATION.md#basic-preservation-rules).
+
+Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered value cardinality. `TXXX` descriptions identify frames and are kept separate from their payload arrays. Structured verification compares those arrays element by element. `StructuredID3v2Frame.fields` is merged into the bridge payload dictionary; it is reserved for future frame-specific fields and can collide with `id`, `type`, `value`, or `values`, so callers should leave it empty.
 
 Structured artwork writes use dedicated ID3v2, MP4, ASF, FLAC/Xiph, and APE-family paths; the caller's `container` value is informational because the destination follows the file format. `structuredWriteSupport` describes non-artwork structured data, so a PropertyMap-level format can still support artwork when `canWriteArtwork` is true. Structured PropertyMap values are applied as a delta: omitted keys remain, empty value arrays remove one key, and non-empty properties with `includeProperties == false` are rejected.
 
-The shared advisory model distinguishes field absence (`unspecified`) from a present not-explicit value, explicit, and clean. Canonical MP4/M4A native values are absent, `rtng = 0`, `rtng = 1`, and `rtng = 2`. ID3 and generic PropertyMap storage use `ITUNESADVISORY`. Readers accept documented legacy aliases, including MP4 value `4` as explicit; high-level writes use canonical values.
+The shared advisory model distinguishes field absence (`unspecified`) from present not-explicit, explicit, and clean. Canonical MP4/M4A native values are absent, `rtng = 0`, `rtng = 1`, and `rtng = 2`. ID3 and generic PropertyMap storage use `ITUNESADVISORY`. Unknown existing codes (for example MP4 `4`) are retained as `explicitAdvisoryRawValue` with `.unspecified` semantics; they are not silently recoded as explicit or clean. Explicit replacement with a known state is allowed.
 
 Atomic rename provides a pathname-level all-or-nothing commit on one volume. It does not preserve inode identity or update sibling hard links. Both transaction engines reject setuid/setgid files before staging because clone/copy may drop privilege bits. Production does not run a separate deployment-specific metadata-preservation audit; clients with quarantine, immutable-flag, or security-scoped requirements must validate their environment. The caller needs read access to the file and create/rename access in its parent directory.
 
 If rename succeeds but the final parent-directory sync fails, the new file is already committed. High-level Swift writes return `.durabilityUncertain`; they do not attempt rollback, and consumers must not blindly repeat the operation. The internal transaction helper retains the historical typed error.
 
-## Schema and capabilities
+## Schema, capabilities, and generated documentation
 
-`MetadataFieldRegistry` is the Swift source of public field semantics. It defines each `MetadataFieldKey` once, with display name, category, `PropertyMap` aliases, container mappings, multi-value/people/role/artwork flags, accepted typed-patch kinds, and integer constraints. The bridge has a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
+`MetadataFieldRegistry` is the Swift source of public field semantics. `MetadataMappingCatalog` is the checked-in declarative target table; it is not generated from Markdown. `MetadataFieldSchema` joins that catalog to display, category, patch-kind, and integer-constraint policy. `mappings` is derived from `nativeTargets`, so the legacy compatibility view cannot drift. The bridge retains a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
 
-The tables are not generated from one machine-readable source yet. The documentation tables are generated from the Swift registry, but adding a production schema still requires updating both the Swift table and the bridge mapping and running the parity tests. Until a shared generator exists, treat the cross-language tests as the guardrail.
+Adding a production schema requires updating the semantic registry and, where the bridge must address the native target directly, the bridge mapping, then running the parity and codec tests. The documentation pipeline consumes the Swift sources:
 
-`FormatCapability` separates read/write mechanics from evidence through `FormatSupportLevel`. UI code should query the extension and field being edited because aliases and container fields can have different evidence levels. The complete matrix and its limits are in [Formats](FORMATS.md).
+- `scripts/generate-api-reference.py` renders manager and model declarations;
+- `scripts/generate-field-schema.py` renders the field tables and typed-patch policy;
+- `scripts/generate-format-matrix.py` renders the capability registry;
+- `scripts/generate-mapping-matrix.py` renders `MetadataMappingCatalog`.
+
+`FormatCapability` separates read/write mechanics from evidence through `FormatSupportLevel`. UI code should query the extension and field being edited because aliases and container fields can have different evidence levels. The complete matrix and its limits are in [Formats](../reference/FORMATS.md).
 
 ## Performance and concurrency
 
@@ -147,6 +156,10 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `.../TagLibMetadataManager+Compatibility.swift` | Deprecated-signature and pre-`expectedVersion` forwarding overloads. |
 | `.../MetadataSnapshotPatch.swift` | Snapshot/version models, `MetadataPatch`, typed patch validation and application. |
 | `.../RawMetadataPatch.swift` | Exact raw delta validation, application, and verification. |
+| `.../MetadataNativePlanning.swift` | Semantic patch value to exact native target translation. |
+| `.../MetadataNumberInventory.swift` | Number inventory, recovery, normalization plans, and application. |
+| `.../MetadataMapping.swift` | Native family, storage, shape, target, and capability vocabulary. |
+| `.../MetadataMappingCatalog.swift` | Declarative semantic-to-native target table (source of truth). |
 | `.../MetadataAudioContentIdentity.swift` | Opt-in bounded audio scanner and guarded-write checks. |
 | `.../TagLibMetadataModels.swift` | Basic, raw, structured, policy, and error models. |
 | `.../MetadataFieldSchema.swift` | Public field keys, schema, mappings, and registry lookups. |
@@ -160,7 +173,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `Sources/CTagLibBridgeInternalAPI/` | Non-product in-place mutation and coordination declarations used by the facade/tests. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |
 | `IntegrationTests/Consumer/` | Facade-only and low-level consumer packages. |
-| `scripts/` | Binary build, preservation-corpus generation, documentation checks and field-table generation. |
+| `scripts/` | Binary build, preservation-corpus generation, reference generators, documentation checks. |
 | `docs/` | Current documentation; historical records under `docs/records/`. |
 
 Public headers do not expose internal C++ declarations.
@@ -177,4 +190,4 @@ The single SwiftPM test target is organized physically by layer:
 - `Performance/` contains opt-in, non-gating throughput experiments.
 - Root-level tests cover public Objective-C selectors, Swift nested types, deprecated function references, and console-diagnostics hygiene.
 
-This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](TESTING.md) for commands and evidence limits.
+This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](../operations/TESTING.md) for commands and evidence limits.

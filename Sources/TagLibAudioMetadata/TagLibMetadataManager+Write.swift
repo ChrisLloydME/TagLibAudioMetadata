@@ -8,26 +8,27 @@ import CTagLibBridge
 import CTagLibBridgeInternalAPI
 
 extension TagLibMetadataManager {
-    nonisolated private static func validateDateStorageCompatibility(
-        year: String?,
-        releaseDate: String?,
-        for url: URL
-    ) throws {
-        guard Self.capability(forExtension: url.pathExtension)?
-            .metadataFieldFormats.contains(MetadataFieldFormat.mp4) == true else {
-            return
+    nonisolated static func isRepresentableYearText(_ text: String) -> Bool {
+        let trimmed = normalizedTrimmed(text)
+        guard !trimmed.isEmpty else { return true }
+        if trimmed.allSatisfy(\.isNumber) {
+            return UInt32(trimmed).map { _ in true } ?? false
         }
-
-        let normalizedYear = normalizedTrimmed(year)
-        guard !normalizedYear.isEmpty else { return }
-        let normalizedReleaseDate = normalizedTrimmed(releaseDate)
-        let projectedReleaseYear = String(normalizedReleaseDate.prefix(4))
-        guard !normalizedReleaseDate.isEmpty, normalizedYear == projectedReleaseYear else {
-            throw MetadataValidationError.conflictingMP4Date(year: normalizedYear, releaseDate: normalizedReleaseDate)
+        // Complete date text such as 2021-07-15 or 2021/07/15 is valid; the
+        // stored value is not truncated to its first four characters.
+        let scalars = Array(trimmed.unicodeScalars)
+        guard scalars.count >= 5,
+              scalars.prefix(4).allSatisfy({ CharacterSet.decimalDigits.contains($0) }),
+              scalars[4] == "-" || scalars[4] == "/" || scalars[4] == "." else {
+            return false
         }
+        return true
     }
 
     nonisolated static func validateBasicMetadataForWrite(_ metadata: BasicMetadata) throws {
+        guard isRepresentableYearText(metadata.year) else {
+            throw MetadataValidationError.invalidYearText(metadata.year)
+        }
         for field in BasicMetadata.editableFieldKeys {
             if basicProjectionValue(for: field, metadata: metadata)?.contains("\0") == true {
                 throw MetadataValidationError.embeddedNull(location: field.rawValue)
@@ -71,7 +72,8 @@ extension TagLibMetadataManager {
         case .artist: metadata.artist
         case .album: metadata.album
         case .albumArtist: metadata.albumArtist
-        case .date: metadata.year
+        case .date, .year: metadata.year
+        case .standaloneDate: metadata.date
         case .releaseDate: metadata.releaseDate
         case .originalReleaseDate: metadata.originalReleaseDate
         case .track: String(metadata.track)
@@ -106,6 +108,8 @@ extension TagLibMetadataManager {
         case .discSubtitle: metadata.discSubtitle
         case .subtitle: metadata.subtitle
         case .grouping: metadata.grouping
+        case .contentGroup: metadata.contentGroup
+        case .artists: metadata.artists
         case .mood: metadata.mood
         case .language: metadata.language
         case .musicalKey: metadata.musicalKey
@@ -128,6 +132,8 @@ extension TagLibMetadataManager {
         case .musicIPPUID: metadata.musicIPPUID
         case .replayGainTrackGain: metadata.replayGainTrack
         case .replayGainAlbumGain: metadata.replayGainAlbum
+        case .replayGainTrackPeak: metadata.replayGainTrackPeak
+        case .replayGainAlbumPeak: metadata.replayGainAlbumPeak
         case .itunesAlbumID: metadata.itunesAlbumID
         case .itunesArtistID: metadata.itunesArtistID
         case .itunesCatalogID: metadata.itunesCatalogID
@@ -136,6 +142,22 @@ extension TagLibMetadataManager {
         case .itunesPurchaseDate: metadata.itunesPurchaseDate
         case .itunesNorm: metadata.itunesNorm
         case .itunesSMPB: metadata.itunesSMPB
+        case .director: metadata.director
+        case .itunesAccount: metadata.itunesAccount
+        case .itunesComposerID: metadata.itunesComposerID
+        case .itunesCountryID: metadata.itunesCountryID
+        case .itunesGapless: metadata.itunesGapless ? "1" : "0"
+        case .itunesHDVideo: metadata.itunesHDVideo ? "1" : "0"
+        case .itunesOwner: metadata.itunesOwner
+        case .rate: String(metadata.rate)
+        case .showMovement: metadata.showMovement ? "1" : "0"
+        case .storeDescription: metadata.storeDescription
+        case .tvEpisode: String(metadata.tvEpisode)
+        case .tvEpisodeID: metadata.tvEpisodeID
+        case .tvNetwork: metadata.tvNetwork
+        case .tvSeason: String(metadata.tvSeason)
+        case .tvShow: metadata.tvShow
+        case .tvShowSort: metadata.tvShowSort
         case .originalAlbum: metadata.originalAlbum
         case .originalArtist: metadata.originalArtist
         case .artistType: metadata.artistType
@@ -173,10 +195,11 @@ extension TagLibMetadataManager {
                 shouldPreserve = true
             } else if fieldsHandledByTypedWriters.contains(schema.key) {
                 shouldPreserve = false
-            } else if schema.key == .date {
-                // The scalar year cannot express date cardinality or aliases.
-                // Restore all original entries when that projection is unchanged.
-                shouldPreserve = !isMP4 && desired.year == current.year
+            } else if schema.key == .date || schema.key == .year {
+                // YEAR and DATE are independent and are written through their
+                // exact native slots; replaying the engine DATE projection here
+                // would synthesize YEAR from a standalone DATE.
+                shouldPreserve = false
             } else if let desiredValue = basicProjectionValue(for: schema.key, metadata: desired),
                       let currentValue = basicProjectionValue(for: schema.key, metadata: current) {
                 shouldPreserve = desiredValue == currentValue
@@ -230,11 +253,6 @@ extension TagLibMetadataManager {
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
-        try validateDateStorageCompatibility(
-            year: metadata.year,
-            releaseDate: metadata.releaseDate,
-            for: url
-        )
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
@@ -276,6 +294,32 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let inventory = try numberingInventory(at: mutationURL)
+            for (selected, group, name) in [
+                (true, inventory.track, "track"),
+                (discNumberText != nil, inventory.disc, "disc"),
+            ] where selected && group.hasUnresolvedComponents {
+                throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                    field: name, identities: group.number.identities + group.total.identities
+                )
+            }
+            let trackInput = parseNumberPair(trackNumberText)
+            let discInput = discNumberText.map(parseNumberPair)
+            let recoverTrack = !trackNumberText.isEmpty && trackInput.total == 0
+                && inventory.track.total.state == .recoveredLegacy
+            let recoverDisc = discNumberText?.isEmpty == false && discInput?.total == 0
+                && inventory.disc.total.state == .recoveredLegacy
+            if recoverTrack || recoverDisc {
+                try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                    trackNumber: trackInput.number,
+                    totalTracks: inventory.track.total.recoveredValue ?? 0,
+                    updateTrackPair: recoverTrack,
+                    discNumber: discInput?.number ?? 0,
+                    totalDiscs: inventory.disc.total.recoveredValue ?? 0,
+                    updateDiscPair: recoverDisc,
+                    to: mutationURL
+                )
+            }
             let beforeWrite = verifyAfterWrite ? try readMetadataResult(from: mutationURL) : nil
             try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
@@ -681,11 +725,6 @@ extension TagLibMetadataManager {
         try validateBasicMetadataForWrite(meta)
         try validateNativeNumberPair(number: meta.track, total: meta.trackTotal, field: .track, for: url)
         try validateNativeNumberPair(number: meta.disc, total: meta.discTotal, field: .disc, for: url)
-        try validateDateStorageCompatibility(
-            year: meta.year,
-            releaseDate: meta.releaseDate,
-            for: url
-        )
 
         let m = TagLibAudioMetadata()
 
@@ -714,6 +753,7 @@ extension TagLibMetadataManager {
 
         // Dates
         m.year = nilIfEmpty(meta.year)
+        m.standaloneDate = nilIfEmpty(meta.date)
         m.releaseDate = nilIfEmpty(meta.releaseDate)
         m.originalReleaseDate = nilIfEmpty(meta.originalReleaseDate)
 
@@ -735,12 +775,16 @@ extension TagLibMetadataManager {
         m.lyricist = nilIfEmpty(meta.lyricist)
         m.subtitle = nilIfEmpty(meta.subtitle)
         m.grouping = nilIfEmpty(meta.grouping)
+        m.contentGroup = nilIfEmpty(meta.contentGroup)
+        m.artists = nilIfEmpty(meta.artists)
         m.movement = nilIfEmpty(meta.movement)
         m.mood = nilIfEmpty(meta.mood)
         m.language = nilIfEmpty(meta.language)
         m.musicalKey = nilIfEmpty(meta.musicalKey)
         m.replayGainTrack = nilIfEmpty(meta.replayGainTrack)
         m.replayGainAlbum = nilIfEmpty(meta.replayGainAlbum)
+        m.replayGainTrackPeak = nilIfEmpty(meta.replayGainTrackPeak)
+        m.replayGainAlbumPeak = nilIfEmpty(meta.replayGainAlbumPeak)
         m.mediaType = nilIfEmpty(meta.mediaType)
         m.itunesAlbumId = nilIfEmpty(meta.itunesAlbumID)
         m.itunesArtistId = nilIfEmpty(meta.itunesArtistID)
@@ -772,6 +816,7 @@ extension TagLibMetadataManager {
         case .clean: .clean
         case .explicit: .explicit
         }
+        m.explicitAdvisoryRawValue = nilIfEmpty(meta.explicitAdvisoryRawValue ?? "")
         m.isrc = nilIfEmpty(meta.isrc)
         m.barcode = nilIfEmpty(meta.barcode)
         m.musicBrainzArtistId = nilIfEmpty(meta.musicBrainzArtistID)
@@ -797,26 +842,17 @@ extension TagLibMetadataManager {
         m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
 
         let isMP4Family = capability(forExtension: ext)?.identifier == "mp4"
-        let expectedTrackNumberText = isMP4Family
-            ? numberTextPreservingFormatting(
-                meta.trackNumberText,
-                number: meta.track,
-                total: meta.trackTotal
-            )
-            : meta.trackNumberText
-        let expectedDiscNumberText = isMP4Family
-            ? numberTextPreservingFormatting(
-                meta.discNumberText,
-                number: meta.disc,
-                total: meta.discTotal
-            )
-            : meta.discNumberText
-        let expectedYear: String
-        if isMP4Family && normalizedTrimmed(meta.year).isEmpty && !normalizedTrimmed(meta.releaseDate).isEmpty {
-            expectedYear = String(normalizedTrimmed(meta.releaseDate).prefix(4))
-        } else {
-            expectedYear = meta.year
-        }
+        let expectedTrackNumberText = numberTextPreservingFormatting(
+            meta.trackNumberText,
+            number: meta.track,
+            total: meta.trackTotal
+        )
+        let expectedDiscNumberText = numberTextPreservingFormatting(
+            meta.discNumberText,
+            number: meta.disc,
+            total: meta.discTotal
+        )
+        let expectedYear = meta.year
 
         var verification = MetadataWriteVerificationContext(
                 expectedTrackNumber: meta.track,
@@ -906,7 +942,58 @@ extension TagLibMetadataManager {
         verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
         let exactVerification = verification
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
-            let current = try readBasicMetadataAndRaw(from: mutationURL)
+            let current = try readBasicMetadataRawAndStructured(from: mutationURL)
+            let numberingIdentifier = capability(forExtension: ext)?.identifier ?? ext
+            let isID3Primary = ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"]
+                .contains(numberingIdentifier)
+            let numberInventory = numberingInventory(
+                raw: current.raw,
+                structured: current.structured,
+                isMP4: isMP4Family,
+                isID3: isID3Primary,
+                version: nil
+            )
+            for (changed, group, name) in [
+                (meta.track != current.metadata.track || meta.trackTotal != current.metadata.trackTotal, numberInventory.track, "track"),
+                (meta.disc != current.metadata.disc || meta.discTotal != current.metadata.discTotal, numberInventory.disc, "disc"),
+            ] where changed && group.hasUnresolvedComponents {
+                throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                    field: name, identities: group.number.identities + group.total.identities
+                )
+            }
+            if meta.track != current.metadata.track,
+               meta.trackTotal == current.metadata.trackTotal {
+                if numberInventory.track.total.state == .recoveredLegacy {
+                    m.totalTracks = numberInventory.track.total.recoveredValue ?? 0
+                } else if numberInventory.track.total.isUnresolved {
+                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                        field: "trackTotal",
+                        identities: numberInventory.track.total.identities
+                    )
+                }
+            }
+            if meta.disc != current.metadata.disc,
+               meta.discTotal == current.metadata.discTotal {
+                if numberInventory.disc.total.state == .recoveredLegacy {
+                    m.totalDiscs = numberInventory.disc.total.recoveredValue ?? 0
+                } else if numberInventory.disc.total.isUnresolved {
+                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                        field: "discTotal",
+                        identities: numberInventory.disc.total.identities
+                    )
+                }
+            }
+            var adjustedVerification = exactVerification
+            if Int(m.totalTracks) != meta.trackTotal || Int(m.totalDiscs) != meta.discTotal {
+                adjustedVerification.expectedTrackTotal = Int(m.totalTracks)
+                adjustedVerification.expectedDiscTotal = Int(m.totalDiscs)
+                adjustedVerification.expectedTrackNumberText = numberTextPreservingFormatting(
+                    meta.trackNumberText, number: meta.track, total: Int(m.totalTracks)
+                )
+                adjustedVerification.expectedDiscNumberText = numberTextPreservingFormatting(
+                    meta.discNumberText, number: meta.disc, total: Int(m.totalDiscs)
+                )
+            }
             // A PropertyMap cannot carry ID3 comment/lyric languages or the
             // original description spelling. Preserve the native collections
             // when their scalar Basic projection was not edited.
@@ -923,12 +1010,77 @@ extension TagLibMetadataManager {
                     preservedCollections.insert(.lyrics)
                 }
             }
-            let preservation = preservedStandardValues(
-                desired: meta,
-                current: current.metadata,
-                rawDump: current.raw,
-                isMP4: isMP4Family
-            )
+            var preservedMP4Atoms: [StructuredMP4Atom] = []
+            if isMP4Family {
+                // Restore untouched multi-value arrays through exact native
+                // atoms. Replaying the engine PropertyMap would collapse MP4
+                // cardinality and drop atoms TagLib does not project.
+                for entry in current.raw.properties where entry.values.count > 1 {
+                    guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key),
+                          schema.isMultiValue,
+                          schema.key != .artwork,
+                          let target = schema.writeTarget(for: .mp4),
+                          target.shape == .textArray,
+                          target.storage == .mp4Atom || target.storage == .mp4Freeform,
+                          let desired = basicProjectionValue(for: schema.key, metadata: meta),
+                          let original = basicProjectionValue(for: schema.key, metadata: current.metadata),
+                          desired == original else { continue }
+                    let atomKey = target.storage == .mp4Freeform
+                        ? "----:com.apple.iTunes:\(target.nativeIdentity)"
+                        : target.nativeIdentity
+                    preservedMP4Atoms.append(
+                        StructuredMP4Atom(key: atomKey, type: "stringList", values: entry.values)
+                    )
+                }
+            }
+            // Whole-map Engine PropertyMap replay is unsafe for the 2.2
+            // profile: TagLib merges independent YEAR/DATE frames into one
+            // projection and would rewrite them on an unrelated edit. Preserve
+            // untouched multi-value arrays through exact native collections.
+            var preservedID3Frames: [StructuredID3v2Frame] = []
+            var preservedNativeTextKeys: [String: [String]] = [:]
+            let preservation = (values: [String: [String]](), aliases: Set<String>())
+            let identifier = capability(forExtension: ext)?.identifier ?? ext
+            let isXiphOrAPE = ["flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex",
+                               "ape", "wavpack", "musepack"].contains(identifier)
+            for entry in current.raw.properties where !entry.values.isEmpty {
+                // An explicitly edited/deleted Basic custom value must not be
+                // resurrected by exact-key preservation.
+                if let customKey = meta.customFields.keys.first(where: {
+                    $0.caseInsensitiveCompare(entry.key) == .orderedSame
+                }) {
+                    let original = meta.originalCustomFieldProjection.first {
+                        $0.key.caseInsensitiveCompare(customKey) == .orderedSame
+                    }?.value
+                    if original != meta.customFields[customKey] { continue }
+                }
+                guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key) else {
+                    if isXiphOrAPE { preservedNativeTextKeys[entry.key] = entry.values }
+                    continue
+                }
+                guard schema.key != .artwork,
+                      schema.key != .year, schema.key != .date,
+                      schema.key != .standaloneDate else { continue }
+                if BasicMetadata.editableFieldKeys.contains(schema.key) {
+                    guard let desired = basicProjectionValue(for: schema.key, metadata: meta),
+                          let original = basicProjectionValue(for: schema.key, metadata: current.metadata),
+                          desired == original else { continue }
+                }
+                if isMP4Family {
+                    continue
+                } else if isXiphOrAPE {
+                    // Preserve the exact physical key, including documented
+                    // aliases and qualified role/comment/lyric keys. Writing a
+                    // canonical target here would drop the original spelling.
+                    preservedNativeTextKeys[entry.key] = entry.values
+                } else if entry.values.count > 1,
+                          ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"].contains(identifier) {
+                    if var frame = id3Frame(for: schema.key, schema: schema) {
+                        frame.values = entry.values
+                        preservedID3Frames.append(frame)
+                    }
+                }
+            }
             let numericFields: Set<MetadataFieldKey> = [
                 .track, .trackTotal, .disc, .discTotal,
                 .movementNumber, .movementCount, .bpm, .compilation
@@ -943,10 +1095,12 @@ extension TagLibMetadataManager {
                       desired != original else { return nil }
                 return entry.key
             }
-            if !editedTextKeys.isEmpty {
+            if !editedTextKeys.isEmpty && !isMP4Family {
                 // Remove the complete represented alias/description group before
                 // emitting the caller's replacement. Otherwise old TXXX aliases
-                // can resurface when the canonical field is later cleared.
+                // can resurface when the canonical field is later cleared. MP4
+                // native writes address exact atoms; replaying the engine
+                // PropertyMap would drop atoms TagLib does not project.
                 if ext == "wav" {
                     try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
                         [:], removingKeys: editedTextKeys, preserveInfoOnlyValues: true, to: mutationURL
@@ -957,17 +1111,6 @@ extension TagLibMetadataManager {
                     )
                 }
             }
-            // Keep a full recording date when the caller did not change the
-            // Basic year projection. The Basic model exposes only the year,
-            // but the underlying tag can carry a complete ISO date.
-            if normalizedTrimmed(meta.year) == normalizedTrimmed(current.metadata.year),
-               let fullDate = current.raw.properties.first(where: {
-                   $0.key.caseInsensitiveCompare("DATE") == .orderedSame
-               })?.values.first,
-               !normalizedTrimmed(fullDate).isEmpty {
-                m.year = fullDate
-            }
-
             try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
             if !preservation.values.isEmpty {
                 if ext == "wav" {
@@ -985,6 +1128,35 @@ extension TagLibMetadataManager {
                     )
                 }
             }
+            if !preservedNativeTextKeys.isEmpty {
+                try TagLibMetadataExtractor.applyNativeTextKeyValuesInPlace(
+                    preservedNativeTextKeys,
+                    removingKeys: [],
+                    to: mutationURL
+                )
+            }
+            if !preservedID3Frames.isEmpty {
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
+                    bridgePayload(
+                        from: StructuredMetadata(id3v2Frames: preservedID3Frames),
+                        includeProperties: false,
+                        replacingCollections: [],
+                        riffPolicy: .preserveInfo
+                    ),
+                    to: mutationURL
+                )
+            }
+            if !preservedMP4Atoms.isEmpty {
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
+                    bridgePayload(
+                        from: StructuredMetadata(mp4Atoms: preservedMP4Atoms),
+                        includeProperties: false,
+                        replacingCollections: [],
+                        riffPolicy: .preserveInfo
+                    ),
+                    to: mutationURL
+                )
+            }
             if !preservedCollections.isEmpty {
                 let payload = bridgePayload(
                     from: nativeCollections,
@@ -1001,7 +1173,7 @@ extension TagLibMetadataManager {
                 )
                 try throwOnVerificationFailures(nativeVerification.failures)
             }
-            var warnings = metadataWriteWarnings(for: mutationURL, verification: exactVerification)
+            var warnings = metadataWriteWarnings(for: mutationURL, verification: adjustedVerification)
             warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
@@ -1018,17 +1190,6 @@ extension TagLibMetadataManager {
         let snapshot = try readBasicSnapshot(from: url)
         var metadata = snapshot.metadata
         try update(&metadata)
-        if capability(forExtension: url.pathExtension)?.identifier == "mp4" {
-            let yearChanged = metadata.year != snapshot.metadata.year
-            let releaseChanged = metadata.releaseDate != snapshot.metadata.releaseDate
-            if releaseChanged && !yearChanged {
-                metadata.year = String(normalizedTrimmed(metadata.releaseDate).prefix(4))
-            } else if yearChanged && !releaseChanged {
-                let year = normalizedTrimmed(metadata.year)
-                let oldDate = normalizedTrimmed(metadata.releaseDate)
-                metadata.releaseDate = year.isEmpty ? "" : year + String(oldDate.dropFirst(4))
-            }
-        }
         return try replaceBasicMetadata(
             metadata,
             to: url,

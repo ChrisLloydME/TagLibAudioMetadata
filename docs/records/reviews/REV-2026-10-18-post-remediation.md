@@ -33,7 +33,7 @@ Source references:
 - **F**: [FixtureMetadataRoundTripTests](../../../Tests/TagLibAudioMetadataTests/Integration/FixtureMetadataRoundTripTests.swift), including the corrected legacy-warning test.
 - **Q**: [WAVInfoProjectionTests](../../../Tests/TagLibAudioMetadataTests/Integration/WAVInfoProjectionTests.swift), including independently seeded INAM/INFO preservation checks.
 - **V**: [SnapshotVersionTests](../../../Tests/TagLibAudioMetadataTests/Transactions/SnapshotVersionTests.swift), [ReliabilityFailureTests](../../../Tests/TagLibAudioMetadataTests/Transactions/ReliabilityFailureTests.swift), and same-file/concurrency suites.
-- **Docs**: current [README](../../../README.md), [SUPPORT](../../USAGE.md), [ARCHITECTURE](../../ARCHITECTURE.md), [THREAD_SAFETY](../../TRANSACTIONS.md), [INSTALLATION](../../INSTALLATION.md), and [CHANGELOG](../../../CHANGELOG.md).
+- **Docs**: current [README](../../../README.md), [SUPPORT](../../guide/WRITING.md), [ARCHITECTURE](../../explanation/ARCHITECTURE.md), [THREAD_SAFETY](../../explanation/TRANSACTIONS.md), [INSTALLATION](../../operations/INSTALLATION.md), and [CHANGELOG](../../../CHANGELOG.md).
 
 ### Production findings
 

@@ -42,18 +42,20 @@ struct CleanRoomMP4Tests {
         return (items, audio)
     }
 
+    // Native target identities from AM-TLAM-MAPPING-2.2 section 9.
     private let fields: [(MetadataFieldKey, WritableKeyPath<BasicMetadata, String>, String)] = [
-        (.work, \.work, "WORK"), (.acoustID, \.acoustID, "Acoustid Id"),
-        (.acoustIDFingerprint, \.acoustIDFingerprint, "Acoustid Fingerprint"),
-        (.originalReleaseDate, \.originalReleaseDate, "ORIGINAL YEAR"),
-        (.artistType, \.artistType, "ARTISTTYPE"), (.musicIPPUID, \.musicIPPUID, "MusicIP PUID")
+        (.work, \.work, "\u{00A9}wrk"), (.acoustID, \.acoustID, "----:com.apple.iTunes:Acoustid Id"),
+        (.acoustIDFingerprint, \.acoustIDFingerprint, "----:com.apple.iTunes:Acoustid Fingerprint"),
+        (.originalReleaseDate, \.originalReleaseDate, "----:com.apple.iTunes:ORIGINALDATE"),
+        (.artistType, \.artistType, "----:com.apple.iTunes:MusicBrainz Artist Type"),
+        (.musicIPPUID, \.musicIPPUID, "----:com.apple.iTunes:MusicIP PUID")
     ]
 
     @Test func freeformFieldsRoundTripAcrossBasicAndPatchWithoutStaleAliases() throws {
-        for (field, path, description) in fields {
+        for (field, path, nativeKey) in fields {
             for basicSeed in [false, true] {
                 try HardeningFixture.withCopy("m4a", name: "testAudioFile") { url in
-                    let key = "----:com.apple.iTunes:" + description
+                    let key = nativeKey
                     if basicSeed {
                         try TagLibMetadataManager.updateBasicMetadata(at: url) { $0[keyPath: path] = "OLD" }
                     } else {
@@ -63,7 +65,7 @@ struct CleanRoomMP4Tests {
                     let before = try state(url)
                     let fieldSchema = try #require(MetadataFieldRegistry.schema(for: field))
                     let nativeAliases = Set(fieldSchema.propertyMapKeys.map { "----:COM.APPLE.ITUNES:" + $0.uppercased() })
-                        .union([key.uppercased(), field == .work ? "©WRK" : key.uppercased()])
+                        .union([key.uppercased()])
                     #expect(before.items.keys.filter { nativeAliases.contains($0.uppercased()) }.count == 1)
                     try TagLibMetadataManager.applyMetadataPatch(MetadataPatch(fields: [field: .text("NEW")]), to: url)
                     #expect(try TagLibMetadataManager.readMetadataResult(from: url)[keyPath: path] == "NEW")
@@ -73,7 +75,7 @@ struct CleanRoomMP4Tests {
                     #expect(after.items[key]?.first?.range(of: Data("NEW".utf8)) != nil)
                     let schema = try #require(MetadataFieldRegistry.schema(for: field))
                     let aliasKeys = Set(schema.propertyMapKeys.map { "----:com.apple.iTunes:" + $0 })
-                        .union([key, field == .work ? "©wrk" : key])
+                        .union([key])
                     for (native, payloads) in before.items where !aliasKeys.contains(native) {
                         #expect(after.items[native] == payloads, "Unrelated native item changed: \(native)")
                     }
@@ -98,7 +100,9 @@ struct CleanRoomMP4Tests {
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.acoustID: .text("New ID"), .work: .text("New work")]), to: url)
             let after = try state(url)
-            #expect(after.items["©wrk"] == nil)
+            #expect(after.items["©wrk"]?.count == 1)
+            #expect(after.items["©wrk"]?.first?.range(of: Data("New work".utf8)) != nil)
+            #expect(after.items["----:com.apple.iTunes:WORK"] == nil)
             #expect(after.items["----:com.apple.iTunes:ACOUSTID_ID"] == nil)
             #expect(try TagLibMetadataManager.readMetadataResult(from: url).work == "New work")
         }

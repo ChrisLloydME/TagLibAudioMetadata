@@ -220,6 +220,7 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
         if (type) {
             const bool supportedType =
                 [type isEqualToString:@"text"] ||
+                [type isEqualToString:@"versionedText"] ||
                 [type isEqualToString:@"userText"] ||
                 [type isEqualToString:@"url"] ||
                 [type isEqualToString:@"ufid"] ||
@@ -257,6 +258,15 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             (entry[@"children"] && !StructuredValueIsStringArray(entry[@"children"]))) {
             return SetStructuredPayloadValidationError(error, @"ID3v2 frame fields have invalid value types");
         }
+        if ([type isEqualToString:@"versionedText"] &&
+            (!StructuredOptionalValueHasClass(entry, @"v23Id", [NSString class]) ||
+             !StructuredOptionalValueHasClass(entry, @"v24Id", [NSString class]) ||
+             !StructuredOptionalValueHasClass(entry, @"v23Description", [NSString class]) ||
+             !StructuredOptionalValueHasClass(entry, @"v24Description", [NSString class]) ||
+             !TrimmedStringOrNil((NSString *)(entry[@"v23Id"] ?: entry[@"v23Description"] ?: @"")) ||
+             !TrimmedStringOrNil((NSString *)(entry[@"v24Id"] ?: entry[@"v24Description"] ?: @"")))) {
+            return SetStructuredPayloadValidationError(error, @"Versioned text frames require a v2.3 and a v2.4 identity");
+        }
         if ([type isEqualToString:@"url"] &&
             (![frameID hasPrefix:@"W"] || !TrimmedStringOrNil((NSString *)entry[@"url"]))) {
             return SetStructuredPayloadValidationError(error, @"URL frames require a W-prefixed frame ID and a non-empty URL; empty payloads are not removal operations");
@@ -283,7 +293,8 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             !type ||
             (entry[@"value"] && ![entry[@"value"] isKindOfClass:[NSString class]] && ![entry[@"value"] isKindOfClass:[NSNumber class]]) ||
             (entry[@"values"] && !StructuredValueIsStringArray(entry[@"values"])) ||
-            !StructuredOptionalValueHasClass(entry, @"freeformDescription", [NSString class])) {
+            !StructuredOptionalValueHasClass(entry, @"freeformDescription", [NSString class]) ||
+            (entry[@"remove"] && !StructuredOptionalValueIsBooleanLike(entry, @"remove"))) {
             return SetStructuredPayloadValidationError(error, @"MP4 atom fields have invalid value types");
         }
         if (([type isEqualToString:@"int"] && !StructuredOptionalValueFitsInt(entry, @"value")) ||
@@ -607,6 +618,30 @@ static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
             }
         } else if ([type isEqualToString:@"text"]) {
             SetStructuredID3v2TextFrame(tag, frameID, StructuredID3v2TextValues(entry));
+        } else if ([type isEqualToString:@"versionedText"]) {
+            NSString *v23Id = TrimmedStringOrNil((NSString *)entry[@"v23Id"]);
+            NSString *v24Id = TrimmedStringOrNil((NSString *)entry[@"v24Id"]);
+            NSString *v23Description = TrimmedStringOrNil((NSString *)entry[@"v23Description"]);
+            NSString *v24Description = TrimmedStringOrNil((NSString *)entry[@"v24Description"]);
+            for (NSString *identifier in @[ v23Id ?: @"", v24Id ?: @"" ]) {
+                if (identifier.length == 4) {
+                    SetStructuredID3v2TextFrame(tag, identifier, TagLib::StringList());
+                }
+            }
+            for (NSString *description in @[ v23Description ?: @"", v24Description ?: @"" ]) {
+                if (description.length > 0) {
+                    SetStructuredID3v2UserTextFrame(tag, description, TagLib::StringList());
+                }
+            }
+            const bool version3 = tag->header() && tag->header()->majorVersion() == 3;
+            NSString *chosenId = version3 ? v23Id : v24Id;
+            NSString *chosenDescription = version3 ? v23Description : v24Description;
+            TagLib::StringList values = StructuredID3v2TextValues(entry);
+            if (chosenDescription.length > 0) {
+                SetStructuredID3v2UserTextFrame(tag, chosenDescription, values);
+            } else if (chosenId.length == 4) {
+                SetStructuredID3v2TextFrame(tag, chosenId, values);
+            }
         } else if ([type isEqualToString:@"userText"]) {
             SetStructuredID3v2UserTextFrame(
                 tag,
@@ -660,6 +695,10 @@ static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
         NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
         if (!key || !type) continue;
 
+        if (BooleanValueFromObject(entry[@"remove"])) {
+            tag->removeItem(NSStringToTagString(key));
+            continue;
+        }
         if ([type isEqualToString:@"stringList"]) {
             TagLib::StringList list;
             NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
@@ -901,7 +940,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Artwork(tag, artwork);
         if (!file.save(TagLib::MPEG::File::ID3v2,
                        TagLib::File::StripNone,
-                       TagLib::ID3v2::v4,
+                       ID3v2SaveVersion(tag),
                        TagLib::File::DoNotDuplicate)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:233 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MPEG metadata" }];
             return NO;

@@ -25,27 +25,28 @@ The short version: a write stages a sibling copy, mutates and (for verified faca
    - The temporary file must be a regular file.
 4. **Mutate.** Run the write operation on the temporary file. Nested in-place bridge operations detect the active transaction depth and do not create a second staging copy.
 5. **Verify.** Verified facade APIs compare requested metadata and preservation expectations on the temporary file. Direct bridge mutators validate that the staged file remains readable; they do not perform semantic readback.
-6. **Flush.** Open the temporary file and request `F_FULLFSYNC`; on `EINVAL`, `ENOTSUP`, or `ENOTTY`, fall back to `fsync`. Other failures abort before rename.
-7. **Final identity check.** Compare the destination identity to the captured identity. A change throws `fileChanged` and leaves the staged copy unpublished.
-8. **Rename.** Atomically rename the temporary file over the destination.
-9. **Directory sync.** Open the parent directory with `O_RDONLY | O_DIRECTORY` and flush it. A failure here means the rename already committed and durability is uncertain.
+6. **Flush the staged file.** Open the temporary file and request `F_FULLFSYNC`; on `EINVAL`, `ENOTSUP`, or `ENOTTY`, fall back to `fsync`. Other failures abort before rename.
+7. **Open the parent directory.** Open it with `O_RDONLY | O_DIRECTORY` before the final identity check. A failure here aborts before commit.
+8. **Final identity check.** Compare the destination identity to the captured identity. A change throws `fileChanged` and leaves the staged copy unpublished.
+9. **Rename.** Atomically rename the temporary file over the destination.
+10. **Directory sync.** Flush the already-open parent-directory descriptor. A failure here means the rename already committed and durability is uncertain.
 
 The transaction returns a `MetadataWriteResult` with `commitStatus`:
 
 - `.durable`: the requested file and parent-directory flushes completed.
 - `.durabilityUncertain(detail)`: the rename committed, but the final directory flush failed. Do not retry as though nothing happened.
 
-The internal helper `withAtomicFileMutation` throws `TagLibManagerError.committedButDurabilityUncertain` for the same post-rename condition. The public bridge reports error code `9110` (`TagLibMetadataTransactionErrorCodeCommittedButDurabilityUncertain`).
+The internal helper `withAtomicFileMutation` throws `TagLibManagerError.committedButDurabilityUncertain` for the same post-rename condition. The public bridge reports error code `9110` (`TagLibMetadataTransactionErrorCodeCommittedButDurabilityUncertain`). Its other transaction errors use the `TagLibMetadataExtractor` domain with documented codes in `TLBridgeTransactions.mm`; only `9110` is a public enum constant.
 
 ### Public bridge
 
 `TagLibMetadataExtractor` mutators use `PerformAtomicTagLibMutation`, which follows the same preconditions, sibling copy, readability validation, file flush, identity check, rename, and directory flush sequence. Differences:
 
 - The bridge does not run facade semantic verification.
-- The bridge reports durability uncertainty through its `NSError` contract.
+- The bridge reports durability uncertainty through its `NSError` contract; codes `9111` (hard link), `9112` (privilege bit or invalid coordination input), and `9113` (Objective-C exception) are implementation error codes, not public enum cases.
 - In-place primitives live in `CTagLibBridgeInternalAPI`, which is not a library product.
 
-The bridge transaction also validates the staged file after mutation, so a direct bridge write checks readability even though it does not compare requested values. See [Bridge reference](BRIDGE.md).
+The bridge transaction also validates the staged file after mutation, so a direct bridge write checks readability even though it does not compare requested values. See [Bridge reference](../reference/BRIDGE.md).
 
 ## Preconditions and rejection cases
 
@@ -54,7 +55,7 @@ The bridge transaction also validates the staged file after mutation, so a direc
 | Non-file URL | Rejected before staging. |
 | Missing path, directory, or other non-regular file | Rejected before staging. |
 | Final symbolic link | Rejected; the target is not followed. |
-| Hard-linked file (`st_nlink > 1`) | `TagLibManagerError.hardLinkedFile` or bridge error `9111`; replacement would split the link identity. |
+| Hard-linked file (`st_nlink > 1`) | `TagLibManagerError.hardLinkedFile` or bridge error domain code `9111`; replacement would split the link identity. |
 | setuid or setgid bit set | Rejected before staging; clone/copy may not preserve privilege bits safely. Clear the bits explicitly if editing is intended. |
 | Unreadable or invalid audio | Rejected before staging with an operation/read error. |
 | Stale `expectedVersion` | `fileChanged`; no staging. |
@@ -144,7 +145,7 @@ swift test --sanitize=thread
 
 They instrument the package's Swift and Objective-C++ code. The distributed Release XCFramework is precompiled and is not internally sanitizer-instrumented; fully instrumented upstream diagnosis requires a separate diagnostic TagLib build. Sanitizer success in this package does not establish safety inside the dependency.
 
-The CI matrix also covers strict warnings-as-errors, release tests, minimum-platform compilation, consumers, and a dynamic-link audit. See [Testing](TESTING.md) for the exact jobs and limitations.
+The CI matrix also covers strict warnings-as-errors, release tests, minimum-platform compilation, consumers, and a dynamic-link audit. See [Testing](../operations/TESTING.md) for the exact jobs and limitations.
 
 ## Client guidance
 

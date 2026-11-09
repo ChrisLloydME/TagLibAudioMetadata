@@ -40,6 +40,14 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
 @property (nonatomic, copy, nullable) NSString *composer;
 @property (nonatomic, copy, nullable) NSString *genre;
 @property (nonatomic, copy, nullable) NSString *year;
+/// Standalone DATE identity, distinct from the YEAR slot.
+@property (nonatomic, copy, nullable) NSString *standaloneDate;
+/// Semantic CONTENTGROUP (TIT1 / ©grp), distinct from GROUPING and WORK.
+@property (nonatomic, copy, nullable) NSString *contentGroup;
+/// ARTISTS list, distinct from ARTIST.
+@property (nonatomic, copy, nullable) NSString *artists;
+@property (nonatomic, copy, nullable) NSString *replayGainTrackPeak;
+@property (nonatomic, copy, nullable) NSString *replayGainAlbumPeak;
 @property (nonatomic, copy, nullable) NSString *comment;
 
 // Track/Disc information
@@ -70,6 +78,9 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
 @property (nonatomic, assign) BOOL compilation;
 /// Lossless advisory state. Unlike `explicitContent`, this distinguishes no tag from an explicit clean tag.
 @property (nonatomic, assign) TagLibExplicitAdvisory explicitAdvisory;
+/// Exact native advisory code when it is not one of the four semantic states.
+/// Nil means the source is absent or representable without loss.
+@property (nonatomic, copy, nullable) NSString *explicitAdvisoryRawValue;
 /// Compatibility projection. Setting NO means explicitly clean; reading YES means explicit.
 @property (nonatomic, assign) BOOL explicitContent;
 @property (nonatomic, copy, nullable) NSString *copyright;
