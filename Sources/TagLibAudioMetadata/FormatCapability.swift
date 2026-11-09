@@ -85,10 +85,21 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
     public func writeSupport(for field: MetadataFieldKey) -> FormatSupportLevel {
         guard isWritable,
               let schema = MetadataFieldRegistry.schema(for: field),
+              schema.writeUnsupportedReason == nil,
               writableFields?.contains(field) != false,
               schema.mappings.contains(where: { metadataFieldFormats.contains($0.format) }),
               !schema.isArtworkField || canWriteArtwork
         else { return .unsupported }
+
+        // PropertyMap spellings also exist for read-only and unavailable
+        // native targets. They must not bypass a concrete family's policy.
+        // Formats with only a PropertyMap surface retain their existing
+        // mapping/allowlist checks (for example tracker title/name fields).
+        let nativeFormats = metadataFieldFormats.subtracting([.tagLibPropertyMap])
+        if !nativeFormats.isEmpty,
+           !nativeFormats.contains(where: { schema.capability(for: $0).isWritable }) {
+            return .unsupported
+        }
         return supportLevel
     }
 
