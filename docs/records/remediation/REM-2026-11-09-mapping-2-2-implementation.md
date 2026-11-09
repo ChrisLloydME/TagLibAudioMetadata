@@ -103,7 +103,7 @@ python3 scripts/generate-field-schema.py --check
 - `RATE` typed write is intentionally unsupported: no verified native type/scale in this profile. Existing values are read and preserved.
 - `ITUNESMEDIATYPE` label vocabulary is not bound to numeric codes; known and unknown integer codes round-trip, but the application must not infer labels from list order.
 - MKV native read/write codec is not implemented; only target registrations exist.
-- Cross-tool fixtures, independent FFprobe/FFmpeg oracles, AIFF/Opus date conformance, ASan, TSan, strict warnings-as-errors, minimum-platform builds, iOS runtime, x86_64, and device tests were not run in this pass.
+- Cross-tool fixtures, independent FFprobe/FFmpeg oracles, AIFF/Opus date conformance, ASan, TSan, minimum-platform builds, iOS runtime, x86_64, and device tests were not run in this pass. Release-mode tests and a strict Swift `-warnings-as-errors` build did run and matched the Debug result.
 - The privilege-bit test cannot pass on this host; the production path was not weakened.
 - AudioMator, the mirrored specification, and application adoption were not touched. Package-only migration instructions are in [MIGRATION.md](../../MIGRATION.md#migrating-to-mapping-contract-2-2).
 

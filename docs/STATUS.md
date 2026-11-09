@@ -19,7 +19,8 @@ This page records the latest known validation state and the limits that remain. 
 | Overall | 239 passed, 2 skipped, 1 failed of 242 exercised declarations |
 | Environment failure | `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition `before.st_mode & 0o7777 == permissions`; the host strips setuid/setgid bits. The test was not skipped, weakened, or hidden. |
 | Baseline comparison | The same failure was the only baseline failure (153 XCTest, 72 Swift Testing) before implementation. No new failure remains. |
-| Build | `swift build --disable-sandbox --disable-keychain --disable-netrc` passed |
+| Build | `swift build --disable-sandbox --disable-keychain --disable-netrc` passed; strict Swift `-warnings-as-errors` build passed |
+| Release test | `swift test -c release` produced the same 156 XCTest / 86 Swift Testing results, including the same privilege-bit environment failure |
 | Documentation check | `python3 scripts/check-docs.py` passed for 37 Markdown files |
 | Generated checks | `scripts/generate-mapping-registry.py --check` and `scripts/generate-field-schema.py --check` passed |
 | Merge status | Local implementation branch only. No tag, push, PR, merge, release, or binary rebuild was performed. |
@@ -33,7 +34,7 @@ Do not treat this status as evidence for:
 - cross-tool fixtures or an independent FFprobe/FFmpeg oracle for the 2.2 mappings;
 - AIFF, raw Opus, or raw AAC independent-date conformance;
 - the MKV native codec, typed `RATE` scale, or a verified media-kind label vocabulary;
-- ASan, TSan, strict warnings-as-errors, Release mode, minimum-platform builds, iOS runtime, x86_64, or physical-device execution;
+- ASan, TSan, minimum-platform builds, iOS runtime, x86_64, or physical-device execution;
 - AudioMator adoption, the mirrored specification, application previews/CSV/provider flows, or cross-repository synchronization;
 - a tag-triggered consumer run, release-signing, archiving, or publication.
 
