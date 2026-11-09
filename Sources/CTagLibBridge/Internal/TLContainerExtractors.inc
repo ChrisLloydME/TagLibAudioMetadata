@@ -103,9 +103,9 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
             else if (frameIDStr == "TDRC") {
                 NSString *dateValue = TagStringToNSString(value);
                 if (dateValue.length > 0) {
-                    if (metadata.year.length == 0 && dateValue.length >= 4) {
-                        metadata.year = [dateValue substringToIndex:4];
-                    }
+                    // Preserve the complete stored text; Year is not a
+                    // four-character projection.
+                    metadata.year = dateValue;
                 }
             }
             else if (frameIDStr == "TYER") {
@@ -214,6 +214,30 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
     ApplyGenericPropertyMapMetadata(tag->properties(), metadata);
 
     const TagLib::MP4::ItemMap& items = tag->itemMap();
+
+    // Track number
+    if (items.contains("trkn")) {
+        TagLib::MP4::Item::IntPair trackPair = items["trkn"].toIntPair();
+        metadata.trackNumber = trackPair.first;
+        metadata.totalTracks = trackPair.second;
+        metadata.trackNumberText = trackPair.second > 0
+            ? [NSString stringWithFormat:@"%d/%d", trackPair.first, trackPair.second]
+            : (trackPair.first > 0 ? [NSString stringWithFormat:@"%d", trackPair.first] : nil);
+    }
+
+    // Disc number
+    if (items.contains("disk")) {
+        TagLib::MP4::Item::IntPair discPair = items["disk"].toIntPair();
+        metadata.discNumber = discPair.first;
+        metadata.totalDiscs = discPair.second;
+        metadata.discNumberText = discPair.second > 0
+            ? [NSString stringWithFormat:@"%d/%d", discPair.first, discPair.second]
+            : (discPair.first > 0 ? [NSString stringWithFormat:@"%d", discPair.first] : nil);
+    }
+
+    // Legacy private text is a display projection only when it is numerically
+    // identical to every native component. It never overrides the native pair
+    // and is never renamed or canonicalized during an unrelated save.
     NSString *storedTrackNumberText = MP4TextItemValue(
         items,
         items.contains(kTagLibAudioMetadataMP4TrackNumberTextKey)
@@ -226,30 +250,20 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
             ? kTagLibAudioMetadataMP4DiscNumberTextKey
             : kLegacyAudioMatorMP4DiscNumberTextKey
     );
-    metadata.trackNumberText = PreferredNumberText(metadata.trackNumberText, storedTrackNumberText);
-    metadata.discNumberText = PreferredNumberText(metadata.discNumberText, storedDiscNumberText);
-
-    // Track number
-    if (items.contains("trkn")) {
-        TagLib::MP4::Item::IntPair trackPair = items["trkn"].toIntPair();
-        metadata.trackNumber = trackPair.first;
-        metadata.totalTracks = trackPair.second;
-        if (metadata.trackNumberText.length == 0 && trackPair.first > 0) {
-            metadata.trackNumberText = trackPair.second > 0
-                ? [NSString stringWithFormat:@"%d/%d", trackPair.first, trackPair.second]
-                : [NSString stringWithFormat:@"%d", trackPair.first];
+    if (storedTrackNumberText) {
+        NSInteger textNumber = 0, textTotal = 0, ignoredPad = 0;
+        ParseNumberPairFromNSString(storedTrackNumberText, textNumber, textTotal, ignoredPad);
+        if (textTotal == metadata.totalTracks && textNumber == metadata.trackNumber &&
+            (textTotal > 0 || textNumber > 0)) {
+            metadata.trackNumberText = PreferredNumberText(metadata.trackNumberText, storedTrackNumberText);
         }
     }
-
-    // Disc number
-    if (items.contains("disk")) {
-        TagLib::MP4::Item::IntPair discPair = items["disk"].toIntPair();
-        metadata.discNumber = discPair.first;
-        metadata.totalDiscs = discPair.second;
-        if (metadata.discNumberText.length == 0 && discPair.first > 0) {
-            metadata.discNumberText = discPair.second > 0
-                ? [NSString stringWithFormat:@"%d/%d", discPair.first, discPair.second]
-                : [NSString stringWithFormat:@"%d", discPair.first];
+    if (storedDiscNumberText) {
+        NSInteger textNumber = 0, textTotal = 0, ignoredPad = 0;
+        ParseNumberPairFromNSString(storedDiscNumberText, textNumber, textTotal, ignoredPad);
+        if (textTotal == metadata.totalDiscs && textNumber == metadata.discNumber &&
+            (textTotal > 0 || textNumber > 0)) {
+            metadata.discNumberText = PreferredNumberText(metadata.discNumberText, storedDiscNumberText);
         }
     }
 
@@ -273,27 +287,19 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
         metadata.compilation = items["cpil"].toBool();
     }
 
-    // Apple/iTunes rating: 0 = not explicit, 1 = explicit, 2 = clean.
-    // Legacy 4 remains accepted as explicit by ParseExplicitTagValue.
-    bool parsedNativeAdvisory = false;
+    // Apple/iTunes rating: present 0 = not explicit, 1 = explicit, 2 = clean.
+    // Unknown historic codes (for example 4) remain raw provenance instead of
+    // being silently recoded as explicit or clean.
     if (items.contains("rtng")) {
         const TagLib::MP4::Item &ratingItem = items["rtng"];
-        TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
         std::string ratingRaw = std::to_string(ratingItem.toInt());
         TagLib::String ratingString(ratingRaw.c_str(), TagLib::String::UTF8);
-        if (ParseExplicitTagValue(ratingString, explicitValue)) {
-            SetParsedExplicitAdvisory(metadata, explicitValue);
-            parsedNativeAdvisory = true;
-        }
-    }
-
-    if (!parsedNativeAdvisory && items.contains("----:com.apple.iTunes:ITUNESADVISORY")) {
-        TagLib::String advisoryValue =
-            items["----:com.apple.iTunes:ITUNESADVISORY"].toStringList().toString();
-        TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
-        if (ParseExplicitTagValue(advisoryValue, explicitValue)) {
-            SetParsedExplicitAdvisory(metadata, explicitValue);
-        }
+        SetExplicitAdvisoryFromRawValue(metadata, ratingString);
+    } else if (items.contains("----:com.apple.iTunes:ITUNESADVISORY")) {
+        SetExplicitAdvisoryFromRawValue(
+            metadata,
+            items["----:com.apple.iTunes:ITUNESADVISORY"].toStringList().toString()
+        );
     }
 
     // Sort fields
@@ -367,14 +373,23 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
     // NOTE: We split the string literal so that the \xA9 escape stops before 'd',
     //       avoiding an out-of-range hex escape like "\xA9d".
     if (items.contains("\xA9" "day")) {
-        metadata.releaseDate = TagStringToNSString(items["\xA9" "day"].toStringList().toString());
-        if (metadata.year.length == 0 && metadata.releaseDate.length >= 4) {
-            metadata.year = [metadata.releaseDate substringToIndex:4];
-        }
+        metadata.year = TagStringToNSString(items["\xA9" "day"].toStringList().toString());
+    }
+    if (items.contains("----:com.apple.iTunes:RELEASEDATE")) {
+        metadata.releaseDate = TagStringToNSString(
+            items["----:com.apple.iTunes:RELEASEDATE"].toStringList().toString()
+        );
+    }
+    if (items.contains("----:com.apple.iTunes:DATE")) {
+        metadata.standaloneDate = TagStringToNSString(
+            items["----:com.apple.iTunes:DATE"].toStringList().toString()
+        );
     }
 
-    // Some tools store original year as a freeform atom
-    if (items.contains("----:com.apple.iTunes:ORIGINAL YEAR")) {
+    // Target ORIGINALDATE; the older ORIGINAL YEAR freeform remains readable.
+    if (items.contains("----:com.apple.iTunes:ORIGINALDATE")) {
+        metadata.originalReleaseDate = TagStringToNSString(items["----:com.apple.iTunes:ORIGINALDATE"].toStringList().toString());
+    } else if (items.contains("----:com.apple.iTunes:ORIGINAL YEAR")) {
         metadata.originalReleaseDate = TagStringToNSString(items["----:com.apple.iTunes:ORIGINAL YEAR"].toStringList().toString());
     }
 

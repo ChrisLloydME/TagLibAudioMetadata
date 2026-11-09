@@ -217,7 +217,8 @@ extension TagLibMetadataManager {
     nonisolated static func basicMetadata(
         fromBridgeMetadata meta: TagLibAudioMetadata,
         rawDump: RawMetadataDump,
-        fileExtension: String? = nil
+        fileExtension: String? = nil,
+        structured: StructuredMetadata = StructuredMetadata()
     ) -> BasicMetadata {
         func firstRawValue(for keys: [String]) -> String? {
             for key in keys {
@@ -234,14 +235,159 @@ extension TagLibMetadataManager {
             Self.capability(forExtension: $0)
         }
         let isMP4 = formatCapability?.metadataFieldFormats.contains(MetadataFieldFormat.mp4) == true
-        let recordingDate = isMP4 ? nil : firstRawValue(for: ["DATE", "YEAR"])
-        let releaseDate = isMP4
-            ? firstRawValue(for: ["DATE"])
-            : firstRawValue(for: ["RELEASEDATE"])
-        let projectedYearSource = recordingDate ?? (isMP4 ? releaseDate : nil) ?? meta.year
-        let projectedYear = projectedYearSource.map {
-            $0.count >= 4 ? String($0.prefix(4)) : $0
-        } ?? ""
+        // FLAC, WAV and AIFF can carry an optional ID3 tag, but their primary
+        // rich surface is Xiph/INFO. Only formats whose primary model is ID3
+        // read YEAR/DATE from ID3 frames.
+        let primaryID3Identifiers: Set<String> = [
+            "mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"
+        ]
+        let isID3 = primaryID3Identifiers.contains(formatCapability?.identifier ?? "")
+
+        func nonEmpty(_ value: String?) -> String? {
+            guard let value else { return nil }
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : value
+        }
+
+        func frameValue(_ frameID: String, description: String? = nil) -> String? {
+            // Prefer the structured projection: raw frame summaries render a
+            // TXXX frame as "[description] payload" rather than separate fields.
+            if let structuredFrame = structured.id3v2Frames.first(where: { frame in
+                guard frame.frameID.caseInsensitiveCompare(frameID) == .orderedSame else { return false }
+                guard let description else { return true }
+                return frame.description?.caseInsensitiveCompare(description) == .orderedSame
+            }) {
+                return nonEmpty(structuredFrame.values.first ?? structuredFrame.value)
+            }
+            return nonEmpty(rawDump.id3v2Frames.first { frame in
+                guard frame.frameID.caseInsensitiveCompare(frameID) == .orderedSame else { return false }
+                guard let description else { return true }
+                return frame.description?.caseInsensitiveCompare(description) == .orderedSame
+            }?.value)
+        }
+
+        func mp4Text(_ key: String) -> String? {
+            guard let atom = structured.mp4Atoms.first(where: { $0.key == key }) else { return nil }
+            if !atom.values.isEmpty {
+                return nonEmpty(atom.values.joined(separator: "; "))
+            }
+            return nonEmpty(atom.value)
+        }
+
+        func mp4TextList(_ key: String) -> [String] {
+            structured.mp4Atoms.first(where: { $0.key == key })?.values ?? []
+        }
+
+        func mp4Integer(_ key: String) -> Int? {
+            guard let atom = structured.mp4Atoms.first(where: { $0.key == key }) else { return nil }
+            if let first = atom.first, atom.type == "intPair" { return first }
+            return Int(atom.value)
+        }
+
+        func mp4Bool(_ key: String) -> Bool? {
+            guard let atom = structured.mp4Atoms.first(where: { $0.key == key }) else { return nil }
+            switch atom.value.lowercased() {
+            case "1", "true": return true
+            case "0", "false": return false
+            default: return nil
+            }
+        }
+
+        func freeformText(_ description: String) -> String? {
+            if let atom = structured.mp4Atoms.first(where: {
+                $0.freeformDescription?.caseInsensitiveCompare(description) == .orderedSame
+            }) {
+                return nonEmpty(atom.values.first ?? atom.value)
+            }
+            let expected = "----:COM.APPLE.ITUNES:\(description)".uppercased()
+            return rawDump.properties.first {
+                $0.key.uppercased() == expected
+            }?.values.first
+        }
+
+        // YEAR is read from its declared native slot with the complete stored
+        // value. It is never derived from, truncated by, or reconciled with any
+        // date field.
+        let storedYear: String?
+        if isMP4 {
+            // ©day is the YEAR slot. The engine's DATE projection may also
+            // carry an independent freeform DATE, so it must not be used as a
+            // YEAR fallback.
+            storedYear = mp4Text("\u{00A9}day")
+        } else if isID3 {
+            // TDRC/TYER are the YEAR slots; the engine DATE projection is
+            // ambiguous across TDAT/TXXX(DATE) and is not a fallback.
+            storedYear = frameValue("TDRC") ?? frameValue("TYER")
+        } else {
+            storedYear = firstRawValue(for: ["YEAR"])
+        }
+        let year = storedYear ?? ""
+
+        // Standalone DATE is a different registered location from YEAR. It is
+        // never synthesized from the Year text or from another date field.
+        let standaloneDate: String?
+        if isMP4 {
+            standaloneDate = freeformText("DATE")
+        } else if isID3 {
+            standaloneDate = frameValue("TDAT") ?? frameValue("TXXX", description: "DATE")
+                ?? firstRawValue(for: ["STANDALONEDATE"])
+        } else {
+            standaloneDate = firstRawValue(for: ["DATE"])
+        }
+
+        let releaseDate: String?
+        if isMP4 {
+            releaseDate = freeformText("RELEASEDATE")
+        } else if isID3 {
+            releaseDate = frameValue("TDRL") ?? firstRawValue(for: ["RELEASEDATE"])
+        } else {
+            releaseDate = firstRawValue(for: ["RELEASEDATE"])
+        }
+
+        let originalReleaseDate: String?
+        if isMP4 {
+            originalReleaseDate = freeformText("ORIGINALDATE") ?? freeformText("ORIGINAL YEAR")
+                ?? firstRawValue(for: ["ORIGINALDATE", "ORIGINAL YEAR"])
+        } else if isID3 {
+            originalReleaseDate = frameValue("TDOR") ?? frameValue("TORY")
+                ?? firstRawValue(for: ["ORIGINALDATE", "ORIGINAL YEAR"])
+        } else {
+            originalReleaseDate = firstRawValue(for: ["ORIGINALDATE", "ORIGINAL YEAR"])
+        }
+
+        // Exact MP4 target atoms take precedence over the engine PropertyMap
+        // projection for the fields whose native slots changed in 2.2.
+        let conductor = mp4Text("\u{00A9}con") ?? meta.conductor
+        let publisher = mp4Text("\u{00A9}pub") ?? meta.label
+        let contentGroup = mp4Text("\u{00A9}grp") ?? meta.grouping
+        let grouping = mp4Text("----:com.apple.iTunes:GROUPING") ?? (isMP4 ? nil : meta.grouping)
+        let work = mp4Text("\u{00A9}wrk") ?? meta.work
+        let encodedBy = mp4Text("\u{00A9}enc") ?? meta.encodedBy
+        let encoderSettings = mp4Text("\u{00A9}too") ?? meta.encoderSettings
+        let mediaType = mp4Text("----:com.apple.iTunes:MEDIA") ?? meta.mediaType
+        let itunesAlbumID = mp4Integer("plID").map(String.init) ?? meta.itunesAlbumId
+        let itunesArtistID = mp4Integer("atID").map(String.init) ?? meta.itunesArtistId
+        let itunesCatalogID = mp4Integer("cnID").map(String.init) ?? meta.itunesCatalogId
+        let itunesGenreID = mp4Integer("geID").map(String.init) ?? meta.itunesGenreId
+        let itunesComposerID = mp4Integer("cmID").map(String.init) ?? ""
+        let itunesCountryID = mp4Integer("sfID").map(String.init) ?? ""
+        let itunesMediaType = mp4Integer("stik").map(String.init) ?? meta.itunesMediaType
+        let explicitAdvisoryRawValue = nonEmpty(meta.explicitAdvisoryRawValue as String?)
+        let itunesGapless = mp4Bool("pgap") ?? false
+        let itunesHDVideo = mp4Bool("hdvd") ?? false
+        let itunesOwner = mp4Text("ownr") ?? ""
+        let rateValue = mp4Integer("rate") ?? 0
+        let showMovement = mp4Bool("shwm") ?? false
+        let storeDescription = mp4Text("sdes") ?? ""
+        let director = mp4TextList("\u{00A9}dir").joined(separator: "; ")
+        let tvEpisode = mp4Integer("tves") ?? 0
+        let tvEpisodeID = mp4Text("tven") ?? ""
+        let tvNetwork = mp4Text("tvnn") ?? ""
+        let tvSeason = mp4Integer("tvsn") ?? 0
+        let tvShow = mp4Text("tvsh") ?? ""
+        let tvShowSort = mp4Text("sosn") ?? ""
+        let replayGainTrackPeak = firstRawValue(for: ["REPLAYGAIN_TRACK_PEAK"]) ?? ""
+        let replayGainAlbumPeak = firstRawValue(for: ["REPLAYGAIN_ALBUM_PEAK"]) ?? ""
         let trackNumberText = meta.trackNumberText ?? ""
         let discNumberText = meta.discNumberText ?? ""
         let needsTrackTextFallback =
@@ -330,10 +476,11 @@ extension TagLibMetadataManager {
             discNumberText: needsDiscTextFallback
                 ? preferredRawNumberText(discNumberText, rawNumberText.disc)
                 : discNumberText,
-            year: projectedYear,
+            year: year,
+            date: standaloneDate ?? "",
             albumArtist: meta.albumArtist ?? "",
             releaseDate: releaseDate ?? "",
-            originalReleaseDate: meta.originalReleaseDate ?? "",
+            originalReleaseDate: originalReleaseDate ?? (meta.originalReleaseDate ?? ""),
             isrc: meta.isrc ?? "",
             barcode: meta.barcode ?? "",
             musicBrainzArtistID: meta.musicBrainzArtistId ?? "",
@@ -346,35 +493,41 @@ extension TagLibMetadataManager {
             acoustID: meta.acoustId ?? "",
             acoustIDFingerprint: meta.acoustIdFingerprint ?? "",
             musicIPPUID: meta.musicIpPuid ?? "",
-            publisher: meta.label ?? "",
+            publisher: publisher ?? "",
             copyright: meta.copyright ?? "",
-            encodedBy: meta.encodedBy ?? "",
-            encoderSettings: meta.encoderSettings ?? "",
+            encodedBy: encodedBy ?? "",
+            encoderSettings: encoderSettings ?? "",
             sortTitle: meta.sortTitle ?? "",
             sortArtist: meta.sortArtist ?? "",
             sortAlbum: meta.sortAlbum ?? "",
             sortAlbumArtist: meta.sortAlbumArtist ?? "",
             sortComposer: meta.sortComposer ?? "",
-            conductor: meta.conductor ?? "",
+            conductor: conductor ?? "",
             remixer: meta.remixer ?? "",
             producer: meta.producer ?? "",
             engineer: meta.engineer ?? "",
             lyricist: meta.lyricist ?? "",
             subtitle: meta.subtitle ?? "",
-            grouping: meta.grouping ?? "",
+            grouping: grouping ?? "",
+            contentGroup: contentGroup ?? "",
+            artists: rawDump.properties.first {
+                $0.key.caseInsensitiveCompare("ARTISTS") == .orderedSame
+            }?.values.joined(separator: "; ") ?? "",
             movement: meta.movement ?? "",
             mood: meta.mood ?? "",
             language: meta.language ?? "",
             musicalKey: meta.musicalKey ?? "",
             replayGainTrack: meta.replayGainTrack ?? "",
             replayGainAlbum: meta.replayGainAlbum ?? "",
-            mediaType: meta.mediaType ?? "",
-            itunesAlbumID: meta.itunesAlbumId ?? "",
-            itunesArtistID: meta.itunesArtistId ?? "",
-            itunesCatalogID: meta.itunesCatalogId ?? "",
-            itunesGenreID: meta.itunesGenreId ?? "",
-            itunesMediaType: meta.itunesMediaType ?? "",
-            itunesPurchaseDate: meta.itunesPurchaseDate ?? "",
+            replayGainTrackPeak: replayGainTrackPeak,
+            replayGainAlbumPeak: replayGainAlbumPeak,
+            mediaType: mediaType ?? "",
+            itunesAlbumID: itunesAlbumID ?? "",
+            itunesArtistID: itunesArtistID ?? "",
+            itunesCatalogID: itunesCatalogID ?? "",
+            itunesGenreID: itunesGenreID ?? "",
+            itunesMediaType: itunesMediaType ?? "",
+            itunesPurchaseDate: mp4Text("purd") ?? meta.itunesPurchaseDate ?? "",
             itunesNorm: meta.itunesNorm ?? "",
             itunesSMPB: meta.itunesSmpb ?? "",
             releaseType: meta.releaseType ?? "",
@@ -386,12 +539,29 @@ extension TagLibMetadataManager {
             originalAlbum: meta.originalAlbum ?? "",
             originalArtist: meta.originalArtist ?? "",
             discSubtitle: meta.discSubtitle ?? "",
-            work: meta.work ?? "",
+            work: work ?? "",
             movementNumber: Int(meta.movementNumber),
             movementCount: Int(meta.movementCount),
             bpm: Int(meta.bpm),
             isCompilation: meta.compilation,
             explicitAdvisory: explicitAdvisory,
+            explicitAdvisoryRawValue: explicitAdvisoryRawValue,
+            director: director,
+            itunesAccount: mp4Text("apID") ?? "",
+            itunesComposerID: itunesComposerID,
+            itunesCountryID: itunesCountryID,
+            itunesGapless: itunesGapless,
+            itunesHDVideo: itunesHDVideo,
+            itunesOwner: itunesOwner,
+            rate: rateValue,
+            showMovement: showMovement,
+            storeDescription: storeDescription,
+            tvEpisode: tvEpisode,
+            tvEpisodeID: tvEpisodeID,
+            tvNetwork: tvNetwork,
+            tvSeason: tvSeason,
+            tvShow: tvShow,
+            tvShowSort: tvShowSort,
             duration: meta.duration,
             bitrate: Int(meta.bitrate),
             sampleRate: Double(meta.sampleRate),
@@ -420,11 +590,18 @@ extension TagLibMetadataManager {
     nonisolated static func readBasicMetadataAndRaw(
         from url: URL
     ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump) {
+        let result = try readBasicMetadataRawAndStructured(from: url)
+        return (result.metadata, result.raw)
+    }
+
+    nonisolated static func readBasicMetadataRawAndStructured(
+        from url: URL
+    ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata) {
         guard regularFileIdentity(at: url) != nil else {
             throw TagLibManagerError.invalidFile
         }
         let identityBeforeRead = regularFileIdentity(at: url)
-        let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
+        let projections = try bridgeMetadataProjectionDictionary(from: url, options: .all)
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
               let bridgeRaw = projections["raw"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(
@@ -437,13 +614,18 @@ extension TagLibMetadataManager {
             )
         }
         let raw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
+        let structured = (projections["structured"] as? [String: NSObject]).map {
+            structuredMetadata(fromBridgeDictionary: $0)
+        } ?? StructuredMetadata()
         return (
             basicMetadata(
                 fromBridgeMetadata: bridgeBasic,
                 rawDump: raw,
-                fileExtension: url.pathExtension
+                fileExtension: url.pathExtension,
+                structured: structured
             ),
-            raw
+            raw,
+            structured
         )
     }
 
@@ -471,7 +653,7 @@ extension TagLibMetadataManager {
         from url: URL, includingAudioContent: Bool = false, afterExtraction: () throws -> Void
     ) throws -> BasicMetadataSnapshot {
         let version = try fileVersion(at: url)
-        let projections = try bridgeMetadataProjectionDictionary(from: url, options: [.basic, .propertyMap])
+        let projections = try bridgeMetadataProjectionDictionary(from: url, options: .all)
         try afterExtraction()
         let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
@@ -483,10 +665,14 @@ extension TagLibMetadataManager {
         guard version == (try? fileVersion(at: url)) else {
             throw TagLibManagerError.fileChanged
         }
+        let structured = (projections["structured"] as? [String: NSObject]).map {
+            structuredMetadata(fromBridgeDictionary: $0)
+        } ?? StructuredMetadata()
         let metadata = basicMetadata(
             fromBridgeMetadata: bridgeBasic,
             rawDump: rawMetadataDump(fromBridgeDictionary: bridgeRaw),
-            fileExtension: url.pathExtension
+            fileExtension: url.pathExtension,
+            structured: structured
         )
         return BasicMetadataSnapshot(metadata: metadata, fileVersion: version, audioContentIdentity: audioIdentity)
     }

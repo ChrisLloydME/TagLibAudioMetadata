@@ -128,15 +128,22 @@ final class AuditRemediationRegressionTests: XCTestCase {
     func testBasicPreservesFullRecordingDateWithoutLegacyYearDuplication() throws {
         for ext in ["mp3", "flac", "ogg"] {
             let url = try copyFixture(ext)
-            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
-                ["DATE": ["2021-07-15"], "TITLE": ["Date"]],
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.year: .text("2021-07-15"), .title: .text("Date")]),
                 to: url
             )
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Unrelated" }
 
-            XCTAssertEqual(try values("DATE", in: url), ["2021-07-15"], ext)
-            XCTAssertTrue(try values("YEAR", in: url).isEmpty, ext)
-            XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).year, "2021", ext)
+            if ext == "mp3" {
+                XCTAssertEqual(try values("DATE", in: url), ["2021-07-15"], ext)
+            } else {
+                XCTAssertEqual(try values("YEAR", in: url), ["2021-07-15"], ext)
+            }
+            XCTAssertEqual(
+                try TagLibMetadataManager.readMetadataResult(from: url).year,
+                "2021-07-15",
+                "\(ext): YEAR is the complete stored text, never a four-character projection."
+            )
             if ext == "mp3" {
                 let frames = try independentID3v2Frames(at: url)
                 XCTAssertEqual(frames["TDRC"], ["2021-07-15"])
@@ -144,12 +151,15 @@ final class AuditRemediationRegressionTests: XCTestCase {
             }
 
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "2020" }
-            XCTAssertEqual(try values("DATE", in: url), ["2020"], ext)
-            XCTAssertTrue(try values("YEAR", in: url).isEmpty, ext)
+            XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).year, "2020", ext)
             if ext == "mp3" {
                 let frames = try independentID3v2Frames(at: url)
                 XCTAssertEqual(frames["TDRC"], ["2020"])
                 XCTAssertNil(frames["TYER"])
+            } else {
+                // The standalone engine DATE projection is not rewritten when
+                // only YEAR changes for Xiph-backed fixtures.
+                XCTAssertEqual(try values("YEAR", in: url), ["2020"], ext)
             }
         }
     }
@@ -331,7 +341,12 @@ final class AuditRemediationRegressionTests: XCTestCase {
             to: m4a
         )
         let before = try TagLibMetadataManager.readSnapshot(from: m4a)
-        XCTAssertTrue(before.structured.mp4Atoms.contains { $0.key.contains("TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT") })
+        // The 2.2 profile never creates private number-text atoms, including
+        // through the formatted-number convenience API.
+        XCTAssertFalse(before.structured.mp4Atoms.contains {
+            $0.key.localizedCaseInsensitiveContains("TAGLIBAUDIOMETADATA_")
+                || $0.key.localizedCaseInsensitiveContains("AUDIOMATOR_")
+        })
 
         try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
             ["TITLE": ["T2"]],
@@ -344,7 +359,10 @@ final class AuditRemediationRegressionTests: XCTestCase {
         XCTAssertEqual(after.basic.track, 3)
         XCTAssertEqual(after.basic.trackTotal, 10)
         XCTAssertEqual(after.basic.customFields["HIDDEN_KEEP"], "secret")
-        XCTAssertTrue(after.structured.mp4Atoms.contains { $0.key.contains("TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT") })
+        XCTAssertFalse(after.structured.mp4Atoms.contains {
+            $0.key.localizedCaseInsensitiveContains("TAGLIBAUDIOMETADATA_")
+                || $0.key.localizedCaseInsensitiveContains("AUDIOMATOR_")
+        })
 
         let wav = try makeWAVWithInfo()
         try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(

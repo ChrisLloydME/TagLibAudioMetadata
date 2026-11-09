@@ -106,13 +106,21 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(shorten.writeSupport(for: .title), .unsupported)
     }
 
-    func testMP4DateCapabilitiesExposeSingleReleaseDateOwner() throws {
+    func testMP4ExposesIndependentYearDateAndReleaseDateOwners() throws {
         let capability = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "m4a"))
 
-        XCTAssertEqual(capability.readSupport(for: .date), .unsupported)
-        XCTAssertEqual(capability.writeSupport(for: .date), .unsupported)
-        XCTAssertNotEqual(capability.readSupport(for: .releaseDate), .unsupported)
-        XCTAssertNotEqual(capability.writeSupport(for: .releaseDate), .unsupported)
+        XCTAssertEqual(capability.readSupport(for: .year), .fixtureCovered)
+        XCTAssertEqual(capability.writeSupport(for: .year), .fixtureCovered)
+        XCTAssertEqual(capability.readSupport(for: .standaloneDate), .fixtureCovered)
+        XCTAssertEqual(capability.writeSupport(for: .standaloneDate), .fixtureCovered)
+        XCTAssertEqual(capability.readSupport(for: .releaseDate), .fixtureCovered)
+        XCTAssertEqual(capability.writeSupport(for: .releaseDate), .fixtureCovered)
+
+        let year = try XCTUnwrap(MetadataFieldRegistry.schema(for: .year))
+        let date = try XCTUnwrap(MetadataFieldRegistry.schema(for: .standaloneDate))
+        XCTAssertEqual(year.writeTarget(for: .mp4)?.nativeIdentity, "\u{00A9}day")
+        XCTAssertEqual(date.writeTarget(for: .mp4)?.nativeIdentity, "DATE")
+        XCTAssertNotEqual(year.writeTarget(for: .mp4)?.nativeIdentity, date.writeTarget(for: .mp4)?.nativeIdentity)
     }
 
     func testFieldSchemasCanBeFilteredByCapability() throws {
@@ -209,15 +217,19 @@ final class FormatCapabilityTests: XCTestCase {
             let schemas = MetadataFieldRegistry.allSchemas.filter {
                 propertyKeys == $0.propertyMapKeys
             }
+            // YEAR keeps the deprecated `.date` spelling as a documented alias
+            // of the canonical `.year` identity; they are one semantic owner.
+            let semanticKeys = Set(schemas.map(\.semanticKey))
             let schema = try XCTUnwrap(
-                schemas.count == 1 ? schemas.first : nil,
+                semanticKeys.count == 1 ? schemas.first(where: \.isCanonicalSemanticOwner) ?? schemas.first : nil,
                 "Bridge ordered mapping \(propertyKeys) must exactly match one Swift semantic owner; found \(schemas.map { $0.key.rawValue })"
             )
 
             if let frame = mapping["id3v2TextFrame"] as? String {
                 XCTAssertTrue(
                     schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .textFrame && $0.keys.contains(frame) }
-                        || schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .binary && $0.keys.contains(frame) },
+                        || schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .binary && $0.keys.contains(frame) }
+                        || schema.mappings.contains { $0.format == .id3v2 && $0.storageKind == .extensionFrame && $0.keys.contains(frame) },
                     "\(schema.key.rawValue) / \(frame)"
                 )
             }
@@ -258,5 +270,34 @@ final class FormatCapabilityTests: XCTestCase {
             ($0["canonicalPropertyKey"] as? String) == "MUSICBRAINZ_ARTISTTYPE"
         })
         XCTAssertEqual(bridgeMapping["propertyAliases"] as? [String], ["ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"])
+    }
+
+    func testMKVExclusiveRegistrationsExistWithoutWriteCapability() throws {
+        let episode = try XCTUnwrap(MetadataFieldRegistry.schema(for: .tvEpisode))
+        let season = try XCTUnwrap(MetadataFieldRegistry.schema(for: .tvSeason))
+        let episodeTarget = try XCTUnwrap(episode.targets(for: MetadataNativeFamily.matroska).first)
+        let seasonTarget = try XCTUnwrap(season.targets(for: MetadataNativeFamily.matroska).first)
+
+        XCTAssertEqual(episodeTarget.nativeIdentity, "PART_NUMBER@TargetTypeValue=50")
+        XCTAssertEqual(seasonTarget.nativeIdentity, "PART_NUMBER@TargetTypeValue=60")
+        XCTAssertNotEqual(episodeTarget.nativeIdentity, seasonTarget.nativeIdentity)
+        XCTAssertEqual(episode.capability(for: MetadataNativeFamily.matroska), .unsupported)
+        XCTAssertEqual(season.capability(for: MetadataNativeFamily.matroska), .unsupported)
+        XCTAssertNil(episode.writeTarget(for: MetadataNativeFamily.matroska))
+        XCTAssertNil(season.writeTarget(for: MetadataNativeFamily.matroska))
+    }
+
+    func testIndependentWritableFieldsDoNotSharePreferredNativeSlots() {
+        XCTAssertEqual(MetadataFieldRegistry.duplicatePreferredWriteTargets, [:])
+    }
+
+    func testMappingContractVersionIsIndependentOfPackageRelease() {
+        XCTAssertEqual(MetadataMappingCatalog.contractVersion, "AM-TLAM-MAPPING-2.2")
+        XCTAssertEqual(
+            MetadataFieldRegistry.allSchemas.map(\.mappingContractVersion).filter {
+                $0 != MetadataMappingCatalog.contractVersion
+            },
+            []
+        )
     }
 }

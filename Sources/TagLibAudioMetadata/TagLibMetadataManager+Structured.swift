@@ -65,6 +65,10 @@ extension TagLibMetadataManager {
                     "value": frame.value,
                     "values": frame.values
                 ]
+                dict["v23Id"] = frame.v23ID
+                dict["v24Id"] = frame.v24ID
+                dict["v23Description"] = frame.v23Description
+                dict["v24Description"] = frame.v24Description
                 dict["description"] = frame.description
                 dict["language"] = frame.language
                 dict["url"] = frame.url
@@ -95,6 +99,7 @@ extension TagLibMetadataManager {
                 dict["first"] = atom.first
                 dict["second"] = atom.second
                 dict["freeformDescription"] = atom.freeformDescription
+                dict["remove"] = atom.remove
                 return dict as NSDictionary
             } as NSArray
         }
@@ -318,8 +323,15 @@ extension TagLibMetadataManager {
             warnings.append("Not all artwork entries could be confirmed after save.")
         }
         for atom in expected.mp4Atoms {
-            guard let actual = after.mp4Atoms.first(where: { $0.key == atom.key && $0.type == atom.type }) else {
+            guard let actual = after.mp4Atoms.first(where: { $0.key == atom.key }) else {
+                if atom.remove {
+                    continue
+                }
                 warnings.append("MP4 atom \(atom.key) could not be confirmed after save.")
+                continue
+            }
+            if atom.remove {
+                warnings.append("MP4 atom \(atom.key) was expected to be removed after save.")
                 continue
             }
             if atom.type == "bool" {
@@ -333,6 +345,10 @@ extension TagLibMetadataManager {
             } else if atom.type == "stringList" {
                 if atom.values != actual.values {
                     warnings.append("MP4 atom \(atom.key) values differ after save.")
+                }
+            } else if let expectedInteger = Int(atom.value), let actualInteger = Int(actual.value) {
+                if expectedInteger != actualInteger {
+                    warnings.append("MP4 atom \(atom.key) value differs after save.")
                 }
             } else if normalizedTrimmed(atom.value) != normalizedTrimmed(actual.value) {
                 warnings.append("MP4 atom \(atom.key) value differs after save.")
@@ -384,7 +400,8 @@ extension TagLibMetadataManager {
                 values: stringArrayValue($0, "values"),
                 first: intValue($0, "first"),
                 second: intValue($0, "second"),
-                freeformDescription: stringValue($0, "freeformDescription").nilIfEmpty
+                freeformDescription: stringValue($0, "freeformDescription").nilIfEmpty,
+                remove: boolValue($0, "remove") ?? false
             )
         }
 
@@ -494,7 +511,7 @@ extension TagLibMetadataManager {
         }
 
         let supportedFrameTypes: Set<String> = [
-            "text", "userText", "url", "ufid", "chapter", "tableOfContents", "podcast"
+            "text", "versionedText", "userText", "url", "ufid", "chapter", "tableOfContents", "podcast"
         ]
         for (index, frame) in metadata.id3v2Frames.enumerated() {
             if !supportedFrameTypes.contains(frame.type) {
