@@ -240,32 +240,26 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
-    @Test func nativePairsRejectTotalOnlyTypedRequestsBeforeCommit() throws {
-        for ext in ["mp3", "m4a", "wav"] {
+    @Test func nativePairsPersistTotalOnlyTypedAndBasicRequests() throws {
+        for ext in ["mp3", "m4a", "wav", "flac"] {
             try withFixture(ext) { url in
                 try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
-                let before = try Data(contentsOf: url)
-                #expect(throws: MetadataPatchValidationError.self) {
-                    try TagLibMetadataManager.applyMetadataPatch(
-                        MetadataPatch(fields: [.trackTotal: .integer(10)]), to: url
-                    )
-                }
-                #expect(try Data(contentsOf: url) == before)
+                try TagLibMetadataManager.applyMetadataPatch(
+                    MetadataPatch(fields: [.trackTotal: .integer(10)]), to: url
+                )
+                let after = try TagLibMetadataManager.readMetadataResult(from: url)
+                #expect(after.track == 0 && after.trackTotal == 10)
                 var totalOnly = BasicMetadata.empty
-                totalOnly.trackTotal = 10
-                #expect(throws: MetadataPatchValidationError.self) {
-                    try TagLibMetadataManager.replaceBasicMetadata(totalOnly, to: url)
+                totalOnly.trackTotal = 12
+                try TagLibMetadataManager.replaceBasicMetadata(totalOnly, to: url)
+                let basic = try TagLibMetadataManager.readSnapshot(from: url)
+                #expect(basic.basic.track == 0 && basic.basic.trackTotal == 12)
+                if ext == "m4a" {
+                    #expect(basic.structured.mp4Atoms.first { $0.key == "trkn" }?.second == 12)
+                } else if ext != "flac" {
+                    #expect(basic.structured.id3v2Frames.first { $0.frameID == "TRCK" }?.values == ["/12"])
                 }
-                #expect(try Data(contentsOf: url) == before)
             }
-        }
-        try withFixture("flac") { url in
-            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
-            try TagLibMetadataManager.applyMetadataPatch(
-                MetadataPatch(fields: [.trackTotal: .integer(10)]), to: url
-            )
-            let after = try TagLibMetadataManager.readMetadataResult(from: url)
-            #expect(after.track == 0 && after.trackTotal == 10)
         }
     }
 

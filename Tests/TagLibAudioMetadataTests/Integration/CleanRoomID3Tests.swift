@@ -63,12 +63,15 @@ struct CleanRoomID3Tests {
                         #expect(!value.hasPrefix("MOVEMENTCOUNT\0"))
                     }
                     #expect(try TagLibMetadataManager.readMetadataResult(from: url).customFields["KEEP_CUSTOM"] == "Untouched")
-                    let original = try Data(contentsOf: url)
-                    #expect(throws: MetadataPatchValidationError.self) {
-                        try TagLibMetadataManager.applyMetadataPatch(
-                            MetadataPatch(fields: [.track: .remove]), to: url)
-                    }
-                    #expect(try Data(contentsOf: url) == original)
+                    let beforeRemoval = try TagLibMetadataManager.readMetadataResult(from: url)
+                    try TagLibMetadataManager.applyMetadataPatch(
+                        MetadataPatch(fields: [.track: .remove]), to: url)
+                    let totalOnly = try frames(url)
+                    #expect(try text(totalOnly, "TRCK") == "/12")
+                    let retained = try TagLibMetadataManager.readMetadataResult(from: url)
+                    #expect(retained.track == 0 && retained.trackTotal == 12)
+                    #expect(retained.disc == beforeRemoval.disc && retained.discTotal == beforeRemoval.discTotal)
+                    #expect(retained.customFields["KEEP_CUSTOM"] == "Untouched")
                 }
             }
         }

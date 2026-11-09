@@ -270,23 +270,24 @@ final class AuditRemediationRegressionTests: XCTestCase {
         }
     }
 
-    func testPartialNumberPairRemovalIsRejectedAndGenericRemovalPreservesTotal() throws {
+    func testPartialNumberPairRemovalPreservesTotalAcrossNativeAndGenericStorage() throws {
         for ext in ["mp3", "m4a"] {
             let url = try copyFixture(ext)
             var seed = BasicMetadata.empty
             seed.track = 3
             seed.trackTotal = 10
             try TagLibMetadataManager.replaceBasicMetadata(seed, to: url)
-            let before = try Data(contentsOf: url)
-            XCTAssertThrowsError(try TagLibMetadataManager.applyMetadataPatch(
-                MetadataPatch(fields: [.track: .remove]),
-                to: url
-            )) { error in
-                guard case MetadataPatchValidationError.unsupportedPartialPairRemoval(.track, _) = error else {
-                    return XCTFail("Expected unsupportedPartialPairRemoval, got \(error)")
-                }
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.track: .remove]), to: url
+            )
+            let retained = try TagLibMetadataManager.readSnapshot(from: url)
+            XCTAssertEqual(retained.basic.track, 0, ext)
+            XCTAssertEqual(retained.basic.trackTotal, 10, ext)
+            if ext == "m4a" {
+                XCTAssertEqual(retained.structured.mp4Atoms.first { $0.key == "trkn" }?.second, 10)
+            } else {
+                XCTAssertEqual(retained.structured.id3v2Frames.first { $0.frameID == "TRCK" }?.values, ["/10"])
             }
-            XCTAssertEqual(try Data(contentsOf: url), before, ext)
 
             try TagLibMetadataManager.applyMetadataPatch(
                 MetadataPatch(fields: [.track: .remove, .trackTotal: .remove]),

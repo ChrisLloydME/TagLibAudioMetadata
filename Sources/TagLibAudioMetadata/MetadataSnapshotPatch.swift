@@ -93,9 +93,9 @@ public enum MetadataPatchValue: Hashable, Sendable {
     /// One or more non-empty values. Each value is trimmed before mutation.
     case values([String])
     /// Explicitly removes the field. Empty text and value arrays are not deletion aliases.
-    /// For paired track/disc first components, removal is rejected when the
-    /// retained total cannot be represented without a zero first component
-    /// (for example MP3/M4A). Remove both components to clear the pair.
+    /// Removing one track/disc component preserves its sibling. MP4 uses
+    /// the native zero sentinel for an absent component; ID3 writes /total.
+    /// Layouts without a verified total-only codec reject that operation.
     case remove
 
     nonisolated var kind: MetadataPatchValueKind? {
@@ -269,7 +269,11 @@ extension TagLibMetadataManager {
         number: Int, total: Int, field: MetadataFieldKey, for url: URL
     ) throws {
         let format = capability(forExtension: url.pathExtension)?.identifier ?? url.pathExtension
-        if ["mpeg-id3", "mpeg-aac", "mp4", "wav", "aiff", "trueaudio", "dsf", "dsdiff", "asf"].contains(format), number == 0, total > 0 {
+        let maximum = format == "mp4" ? 65535 : Int(Int32.max)
+        for value in [number, total] where value < 0 || value > maximum {
+            throw MetadataPatchValidationError.integerOutOfRange(field: field, minimum: 0, maximum: maximum, actual: value)
+        }
+        if format == "asf", number == 0, total > 0 {
             throw MetadataPatchValidationError.unsupportedPartialPairRemoval(field: field, format: format)
         }
     }
@@ -482,10 +486,12 @@ extension TagLibMetadataManager {
                     }
                     return component.resolvedValue ?? 0
                 }
-                var track = try resolved(inventory.track.number, field: "track")
-                var trackTotal = try resolved(inventory.track.total, field: "trackTotal")
-                var disc = try resolved(inventory.disc.number, field: "disc")
-                var discTotal = try resolved(inventory.disc.total, field: "discTotal")
+                let updatesTrackPair = validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil
+                let updatesDiscPair = validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil
+                var track = updatesTrackPair ? try resolved(inventory.track.number, field: "track") : current.track
+                var trackTotal = updatesTrackPair ? try resolved(inventory.track.total, field: "trackTotal") : current.trackTotal
+                var disc = updatesDiscPair ? try resolved(inventory.disc.number, field: "disc") : current.disc
+                var discTotal = updatesDiscPair ? try resolved(inventory.disc.total, field: "discTotal") : current.discTotal
                 var movementNumber = current.movementNumber
                 var movementCount = current.movementCount
 
@@ -516,8 +522,6 @@ extension TagLibMetadataManager {
                     movementCount = patchedInteger(value, current: movementCount)
                 }
 
-                let updatesTrackPair = validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil
-                let updatesDiscPair = validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil
                 let updatesMovementPair = validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil
                 if updatesTrackPair {
                     try validateNativeNumberPair(number: track, total: trackTotal, field: .track, for: url)
@@ -563,6 +567,14 @@ extension TagLibMetadataManager {
                         )
                     }
                     return component.resolvedValue ?? 0
+                }
+                for (selected, group, name) in [
+                    (numberText.trackNumberText != nil, inventory.track, "track"),
+                    (numberText.discNumberText != nil, inventory.disc, "disc"),
+                ] where selected && group.hasUnresolvedComponents {
+                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                        field: name, identities: group.number.identities + group.total.identities
+                    )
                 }
                 var trackPair = numberText.trackNumberText.map(parseNumberPair)
                 var discPair = numberText.discNumberText.map(parseNumberPair)

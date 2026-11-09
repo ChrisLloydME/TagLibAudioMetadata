@@ -294,6 +294,32 @@ extension TagLibMetadataManager {
         }
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let inventory = try numberingInventory(at: mutationURL)
+            for (selected, group, name) in [
+                (true, inventory.track, "track"),
+                (discNumberText != nil, inventory.disc, "disc"),
+            ] where selected && group.hasUnresolvedComponents {
+                throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                    field: name, identities: group.number.identities + group.total.identities
+                )
+            }
+            let trackInput = parseNumberPair(trackNumberText)
+            let discInput = discNumberText.map(parseNumberPair)
+            let recoverTrack = !trackNumberText.isEmpty && trackInput.total == 0
+                && inventory.track.total.state == .recoveredLegacy
+            let recoverDisc = discNumberText?.isEmpty == false && discInput?.total == 0
+                && inventory.disc.total.state == .recoveredLegacy
+            if recoverTrack || recoverDisc {
+                try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                    trackNumber: trackInput.number,
+                    totalTracks: inventory.track.total.recoveredValue ?? 0,
+                    updateTrackPair: recoverTrack,
+                    discNumber: discInput?.number ?? 0,
+                    totalDiscs: inventory.disc.total.recoveredValue ?? 0,
+                    updateDiscPair: recoverDisc,
+                    to: mutationURL
+                )
+            }
             let beforeWrite = verifyAfterWrite ? try readMetadataResult(from: mutationURL) : nil
             try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
@@ -927,6 +953,14 @@ extension TagLibMetadataManager {
                 isID3: isID3Primary,
                 version: nil
             )
+            for (changed, group, name) in [
+                (meta.track != current.metadata.track || meta.trackTotal != current.metadata.trackTotal, numberInventory.track, "track"),
+                (meta.disc != current.metadata.disc || meta.discTotal != current.metadata.discTotal, numberInventory.disc, "disc"),
+            ] where changed && group.hasUnresolvedComponents {
+                throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                    field: name, identities: group.number.identities + group.total.identities
+                )
+            }
             if meta.track != current.metadata.track,
                meta.trackTotal == current.metadata.trackTotal {
                 if numberInventory.track.total.state == .recoveredLegacy {

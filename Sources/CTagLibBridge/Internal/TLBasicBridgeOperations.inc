@@ -22,7 +22,7 @@ static NSString * _Nullable BuildTRCKString(NSInteger trackNumber, NSInteger tot
             trackPart = [NSString stringWithFormat:@"%ld", (long)trackNumber];
         }
     } else {
-        trackPart = @"0";
+        trackPart = @"";
     }
 
     if (totalTracks > 0) {
