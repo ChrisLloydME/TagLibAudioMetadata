@@ -152,7 +152,7 @@ extension TagLibMetadataManager {
         }
 
         if identifier == "asf" {
-            guard let engineKey, let target = schema.writeTarget(for: .asf) else {
+            guard let engineKey, schema.writeTarget(for: .asf) != nil else {
                 throw MetadataPatchValidationError.unsupportedFieldForFormat(
                     field: field,
                     format: identifier
