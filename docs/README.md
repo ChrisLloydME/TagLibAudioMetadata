@@ -25,6 +25,8 @@ The source code, `Package.swift`, and the test target are the final authority fo
 5. [Transactions](TRANSACTIONS.md) — staged writes, durability, concurrency.
 6. [Audio-content continuity](AUDIO_CONTENT_CONTINUITY.md) — guarded conflict rebasing, if needed.
 
+For the accepted future compatibility design, read [Metadata mapping specification](METADATA_MAPPING_SPEC.md). It defines AM-TLAM-MAPPING-2.2, with native-field interoperability precedence, a per-format target matrix and legacy numbering recovery/retirement, mirrored in AudioMator, and is explicitly not implemented by the current API or generated field tables.
+
 ### I am maintaining the package
 
 1. [Architecture](ARCHITECTURE.md) — modules, flows, invariants, source and test layout.
