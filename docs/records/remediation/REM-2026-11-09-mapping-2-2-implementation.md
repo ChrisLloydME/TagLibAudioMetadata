@@ -51,8 +51,8 @@ Same command, after the changes:
 | Runner | Result |
 | --- | --- |
 | XCTest | 156 executed, 2 skipped, 0 failed |
-| Swift Testing | 86 tests in 21 suites, 1 environment-dependent failure |
-| Overall | 239 passed, 2 skipped, 1 environment-dependent failure of 242 exercised |
+| Swift Testing | 88 tests in 21 suites, 1 environment-dependent failure |
+| Overall | 241 passed, 2 skipped, 1 environment-dependent failure of 244 exercised |
 
 The only failure is the same privilege-bit precondition. No new baseline failure remains.
 
@@ -71,7 +71,7 @@ python3 scripts/generate-field-schema.py --check
 | 1 | Complete registry, semantic keys, native targets, capability states, collision detection | Pass | 101 `MetadataFieldKey` cases; 100 semantic profiles; 26 MP4-exclusive rows; two MKV registrations; `FormatCapabilityTests` including bridge parity, YEAR owner, MKV gate, and duplicate-target invariants. |
 | 2 | Independent reads with full YEAR text and DATE/RELEASEDATE/ORIGINALDATE provenance | Pass for MP3/MP4/FLAC/Ogg | `AuditRemediationRegressionTests.testBasicPreservesFullRecordingDateWithoutLegacyYearDuplication`, `FixtureMetadataRoundTripTests.testRecordingAndReleaseDatesRemainIndependentWhereRepresentable`, `ReviewMetadataIntegrityTests.basicUnrelatedEditPreservesIndependentYearAndDate`, `testMP4KeepsYearStandaloneDateAndReleaseDateIndependent`. |
 | 3 | Independent writes, version-aware ID3 dates, no reconciliation | Pass | Same date tests plus `CleanRoomContractTests.mp4DateEditsKeepYearAndReleaseDateIndependentWithoutContradictionChecks`; no `conflictingMP4Date` throw path remains. |
-| 4 | Native totals, orphan recovery, no private creation/renaming, explicit cleanup | Pass | `LegacyNumberingRecoveryTests` (7 tests): ID3 orphan total migration, MP4 orphan total migration, unrelated preservation, ambiguous rejection without mutation, scoped/version-guarded plan, both namespaces retained or removed explicitly, formatted number APIs create no private atoms. |
+| 4 | Native totals, orphan recovery, no private creation/renaming, explicit cleanup | Pass | `LegacyNumberingRecoveryTests` (9 tests): ID3 orphan total migration, MP4 orphan total migration, unrelated preservation, ambiguous rejection without mutation, scoped/version-guarded plan, both namespaces retained or removed explicitly, formatted number APIs create no private atoms. |
 | 5 | Four-state advisory, 26 MP4-exclusive entries, two MKV gates | Partial, as specified | `MP4ExclusiveFieldTests` (6 tests) covers every MP4-exclusive row except the writable `RATE` scale; `rate` is `.readOnly` with a concrete reason. Label↔code vocabulary for `ITUNESMEDIATYPE` is not bound; the native integer code is lossless. MKV registrations report `.unsupported`. |
 | 6 | Preservation/regression sweep | Pass | Full suite; exact native preservation for Xiph/APE aliases and qualified keys; MP4 atom/cardinality preservation; ID3 collection preservation; tag version preserved on save. |
 | 7 | Docs, schema, honest capability report | Pass | API/FIELD_SCHEMA/FORMATS/PRESERVATION/USAGE/MIGRATION/ARCHITECTURE/README/CHANGELOG updated; spec section status added; `check-docs.py` passes. |
