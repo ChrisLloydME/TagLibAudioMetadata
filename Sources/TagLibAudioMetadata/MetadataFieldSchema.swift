@@ -549,7 +549,7 @@ public enum MetadataFieldRegistry {
 
     /// Property-map keys with intentionally composite semantic ownership.
     /// YEAR/DATE are owned by both the canonical `.year` identity and the
-    /// deprecated `.date` spelling; `.year` is the explicit preferred owner.
+    /// legacy `.date` spelling; `.year` is the explicit preferred owner.
     public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [
         "DATE": [.date, .year],
         "YEAR": [.date, .year],

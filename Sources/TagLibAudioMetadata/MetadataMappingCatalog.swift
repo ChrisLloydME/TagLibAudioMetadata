@@ -2,8 +2,11 @@
 //  MetadataMappingCatalog.swift
 //  TagLibAudioMetadata
 //
-//  Generated from docs/METADATA_MAPPING_SPEC.md by
-//  scripts/generate-mapping-registry.py. Do not edit by hand.
+//  Declarative semantic-to-native target table for the public field registry.
+//  This Swift catalog is the package-side source of truth. The generated
+//  documentation matrix is derived from it by
+//  scripts/generate-mapping-matrix.py; no production code is generated from
+//  Markdown.
 //
 
 import Foundation
