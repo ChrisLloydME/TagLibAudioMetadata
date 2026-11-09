@@ -1,5 +1,7 @@
 # Format support and limitations
 
+The accepted [Metadata mapping specification](METADATA_MAPPING_SPEC.md) defines a future native-field interoperability compatibility contract, including a complete target matrix for the declared fields, independent Year/date fields, with YEAR on MP4 ©day, legacy standalone-total recovery and retirement of private MP4 number text. Actual current format support is not changed by that target matrix. It is not implemented by 0.6.0; the tables and restrictions below describe current behavior.
+
 This is the canonical reference for declared format coverage. It describes the capability registry in `Sources/CTagLibBridge/TLFormatRegistry.mm`, the container masks in `Sources/CTagLibBridge/Internal/TLMetadataCore.inc`, and the field schema in `Sources/TagLibAudioMetadata/MetadataFieldSchema.swift`.
 
 A declared label is not proof that every file, field, codec variant, or platform works. Query the public capability API for the extension and field in question, then validate a concrete file.

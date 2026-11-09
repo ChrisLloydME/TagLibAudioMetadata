@@ -2,6 +2,8 @@
 
 This is the canonical reference for the public metadata field registry. It describes `MetadataFieldKey`, `MetadataFieldSchema`, and `MetadataFieldRegistry` in `Sources/TagLibAudioMetadata/MetadataFieldSchema.swift`. The Swift declarations and the generated tables below are checked against each other by `scripts/check-docs.py`.
 
+For the accepted, unimplemented target registry, see the [Metadata mapping specification](METADATA_MAPPING_SPEC.md). Its catalog is a refactoring decision; the generated tables below continue to describe current code.
+
 The registry answers three different questions:
 
 1. **Semantics.** What is the display name and category of a field, and is it multi-value, people-oriented, role-qualified, or artwork?
