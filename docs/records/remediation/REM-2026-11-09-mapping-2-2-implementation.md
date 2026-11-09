@@ -6,7 +6,7 @@
 - **Contract:** `AM-TLAM-MAPPING-2.2` in [METADATA_MAPPING_SPEC.md](../../METADATA_MAPPING_SPEC.md)
 - **Assignment:** [MAPPING_REFACTOR_AGENT_PROMPT.md](../../plans/MAPPING_REFACTOR_AGENT_PROMPT.md)
 - **Branch:** `codex/metadata-mapping-spec`
-- **Implementation commit:** `67031a3` (`Implement AM-TLAM-MAPPING-2.2 package semantics`)
+- **Implementation commits:** `67031a3` (`Implement AM-TLAM-MAPPING-2.2 package semantics`) and `73f8d9c` (`Add native ASF independent date attributes`)
 - **Documentation commit:** the commit containing this record
 - **Status:** Final for the package-side scope; bounded gaps recorded below
 
@@ -110,7 +110,7 @@ python3 scripts/generate-field-schema.py --check
 ## References
 
 - Branch: `codex/metadata-mapping-spec`
-- Implementation commit: `67031a3`
+- Implementation commits: `67031a3`, `73f8d9c`
 - Contract: [METADATA_MAPPING_SPEC.md](../../METADATA_MAPPING_SPEC.md)
 - Current docs: [STATUS.md](../../STATUS.md), [FIELD_SCHEMA.md](../../FIELD_SCHEMA.md), [PRESERVATION.md](../../PRESERVATION.md), [MIGRATION.md](../../MIGRATION.md)
 - Tests: `Tests/TagLibAudioMetadataTests/Capabilities/FormatCapabilityTests.swift`, `Integration/FixtureMetadataRoundTripTests.swift`, `Integration/CleanRoomContractTests.swift`, `Integration/ReviewMetadataIntegrityTests.swift`, `Integration/LegacyNumberingRecoveryTests.swift`, `Integration/MP4ExclusiveFieldTests.swift`

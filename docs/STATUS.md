@@ -8,8 +8,8 @@ This page records the latest known validation state and the limits that remain. 
 | --- | --- |
 | Release | No release assigned. The contract target is `AM-TLAM-MAPPING-2.2`; the last tagged release remains `0.6.0` (2026-10-25). |
 | Branch | `codex/metadata-mapping-spec` |
-| Implementation revision | `67031a3` (`Implement AM-TLAM-MAPPING-2.2 package semantics`), plus the documentation commit containing this page |
-| Working tree | Documentation and generated-schema updates for REM-2026-11-09; production source is `67031a3` |
+| Implementation revisions | `67031a3` (`Implement AM-TLAM-MAPPING-2.2 package semantics`) and `73f8d9c` (`Add native ASF independent date attributes`), plus the documentation commits containing this page |
+| Working tree | Documentation and generated-schema updates for REM-2026-11-09; production source is `73f8d9c` |
 | Observation date | 2026-11-09 |
 | Host | macOS 27.2, arm64 |
 | Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
