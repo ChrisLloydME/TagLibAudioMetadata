@@ -727,6 +727,11 @@ extension TagLibMetadataManager {
                 structured: afterStructured
             )
             var intentionallyChangedKeys = keysToRemove.union(nativeFieldAliases)
+            for field in validatedPatch.fields.keys {
+                intentionallyChangedKeys.formUnion(
+                    MetadataFieldRegistry.schema(for: field)?.propertyMapKeys ?? []
+                )
+            }
             for field in expectedNumberPairs.keys {
                 intentionallyChangedKeys.formUnion(MetadataFieldRegistry.schema(for: field)?.propertyMapKeys ?? [])
             }
@@ -812,9 +817,14 @@ extension TagLibMetadataManager {
                         actual = matching?.values ?? []
                     }
                 case .nativeTextKey(let key), .propertyMap(let key):
-                    actual = afterRaw.properties.first {
-                        key.caseInsensitiveCompare($0.key) == .orderedSame
-                    }?.values ?? []
+                    let asfValues = afterStructured.asfAttributes
+                        .filter { key.caseInsensitiveCompare($0.key) == .orderedSame }
+                        .map(\.value)
+                    actual = !asfValues.isEmpty
+                        ? asfValues
+                        : afterRaw.properties.first {
+                            key.caseInsensitiveCompare($0.key) == .orderedSame
+                        }?.values ?? []
                 }
                 if field != .date,
                    MetadataFieldRegistry.schema(for: field)?.acceptedPatchValueKinds.contains(.text) == true,

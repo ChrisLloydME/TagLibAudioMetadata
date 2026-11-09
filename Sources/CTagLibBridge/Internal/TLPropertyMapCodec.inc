@@ -1278,6 +1278,26 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
         setNumber("DISCTOTAL", metadata.totalDiscs > 0
             ? [NSString stringWithFormat:@"%ld", (long)metadata.totalDiscs] : nil);
     }
+    if (auto *asfFile = dynamic_cast<TagLib::ASF::File *>(&file)) {
+        TagLib::ASF::Tag *tag = asfFile->tag();
+        auto setNative = [&](const char *key, NSString * _Nullable value) {
+            tag->removeItem(key);
+            NSString *trimmed = TrimmedStringOrNil(value);
+            if (trimmed) {
+                tag->addAttribute(
+                    key,
+                    TagLib::ASF::Attribute(NSStringToTagString(trimmed))
+                );
+            }
+        };
+        setNative("WM/Year", metadata.year);
+        setNative("DATE", metadata.standaloneDate);
+        setNative("WM/OriginalReleaseYear", metadata.originalReleaseDate);
+        setNative("WM/ContentGroupDescription", metadata.contentGroup);
+        setNative("WM/ARTISTS", metadata.artists);
+        setNative("REPLAYGAIN_TRACK_PEAK", metadata.replayGainTrackPeak);
+        setNative("REPLAYGAIN_ALBUM_PEAK", metadata.replayGainAlbumPeak);
+    }
     if (auto *id3 = NativeID3v2TagForWrite(&file)) {
         SetNativeID3NumberPair(id3, "TRCK",
             BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks),
