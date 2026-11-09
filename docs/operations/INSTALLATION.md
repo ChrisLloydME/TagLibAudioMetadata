@@ -2,7 +2,7 @@
 
 The package consumes an immutable, checksum-pinned TagLib 2.3.1 dynamic XCFramework. It has no source, static, Homebrew, or system-library fallback.
 
-This page applies to the current working tree and tagged releases alike. The working tree contains unreleased mapping contract 2.2 behavior; the latest tag is `0.6.0`. Use the [migration guide](MIGRATION.md) when comparing behavior across releases.
+This page applies to the current working tree and tagged releases alike. Version `0.7.0` includes mapping contract 2.2 behavior. Use the [migration guide](MIGRATION.md) when comparing behavior across releases.
 
 ## Add the package
 
@@ -11,13 +11,13 @@ Depend on the Swift facade for normal application code. This version range selec
 ```swift
 .package(
     url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-    from: "0.6.0"
+    from: "0.7.0"
 )
 
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
 
-The latest tag is `0.6.0`. Release notes describe the delta from `0.5.3`. To evaluate `main` or an unreleased repair rather than a tagged release, opt in explicitly:
+The `0.7.0` release notes describe the delta from `0.6.0`. To evaluate `main` or an unreleased repair rather than a tagged release, opt in explicitly:
 
 ```swift
 .package(

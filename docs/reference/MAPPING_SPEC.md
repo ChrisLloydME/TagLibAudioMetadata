@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract implemented in the current working tree. It is not a description of the tagged `0.6.0` release; see [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract implemented in `0.7.0`; see [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 

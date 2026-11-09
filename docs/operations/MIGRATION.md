@@ -1,6 +1,6 @@
 # Compatibility and migration
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. It does not assign a version number to untagged work. The current working tree is not a release; the latest tag is `0.6.0`.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.0` introduces mapping contract 2.2; review the behavioral changes below before upgrading.
 
 ## Compatibility promises
 
@@ -10,9 +10,9 @@ This guide describes source-compatibility expectations and the changes a consume
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.
 
-## Working-tree changes for mapping contract 2.2
+## Migrating from 0.6.0 to 0.7.0
 
-These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described in the [mapping contract](../reference/MAPPING_SPEC.md). They are source-compatible unless noted; behavioral changes are intentional and require application review. The changes are not part of the tagged `0.6.0` release.
+These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described in the [mapping contract](../reference/MAPPING_SPEC.md). They are source-compatible unless noted; behavioral changes are intentional and require application review. The changes are introduced in `0.7.0` and are not part of `0.6.0`.
 
 ### New field identities
 
@@ -60,7 +60,7 @@ These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described 
 
 ## Migrating from 0.5.3 to 0.6.0
 
-The `0.6.0` release added audio-content continuity, validated public API additions, and raised the minimum Swift tools to 6.4. These changes are historical for the tagged release; the working tree adds contract 2.2 behavior on top.
+The `0.6.0` release added audio-content continuity, validated public API additions, and raised the minimum Swift tools to 6.4. These changes are historical for the tagged release; `0.7.0` adds contract 2.2 behavior on top.
 
 ### Minimum Swift tools
 
@@ -105,7 +105,7 @@ Deprecated declarations remain callable where source compatibility is practical.
 2. **Verification always throws.** A mismatch aborts before commit. `warnings` on a successful result are residual container advisories.
 3. **Low-level product.** Starting in 0.5, the facade does not re-export `CTagLibBridge`. Add `.product(name: "TagLibAudioMetadataLowLevel", ...)` and `import CTagLibBridge` if you name bridge types.
 4. **Raw native keys.** Raw APIs accept prefixless TagLib `PropertyMap` keys. `----:` native MP4 atom keys reject; use `StructuredMetadata.mp4Atoms`.
-5. **MP4 dates.** In the working tree, MP4 YEAR is `©day`; `.date` is a legacy YEAR alias and `.standaloneDate`/`.releaseDate` use freeforms. The older 0.6.0 behavior treated `.releaseDate` as `©day`; that is historical, not current.
+5. **MP4 dates.** In `0.7.0`, MP4 YEAR is `©day`; `.date` is a legacy YEAR alias and `.standaloneDate`/`.releaseDate` use freeforms. The older 0.6.0 behavior treated `.releaseDate` as `©day`; that is historical, not current.
 6. **Number pairs.** Native ID3 families write combined `TRCK`/`TPOS`; MP4 uses `trkn`/`disk`; generic/Xiph uses separate total keys; ASF uses native text pairs. Partial removal with a retained total is supported on MP4/ID3/Xiph/APE and rejected on ASF.
 7. **Privilege-bearing files.** setuid/setgid files reject before staging. Clear the bits explicitly if editing is intended.
 8. **TrueAudio mixed surfaces.** Files with unmodeled APEv2 fields reject rather than silently leaving a conflicting secondary tag.
