@@ -152,18 +152,42 @@ extension TagLibMetadataManager {
         }
 
         if identifier == "asf" {
-            guard let engineKey, schema.writeTarget(for: .asf) != nil else {
+            guard let target = schema.writeTarget(for: .asf) else {
                 throw MetadataPatchValidationError.unsupportedFieldForFormat(
                     field: field,
                     format: identifier
                 )
             }
+            // ASF needs exact native writes for the independent date,
+            // content-group, artists, and peak attributes. Common title/artist/
+            // album fields use the engine PropertyMap so TagLib also retires
+            // stale lower-case aliases.
+            let nativeFields: Set<MetadataFieldKey> = [
+                .year, .date, .standaloneDate, .originalReleaseDate,
+                .contentGroup, .artists, .replayGainTrackPeak, .replayGainAlbumPeak,
+            ]
             var removals = Set(schema.propertyMapKeys.map { $0.uppercased() })
-            for candidate in schema.nativeTargets where candidate.family == .asf {
-                removals.insert(candidate.nativeIdentity.uppercased())
+            if nativeFields.contains(field) {
+                if field == .year || field == .date {
+                    // YEAR and the independent DATE attribute share historical
+                    // aliases but must not remove each other.
+                    removals = ["YEAR"]
+                }
+                for candidate in schema.nativeTargets where candidate.family == .asf {
+                    removals.insert(candidate.nativeIdentity.uppercased())
+                }
+                return SemanticPropertyStorage(
+                    mechanism: .nativeTextKey(key: target.nativeIdentity),
+                    keysToRemove: removals,
+                    nativeAliasesToRemove: []
+                )
+            }
+            let asfKey: String = switch field {
+            case .mediaType: "MEDIA"
+            default: engineKey ?? schema.propertyMapKeys.first ?? target.nativeIdentity
             }
             return SemanticPropertyStorage(
-                mechanism: .propertyMap(key: engineKey),
+                mechanism: .propertyMap(key: asfKey),
                 keysToRemove: removals,
                 nativeAliasesToRemove: []
             )

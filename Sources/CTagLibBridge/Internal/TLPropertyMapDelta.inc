@@ -148,8 +148,29 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             }
             changed = true;
         }
+    } else if (auto *asf = dynamic_cast<TagLib::ASF::File *>(file)) {
+        TagLib::ASF::Tag *tag = asf->tag();
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *trimmed = TrimmedStringOrNil(key);
+            if (trimmed) { tag->removeItem(NSStringToTagString(trimmed)); changed = true; }
+        }
+        for (NSString *key in valuesToSet ?: @{}) {
+            NSString *trimmed = TrimmedStringOrNil(key);
+            if (!trimmed) continue;
+            tag->removeItem(NSStringToTagString(trimmed));
+            for (NSString *value in valuesToSet[key]) {
+                NSString *trimmedValue = TrimmedStringOrNil(value);
+                if (trimmedValue) {
+                    tag->addAttribute(
+                        NSStringToTagString(trimmed),
+                        TagLib::ASF::Attribute(NSStringToTagString(trimmedValue))
+                    );
+                }
+            }
+            changed = true;
+        }
     } else {
-        if (error) *error = PropertyMapDeltaError(9283, @"The selected format has no native Xiph/APE text-key surface");
+        if (error) *error = PropertyMapDeltaError(9283, @"The selected format has no native text-key surface");
         return NO;
     }
     if (changed && !SaveMetadataPreservingOtherTagSurfaces(file)) {

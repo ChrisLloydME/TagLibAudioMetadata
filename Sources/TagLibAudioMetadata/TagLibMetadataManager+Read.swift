@@ -235,6 +235,12 @@ extension TagLibMetadataManager {
             Self.capability(forExtension: $0)
         }
         let isMP4 = formatCapability?.metadataFieldFormats.contains(MetadataFieldFormat.mp4) == true
+        let isASF = formatCapability?.identifier == "asf"
+        func asfText(_ key: String) -> String? {
+            structured.asfAttributes.first {
+                $0.key.caseInsensitiveCompare(key) == .orderedSame
+            }?.value
+        }
         // FLAC, WAV and AIFF can carry an optional ID3 tag, but their primary
         // rich surface is Xiph/INFO. Only formats whose primary model is ID3
         // read YEAR/DATE from ID3 frames.
@@ -318,6 +324,8 @@ extension TagLibMetadataManager {
             // TDRC/TYER are the YEAR slots; the engine DATE projection is
             // ambiguous across TDAT/TXXX(DATE) and is not a fallback.
             storedYear = frameValue("TDRC") ?? frameValue("TYER")
+        } else if isASF {
+            storedYear = asfText("WM/Year")
         } else {
             storedYear = firstRawValue(for: ["YEAR"])
         }
@@ -331,6 +339,8 @@ extension TagLibMetadataManager {
         } else if isID3 {
             standaloneDate = frameValue("TDAT") ?? frameValue("TXXX", description: "DATE")
                 ?? firstRawValue(for: ["STANDALONEDATE"])
+        } else if isASF {
+            standaloneDate = asfText("DATE")
         } else {
             standaloneDate = firstRawValue(for: ["DATE"])
         }
@@ -340,6 +350,8 @@ extension TagLibMetadataManager {
             releaseDate = freeformText("RELEASEDATE")
         } else if isID3 {
             releaseDate = frameValue("TDRL") ?? firstRawValue(for: ["RELEASEDATE"])
+        } else if isASF {
+            releaseDate = nil
         } else {
             releaseDate = firstRawValue(for: ["RELEASEDATE"])
         }
@@ -351,6 +363,8 @@ extension TagLibMetadataManager {
         } else if isID3 {
             originalReleaseDate = frameValue("TDOR") ?? frameValue("TORY")
                 ?? firstRawValue(for: ["ORIGINALDATE", "ORIGINAL YEAR"])
+        } else if isASF {
+            originalReleaseDate = asfText("WM/OriginalReleaseYear")
         } else {
             originalReleaseDate = firstRawValue(for: ["ORIGINALDATE", "ORIGINAL YEAR"])
         }
@@ -359,8 +373,11 @@ extension TagLibMetadataManager {
         // projection for the fields whose native slots changed in 2.2.
         let conductor = mp4Text("\u{00A9}con") ?? meta.conductor
         let publisher = mp4Text("\u{00A9}pub") ?? meta.label
-        let contentGroup = mp4Text("\u{00A9}grp") ?? meta.grouping
-        let grouping = mp4Text("----:com.apple.iTunes:GROUPING") ?? (isMP4 ? nil : meta.grouping)
+        let contentGroup = isASF
+            ? asfText("WM/ContentGroupDescription")
+            : (mp4Text("\u{00A9}grp") ?? meta.grouping)
+        let grouping = mp4Text("----:com.apple.iTunes:GROUPING") ?? (isMP4 || isASF ? nil : meta.grouping)
+        let asfArtists = isASF ? asfText("WM/ARTISTS") : nil
         let work = mp4Text("\u{00A9}wrk") ?? meta.work
         let encodedBy = mp4Text("\u{00A9}enc") ?? meta.encodedBy
         let encoderSettings = mp4Text("\u{00A9}too") ?? meta.encoderSettings
@@ -510,7 +527,7 @@ extension TagLibMetadataManager {
             subtitle: meta.subtitle ?? "",
             grouping: grouping ?? "",
             contentGroup: contentGroup ?? "",
-            artists: rawDump.properties.first {
+            artists: asfArtists ?? rawDump.properties.first {
                 $0.key.caseInsensitiveCompare("ARTISTS") == .orderedSame
             }?.values.joined(separator: "; ") ?? "",
             movement: meta.movement ?? "",
