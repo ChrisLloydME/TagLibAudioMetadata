@@ -1288,6 +1288,7 @@ enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError {
     case invalidYearText(String)
     case conflictingMP4Date(year: String, releaseDate: String) // legacy; not produced
     case ambiguousNumberRecovery(field: String, identities: [String])
+    case conflictingYearRepresentations
 }
 ```
 
