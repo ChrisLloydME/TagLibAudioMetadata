@@ -2,38 +2,38 @@
 
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
 
-The current documentation describes the working tree, including the unreleased package-side `AM-TLAM-MAPPING-2.2` implementation. The latest tagged release remains `0.6.0` (2026-10-25). Results below are the latest observed Debug and Release runs. Debug was repeated after the documentation rewrite with identical counts. The only production source changes in this pass are comments; no behavior changed.
+The current documentation describes the working tree, including the unreleased package-side `AM-TLAM-MAPPING-2.2` implementation. The latest tagged release remains `0.6.0` (2026-10-25). Results below are the latest observed Debug and Release runs after repairing the field write-capability checks.
 
 ## Latest observed run (2026-11-09)
 
 | Field | Value |
 | --- | --- |
-| Source revision | `1380f7d` plus comment-only wording updates in `MetadataFieldSchema.swift`/`MetadataMappingCatalog.swift` and the documentation working tree |
+| Source revision | `a9c5d6f` plus the working-tree `FormatCapability.writeSupport` repair, regression tests, and matching documentation |
 | Branch | `codex/metadata-mapping-spec` |
 | Host | macOS 27.2, arm64 |
 | Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
 | Debug command | `swift test --disable-sandbox --disable-keychain --disable-netrc` with workspace-local Clang/Swift module caches |
 | Release command | `swift test -c release --disable-sandbox --disable-keychain --disable-netrc` with the same caches |
-| Debug XCTest | 156 executed: 154 passed, 2 opt-in skips, 0 failures |
-| Release XCTest | 156 executed: 154 passed, 2 opt-in skips, 0 failures |
-| Debug Swift Testing | 108 tests in 24 suites: 107 passed, 1 environment-dependent failure |
-| Release Swift Testing | 108 tests in 24 suites: 107 passed, 1 environment-dependent failure |
-| Environment failure | `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition `before.st_mode & 0o7777 == permissions`; this host strips setuid/setgid bits. |
-| Production source changes | Comment-only wording in `MetadataFieldSchema.swift` and `MetadataMappingCatalog.swift`; no behavior change. |
+| Debug XCTest | 158 executed: 156 passed, 2 opt-in skips, 0 failures |
+| Release XCTest | 158 executed: 156 passed, 2 opt-in skips, 0 failures |
+| Debug Swift Testing | 108 tests in 24 suites: all passed |
+| Release Swift Testing | 108 tests in 24 suites: all passed |
+| Environment failure | None in these runs, executed with expanded filesystem access. The privilege rejection test passed unchanged. |
+| Production source changes | Write-capability queries respect schema-level withholding and concrete native-family write policy; PropertyMap-only allowlist behavior is preserved. |
 | Strict build | `swift build -Xswiftc -warnings-as-errors -Xcc -Werror` passed in this pass. |
 | Documentation check | `python3 scripts/check-docs.py` passed for 45 Markdown files. |
 | Generated checks | `generate-api-reference.py --check`, `generate-field-schema.py --check`, `generate-format-matrix.py --check`, and `generate-mapping-matrix.py --check` passed. |
+| Consumers | Both `TagLibAudioMetadataConsumer` and `TagLibAudioMetadataLowLevelConsumer` passed against this working tree. |
 
 The two XCTest skips are the opt-in external corpus and throughput benchmark. `--disable-sandbox` was required because SwiftPM's manifest sandbox could not launch in this environment; workspace-local module caches were required because the default caches were not writable. Those are build-isolation limitations, not package settings.
 
-The failure is a host restriction: the test's own precondition requires the requested privilege bits to survive `chmod`, and this environment silently strips them. The test was not skipped, weakened, or hidden. Run it outside the sandbox to verify the production rejection paths.
+Earlier restricted runs failed the privilege test's own precondition because the host stripped setuid/setgid bits after `chmod`. The latest runs used expanded filesystem access and passed the unchanged test; it was not skipped or weakened.
 
 ## What was not run in this pass
 
 Do not treat this status as evidence for:
 
 - AddressSanitizer, ThreadSanitizer, minimum-platform builds, iOS runtime, x86_64, or physical-device execution;
-- the facade and low-level consumer packages;
 - cross-tool fixtures or an independent FFprobe/FFmpeg oracle for the 2.2 mappings;
 - AIFF, raw Opus, or raw AAC independent-date conformance;
 - the MKV native codec, typed `RATE` scale, or a verified media-kind label vocabulary;
@@ -44,7 +44,7 @@ Do not treat this status as evidence for:
 
 | Area | Limitation |
 | --- | --- |
-| MP4 `RATE` | Registered as read-only; no verified native rating type or scale is available for typed writes. Existing values are preserved. `FormatCapability.writeSupport(for: .rate)` is a coarse mapping-based check and can still report the family level; use the schema's `writeTarget` for typed-write decisions. |
+| MP4 `RATE` | Registered as read-only; no verified native rating type or scale is available for typed writes. Existing values are preserved. `FormatCapability.writeSupport(for: .rate)` returns `.unsupported`, consistent with the schema and typed-write rejection. |
 | MP4 media kind | The native `stik` integer round-trips losslessly, including unknown codes. The label vocabulary is intentionally not bound to numeric codes. |
 | MKV | `tvEpisode` and `tvSeason` target registrations exist (`PART_NUMBER@TargetTypeValue=50/60`) but report `.unsupported`; no native codec is implemented. |
 | MP4-exclusive Basic fields | Readable through `BasicMetadata`, but `replaceBasicMetadata`/`updateBasicMetadata` do not write them; use `MetadataPatch` or structured writes. |
