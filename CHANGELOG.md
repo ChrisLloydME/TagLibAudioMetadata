@@ -3,6 +3,36 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Package-side implementation of `AM-TLAM-MAPPING-2.2`: an explicit semantic/native target registry, generated `MetadataMappingCatalog`, native target capability states, and a 101-case `MetadataFieldKey` surface.
+- `year` (canonical YEAR) and `standaloneDate` (independent DATE), plus `contentGroup`, `artists`, `replayGainTrackPeak`, and `replayGainAlbumPeak`.
+- MP4-exclusive identities for director, account, composer/country IDs, gapless, HD video, owner, rating, show movement, store description, TV episode/network/season/show/sort, and native media kind. `rate` is read-only for typed writes.
+- Gated MKV target registrations for TV episode and season (`PART_NUMBER@TargetTypeValue=50/60`), with no advertised write capability.
+- `numberingInventory(at:)`, `planNumberNormalization(at:policy:groups:)`, and `applyNumberNormalization(_:to:expectedVersion:)`, with exact native/legacy/private component states and version-guarded retirement.
+- `explicitAdvisoryRawValue` for unknown existing advisory codes and exact native provenance.
+
+### Changed
+
+- YEAR is complete stored text and is no longer truncated to four characters. YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent in reads, writes, Basic updates, and verification. MP4 `©day` is YEAR; RELEASEDATE and DATE use explicit freeform extensions.
+- `updateBasicMetadata` and `replaceBasicMetadata` no longer reconcile MP4 dates; `MetadataValidationError.conflictingMP4Date` is retained only for source compatibility.
+- Conductor writes `©con`, publisher `©pub`, work `©wrk`, content group `©grp`, grouping `GROUPING`, encoded-by `©enc`, encoder settings `©too`, and media type `MEDIA` on MP4.
+- Basic preservation uses exact native collections instead of whole-map engine `PropertyMap` replay.
+- Typed pair edits recover a sole valid orphan total before writing the native pair.
+
+### Removed
+
+- Default-write creation and renaming of the private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` MP4 namespaces, including formatted-number convenience APIs.
+
+### Fixed
+
+- Advisory present `0` is distinct from absence and is not lost on unrelated writes; unknown codes such as MP4 `4` are preserved rather than recoded.
+- MP4 store IDs, TV numbers, Boolean atoms, and exclusive text/atom fields read back through their exact native locations.
+- ID3 date writes preserve the existing tag major version and replace frame values instead of appending a second value.
+- Stale summary assertions for MP4 single-date ownership, private-number migration, legacy advisory recoding, and padded MP4 text were replaced with target-contract assertions.
+
 ## [0.6.0] - 2026-10-25
 
 Changes since `0.5.3`.

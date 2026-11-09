@@ -6,38 +6,48 @@ This page records the latest known validation state and the limits that remain. 
 
 | Field | Value |
 | --- | --- |
-| Release | `0.6.0` (2026-10-25) |
-| Production source revision | `c46daa5` (`Discover the SwiftPM test bundle in the link audit`), merged as `2bf8d02` |
-| Working tree | Clean after this release documentation commit; package manifest, changelog, and source are in the `c46daa5`/`2bf8d02` tree |
-| Observation date | 2026-10-25 |
-| Host | macOS 27.0.1 (26A434), arm64 |
-| Toolchain | Xcode 27.1 (27A9275), Apple Swift 6.4 |
-| Command | `swift test --disable-keychain --disable-netrc --disable-sandbox --skip CleanRoomPrivilegeTests` with workspace-local Clang/Swift module caches |
-| XCTest | 153 executed: 151 passed, 2 skipped, 0 failed |
-| Swift Testing | 71 tests in 18 suites: 71 passed, 0 failed (privilege test skipped) |
-| Overall | 222 passed, 2 skipped, 0 failed of 224 exercised declarations; the full run including the privilege test reports 222 passed, 2 skipped, 1 environment-dependent failure of 225 |
-| Xcode suite | `RunAllTests` at `102ddc7` (source-equivalent to `c46daa5`; that commit changes CI only): 223 passed, 2 opt-in skips, 0 failed of 225; the privilege regression passed |
-| Hosted CI | [Run 40164904366](https://github.com/ChrisLloydME/TagLibAudioMetadata/actions/runs/40164904366) at `c46daa5`: all nine executed jobs passed; `remote-tag-consumer` was skipped because no tag existed yet |
-| Minimum toolchain | Swift tools 6.4. Swift 6.0/6.1 reject the source syntax; Swift 6.2.4 and 6.3 cannot import macOS 26.5/27 SDK modules. Older toolchains are rejected at manifest resolution. |
-| Additional checks | Release, AddressSanitizer, ThreadSanitizer, strict warnings-as-errors, five minimum-platform builds, and both consumers passed |
-| Documentation check | `python3 scripts/check-docs.py` passes for the current tree |
-| Merge status | Merged to `main` as `2bf8d02`; tag `0.6.0` has not been created. This release commit is tag-ready. |
+| Release | No release assigned. The contract target is `AM-TLAM-MAPPING-2.2`; the last tagged release remains `0.6.0` (2026-10-25). |
+| Branch | `codex/metadata-mapping-spec` |
+| Implementation revision | `67031a3` (`Implement AM-TLAM-MAPPING-2.2 package semantics`), plus the documentation commit containing this page |
+| Working tree | Documentation and generated-schema updates for REM-2026-11-09; production source is `67031a3` |
+| Observation date | 2026-11-09 |
+| Host | macOS 27.2, arm64 |
+| Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
+| Command | `swift test --disable-sandbox --disable-keychain --disable-netrc` with workspace-local Clang/Swift module caches |
+| XCTest | 156 executed: 154 passed, 2 skipped, 0 failed |
+| Swift Testing | 85 tests in 21 suites: 84 passed, 1 environment-dependent failure |
+| Overall | 238 passed, 2 skipped, 1 failed of 241 exercised declarations |
+| Environment failure | `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition `before.st_mode & 0o7777 == permissions`; the host strips setuid/setgid bits. The test was not skipped, weakened, or hidden. |
+| Baseline comparison | The same failure was the only baseline failure (153 XCTest, 72 Swift Testing) before implementation. No new failure remains. |
+| Build | `swift build --disable-sandbox --disable-keychain --disable-netrc` passed |
+| Documentation check | `python3 scripts/check-docs.py` passed for 37 Markdown files |
+| Generated checks | `scripts/generate-mapping-registry.py --check` and `scripts/generate-field-schema.py --check` passed |
+| Merge status | Local implementation branch only. No tag, push, PR, merge, release, or binary rebuild was performed. |
 
-The `0.6.0` release delta from `0.5.3` is documented in the changelog. The release code is `c46daa5`, merged as `2bf8d02`; the commit containing this page adds documentation only. Hosted CI passed on the release code. The tag itself has not been created.
-
-The two XCTest skips are the opt-in external corpus and throughput benchmark. The full SwiftPM run's Swift Testing failure was `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` at its own precondition: the requested permissions were `0o4644`, `0o2644`, and `0o6644`, but the sandbox host stripped the privilege bits and reported mode `420` decimal (`0o644`). The production rejection path is covered by the passing Xcode run at the same revision and by the clean-room record; it was not weakened or skipped in the Xcode run.
-
-The `--disable-sandbox` flag was required because SwiftPM's manifest sandbox could not launch in this environment. That is a build-isolation limitation, not a package setting. Workspace-local module caches were used for the same reason.
+The two XCTest skips are the opt-in external corpus and throughput benchmark. `--disable-sandbox` was required because SwiftPM's manifest sandbox could not launch in this environment; workspace-local module caches were required because the default caches were not writable. Those are build-isolation limitations, not package settings.
 
 ## What was not run in this pass
 
 Do not treat this status as evidence for:
 
-- a tag-triggered `remote-tag-consumer` run; the job requires the published tag;
-- the opt-in external corpus and throughput benchmark;
-- device, minimum-OS, x86_64, or simulator runtime execution;
-- an independent FFprobe/FFmpeg packet comparison for these edits;
-- a release-signing, archive, or publication exercise beyond the hosted CI build and test.
+- cross-tool fixtures or an independent FFprobe/FFmpeg oracle for the 2.2 mappings;
+- AIFF, raw Opus, or raw AAC independent-date conformance;
+- the MKV native codec, typed `RATE` scale, or a verified media-kind label vocabulary;
+- ASan, TSan, strict warnings-as-errors, Release mode, minimum-platform builds, iOS runtime, x86_64, or physical-device execution;
+- AudioMator adoption, the mirrored specification, application previews/CSV/provider flows, or cross-repository synchronization;
+- a tag-triggered consumer run, release-signing, archiving, or publication.
+
+## Current limitations relevant to 2.2
+
+| Area | Limitation |
+| --- | --- |
+| MP4 `RATE` | Registered as read-only; no verified native rating type or scale is available for typed writes. Existing values are preserved. |
+| MP4 media kind | The native `stik` integer round-trips losslessly, including unknown codes. The label vocabulary is intentionally not bound to numeric codes. |
+| MKV | `tvEpisode` and `tvSeason` target registrations exist (`PART_NUMBER@TargetTypeValue=50/60`) but report `.unsupported`; no native codec is implemented. |
+| Number text | Exact MP4 text padding has no standard portable atom. The formatted-number API normalizes to the native pair and never creates private atoms. |
+| Legacy totals | A sole valid orphan total is recovered; contradictory aliases block typed pair edits as `.ambiguous`. ASF number-total-only layouts remain unsupported. |
+| Date coverage | YEAR/DATE/RELEASEDATE/ORIGINALDATE independence is verified for MP3, MP4, FLAC, and Ogg fixtures. RIFF has no standalone DATE target. AIFF/Opus/AAC independent-date fixtures are still missing. |
+| Transaction boundary | Coordination remains process-local; an external writer can race the final identity check. |
 
 ## Previous recorded evidence
 

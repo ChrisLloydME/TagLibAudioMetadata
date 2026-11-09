@@ -9,14 +9,14 @@ The single SwiftPM test target is organized physically by layer:
 | Directory | Coverage |
 | --- | --- |
 | `Capabilities/` | Public capability model, field-level support, and cross-language schema consistency. |
-| `Integration/` | Real-fixture round trips, container projections, native parsers, artwork, dates, numbers, and raw metadata. |
+| `Integration/` | Real-fixture round trips, container projections, native parsers, artwork, dates, numbers, legacy numbering recovery, MP4-exclusive fields, and raw metadata. |
 | `Transactions/` | Stale versions, failure atomicity, preservation, same-entry coordination, privilege rejection, and audio-content identity. |
 | `Concurrency/` | Cross-format reads/writes, M4A stress, and same-file contention. |
 | `ModelSemantics/` | Pure value-model contracts. |
 | `Performance/` | Opt-in, non-gating throughput experiments. |
 | Root-level tests | Public Objective-C selectors, Swift nested types, deprecated function references, and no unsolicited console output. |
 
-The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
+The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision. The 2.2 mapping work adds `LegacyNumberingRecoveryTests` and `MP4ExclusiveFieldTests`, and extends the capability, date, advisory, and preservation fixtures. The latest observed counts and the environment-dependent privilege failure are in [Status](STATUS.md).
 
 ## Standard commands
 

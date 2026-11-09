@@ -217,13 +217,51 @@ let patch = MetadataPatch(
 
 `nil` leaves a pair unchanged, a non-empty string sets it, and an empty string removes it. Do not combine `numberText` with typed track/disc fields in the same patch.
 
-Ordinary numeric Basic and patch writes use native numeric storage. On MP4 they do not add private formatting atoms to a standard-only file. If legacy `AUDIOMATOR_*_TEXT` formatting provenance exists and the corresponding pair is edited, the package migrates it to the package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` namespace while retaining padding. Use `writeTrackNumberText` for an intentional formatted-text write.
+Ordinary numeric Basic and patch writes use native numeric storage. On MP4 they do not add private formatting atoms to a standard-only file. Legacy `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed; they are preserved until an explicit, version-guarded normalization plan retires selected identities.
 
-#### Dates on MP4
+A number-only `numberText` value preserves the resolved existing total. Exact MP4 text padding has no portable atom, so the display normalizes to the native pair.
 
-MP4 has one standard date atom, `©day`. `.releaseDate` owns it; typed `.date` writes are rejected for MP4. `.date` owns the recording date/year where the container has a separate representation.
+#### Recover legacy totals
 
-`updateBasicMetadata` reconciles a single-field MP4 year/releaseDate edit. A full `replaceBasicMetadata` with inconsistent non-empty `year` and `releaseDate` projections throws `MetadataValidationError.conflictingMP4Date`; an empty `year` is allowed and the date projection supplies the year.
+```swift
+let inventory = try TagLibMetadataManager.numberingInventory(at: url)
+print(inventory.track.total.state)      // absent, native, recoveredLegacy, ambiguous, invalid
+print(inventory.track.privateTexts)     // exact legacy MP4 identities and values
+
+let plan = try TagLibMetadataManager.planNumberNormalization(
+    at: url,
+    policy: .useLegacy,
+    groups: [.track, .disc]
+)
+print(plan.trackNumber, plan.trackTotal)
+print(plan.removals, plan.privateRemovals)
+
+try TagLibMetadataManager.applyNumberNormalization(plan, to: url)
+```
+
+`planNumberNormalization` requires a headless policy; there is no implicit application preference. `.useNative` keeps only native pairs, `.useLegacy` requires unambiguous recovery, and `.replace(number:total:)` supplies an explicit pair. The apply step writes the native pair first, retires only the selected aliases in the same transaction, and verifies persistence and removal.
+
+#### Year, date, and release date
+
+`year` (or its deprecated `date` alias), `standaloneDate`, `releaseDate`, and `originalReleaseDate` are independent. `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid together.
+
+```swift
+try TagLibMetadataManager.applyMetadataPatch(
+    MetadataPatch(fields: [
+        .year: .text("2004"),
+        .standaloneDate: .text("2003-02-01"),
+        .releaseDate: .text("2017-06-09"),
+        .originalReleaseDate: .text("1999")
+    ]),
+    to: url
+)
+```
+
+MP4 YEAR is `©day`. RELEASEDATE and DATE are explicit freeform extensions; nothing is synthesized. Changing or clearing one field never rewrites another. `year` stores complete text and is not truncated to four characters. `updateBasicMetadata` performs no reconciliation, and `MetadataValidationError.conflictingMP4Date` is retained only for source compatibility.
+
+#### MP4-exclusive fields
+
+The 2.2 registry adds `director` (`©dir`), `itunesAccount` (`apID`), `itunesComposerID` (`cmID`), `itunesCountryID` (`sfID`), `itunesGapless` (`pgap`), `itunesHDVideo` (`hdvd`), `itunesOwner` (`ownr`), `rate` (`rate`), `showMovement` (`shwm`), `storeDescription` (`sdes`), and the TV episode/network/season/show/sort atoms plus `itunesMediaType` (`stik`). Store IDs and TV numbers are lossless integers; Booleans distinguish present false from absence. `rate` is registered read-only because no verified native rating type or scale is available for typed writes, and the media-kind label vocabulary is not bound to numeric codes. Unknown existing media-kind codes are preserved.
 
 #### Artwork
 

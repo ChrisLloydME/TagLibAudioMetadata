@@ -46,8 +46,9 @@ An empty `MetadataPatch` or `RawMetadataPatch` is a no-op. It returns without st
 
 A Basic read retains a separate raw-cardinality and provenance baseline. An unrelated Basic edit restores untouched data where the format and bridge support it, including:
 
-- standard multi-value arrays such as `ARTIST`, `COMPOSER`, `ALBUMARTIST`, and `GENRE`;
-- full recording dates and documented aliases such as `PUBLISHER`, `CATALOG`, `ORIGINAL YEAR`, and MusicBrainz space forms;
+- standard multi-value arrays such as `ARTIST`, `COMPOSER`, `ALBUMARTIST`, and `GENRE`, written back through exact native collections;
+- complete YEAR text and independent DATE, RELEASEDATE, and ORIGINALDATE slots;
+- documented aliases such as `PUBLISHER`, `CATALOG`, `ORIGINAL YEAR`, and MusicBrainz space forms on Xiph/APE;
 - role-qualified people keys such as `PERFORMER:GUITAR`;
 - schema-known fields Basic cannot express, such as `INVOLVEDPEOPLE` and `TRACKERNAME`;
 - unknown custom fields;
@@ -57,50 +58,57 @@ Basic does not guess cardinality by splitting a display string. It restores capt
 
 Editing or adding a schema-known name through `BasicMetadata.customFields` is rejected; use the typed field or a raw/structured API. Existing native custom attributes whose names overlap the schema may be carried through unchanged when their value is unchanged.
 
-`BasicMetadata.format` reports the parser's codec/format name; it is not a conformance claim. For example, an ALAC `.m4a` is reported as ALAC where the reader exposes that codec. `publisher` maps to TagLib's `label` field.
+`BasicMetadata.format` reports the parser's codec/format name; it is not a conformance claim. For example, an ALAC `.m4a` is reported as ALAC where the reader exposes that codec. `publisher` maps to the native MP4 `©pub` atom and ID3 `TPUB`.
 
-### Basic replacement and MP4 dates
+### Basic replacement and dates
 
-`replaceBasicMetadata` applies replacement semantics to modeled fields and verification checks them. `updateBasicMetadata` resolves a single-field MP4 year/releaseDate intent:
+`replaceBasicMetadata` applies replacement semantics to modeled fields and verifies them. It preserves untouched multi-value arrays through exact native writes and never replays the whole engine `PropertyMap`, because that projection merges independent YEAR/DATE frames.
 
-- if only `releaseDate` changed, `year` is projected from its first four characters;
-- if only `year` changed, `releaseDate` keeps its existing suffix after the first four characters;
-- a full `replaceBasicMetadata` with inconsistent non-empty MP4 `year`/`releaseDate` projections throws `MetadataValidationError.conflictingMP4Date`.
+There is no Year/date reconciliation:
 
-`BasicMetadata.year` is a compatibility projection, not a second independent MP4 date field.
+- changing `year` writes only YEAR;
+- changing `date` writes only the standalone DATE slot;
+- changing `releaseDate` writes only RELEASEDATE;
+- clearing one field never clears another;
+- `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid simultaneously;
+- complete YEAR text such as `2021-07-15` round-trips without truncation.
+
+`updateBasicMetadata` captures a version and performs no cross-field intent resolution. The legacy `MetadataValidationError.conflictingMP4Date` case is retained for source compatibility but is not produced.
 
 ## Typed patch rules
 
 `applyMetadataPatch` validates before staging:
 
 - Field/value kinds are checked against `MetadataFieldRegistry`.
-- Track/disc components and totals accept `1...Int32.max`; BPM and movement numbering accept `0...Int32.max`.
+- Track/disc components and totals accept `1...Int32.max` for text-backed pairs and `1...65535` for native MP4 pairs; BPM and movement numbering accept `0...Int32.max`.
+- Store IDs and TV episode/season numbers use their declared non-negative native widths; the MP4 media-kind code is an unsigned 8-bit value.
 - `.artwork`, `.custom`, and `.explicitContent` must use their dedicated patch properties.
 - Role-qualified fields such as `.performer`, `.involvedPeople`, and `.musicianCredits` are rejected; use `RawMetadataPatch` or `StructuredMetadata`.
 - Known keys, aliases, case variants, and typed/custom collisions are rejected in `customFields`.
-- A patch cannot mix typed track/disc fields with `numberText`.
+- A patch cannot mix typed track/disc fields with `numberText`; `date` and `year` cannot both be supplied.
 - Empty text and value arrays are rejected after trimming.
 - A partial removal of a paired first component is rejected where a retained total cannot be represented.
 - A capability with an explicit writable-field allowlist is checked before staging. Raw APIs are not restricted by that high-level preflight.
 
-Applied changes are staged as a delta against the current `PropertyMap`. The bridge does not rebuild omitted Swift fields into a replacement map. Number pairs, advisory values, and artwork use container-aware paths.
+Applied changes use exact native targets: MP4 atoms/freeforms, ID3 text/user-text/versioned frames, or native Xiph/APE text keys. The bridge does not rebuild omitted Swift fields into a replacement map. Number pairs, advisory values, and artwork use container-aware paths.
 
 ### Number pairs
 
-- ID3-backed formats use combined `TRCK`/`TPOS`; movement number/count uses `MVIN`. MP4 uses native `trkn`, `disk`, and `rtng`. Generic/Xiph formats use separate number/total keys; ASF uses native text pairs.
-- Native MP4 `trkn`/`disk` are authoritative. A number write removes recognized conflicting aliases. An unrelated Basic edit preserves them.
-- MP4 advisory uses `rtng`; recognized freeform aliases are removed when the advisory changes.
-- Text-backed Booleans encode false as `"0"`; `.remove` makes the field absent.
-- Legacy `AUDIOMATOR_*_TEXT` atoms remain readable formatting provenance. Editing the corresponding pair lazily migrates it to a package-neutral `TAGLIBAUDIOMETADATA_*_TEXT` atom while preserving padding. An unrelated edit leaves legacy provenance unchanged.
-- Generic/Xiph `numberText` displays the first component and normalizes total padding; the numeric pair remains authoritative.
+- ID3-backed formats use combined `TRCK`/`TPOS`; movement number/count uses `MVIN`. MP4 uses native `trkn`/`disk`. Xiph uses `TRACKNUMBER`/`TRACKTOTAL`; APE uses `TRACK`/`TRACKTOTAL`; ASF uses native text pairs.
+- Native positive components are authoritative. Legacy standalone totals are recovered by `numberingInventory(at:)`; typed edits write the resolved pair before retiring that touched group's aliases.
+- An unrelated Basic edit preserves orphan totals and both private namespaces. It does not canonicalize a pair merely because the file was loaded.
+- Private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed by any default write surface, including formatted-number convenience APIs. `planNumberNormalization` + `applyNumberNormalization` is the only cleanup path and removes only explicitly listed identities under the captured version.
+- MP4 advisory uses `rtng`; recognized freeform aliases are removed only when the advisory is explicitly changed.
+- Text-backed Booleans encode false as `"0"`; `.remove` makes the field absent. MP4 Boolean atoms distinguish present `0` from absence.
 
 ### Dates
 
-- `.date` owns recording date/year.
-- `.releaseDate` owns release date.
-- `.originalReleaseDate` owns original release date.
-- MP4 has one standard `©day` atom. `.releaseDate` owns it; typed `.date` is rejected for MP4.
-- `updateBasicMetadata` resolves single-field MP4 year/releaseDate intent. A full replacement with inconsistent non-empty projections rejects.
+- `.year` (canonical) and `.date` (deprecated spelling, mutually exclusive) own the YEAR slot.
+- `.standaloneDate` owns the independent DATE slot.
+- `.releaseDate` owns RELEASEDATE.
+- `.originalReleaseDate` owns ORIGINALDATE.
+- MP4 YEAR is `©day`; RELEASEDATE and DATE are freeforms. ID3 dates are written in the frame identity that matches the existing tag major version.
+- No field is synthesized from another, and no year-equality validation or cross-field clearing occurs.
 
 ## Raw map rules
 

@@ -43,18 +43,18 @@ Properties are nullable `NSString *` unless marked numeric or Boolean.
 
 | Group | Properties |
 | --- | --- |
-| Core | `title`, `artist`, `album`, `albumArtist`, `composer`, `genre`, `year`, `comment` |
+| Core | `title`, `artist`, `album`, `albumArtist`, `composer`, `genre`, `year`, `standaloneDate`, `contentGroup`, `artists`, `comment` |
 | Numbering | `trackNumber`, `totalTracks`, `discNumber`, `totalDiscs`, `trackNumberText`, `discNumberText` |
 | Audio properties | `duration`, `bitrate`, `sampleRate`, `channels`, `bitDepth`, `codec` |
 | Artwork | `artworkData`, `artworkMimeType`, `removeArtwork` |
-| Advisory | `explicitAdvisory`, `explicitContent` |
+| Advisory | `explicitAdvisory`, `explicitAdvisoryRawValue`, `explicitContent` |
 | Additional | `bpm`, `compilation`, `copyright`, `lyrics`, `label`, `isrc`, `encodedBy`, `encoderSettings` |
 | Sorting | `sortTitle`, `sortArtist`, `sortAlbum`, `sortAlbumArtist`, `sortComposer` |
 | Dates | `releaseDate`, `originalReleaseDate` |
 | Personnel | `conductor`, `remixer`, `producer`, `engineer`, `lyricist` |
 | Descriptive | `subtitle`, `grouping`, `movement`, `mood`, `language`, `musicalKey` |
 | MusicBrainz and identifiers | `musicBrainzArtistId`, `musicBrainzAlbumId`, `musicBrainzAlbumArtistId`, `musicBrainzTrackId`, `musicBrainzReleaseGroupId`, `musicBrainzReleaseTrackId`, `musicBrainzWorkId`, `acoustId`, `acoustIdFingerprint`, `musicIpPuid` |
-| ReplayGain | `replayGainTrack`, `replayGainAlbum` |
+| ReplayGain | `replayGainTrack`, `replayGainAlbum`, `replayGainTrackPeak`, `replayGainAlbumPeak` |
 | Media type | `mediaType` |
 | iTunes | `itunesAlbumId`, `itunesArtistId`, `itunesCatalogId`, `itunesGenreId`, `itunesMediaType`, `itunesPurchaseDate`, `itunesNorm`, `itunesSmpb` |
 | Release | `releaseType`, `releaseStatus`, `catalogNumber`, `barcode`, `releaseCountry`, `artistType`, `asin`, `originalAlbum`, `originalArtist`, `discSubtitle`, `work`, `movementNumber`, `movementCount` |
@@ -63,6 +63,10 @@ Properties are nullable `NSString *` unless marked numeric or Boolean.
 `artworkMimeType` is the declared media type for `artworkData`; readers normalize common values and may infer a type from magic bytes when the container omits it. `removeArtwork` is a write instruction, not a readable property: set it to clear the picture collection.
 
 `explicitContent` is a Boolean compatibility projection. Reading `YES` means `.explicit`; setting `NO` records `.clean`. It cannot represent absence or not-explicit. Use `explicitAdvisory` for the four-state model.
+
+`year` is complete stored text and may contain a date. `standaloneDate` is the independent DATE slot; `releaseDate` and `originalReleaseDate` are separate. The bridge selects the version-appropriate ID3 date frame and writes MP4 `©day`; it never truncates Year to four characters. `explicitAdvisoryRawValue` carries an unknown native advisory code while `explicitAdvisory` remains `.unspecified`.
+
+The package-internal `CTagLibBridgeInternalAPI` additionally exposes `applyNativeTextKeyValuesInPlace(_:removingKeys:to:)` for exact Xiph/APE text keys and versioned structured ID3 frame writes. These are not part of the public low-level product.
 
 ## Constants and options
 

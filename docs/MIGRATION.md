@@ -12,6 +12,45 @@ The current release is `0.6.0`; changes since `0.5.3` are described in the [chan
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.
 
+## Migrating to mapping contract 2.2
+
+These changes implement the package-side `AM-TLAM-MAPPING-2.2` target in the [metadata mapping specification](METADATA_MAPPING_SPEC.md). They are source-compatible unless noted; behavioral changes are intentional and require application review.
+
+### New field identities
+
+- `MetadataFieldKey.year` is the canonical YEAR identity. `date` remains as a deprecated YEAR-slot spelling for source compatibility. Supplying both in one patch throws `MetadataPatchValidationError.conflictingFieldRepresentations`.
+- `MetadataFieldKey.standaloneDate` is the independent DATE identity. It is not a YEAR projection.
+- `contentGroup`, `artists`, `replayGainTrackPeak`, and `replayGainAlbumPeak` are new semantic fields.
+- `director`, `itunesAccount`, `itunesComposerID`, `itunesCountryID`, `itunesGapless`, `itunesHDVideo`, `itunesOwner`, `rate`, `showMovement`, `storeDescription`, `tvEpisode`, `tvEpisodeID`, `tvNetwork`, `tvSeason`, `tvShow`, and `tvShowSort` register the MP4-exclusive identities. `rate` is read-only for typed writes; the media-kind label vocabulary is not bound to numeric codes.
+
+### Behavioral changes
+
+- `BasicMetadata.year` now returns the complete stored YEAR text. It is never truncated to four characters and never derived from `releaseDate` or MP4 `©day`-as-release-date logic.
+- YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent. Changing or clearing one no longer rewrites another. `updateBasicMetadata` no longer reconciles MP4 dates, and `MetadataValidationError.conflictingMP4Date` is retained only for source compatibility.
+- MP4 `©day` is the YEAR slot. RELEASEDATE is the `RELEASEDATE` freeform; DATE is the `DATE` freeform. Applications that previously wrote full release dates to `©day` must migrate to `.releaseDate`.
+- `publisher` writes MP4 `©pub`, `conductor` writes `©con`, `work` writes `©wrk`, `contentGroup` writes `©grp`, `grouping` writes `GROUPING`, `encodedBy` writes `©enc`, `encoderSettings` writes `©too`, and `mediaType` writes the `MEDIA` freeform.
+- Both `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` MP4 namespaces are legacy provenance. No default write surface, including formatted-number APIs, creates or renames them. They remain readable and are preserved until an explicit normalization plan retires them.
+- Formatted MP4 number text no longer persists padding. It writes the native pair and displays the normalized pair. A number-only formatted value preserves the resolved existing total.
+- Typed pair edits recover a sole valid orphan total before writing, so `TRCK=3` plus `TXXX:TRACKTOTAL=12` becomes `3/12`. Contradictory aliases are `.ambiguous` and block the edit without mutation.
+
+### New APIs
+
+- `MetadataFieldRegistry.canonicalSchemas`, `schemasBySemanticKey`, `canonicalSchema(forSemanticKey:)`, and `duplicatePreferredWriteTargets`.
+- `MetadataFieldSchema.semanticKey`, `nativeTargets`, `capability(for:)`, `writeTarget(for:)`, and mapping-contract version.
+- `MetadataMappingCatalog` and the `MetadataNativeFamily`/`MetadataNativeTarget`/`MetadataMappingCapability` vocabulary.
+- `numberingInventory(at:)`, `planNumberNormalization(at:policy:groups:)`, and `applyNumberNormalization(_:to:expectedVersion:)`.
+- `MetadataNumberResolutionPolicy` values `.useNative`, `.useLegacy`, and `.replace(number:total:)`.
+
+### Application migration instructions (package-only)
+
+1. Replace `.date` with `.year` for Year edits and `.standaloneDate` for a standalone Date edit. Do not supply both `date` and `year`.
+2. Stop inferring Year from Release Date. Display and validate the two fields independently.
+3. Migrate MP4 Release Date edits from `©day` to `.releaseDate`; keep `.year` for `©day`.
+4. Stop writing or renaming private `AUDIOMATOR_*_TEXT`/`TAGLIBAUDIOMETADATA_*_TEXT` atoms. If cleanup is required, present `planNumberNormalization` output for preview and apply that exact plan under the captured version.
+5. Replace any assumption that zero is absence for `ITUNESADVISORY`, `pgap`, `hdvd`, or `shwm`. Present `0` as a present false/not-explicit value.
+6. Read `numberingInventory` before a number edit when the file may contain legacy standalone totals; surface `.ambiguous` instead of choosing a value.
+7. Treat the sixteen MP4-exclusive fields as container-specific. Do not advertise them for non-MP4 families; `rate` is read-only for typed writes.
+
 ## Migrating from 0.5.3 to 0.6.0
 
 These changes are additive or source-compatible with the 0.5 line unless noted.

@@ -2,7 +2,7 @@
 
 This is the canonical reference for the public metadata field registry. It describes `MetadataFieldKey`, `MetadataFieldSchema`, and `MetadataFieldRegistry` in `Sources/TagLibAudioMetadata/MetadataFieldSchema.swift`. The Swift declarations and the generated tables below are checked against each other by `scripts/check-docs.py`.
 
-For the accepted, unimplemented target registry, see the [Metadata mapping specification](METADATA_MAPPING_SPEC.md). Its catalog is a refactoring decision; the generated tables below continue to describe current code.
+The package-side target is `AM-TLAM-MAPPING-2.2`; its per-section implementation status is in the [Metadata mapping specification](METADATA_MAPPING_SPEC.md#13-implementation-status). The tables below are generated from the current Swift registry and the generated native catalog.
 
 The registry answers three different questions:
 
@@ -28,7 +28,7 @@ let writable = MetadataFieldRegistry.schemas(storableIn: capability)
 | `schema(for:)` | Returns the one schema for a `MetadataFieldKey`, or `nil`. |
 | `schema(forPropertyMapKey:)` | Normalizes the key, recognizes qualified prefixes, and resolves the owning schema. |
 | `schemas(withMappingsFor:)` | Returns every schema with at least one mapping for a `MetadataFieldFormat`. |
-| `schemas(storableIn:)` | Returns `[]` for read-only capabilities; otherwise filters by the capability's container formats, explicit `writableFields` allowlist, MP4 single-date rule, and artwork support. |
+| `schemas(storableIn:)` | Returns `[]` for read-only capabilities; otherwise enumerates canonical semantic owners and filters by native target capability, explicit `writableFields` allowlist, and artwork support. `.date` remains addressable but is not a second canonical field. |
 | `schema(_:hasMappingFor:)` | Convenience check for one format mapping. |
 | `shouldDisplayRawPropertyAsMultiValue(_:)` | UI hint for raw `PropertyMap` keys; true for multi-value schemas and the qualified prefixes below. |
 | `normalizePropertyMapKey(_:)` | Trims whitespace and uppercases. Use it before comparing raw keys. |
@@ -47,156 +47,178 @@ Column meanings:
 - **Flags** identify `multi` (multi-value), `people`, `role` (role-qualified key required), and `artwork`.
 
 <!-- BEGIN GENERATED FIELD TABLES -->
-<!-- Generated from `MetadataFieldSchema.swift`. 79 fields. -->
+<!-- Generated from `MetadataFieldSchema.swift`. 101 fields. -->
 
 ### Basic and descriptive
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `title` | Title | `TITLE` | `TIT2` | `©nam` | — |
-| `album` | Album | `ALBUM` | `TALB` | `©alb` | — |
-| `genre` | Genre | `GENRE` | `TCON` | `©gen`, `gnre` | multi |
-| `work` | Work | `WORK` | `TXXX:WORK` | `----:com.apple.iTunes:WORK` | — |
-| `movement` | Movement | `MOVEMENT`, `MOVEMENTNAME` | `MVNM` | `----:com.apple.iTunes:MOVEMENT` | — |
-| `discSubtitle` | Disc Subtitle | `DISCSUBTITLE` | `TSST` | `----:com.apple.iTunes:DISCSUBTITLE` | — |
-| `subtitle` | Subtitle | `SUBTITLE` | `TIT3` | `----:com.apple.iTunes:SUBTITLE` | — |
-| `grouping` | Grouping | `GROUPING` | `TIT1` | `©grp` | multi |
-| `mood` | Mood | `MOOD` | `TMOO` | `----:com.apple.iTunes:MOOD` | multi |
-| `language` | Language | `LANGUAGE` | `TLAN` | `----:com.apple.iTunes:LANGUAGE` | multi |
-| `musicalKey` | Musical Key | `INITIALKEY`, `KEY` | `TKEY` | `----:com.apple.iTunes:INITIALKEY` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `title` | Title | `TITLE` | `TITLE` | `TIT2` | `TIT2` | `©nam` | `TITLE` | `TITLE` | `Title` | `INAM` | — |
+| `album` | Album | `ALBUM` | `ALBUM` | `TALB` | `TALB` | `©alb` | `ALBUM` | `ALBUM` | `WM/AlbumTitle` | `IPRD` | — |
+| `genre` | Genre | `GENRE` | `GENRE` | `TCON` | `TCON` | `©gen` | `GENRE` | `GENRE` | `WM/Genre` | `IGNR` | multi |
+| `work` | Work | `WORK` | `WORK` | `WORK` | `WORK` | `©wrk` | `WORK` | `WORK` | — | — | — |
+| `movement` | Movement | `MOVEMENTNAME` | `MOVEMENT`, `MOVEMENTNAME` | `MVNM` | `MVNM` | `©mvn` | `MOVEMENTNAME` | `MOVEMENTNAME` | — | — | — |
+| `discSubtitle` | Disc Subtitle | `DISCSUBTITLE` | `DISCSUBTITLE` | `DISCSUBTITLE` | `TSST` | `----:com.apple.iTunes:DISCSUBTITLE` | `DISCSUBTITLE` | `DISCSUBTITLE` | `WM/SetSubTitle` | — | — |
+| `subtitle` | Subtitle | `SUBTITLE` | `SUBTITLE` | `TIT3` | `TIT3` | `----:com.apple.iTunes:SUBTITLE` | `SUBTITLE` | `SUBTITLE` | `WM/SubTitle` | — | — |
+| `grouping` | Grouping | `GROUPING` | `GROUPING` | `GRP1` | `GRP1` | `----:com.apple.iTunes:GROUPING` | `GROUPING` | `GROUPING` | — | — | multi |
+| `contentGroup` | Content Group | `CONTENTGROUP` | `CONTENTGROUP` | `TIT1` | `TIT1` | `©grp` | `CONTENTGROUP` | `CONTENTGROUP` | `WM/ContentGroupDescription` | — | — |
+| `mood` | Mood | `MOOD` | `MOOD` | `MOOD` | `TMOO` | `----:com.apple.iTunes:MOOD` | `MOOD` | `MOOD` | `WM/Mood` | — | multi |
+| `language` | Language | `LANGUAGE` | `LANGUAGE` | `TLAN` | `TLAN` | `----:com.apple.iTunes:LANGUAGE` | `LANGUAGE` | `LANGUAGE` | `WM/Language` | `ILNG` | multi |
+| `musicalKey` | Musical Key | `INITIALKEY` | `INITIALKEY`, `KEY` | `TKEY` | `TKEY` | `----:com.apple.iTunes:INITIALKEY` | `INITIALKEY` | `INITIALKEY` | `WM/InitialKey` | — | — |
 
 ### Numbering
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `track` | Track Number | `TRACKNUMBER`, `TRACK` | `TRCK` | `trkn` | — |
-| `trackTotal` | Track Total | `TRACKTOTAL`, `TOTALTRACKS` | `TRCK` | `trkn` | — |
-| `disc` | Disc Number | `DISCNUMBER`, `DISC` | `TPOS` | `disk` | — |
-| `discTotal` | Disc Total | `DISCTOTAL`, `TOTALDISCS` | `TPOS` | `disk` | — |
-| `movementNumber` | Movement Number | `MOVEMENTNUMBER` | `MVIN` | `----:com.apple.iTunes:MOVEMENTNUMBER` | — |
-| `movementCount` | Movement Count | `MOVEMENTCOUNT` | `MVIN` | `----:com.apple.iTunes:MOVEMENTCOUNT` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `track` | Track Number | `TRACKNUMBER` | `TRACKNUMBER`, `TRACK` | `TRCK (number)` | `TRCK (number)` | `trkn (number)` | `TRACKNUMBER` | `TRACK` | `WM/TrackNumber (number)` | `ITRK` | — |
+| `trackTotal` | Track Total | `TRACKTOTAL` | `TRACKTOTAL`, `TOTALTRACKS` | `TRCK (total)` | `TRCK (total)` | `trkn (total)` | `TRACKTOTAL` | `TRACKTOTAL` | `WM/TrackNumber (total)` | — | — |
+| `disc` | Disc Number | `DISCNUMBER` | `DISCNUMBER`, `DISC` | `TPOS (number)` | `TPOS (number)` | `disk (number)` | `DISCNUMBER` | `DISC` | `WM/PartOfSet (number)` | — | — |
+| `discTotal` | Disc Total | `DISCTOTAL` | `DISCTOTAL`, `TOTALDISCS` | `TPOS (total)` | `TPOS (total)` | `disk (total)` | `DISCTOTAL` | `DISCTOTAL` | `WM/PartOfSet (total)` | — | — |
+| `movementNumber` | Movement Number | `MOVEMENTNUMBER` | `MOVEMENTNUMBER` | `MVIN (number)` | `MVIN (number)` | `©mvi` | `MOVEMENTNUMBER` | `MOVEMENTNUMBER` | — | — | — |
+| `movementCount` | Movement Count | `MOVEMENTCOUNT` | `MOVEMENTCOUNT` | `MVIN (total)` | `MVIN (total)` | `©mvc` | `MOVEMENTCOUNT` | `MOVEMENTCOUNT` | — | — | — |
 
 ### Dates
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `date` | Recording Date | `DATE`, `YEAR` | `TDRC`, `TYER` | — | — |
-| `releaseDate` | Release Date | `RELEASEDATE` | `TDRL` | `©day` | — |
-| `originalReleaseDate` | Original Release Date | `ORIGINALDATE`, `ORIGINAL YEAR` | `TDOR` | `----:com.apple.iTunes:ORIGINAL YEAR` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `date` | Recording Date (legacy YEAR spelling) | `YEAR` | `DATE`, `YEAR` | `TYER` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | — |
+| `year` | Year | `YEAR` | `YEAR`, `DATE` | `TYER` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | — |
+| `standaloneDate` | Date | `DATE` | `STANDALONEDATE` | `TDAT` | `DATE` | `----:com.apple.iTunes:DATE` | `DATE` | `DATE` | `DATE` | — | — |
+| `releaseDate` | Release Date | `RELEASEDATE` | `RELEASEDATE` | `TDRL` | `TDRL` | `----:com.apple.iTunes:RELEASEDATE` | `RELEASEDATE` | `RELEASEDATE` | — | — | — |
+| `originalReleaseDate` | Original Release Date | `ORIGINALDATE` | `ORIGINALDATE`, `ORIGINAL YEAR` | `TORY (year only)` | `TDOR` | `----:com.apple.iTunes:ORIGINALDATE` | `ORIGINALDATE` | `ORIGINALDATE` | `WM/OriginalReleaseYear` | — | — |
 
 ### People
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `artist` | Artist | `ARTIST`, `ARTISTS` | `TPE1` | `©ART` | multi, people |
-| `albumArtist` | Album Artist | `ALBUMARTIST`, `ALBUM ARTIST` | `TPE2` | `aART` | multi, people |
-| `composer` | Composer | `COMPOSER` | `TCOM` | `©wrt` | multi, people |
-| `conductor` | Conductor | `CONDUCTOR` | `TPE3` | `----:com.apple.iTunes:CONDUCTOR` | multi, people |
-| `remixer` | Remixer | `REMIXER` | `TPE4` | `----:com.apple.iTunes:REMIXER` | multi, people |
-| `producer` | Producer | `PRODUCER` | `TXXX:PRODUCER` | `----:com.apple.iTunes:PRODUCER` | multi, people |
-| `engineer` | Engineer | `ENGINEER` | `TXXX:ENGINEER` | `----:com.apple.iTunes:ENGINEER` | multi, people |
-| `lyricist` | Lyricist | `LYRICIST` | `TEXT` | `----:com.apple.iTunes:LYRICIST` | multi, people |
-| `originalArtist` | Original Artist | `ORIGINALARTIST` | `TOPE` | `----:com.apple.iTunes:ORIGINALARTIST` | multi, people |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `artist` | Artist | `ARTIST` | `ARTIST` | `TPE1` | `TPE1` | `©ART` | `ARTIST` | `ARTIST` | `Author` | `IART` | multi, people |
+| `albumArtist` | Album Artist | `ALBUMARTIST` | `ALBUMARTIST`, `ALBUM ARTIST` | `TPE2` | `TPE2` | `aART` | `ALBUMARTIST` | `ALBUM ARTIST` | `WM/AlbumArtist` | — | multi, people |
+| `composer` | Composer | `COMPOSER` | `COMPOSER` | `TCOM` | `TCOM` | `©wrt` | `COMPOSER` | `COMPOSER` | `WM/Composer` | `IMUS` | multi, people |
+| `conductor` | Conductor | `CONDUCTOR` | `CONDUCTOR` | `TPE3` | `TPE3` | `©con` | `CONDUCTOR` | `CONDUCTOR` | `WM/Conductor` | — | multi, people |
+| `remixer` | Remixer | `REMIXER` | `REMIXER` | `TPE4` | `TPE4` | `----:com.apple.iTunes:REMIXER` | `REMIXER` | `MIXARTIST` | `WM/ModifiedBy` | — | multi, people |
+| `producer` | Producer | `PRODUCER` | `PRODUCER` | `PRODUCER` | `PRODUCER` | `----:com.apple.iTunes:PRODUCER` | `PRODUCER` | `PRODUCER` | `WM/Producer` | — | multi, people |
+| `engineer` | Engineer | `ENGINEER` | `ENGINEER` | `ENGINEER` | `ENGINEER` | `----:com.apple.iTunes:ENGINEER` | `ENGINEER` | `ENGINEER` | — | — | multi, people |
+| `lyricist` | Lyricist | `LYRICIST` | `LYRICIST` | `TEXT` | `TEXT` | `----:com.apple.iTunes:LYRICIST` | `LYRICIST` | `LYRICIST` | `WM/Writer` | — | multi, people |
+| `artists` | Artists | `ARTISTS` | `ARTISTS` | `ARTISTS` | `ARTISTS` | `----:com.apple.iTunes:ARTISTS` | `ARTISTS` | `ARTISTS` | `WM/ARTISTS` | — | multi, people |
+| `originalArtist` | Original Artist | `ORIGINALARTIST` | `ORIGINALARTIST` | `TOPE` | `TOPE` | `----:com.apple.iTunes:ORIGINALARTIST` | `ORIGINALARTIST` | `ORIGINALARTIST` | `WM/OriginalArtist` | — | multi, people |
+| `director` | Director | `DIRECTOR` | `DIRECTOR` | — | — | `©dir` | — | — | — | — | multi, people |
 
 ### Role-qualified people
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `performer` | Performer | `PERFORMER` | `TMCL` | `----:com.apple.iTunes:PERFORMER` | multi, people, role |
-| `involvedPeople` | Involved People | `INVOLVEDPEOPLE` | `TIPL` | `----:com.apple.iTunes:INVOLVEDPEOPLE` | multi, people, role |
-| `musicianCredits` | Musician Credits | `MUSICIANCREDITS` | `TMCL` | `----:com.apple.iTunes:MUSICIANCREDITS` | multi, people, role |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `performer` | Performer | `PERFORMER` | `PERFORMER` | `IPLS` | `TMCL` | `----:com.apple.iTunes:PERFORMER` | `PERFORMER` | `PERFORMER` | — | — | multi, people, role |
+| `involvedPeople` | Involved People | `INVOLVEDPEOPLE` | `INVOLVEDPEOPLE` | `IPLS` | `TIPL` | `----:com.apple.iTunes:INVOLVEDPEOPLE` | `INVOLVEDPEOPLE` | `INVOLVEDPEOPLE` | — | — | multi, people, role |
+| `musicianCredits` | Musician Credits | `MUSICIANCREDITS` | `MUSICIANCREDITS` | `IPLS` | `TMCL` | `----:com.apple.iTunes:MUSICIANCREDITS` | `MUSICIANCREDITS` | `MUSICIANCREDITS` | — | — | multi, people, role |
 
 ### Lyrics and comments
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `lyrics` | Lyrics | `LYRICS` | `USLT` | `©lyr` | — |
-| `comment` | Comment | `COMMENT` | `COMM` | `©cmt` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `lyrics` | Lyrics | `LYRICS` | `LYRICS` | `USLT` | `USLT` | `©lyr` | `LYRICS` | `LYRICS` | `WM/Lyrics` | — | — |
+| `comment` | Comment | `COMMENT` | `COMMENT` | `COMM` | `COMM` | `©cmt` | `COMMENT` | `COMMENT` | `Description` | `ICMT` | — |
 
 ### Artwork
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `artwork` | Artwork | `PICTURE` | `APIC` | `covr` | artwork |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `artwork` | Artwork | `PICTURE` | `PICTURE` | `APIC` | `APIC` | `covr` | `PICTURE` | `COVER ART` | `WM/Picture` | — | artwork |
 
 ### Sorting
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `sortTitle` | Sort Title | `TITLESORT` | `TSOT` | `sonm` | — |
-| `sortArtist` | Sort Artist | `ARTISTSORT` | `TSOP` | `soar` | — |
-| `sortAlbum` | Sort Album | `ALBUMSORT` | `TSOA` | `soal` | — |
-| `sortAlbumArtist` | Sort Album Artist | `ALBUMARTISTSORT` | `TSO2` | `soaa` | — |
-| `sortComposer` | Sort Composer | `COMPOSERSORT` | `TSOC` | `soco` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `sortTitle` | Sort Title | `TITLESORT` | `TITLESORT` | `TSOT` | `TSOT` | `sonm` | `TITLESORT` | `TITLESORT` | `WM/TitleSortOrder` | — | — |
+| `sortArtist` | Sort Artist | `ARTISTSORT` | `ARTISTSORT` | `TSOP` | `TSOP` | `soar` | `ARTISTSORT` | `ARTISTSORT` | `WM/ArtistSortOrder` | — | — |
+| `sortAlbum` | Sort Album | `ALBUMSORT` | `ALBUMSORT` | `TSOA` | `TSOA` | `soal` | `ALBUMSORT` | `ALBUMSORT` | `WM/AlbumSortOrder` | — | — |
+| `sortAlbumArtist` | Sort Album Artist | `ALBUMARTISTSORT` | `ALBUMARTISTSORT` | `TSO2` | `TSO2` | `soaa` | `ALBUMARTISTSORT` | `ALBUMARTISTSORT` | `WM/AlbumArtistSortOrder` | — | — |
+| `sortComposer` | Sort Composer | `COMPOSERSORT` | `COMPOSERSORT` | `TSOC` | `TSOC` | `soco` | `COMPOSERSORT` | `COMPOSERSORT` | — | — | — |
 
 ### Identifiers
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `isrc` | ISRC | `ISRC` | `TSRC` | `----:com.apple.iTunes:ISRC` | — |
-| `barcode` | Barcode | `BARCODE`, `UPC`, `EAN` | `TXXX:BARCODE` | `----:com.apple.iTunes:BARCODE` | — |
-| `asin` | ASIN | `ASIN` | `TXXX:ASIN` | `----:com.apple.iTunes:ASIN` | — |
-| `musicBrainzArtistID` | MusicBrainz Artist ID | `MUSICBRAINZ_ARTISTID`, `MUSICBRAINZ ARTISTID`, `MUSICBRAINZ ARTIST ID` | `TXXX:MusicBrainz Artist Id` | `----:com.apple.iTunes:MusicBrainz Artist Id` | — |
-| `musicBrainzAlbumID` | MusicBrainz Album ID | `MUSICBRAINZ_ALBUMID`, `MUSICBRAINZ ALBUMID`, `MUSICBRAINZ ALBUM ID` | `TXXX:MusicBrainz Album Id` | `----:com.apple.iTunes:MusicBrainz Album Id` | — |
-| `musicBrainzAlbumArtistID` | MusicBrainz Album Artist ID | `MUSICBRAINZ_ALBUMARTISTID`, `MUSICBRAINZ ALBUMARTISTID`, `MUSICBRAINZ ALBUM ARTIST ID` | `TXXX:MusicBrainz Album Artist Id` | `----:com.apple.iTunes:MusicBrainz Album Artist Id` | — |
-| `musicBrainzTrackID` | MusicBrainz Track ID | `MUSICBRAINZ_TRACKID`, `MUSICBRAINZ TRACKID`, `MUSICBRAINZ TRACK ID` | `TXXX:MusicBrainz Track Id` | `----:com.apple.iTunes:MusicBrainz Track Id` | — |
-| `musicBrainzReleaseGroupID` | MusicBrainz Release Group ID | `MUSICBRAINZ_RELEASEGROUPID`, `MUSICBRAINZ RELEASEGROUPID`, `MUSICBRAINZ RELEASE GROUP ID` | `TXXX:MusicBrainz Release Group Id` | `----:com.apple.iTunes:MusicBrainz Release Group Id` | — |
-| `musicBrainzReleaseTrackID` | MusicBrainz Release Track ID | `MUSICBRAINZ_RELEASETRACKID`, `MUSICBRAINZ RELEASETRACKID`, `MUSICBRAINZ RELEASE TRACK ID` | `TXXX:MusicBrainz Release Track Id` | `----:com.apple.iTunes:MusicBrainz Release Track Id` | — |
-| `musicBrainzWorkID` | MusicBrainz Work ID | `MUSICBRAINZ_WORKID`, `MUSICBRAINZ WORKID`, `MUSICBRAINZ WORK ID` | `TXXX:MusicBrainz Work Id` | `----:com.apple.iTunes:MusicBrainz Work Id` | — |
-| `acoustID` | AcoustID | `ACOUSTID_ID`, `ACOUSTID ID` | `TXXX:Acoustid Id` | `----:com.apple.iTunes:Acoustid Id` | — |
-| `acoustIDFingerprint` | AcoustID Fingerprint | `ACOUSTID_FINGERPRINT`, `ACOUSTID FINGERPRINT` | `TXXX:Acoustid Fingerprint` | `----:com.apple.iTunes:Acoustid Fingerprint` | — |
-| `musicIPPUID` | MusicIP PUID | `MUSICIP_PUID`, `MUSICIP PUID` | `TXXX:MusicIP PUID` | `----:com.apple.iTunes:MusicIP PUID` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `isrc` | ISRC | `ISRC` | `ISRC` | `TSRC` | `TSRC` | `----:com.apple.iTunes:ISRC` | `ISRC` | `ISRC` | `WM/ISRC` | — | — |
+| `barcode` | Barcode | `BARCODE` | `BARCODE`, `UPC`, `EAN` | `BARCODE` | `BARCODE` | `----:com.apple.iTunes:BARCODE` | `BARCODE` | `BARCODE` | `WM/Barcode` | — | — |
+| `asin` | ASIN | `ASIN` | `ASIN` | `ASIN` | `ASIN` | `----:com.apple.iTunes:ASIN` | `ASIN` | `ASIN` | — | — | — |
+| `musicBrainzArtistID` | MusicBrainz Artist ID | `MUSICBRAINZ_ARTISTID` | `MUSICBRAINZ_ARTISTID`, `MUSICBRAINZ ARTISTID`, `MUSICBRAINZ ARTIST ID` | `MusicBrainz Artist Id` | `MusicBrainz Artist Id` | `----:com.apple.iTunes:MusicBrainz Artist Id` | `MUSICBRAINZ_ARTISTID` | `MUSICBRAINZ_ARTISTID` | `MusicBrainz/Artist Id` | — | — |
+| `musicBrainzAlbumID` | MusicBrainz Album ID | `MUSICBRAINZ_ALBUMID` | `MUSICBRAINZ_ALBUMID`, `MUSICBRAINZ ALBUMID`, `MUSICBRAINZ ALBUM ID` | `MusicBrainz Album Id` | `MusicBrainz Album Id` | `----:com.apple.iTunes:MusicBrainz Album Id` | `MUSICBRAINZ_ALBUMID` | `MUSICBRAINZ_ALBUMID` | `MusicBrainz/Album Id` | — | — |
+| `musicBrainzAlbumArtistID` | MusicBrainz Album Artist ID | `MUSICBRAINZ_ALBUMARTISTID` | `MUSICBRAINZ_ALBUMARTISTID`, `MUSICBRAINZ ALBUMARTISTID`, `MUSICBRAINZ ALBUM ARTIST ID` | `MusicBrainz Album Artist Id` | `MusicBrainz Album Artist Id` | `----:com.apple.iTunes:MusicBrainz Album Artist Id` | `MUSICBRAINZ_ALBUMARTISTID` | `MUSICBRAINZ_ALBUMARTISTID` | `MusicBrainz/Album Artist Id` | — | — |
+| `musicBrainzTrackID` | MusicBrainz Track ID | `MUSICBRAINZ_TRACKID` | `MUSICBRAINZ_TRACKID`, `MUSICBRAINZ TRACKID`, `MUSICBRAINZ TRACK ID` | `http://musicbrainz.org` | `http://musicbrainz.org` | `----:com.apple.iTunes:MusicBrainz Track Id` | `MUSICBRAINZ_TRACKID` | `MUSICBRAINZ_TRACKID` | `MusicBrainz/Track Id` | — | — |
+| `musicBrainzReleaseGroupID` | MusicBrainz Release Group ID | `MUSICBRAINZ_RELEASEGROUPID` | `MUSICBRAINZ_RELEASEGROUPID`, `MUSICBRAINZ RELEASEGROUPID`, `MUSICBRAINZ RELEASE GROUP ID` | `MusicBrainz Release Group Id` | `MusicBrainz Release Group Id` | `----:com.apple.iTunes:MusicBrainz Release Group Id` | `MUSICBRAINZ_RELEASEGROUPID` | `MUSICBRAINZ_RELEASEGROUPID` | `MusicBrainz/Release Group Id` | — | — |
+| `musicBrainzReleaseTrackID` | MusicBrainz Release Track ID | `MUSICBRAINZ_RELEASETRACKID` | `MUSICBRAINZ_RELEASETRACKID`, `MUSICBRAINZ RELEASETRACKID`, `MUSICBRAINZ RELEASE TRACK ID` | `MusicBrainz Release Track Id` | `MusicBrainz Release Track Id` | `----:com.apple.iTunes:MusicBrainz Release Track Id` | `MUSICBRAINZ_RELEASETRACKID` | `MUSICBRAINZ_RELEASETRACKID` | `MusicBrainz/Release Track Id` | — | — |
+| `musicBrainzWorkID` | MusicBrainz Work ID | `MUSICBRAINZ_WORKID` | `MUSICBRAINZ_WORKID`, `MUSICBRAINZ WORKID`, `MUSICBRAINZ WORK ID` | `MusicBrainz Work Id` | `MusicBrainz Work Id` | `----:com.apple.iTunes:MusicBrainz Work Id` | `MUSICBRAINZ_WORKID` | `MUSICBRAINZ_WORKID` | `MusicBrainz/Work Id` | — | — |
+| `acoustID` | AcoustID | `ACOUSTID_ID` | `ACOUSTID_ID`, `ACOUSTID ID` | `Acoustid Id` | `Acoustid Id` | `----:com.apple.iTunes:Acoustid Id` | `ACOUSTID_ID` | `ACOUSTID_ID` | `Acoustid/Id` | — | — |
+| `acoustIDFingerprint` | AcoustID Fingerprint | `ACOUSTID_FINGERPRINT` | `ACOUSTID_FINGERPRINT`, `ACOUSTID FINGERPRINT` | `Acoustid Fingerprint` | `Acoustid Fingerprint` | `----:com.apple.iTunes:Acoustid Fingerprint` | `ACOUSTID_FINGERPRINT` | `ACOUSTID_FINGERPRINT` | `Acoustid/Fingerprint` | — | — |
+| `musicIPPUID` | MusicIP PUID | `MUSICIP_PUID` | `MUSICIP_PUID`, `MUSICIP PUID` | `MusicIP PUID` | `MusicIP PUID` | `----:com.apple.iTunes:MusicIP PUID` | `MUSICIP_PUID` | `MUSICIP_PUID` | `MusicIP/PUID` | — | — |
 
 ### Release
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `publisher` | Publisher | `LABEL`, `PUBLISHER` | `TPUB` | `----:com.apple.iTunes:LABEL` | — |
-| `copyright` | Copyright | `COPYRIGHT` | `TCOP` | `cprt` | — |
-| `catalogNumber` | Catalog Number | `CATALOGNUMBER`, `CATALOG NUMBER`, `CATALOG` | `TXXX:CATALOGNUMBER` | `----:com.apple.iTunes:CATALOGNUMBER` | — |
-| `releaseType` | Release Type | `RELEASETYPE`, `MUSICBRAINZ_ALBUMTYPE`, `MUSICBRAINZ ALBUM TYPE` | `TXXX:RELEASETYPE` | `----:com.apple.iTunes:RELEASETYPE`, `----:com.apple.iTunes:MusicBrainz Album Type` | — |
-| `releaseStatus` | Release Status | `RELEASESTATUS`, `MUSICBRAINZ_ALBUMSTATUS`, `MUSICBRAINZ ALBUM STATUS` | `TXXX:RELEASESTATUS` | `----:com.apple.iTunes:RELEASESTATUS`, `----:com.apple.iTunes:MusicBrainz Album Status` | — |
-| `releaseCountry` | Release Country | `RELEASECOUNTRY`, `MUSICBRAINZ_ALBUMRELEASECOUNTRY`, `MUSICBRAINZ ALBUM RELEASE COUNTRY` | `TXXX:RELEASECOUNTRY` | `----:com.apple.iTunes:MusicBrainz Album Release Country` | — |
-| `mediaType` | Media Type | `MEDIATYPE`, `MEDIA`, `MEDIA TYPE` | `TMED` | `----:com.apple.iTunes:MEDIATYPE` | — |
-| `compilation` | Compilation | `COMPILATION` | `TCMP` | `cpil` | — |
-| `originalAlbum` | Original Album | `ORIGINALALBUM` | `TOAL` | `----:com.apple.iTunes:ORIGINALALBUM` | — |
-| `artistType` | Artist Type | `MUSICBRAINZ_ARTISTTYPE`, `ARTISTTYPE`, `MUSICBRAINZ ARTIST TYPE` | `TXXX:ARTISTTYPE` | `----:com.apple.iTunes:ARTISTTYPE` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `publisher` | Publisher | `LABEL` | `LABEL`, `PUBLISHER` | `TPUB` | `TPUB` | `©pub` | `LABEL` | `LABEL` | `WM/Publisher` | — | — |
+| `copyright` | Copyright | `COPYRIGHT` | `COPYRIGHT` | `TCOP` | `TCOP` | `cprt` | `COPYRIGHT` | `COPYRIGHT` | `Copyright` | `ICOP` | — |
+| `catalogNumber` | Catalog Number | `CATALOGNUMBER` | `CATALOGNUMBER`, `CATALOG NUMBER`, `CATALOG` | `CATALOGNUMBER` | `CATALOGNUMBER` | `----:com.apple.iTunes:CATALOGNUMBER` | `CATALOGNUMBER` | `CATALOGNUMBER` | `WM/CatalogNo` | — | — |
+| `releaseType` | Release Type | `RELEASETYPE` | `RELEASETYPE`, `MUSICBRAINZ_ALBUMTYPE`, `MUSICBRAINZ ALBUM TYPE` | `MusicBrainz Album Type` | `MusicBrainz Album Type` | `----:com.apple.iTunes:MusicBrainz Album Type` | `RELEASETYPE` | `MUSICBRAINZ_ALBUMTYPE` | `MusicBrainz/Album Type` | — | — |
+| `releaseStatus` | Release Status | `RELEASESTATUS` | `RELEASESTATUS`, `MUSICBRAINZ_ALBUMSTATUS`, `MUSICBRAINZ ALBUM STATUS` | `MusicBrainz Album Status` | `MusicBrainz Album Status` | `----:com.apple.iTunes:MusicBrainz Album Status` | `RELEASESTATUS` | `MUSICBRAINZ_ALBUMSTATUS` | `MusicBrainz/Album Status` | — | — |
+| `releaseCountry` | Release Country | `RELEASECOUNTRY` | `RELEASECOUNTRY`, `MUSICBRAINZ_ALBUMRELEASECOUNTRY`, `MUSICBRAINZ ALBUM RELEASE COUNTRY` | `MusicBrainz Album Release Country` | `MusicBrainz Album Release Country` | `----:com.apple.iTunes:MusicBrainz Album Release Country` | `RELEASECOUNTRY` | `RELEASECOUNTRY` | `MusicBrainz/Album Release Country` | — | — |
+| `mediaType` | Media Type | `MEDIA` | `MEDIATYPE`, `MEDIA`, `MEDIA TYPE` | `TMED` | `TMED` | `----:com.apple.iTunes:MEDIA` | `MEDIA` | `MEDIA` | `WM/Media` | — | — |
+| `compilation` | Compilation | `COMPILATION` | `COMPILATION` | `TCMP` | `TCMP` | `cpil` | `COMPILATION` | `COMPILATION` | — | — | — |
+| `originalAlbum` | Original Album | `ORIGINALALBUM` | `ORIGINALALBUM` | `TOAL` | `TOAL` | `----:com.apple.iTunes:ORIGINALALBUM` | `ORIGINALALBUM` | `ORIGINALALBUM` | `WM/OriginalAlbumTitle` | — | — |
+| `artistType` | Artist Type | `MUSICBRAINZ_ARTISTTYPE` | `MUSICBRAINZ_ARTISTTYPE`, `ARTISTTYPE`, `MUSICBRAINZ ARTIST TYPE` | `MusicBrainz Artist Type` | `MusicBrainz Artist Type` | `----:com.apple.iTunes:MusicBrainz Artist Type` | `MUSICBRAINZ_ARTISTTYPE` | `MUSICBRAINZ_ARTISTTYPE` | — | — | — |
 
 ### Technical
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `encodedBy` | Encoded By | `ENCODEDBY`, `ENCODING` | `TENC` | `©too` | — |
-| `encoderSettings` | Encoder Settings | `ENCODERSETTINGS` | `TSSE` | `----:com.apple.iTunes:ENCODERSETTINGS` | — |
-| `bpm` | BPM | `BPM` | `TBPM` | `tmpo` | — |
-| `trackerName` | Tracker Name | `TRACKERNAME` | — | — | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `encodedBy` | Encoded By | `ENCODEDBY` | `ENCODEDBY`, `ENCODING` | `TENC` | `TENC` | `©enc` | `ENCODEDBY` | `ENCODEDBY` | `WM/EncodedBy` | — | — |
+| `encoderSettings` | Encoder Settings | `ENCODING` | `ENCODERSETTINGS` | `TSSE` | `TSSE` | `©too` | `ENCODING` | `ENCODING` | `WM/EncodingSettings` | — | — |
+| `bpm` | BPM | `BPM` | `BPM` | `TBPM` | `TBPM` | `tmpo` | `BPM` | `BPM` | `WM/BeatsPerMinute` | — | — |
+| `trackerName` | Tracker Name | `TRACKERNAME` | `TRACKERNAME` | — | — | — | — | — | — | — | — |
 
 ### ReplayGain
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `replayGainTrackGain` | ReplayGain Track Gain | `REPLAYGAIN_TRACK_GAIN` | `TXXX:REPLAYGAIN_TRACK_GAIN` | `----:com.apple.iTunes:REPLAYGAIN_TRACK_GAIN` | — |
-| `replayGainAlbumGain` | ReplayGain Album Gain | `REPLAYGAIN_ALBUM_GAIN` | `TXXX:REPLAYGAIN_ALBUM_GAIN` | `----:com.apple.iTunes:REPLAYGAIN_ALBUM_GAIN` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `replayGainTrackGain` | ReplayGain Track Gain | `REPLAYGAIN_TRACK_GAIN` | `REPLAYGAIN_TRACK_GAIN` | `REPLAYGAIN_TRACK_GAIN` | `REPLAYGAIN_TRACK_GAIN` | `----:com.apple.iTunes:REPLAYGAIN_TRACK_GAIN` | `REPLAYGAIN_TRACK_GAIN` | `REPLAYGAIN_TRACK_GAIN` | — | — | — |
+| `replayGainAlbumGain` | ReplayGain Album Gain | `REPLAYGAIN_ALBUM_GAIN` | `REPLAYGAIN_ALBUM_GAIN` | `REPLAYGAIN_ALBUM_GAIN` | `REPLAYGAIN_ALBUM_GAIN` | `----:com.apple.iTunes:REPLAYGAIN_ALBUM_GAIN` | `REPLAYGAIN_ALBUM_GAIN` | `REPLAYGAIN_ALBUM_GAIN` | — | — | — |
+| `replayGainTrackPeak` | ReplayGain Track Peak | `REPLAYGAIN_TRACK_PEAK` | `REPLAYGAIN_TRACK_PEAK` | `REPLAYGAIN_TRACK_PEAK` | `REPLAYGAIN_TRACK_PEAK` | `----:com.apple.iTunes:REPLAYGAIN_TRACK_PEAK` | `REPLAYGAIN_TRACK_PEAK` | `REPLAYGAIN_TRACK_PEAK` | — | — | — |
+| `replayGainAlbumPeak` | ReplayGain Album Peak | `REPLAYGAIN_ALBUM_PEAK` | `REPLAYGAIN_ALBUM_PEAK` | `REPLAYGAIN_ALBUM_PEAK` | `REPLAYGAIN_ALBUM_PEAK` | `----:com.apple.iTunes:REPLAYGAIN_ALBUM_PEAK` | `REPLAYGAIN_ALBUM_PEAK` | `REPLAYGAIN_ALBUM_PEAK` | — | — | — |
 
 ### iTunes
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `explicitContent` | Explicit Content | `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT` | `TXXX:ITUNESADVISORY` | `rtng`, `----:com.apple.iTunes:ITUNESADVISORY` | — |
-| `itunesAlbumID` | iTunes Album ID | `ITUNESALBUMID` | `TXXX:ITUNESALBUMID` | `----:com.apple.iTunes:ITUNESALBUMID` | — |
-| `itunesArtistID` | iTunes Artist ID | `ITUNESARTISTID` | `TXXX:ITUNESARTISTID` | `----:com.apple.iTunes:ITUNESARTISTID` | — |
-| `itunesCatalogID` | iTunes Catalog ID | `ITUNESCATALOGID` | `TXXX:ITUNESCATALOGID` | `----:com.apple.iTunes:ITUNESCATALOGID` | — |
-| `itunesGenreID` | iTunes Genre ID | `ITUNESGENREID` | `TXXX:ITUNESGENREID` | `----:com.apple.iTunes:ITUNESGENREID` | — |
-| `itunesMediaType` | iTunes Media Type | `ITUNESMEDIATYPE` | `TXXX:ITUNESMEDIATYPE` | `----:com.apple.iTunes:ITUNESMEDIATYPE` | — |
-| `itunesPurchaseDate` | iTunes Purchase Date | `ITUNESPURCHASEDATE` | `TXXX:ITUNESPURCHASEDATE` | `----:com.apple.iTunes:ITUNESPURCHASEDATE` | — |
-| `itunesNorm` | iTunNORM | `ITUNNORM` | `TXXX:ITUNNORM` | `----:com.apple.iTunes:ITUNNORM` | — |
-| `itunesSMPB` | iTunSMPB | `ITUNSMPB` | `TXXX:ITUNSMPB` | `----:com.apple.iTunes:ITUNSMPB` | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `explicitContent` | Explicit Content | `ITUNESADVISORY` | `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT` | `ITUNESADVISORY` | `ITUNESADVISORY` | `rtng` | `ITUNESADVISORY` | `ITUNESADVISORY` | — | — | — |
+| `itunesAlbumID` | iTunes Album ID | `ITUNESALBUMID` | `ITUNESALBUMID` | `ITUNESALBUMID` | `ITUNESALBUMID` | `plID` | `ITUNESALBUMID` | `ITUNESALBUMID` | — | — | — |
+| `itunesArtistID` | iTunes Artist ID | `ITUNESARTISTID` | `ITUNESARTISTID` | `ITUNESARTISTID` | `ITUNESARTISTID` | `atID` | `ITUNESARTISTID` | `ITUNESARTISTID` | — | — | — |
+| `itunesCatalogID` | iTunes Catalog ID | `ITUNESCATALOGID` | `ITUNESCATALOGID` | `ITUNESCATALOGID` | `ITUNESCATALOGID` | `cnID` | `ITUNESCATALOGID` | `ITUNESCATALOGID` | — | — | — |
+| `itunesGenreID` | iTunes Genre ID | `ITUNESGENREID` | `ITUNESGENREID` | `ITUNESGENREID` | `ITUNESGENREID` | `geID` | `ITUNESGENREID` | `ITUNESGENREID` | — | — | — |
+| `itunesMediaType` | iTunes Media Type | `ITUNESMEDIATYPE` | `ITUNESMEDIATYPE` | `ITUNESMEDIATYPE` | `ITUNESMEDIATYPE` | `stik` | `ITUNESMEDIATYPE` | `ITUNESMEDIATYPE` | — | — | — |
+| `itunesPurchaseDate` | iTunes Purchase Date | `ITUNESPURCHASEDATE` | `ITUNESPURCHASEDATE` | `ITUNESPURCHASEDATE` | `ITUNESPURCHASEDATE` | `purd` | `ITUNESPURCHASEDATE` | `ITUNESPURCHASEDATE` | — | — | — |
+| `itunesNorm` | iTunNORM | `ITUNNORM` | `ITUNNORM` | `iTunNORM` | `iTunNORM` | `----:com.apple.iTunes:iTunNORM` | `ITUNNORM` | `ITUNNORM` | — | — | — |
+| `itunesSMPB` | iTunSMPB | `ITUNSMPB` | `ITUNSMPB` | `iTunSMPB` | `iTunSMPB` | `----:com.apple.iTunes:iTunSMPB` | `ITUNSMPB` | `ITUNSMPB` | — | — | — |
+| `itunesAccount` | iTunes Account | `ITUNESACCOUNT` | `ITUNESACCOUNT` | — | — | `apID` | — | — | — | — | — |
+| `itunesComposerID` | iTunes Composer ID | `ITUNESCOMPOSERID` | `ITUNESCOMPOSERID` | — | — | `cmID` | — | — | — | — | — |
+| `itunesCountryID` | iTunes Storefront ID | `ITUNESCOUNTRYID` | `ITUNESCOUNTRYID` | — | — | `sfID` | — | — | — | — | — |
+| `itunesGapless` | Gapless Playback | `ITUNESGAPLESS` | `ITUNESGAPLESS`, `GAPLESSPLAYBACK` | — | — | `pgap` | — | — | — | — | — |
+| `itunesHDVideo` | HD Video | `ITUNESHDVIDEO` | `ITUNESHDVIDEO`, `HDVIDEO` | — | — | `hdvd` | — | — | — | — | — |
+| `itunesOwner` | Owner | `OWNER` | `ITUNESOWNER`, `OWNER` | — | — | `ownr` | — | — | — | — | — |
+| `rate` | Rating | `RATE` | `RATE` | — | — | `rate` | — | — | — | — | — |
+| `showMovement` | Show Work and Movement | `SHOWMOVEMENT` | `SHOWMOVEMENT`, `SHOWWORKMOVEMENT` | — | — | `shwm` | — | — | — | — | — |
+| `storeDescription` | Store Description | `STOREDESCRIPTION` | `STOREDESCRIPTION` | — | — | `sdes` | — | — | — | — | — |
+| `tvEpisode` | TV Episode | `TVEPISODE` | `TVEPISODE` | — | — | `tves` | — | — | — | — | — |
+| `tvEpisodeID` | TV Episode ID | `TVEPISODEID` | `TVEPISODEID` | — | — | `tven` | — | — | — | — | — |
+| `tvNetwork` | TV Network | `TVNETWORK` | `TVNETWORK` | — | — | `tvnn` | — | — | — | — | — |
+| `tvSeason` | TV Season | `TVSEASON` | `TVSEASON` | — | — | `tvsn` | — | — | — | — | — |
+| `tvShow` | TV Show | `TVSHOW` | `TVSHOW` | — | — | `tvsh` | — | — | — | — | — |
+| `tvShowSort` | TV Show Sort | `SHOWSORT` | `TVSHOWSORT`, `SHOWSORT` | — | — | `sosn` | — | — | — | — | — |
 
 ### Custom
 
-| Key | Display name | PropertyMap keys | ID3v2 | MP4 | Flags |
-| --- | --- | --- | --- | --- | --- |
-| `custom` | Custom Field | — | — | — | — |
+| Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `custom` | Custom Field | `<explicit key>` | — | `<description>` | `<description>` | `----:com.apple.iTunes:<description>` | `<explicit key>` | `<explicit key>` | — | — | — |
 
 <!-- END GENERATED FIELD TABLES -->
 

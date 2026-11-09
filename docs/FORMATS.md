@@ -76,29 +76,35 @@ The fixture-covered set is exactly `mp3`, `m4a`, `flac`, `ogg`, `oga`, `wav`, `a
 
 | Storage family | Track/disc representation |
 | --- | --- |
-| ID3-backed: MPEG/MP2, AAC, WAV, AIFF/AIFF-C, TrueAudio, DSF, DSDIFF | Combined `TRCK` / `TPOS`; movement number/count uses `MVIN`. |
-| MP4 | Native `trkn` / `disk` integer pairs. |
-| FLAC, Ogg Vorbis/Opus/FLAC/Speex, APE, WavPack, Musepack | Separate `TRACKNUMBER` / `TRACKTOTAL`, `DISCNUMBER` / `DISCTOTAL`. |
+| ID3-backed: MPEG/MP2, AAC, WAV, AIFF/AIFF-C, TrueAudio, DSF, DSDIFF | Combined `TRCK` / `TPOS`; movement number/count uses `MVIN`. Standalone `TXXX:TRACKTOTAL`, `TXXX:TOTALTRACKS`, `TXXX:DISCTOTAL`, and `TXXX:TOTALDISCS` remain readable legacy aliases. |
+| MP4 | Native `trkn` / `disk` integer pairs. `----:com.apple.iTunes:TRACKTOTAL` and sibling freeforms are legacy aliases, never the write target. |
+| FLAC, Ogg Vorbis/Opus/FLAC/Speex | Separate `TRACKNUMBER` / `TRACKTOTAL`, `DISCNUMBER` / `DISCTOTAL`. |
+| APE, WavPack, Musepack | Separate `TRACK` / `TRACKTOTAL`, `DISC` / `DISCTOTAL`. |
 | ASF | `WM/TrackNumber` and `WM/PartOfSet` text pairs; normalized writers combine `number/total` in the native attribute. |
 
 - Track and disc components begin at one. `.remove` unsets a component; BPM and movement numbering begin at zero.
 - Removing a first component while retaining a total is rejected where the container cannot represent the combination: MPEG/ID3, AAC, MP4, WAV, AIFF, TrueAudio, DSF, DSDIFF, and ASF. Remove both components to clear the pair.
-- On generic/Xiph formats, `BasicMetadata` number text displays the first component and normalizes total padding. The numeric pair and raw values remain authoritative; a slash display is not promised there.
-- Exact ID3 text writes preserve both components' padding where the native pair supports it. Numeric writers may normalize padding.
+- Native positive components are authoritative. A sole valid orphan total is exposed as `.recoveredLegacy` by `numberingInventory(at:)`; contradictory or malformed aliases are `.ambiguous`/`.invalid`.
+- A typed pair edit resolves the untouched component, writes the native pair, and retires only the touched group's recognized aliases. Unrelated Basic edits preserve orphan totals and private provenance.
+- Exact MP4 text padding has no standard portable representation. `numberText` and `writeTrackNumberText` write the native pair and report the normalized display; they never create private atoms.
 
 ### Dates
 
-| Semantic field | ID3v2 | Xiph/PropertyMap | MP4 |
-| --- | --- | --- | --- |
-| `.date` (recording date/year) | `TDRC`; legacy `TYER` is read-compatible | `DATE`; `YEAR` is an alias | Unsupported for typed writes |
-| `.releaseDate` | `TDRL` | `RELEASEDATE` | `©day` |
-| `.originalReleaseDate` | `TDOR` | `ORIGINALDATE` / `ORIGINAL YEAR` | `ORIGINAL YEAR` freeform |
+| Semantic field | ID3v2.3 | ID3v2.4 | MP4 | Xiph/APE |
+| --- | --- | --- | --- | --- |
+| `.year` (canonical YEAR) | `TYER` | `TDRC` | `©day` | `YEAR` |
+| `.date` (deprecated YEAR spelling) | `TYER` | `TDRC` | `©day` | `YEAR` |
+| `.standaloneDate` | `TDAT` | `TXXX(DATE)` | `EXT(F(DATE))` | `DATE` |
+| `.releaseDate` | `EXTFRAME(TDRL)` | `TDRL` | `EXT(F(RELEASEDATE))` | `RELEASEDATE` |
+| `.originalReleaseDate` | `TORY` | `TDOR` | `EXT(F(ORIGINALDATE))` | `ORIGINALDATE` |
 
-MP4 has one standard date atom. A typed `.date` patch for MP4 fails before staging. `BasicMetadata.year` is a compatibility projection; `updateBasicMetadata` reconciles single-field year/releaseDate edits, while a full replacement with inconsistent non-empty projections throws `MetadataValidationError.conflictingMP4Date`.
+YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent. `BasicMetadata.year` is complete stored text, not a four-character projection. MP4 `©day` is the YEAR slot; a release date lives in the `RELEASEDATE` freeform, never `©day`. Changing or clearing one date field never rewrites another. `MetadataValidationError.conflictingMP4Date` remains only for source compatibility and is not thrown by the current writers.
+
+ASF writes dates through registered text extensions; RIFF INFO has no standalone DATE target and reports it unsupported. Unsupported destinations reject before staging and preserve the file.
 
 ### Advisory
 
-`ExplicitAdvisory` has four states: absent (`unspecified`), not explicit, explicit, and clean. MP4 uses absent / `rtng = 0` / `1` / `2`. ID3 and generic PropertyMap formats use `ITUNESADVISORY` with `0`, `1`, and `2`. Legacy MP4 value `4` and legacy text forms remain readable; high-level writes emit canonical values. The Boolean `isExplicit` is a lossy read projection.
+`ExplicitAdvisory` has four semantic states: absent (`unspecified`), present `0` (not explicit), present `1` (explicit), and present `2` (clean). Zero is a present value, not absence. MP4 uses native `rtng`; ID3 and generic text surfaces use `ITUNESADVISORY`. Unknown existing codes (for example MP4 `4`) are retained as `explicitAdvisoryRawValue` with `.unspecified` semantics; they are not recoded during an unrelated save. The Boolean `explicitContent` projection is lossy and is not an instruction to rewrite an unknown source.
 
 ### Multi-value fields
 

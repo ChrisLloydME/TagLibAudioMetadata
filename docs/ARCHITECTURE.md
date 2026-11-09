@@ -120,9 +120,9 @@ If rename succeeds but the final parent-directory sync fails, the new file is al
 
 ## Schema and capabilities
 
-`MetadataFieldRegistry` is the Swift source of public field semantics. It defines each `MetadataFieldKey` once, with display name, category, `PropertyMap` aliases, container mappings, multi-value/people/role/artwork flags, accepted typed-patch kinds, and integer constraints. The bridge has a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
+`MetadataFieldRegistry` is the Swift source of public field semantics. `MetadataMappingCatalog` is generated at development time from the normative matrix by `scripts/generate-mapping-registry.py`; it carries the exact family, storage kind, native identity, shape, component, and preferred-write flag for every semantic key. `MetadataFieldSchema` joins that catalog to display, category, patch-kind, and integer-constraint policy. `mappings` is derived from `nativeTargets`, so the legacy compatibility view cannot drift. The bridge retains a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
 
-The tables are not generated from one machine-readable source yet. The documentation tables are generated from the Swift registry, but adding a production schema still requires updating both the Swift table and the bridge mapping and running the parity tests. Until a shared generator exists, treat the cross-language tests as the guardrail.
+Adding a production schema requires updating the semantic registry and the bridge mapping, then running the parity tests. The documentation tables consume the same catalog, and `scripts/generate-mapping-registry.py --check` detects a stale generated catalog.
 
 `FormatCapability` separates read/write mechanics from evidence through `FormatSupportLevel`. UI code should query the extension and field being edited because aliases and container fields can have different evidence levels. The complete matrix and its limits are in [Formats](FORMATS.md).
 
