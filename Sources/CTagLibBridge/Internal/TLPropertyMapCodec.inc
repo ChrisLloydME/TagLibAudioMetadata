@@ -300,7 +300,7 @@ static bool ParseExplicitTagValue(const TagLib::String &value,
         return true;
     }
 
-    if (raw == "4" || raw == "1") {
+    if (raw == "1") {
         advisory = TagLibExplicitAdvisoryExplicit;
         return true;
     }
@@ -310,7 +310,7 @@ static bool ParseExplicitTagValue(const TagLib::String &value,
         return true;
     }
 
-    if (raw == "0" || raw == "-1") {
+    if (raw == "0") {
         advisory = TagLibExplicitAdvisoryNotExplicit;
         return true;
     }
@@ -318,10 +318,29 @@ static bool ParseExplicitTagValue(const TagLib::String &value,
     return false;
 }
 
+static NSString * _Nullable SerializedExplicitAdvisoryValue(TagLibExplicitAdvisory advisory);
+
 static void SetParsedExplicitAdvisory(TagLibAudioMetadata *metadata,
                                       TagLibExplicitAdvisory advisory)
 {
     metadata.explicitAdvisory = advisory;
+    // Known 0/1/2 values are fully represented by the semantic state; only an
+    // unrepresentable native code needs separate raw provenance.
+    metadata.explicitAdvisoryRawValue = nil;
+}
+
+static void SetExplicitAdvisoryFromRawValue(TagLibAudioMetadata *metadata,
+                                            const TagLib::String &value)
+{
+    TagLibExplicitAdvisory advisory = TagLibExplicitAdvisoryUnspecified;
+    if (ParseExplicitTagValue(value, advisory)) {
+        SetParsedExplicitAdvisory(metadata, advisory);
+        return;
+    }
+    // Unknown historic codes (for example 4) stay raw. Do not recode them as
+    // clean, explicit, or absent.
+    metadata.explicitAdvisory = TagLibExplicitAdvisoryUnspecified;
+    metadata.explicitAdvisoryRawValue = TagStringToNSString(value);
 }
 
 static NSString * _Nullable SerializedExplicitAdvisoryValue(TagLibExplicitAdvisory advisory)
@@ -358,8 +377,8 @@ static void ApplyExplicitPropertyKeys(const TagLib::PropertyMap &properties,
 
         for (const auto &explicitCandidate : properties[key]) {
             TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
+            SetExplicitAdvisoryFromRawValue(metadata, explicitCandidate);
             if (ParseExplicitTagValue(explicitCandidate, explicitValue)) {
-                SetParsedExplicitAdvisory(metadata, explicitValue);
                 return;
             }
         }
@@ -709,11 +728,8 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         [normalizedKey isEqualToString:@"ADVISORY"] ||
         [normalizedKey isEqualToString:@"EXPLICITCONTENT"] ||
         [normalizedKey isEqualToString:@"EXPLICIT"]) {
-        TagLibExplicitAdvisory explicitValue = TagLibExplicitAdvisoryUnspecified;
         TagLib::String explicitString(trimmedValue.UTF8String, TagLib::String::UTF8);
-        if (ParseExplicitTagValue(explicitString, explicitValue)) {
-            SetParsedExplicitAdvisory(metadata, explicitValue);
-        }
+        SetExplicitAdvisoryFromRawValue(metadata, explicitString);
         return true;
     }
 
@@ -765,7 +781,8 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "GENRE", metadata.genre);
     SetPropertyMapString(properties, "COMMENT", metadata.comment);
     SetPropertyMapString(properties, "ALBUMARTIST", metadata.albumArtist);
-    SetPropertyMapString(properties, "DATE", metadata.year);
+    SetPropertyMapString(properties, "YEAR", metadata.year);
+    SetPropertyMapString(properties, "DATE", metadata.standaloneDate);
     SetPropertyMapString(properties, "RELEASEDATE", metadata.releaseDate);
     SetPropertyMapString(properties, "ORIGINALDATE", metadata.originalReleaseDate);
     SetPropertyMapString(properties, "COPYRIGHT", metadata.copyright);
@@ -787,6 +804,8 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "SUBTITLE", metadata.subtitle);
     SetPropertyMapString(properties, "DISCSUBTITLE", metadata.discSubtitle);
     SetPropertyMapString(properties, "GROUPING", metadata.grouping);
+    SetPropertyMapString(properties, "CONTENTGROUP", metadata.contentGroup);
+    SetPropertyMapString(properties, "ARTISTS", metadata.artists);
     SetPropertyMapString(properties, "MOVEMENT", metadata.movement);
     SetPropertyMapString(properties, "MOVEMENTNAME", metadata.movement);
     SetPropertyMapString(
@@ -803,8 +822,8 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "MOOD", metadata.mood);
     SetPropertyMapString(properties, "LANGUAGE", metadata.language);
     SetPropertyMapString(properties, "INITIALKEY", metadata.musicalKey);
-    SetPropertyMapString(properties, "RELEASETYPE", metadata.releaseType);
-    SetPropertyMapString(properties, "RELEASESTATUS", metadata.releaseStatus);
+    SetPropertyMapString(properties, "MUSICBRAINZ_ALBUMTYPE", metadata.releaseType);
+    SetPropertyMapString(properties, "MUSICBRAINZ_ALBUMSTATUS", metadata.releaseStatus);
     SetPropertyMapString(properties, "BARCODE", metadata.barcode);
     SetPropertyMapString(properties, "CATALOGNUMBER", metadata.catalogNumber);
     SetPropertyMapString(properties, "RELEASECOUNTRY", metadata.releaseCountry);
@@ -824,7 +843,9 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "MUSICIP_PUID", metadata.musicIpPuid);
     SetPropertyMapString(properties, "REPLAYGAIN_TRACK_GAIN", metadata.replayGainTrack);
     SetPropertyMapString(properties, "REPLAYGAIN_ALBUM_GAIN", metadata.replayGainAlbum);
-    SetPropertyMapString(properties, "MEDIATYPE", metadata.mediaType);
+    SetPropertyMapString(properties, "REPLAYGAIN_TRACK_PEAK", metadata.replayGainTrackPeak);
+    SetPropertyMapString(properties, "REPLAYGAIN_ALBUM_PEAK", metadata.replayGainAlbumPeak);
+    SetPropertyMapString(properties, "MEDIA", metadata.mediaType);
     SetPropertyMapString(properties, "ITUNESALBUMID", metadata.itunesAlbumId);
     SetPropertyMapString(properties, "ITUNESARTISTID", metadata.itunesArtistId);
     SetPropertyMapString(properties, "ITUNESCATALOGID", metadata.itunesCatalogId);
@@ -1097,10 +1118,7 @@ static void ExtractASFCustomAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadat
                 [normalized isEqualToString:@"ADVISORY"] ||
                 [normalized isEqualToString:@"EXPLICITCONTENT"] ||
                 [normalized isEqualToString:@"EXPLICIT"]) {
-                TagLibExplicitAdvisory advisory = TagLibExplicitAdvisoryUnspecified;
-                if (ParseExplicitTagValue(attribute.toString(), advisory)) {
-                    SetParsedExplicitAdvisory(metadata, advisory);
-                }
+                SetExplicitAdvisoryFromRawValue(metadata, attribute.toString());
                 continue;
             }
             if ([normalized hasPrefix:@"WM/"]) continue;
@@ -1208,6 +1226,58 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
         }
     }
     SetPropertiesPreservingNativeDates(&file, properties);
+    if (auto *xiph = NativeXiphComment(&file)) {
+        auto setNative = [&](const char *key, NSString * _Nullable value) {
+            NSString *trimmed = TrimmedStringOrNil(value);
+            xiph->removeFields(key);
+            if (trimmed) xiph->addField(key, NSStringToTagString(trimmed), false);
+        };
+        setNative("YEAR", metadata.year);
+        setNative("DATE", metadata.standaloneDate);
+        setNative("RELEASEDATE", metadata.releaseDate);
+        setNative("ORIGINALDATE", metadata.originalReleaseDate);
+        setNative("CONTENTGROUP", metadata.contentGroup);
+        setNative("ARTISTS", metadata.artists);
+        setNative("REPLAYGAIN_TRACK_PEAK", metadata.replayGainTrackPeak);
+        setNative("REPLAYGAIN_ALBUM_PEAK", metadata.replayGainAlbumPeak);
+    } else if (auto *ape = NativeAPETag(&file)) {
+        auto setNative = [&](const char *key, NSString * _Nullable value) {
+            NSString *trimmed = TrimmedStringOrNil(value);
+            ape->removeItem(key);
+            if (trimmed) {
+                TagLib::StringList values;
+                values.append(NSStringToTagString(trimmed));
+                ape->setItem(key, TagLib::APE::Item(key, values));
+            }
+        };
+        setNative("YEAR", metadata.year);
+        setNative("DATE", metadata.standaloneDate);
+        setNative("RELEASEDATE", metadata.releaseDate);
+        setNative("ORIGINALDATE", metadata.originalReleaseDate);
+        setNative("CONTENTGROUP", metadata.contentGroup);
+        setNative("ARTISTS", metadata.artists);
+        setNative("REPLAYGAIN_TRACK_PEAK", metadata.replayGainTrackPeak);
+        setNative("REPLAYGAIN_ALBUM_PEAK", metadata.replayGainAlbumPeak);
+        auto setNumber = [&](const char *key, NSString * _Nullable text) {
+            ape->removeItem(key);
+            NSString *trimmed = TrimmedStringOrNil(text);
+            if (trimmed) {
+                TagLib::StringList values;
+                values.append(NSStringToTagString(trimmed));
+                ape->setItem(key, TagLib::APE::Item(key, values));
+            }
+        };
+        ape->removeItem("TRACKNUMBER");
+        ape->removeItem("DISCNUMBER");
+        setNumber("TRACK", BuildNumberTextPreservingFormatting(
+            metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks));
+        setNumber("TRACKTOTAL", metadata.totalTracks > 0
+            ? [NSString stringWithFormat:@"%ld", (long)metadata.totalTracks] : nil);
+        setNumber("DISC", BuildNumberTextPreservingFormatting(
+            metadata.discNumberText, metadata.discNumber, metadata.totalDiscs));
+        setNumber("DISCTOTAL", metadata.totalDiscs > 0
+            ? [NSString stringWithFormat:@"%ld", (long)metadata.totalDiscs] : nil);
+    }
     if (auto *id3 = NativeID3v2TagForWrite(&file)) {
         SetNativeID3NumberPair(id3, "TRCK",
             BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks),

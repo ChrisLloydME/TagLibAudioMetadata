@@ -94,22 +94,41 @@ struct ReviewMetadataIntegrityTests {
         }
     }
 
-    @Test func basicUnrelatedEditPreservesDateArraysAndYearAlias() throws {
-        for dateFields in [
-            ["DATE": ["2021-07-15", "2022-08-16"]],
-            ["DATE": ["2021-07-15"], "YEAR": ["2021"]]
-        ] {
-            for ext in ["mp3", "flac", "ogg"] {
-                try withFixture(ext) { url in
-                    try TagLibMetadataManager.applyRawMetadataPatch(RawMetadataPatch(valuesToSet: dateFields), to: url)
-                    try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Unrelated" }
-                    let raw = try TagLibMetadataManager.rawMetadataResult(from: url)
-                    for (key, expected) in dateFields {
-                        #expect(raw.properties.first { $0.key == key }?.values == expected)
-                    }
-                    try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "" }
-                    #expect(try TagLibMetadataManager.readMetadataResult(from: url).year.isEmpty)
+    @Test func basicUnrelatedEditPreservesIndependentYearAndDate() throws {
+        for ext in ["mp3", "flac", "ogg"] {
+            try withFixture(ext) { url in
+                do {
+                    try TagLibMetadataManager.applyMetadataPatch(
+                        MetadataPatch(fields: [
+                            .year: .text("2021-07-15"),
+                            .standaloneDate: .text("2022-08-16"),
+                        ]),
+                        to: url
+                    )
+                } catch {
+                    Issue.record("seed failed for \(ext): \(error)")
+                    return
                 }
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Unrelated" }
+
+                var snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+                #expect(snapshot.basic.year == "2021-07-15", Comment(rawValue: ext))
+                #expect(snapshot.basic.date == "2022-08-16", Comment(rawValue: ext))
+                if ext == "mp3" {
+                    #expect(snapshot.structured.id3v2Frames.first { $0.frameID == "TDRC" }?.values == ["2021-07-15"])
+                    #expect(snapshot.structured.id3v2Frames.contains {
+                        $0.frameID == "TXXX" && $0.description == "DATE" && $0.values == ["2022-08-16"]
+                    })
+                } else {
+                    #expect(snapshot.raw.properties.first { $0.key == "YEAR" }?.values == ["2021-07-15"], Comment(rawValue: ext))
+                    #expect(snapshot.raw.properties.first { $0.key == "DATE" }?.values == ["2022-08-16"], Comment(rawValue: ext))
+                }
+
+                // Clearing YEAR must not remove the independent DATE identity.
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "" }
+                snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+                #expect(snapshot.basic.year.isEmpty, Comment(rawValue: ext))
+                #expect(snapshot.basic.date == "2022-08-16", Comment(rawValue: ext))
             }
         }
     }

@@ -128,7 +128,11 @@ public struct BasicMetadata: Sendable {
     /// Display/formatting projection for disc numbering. On MP4, native `disk`
     /// is authoritative for ordinary Basic writes.
     public var discNumberText: String
+    /// Complete stored YEAR-slot text. A Year slot may contain a full date;
+    /// this is the exact value, never a four-character truncation.
     public var year: String
+    /// Independent standalone DATE identity, distinct from `year`.
+    public var date: String
     public var albumArtist: String
     public var releaseDate: String
     public var originalReleaseDate: String
@@ -160,12 +164,16 @@ public struct BasicMetadata: Sendable {
     public var lyricist: String
     public var subtitle: String
     public var grouping: String
+    public var contentGroup: String
+    public var artists: String
     public var movement: String
     public var mood: String
     public var language: String
     public var musicalKey: String
     public var replayGainTrack: String
     public var replayGainAlbum: String
+    public var replayGainTrackPeak: String
+    public var replayGainAlbumPeak: String
     public var mediaType: String
     public var itunesAlbumID: String
     public var itunesArtistID: String
@@ -190,6 +198,27 @@ public struct BasicMetadata: Sendable {
     public var bpm: Int
     public var isCompilation: Bool
     public var explicitAdvisory: ExplicitAdvisory
+    /// Exact native advisory code when the source is not one of the four
+    /// semantic states. Nil means the source state is representable or absent.
+    public var explicitAdvisoryRawValue: String?
+
+    // MP4-exclusive semantic registrations (AM-TLAM-MAPPING-2.2 section 8.1).
+    public var director: String
+    public var itunesAccount: String
+    public var itunesComposerID: String
+    public var itunesCountryID: String
+    public var itunesGapless: Bool
+    public var itunesHDVideo: Bool
+    public var itunesOwner: String
+    public var rate: Int
+    public var showMovement: Bool
+    public var storeDescription: String
+    public var tvEpisode: Int
+    public var tvEpisodeID: String
+    public var tvNetwork: String
+    public var tvSeason: Int
+    public var tvShow: String
+    public var tvShowSort: String
     /// Lossy compatibility convenience. Setting `false` records a clean advisory;
     /// use `explicitAdvisory` to distinguish absence, not-explicit, and clean.
     public var isExplicit: Bool {
@@ -239,6 +268,7 @@ public struct BasicMetadata: Sendable {
         trackNumberText: "",
         discNumberText: "",
         year: "",
+        date: "",
         albumArtist: "",
         releaseDate: "",
         originalReleaseDate: "",
@@ -270,12 +300,16 @@ public struct BasicMetadata: Sendable {
         lyricist: "",
         subtitle: "",
         grouping: "",
+        contentGroup: "",
+        artists: "",
         movement: "",
         mood: "",
         language: "",
         musicalKey: "",
         replayGainTrack: "",
         replayGainAlbum: "",
+        replayGainTrackPeak: "",
+        replayGainAlbumPeak: "",
         mediaType: "",
         itunesAlbumID: "",
         itunesArtistID: "",
@@ -300,6 +334,23 @@ public struct BasicMetadata: Sendable {
         bpm: 0,
         isCompilation: false,
         explicitAdvisory: .unspecified,
+        explicitAdvisoryRawValue: nil,
+        director: "",
+        itunesAccount: "",
+        itunesComposerID: "",
+        itunesCountryID: "",
+        itunesGapless: false,
+        itunesHDVideo: false,
+        itunesOwner: "",
+        rate: 0,
+        showMovement: false,
+        storeDescription: "",
+        tvEpisode: 0,
+        tvEpisodeID: "",
+        tvNetwork: "",
+        tvSeason: 0,
+        tvShow: "",
+        tvShowSort: "",
         duration: 0,
         bitrate: 0,
         sampleRate: 0,
@@ -384,6 +435,7 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
     case knownFieldRequiresRawAPI(String)
     case invalidCustomFieldKey(String)
     case conflictingMP4Date(year: String, releaseDate: String)
+    case invalidYearText(String)
 
     public var errorDescription: String? {
         switch self {
@@ -402,6 +454,8 @@ public enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError 
             return "Custom key '\(key)' is empty after trimming whitespace."
         case .conflictingMP4Date(let year, let releaseDate):
             return "MP4 year (\(year)) and releaseDate (\(releaseDate)) share ©day and must agree. Use updateBasicMetadata for a single-field edit, or set both projections consistently."
+        case .invalidYearText(let value):
+            return "YEAR text \(value.debugDescription) is not a valid year or complete date; preserve existing text on read but supply a representable value for an explicit write."
         }
     }
 }
@@ -448,6 +502,13 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
     public var isOrdered: Bool?
     public var children: [String]
     public var embeddedFrameCount: Int?
+    /// Version-specific text frame identities. The bridge selects the identity
+    /// that matches the existing tag's major version and rejects silent
+    /// cross-version smuggling.
+    public var v23ID: String?
+    public var v24ID: String?
+    public var v23Description: String?
+    public var v24Description: String?
 
     public init(
         frameID: String,
@@ -468,7 +529,11 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
         isTopLevel: Bool? = nil,
         isOrdered: Bool? = nil,
         children: [String] = [],
-        embeddedFrameCount: Int? = nil
+        embeddedFrameCount: Int? = nil,
+        v23ID: String? = nil,
+        v24ID: String? = nil,
+        v23Description: String? = nil,
+        v24Description: String? = nil
     ) {
         self.frameID = frameID
         self.type = type
@@ -489,6 +554,10 @@ public struct StructuredID3v2Frame: Identifiable, Hashable, Sendable {
         self.isOrdered = isOrdered
         self.children = children
         self.embeddedFrameCount = embeddedFrameCount
+        self.v23ID = v23ID
+        self.v24ID = v24ID
+        self.v23Description = v23Description
+        self.v24Description = v24Description
     }
 }
 
@@ -501,8 +570,20 @@ public struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
     public var first: Int?
     public var second: Int?
     public var freeformDescription: String?
+    /// Explicit removal of the exact native atom. Absence is distinct from a
+    /// present zero/false value.
+    public var remove: Bool
 
-    public init(key: String, type: String, value: String = "", values: [String] = [], first: Int? = nil, second: Int? = nil, freeformDescription: String? = nil) {
+    public init(
+        key: String,
+        type: String,
+        value: String = "",
+        values: [String] = [],
+        first: Int? = nil,
+        second: Int? = nil,
+        freeformDescription: String? = nil,
+        remove: Bool = false
+    ) {
         self.key = key
         self.type = type
         self.value = value
@@ -510,6 +591,7 @@ public struct StructuredMP4Atom: Identifiable, Hashable, Sendable {
         self.first = first
         self.second = second
         self.freeformDescription = freeformDescription
+        self.remove = remove
     }
 }
 

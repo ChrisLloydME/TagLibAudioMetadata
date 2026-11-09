@@ -86,6 +86,80 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 }
 
+// Exact Xiph/APE text-key mutation. The engine PropertyMap dialect does not
+// expose every native key (for example Vorbis YEAR alongside DATE), so a date
+// edit must address the native field list directly instead of round-tripping
+// the whole projection.
++ (BOOL)applyNativeTextKeyValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
+                          removingKeys:(NSArray<NSString *> *)keysToRemove
+                                 toURL:(NSURL *)fileURL
+                                 error:(NSError **)error
+{
+    try {
+    if (!fileURL || !fileURL.isFileURL) {
+        if (error) *error = PropertyMapDeltaError(9280, @"Native text-key changes require a file URL");
+        return NO;
+    }
+    const char *filePath = fileURL.path.UTF8String;
+    if (!filePath) {
+        if (error) *error = PropertyMapDeltaError(9281, @"Invalid audio file path");
+        return NO;
+    }
+    TAGLIB_BRIDGE_SERIAL_GUARD();
+    TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Fast);
+    TagLib::File *file = fileRef.file();
+    if (fileRef.isNull() || !file || !file->isValid()) {
+        if (error) *error = PropertyMapDeltaError(9282, @"Unable to open audio file for native text-key mutation");
+        return NO;
+    }
+
+    bool changed = false;
+    if (auto *xiph = NativeXiphComment(file)) {
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *trimmed = TrimmedStringOrNil(key);
+            if (trimmed) { xiph->removeFields(NSStringToTagString(trimmed)); changed = true; }
+        }
+        for (NSString *key in valuesToSet ?: @{}) {
+            NSString *trimmed = TrimmedStringOrNil(key);
+            if (!trimmed) continue;
+            xiph->removeFields(NSStringToTagString(trimmed));
+            for (NSString *value in valuesToSet[key]) {
+                NSString *trimmedValue = TrimmedStringOrNil(value);
+                if (trimmedValue) xiph->addField(NSStringToTagString(trimmed), NSStringToTagString(trimmedValue), false);
+            }
+            changed = true;
+        }
+    } else if (auto *ape = NativeAPETag(file)) {
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *trimmed = TrimmedStringOrNil(key);
+            if (trimmed) { ape->removeItem(NSStringToTagString(trimmed)); changed = true; }
+        }
+        for (NSString *key in valuesToSet ?: @{}) {
+            NSString *trimmed = TrimmedStringOrNil(key);
+            if (!trimmed) continue;
+            ape->removeItem(NSStringToTagString(trimmed));
+            TagLib::StringList values;
+            for (NSString *value in valuesToSet[key]) {
+                NSString *trimmedValue = TrimmedStringOrNil(value);
+                if (trimmedValue) values.append(NSStringToTagString(trimmedValue));
+            }
+            if (!values.isEmpty()) {
+                ape->setItem(NSStringToTagString(trimmed), TagLib::APE::Item(NSStringToTagString(trimmed), values));
+            }
+            changed = true;
+        }
+    } else {
+        if (error) *error = PropertyMapDeltaError(9283, @"The selected format has no native Xiph/APE text-key surface");
+        return NO;
+    }
+    if (changed && !SaveMetadataPreservingOtherTagSurfaces(file)) {
+        if (error) *error = PropertyMapDeltaError(9284, @"TagLib could not save native text-key changes");
+        return NO;
+    }
+    return YES;
+    TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Native text-key mutation", NO)
+}
+
 + (BOOL)applyPropertyMapValuesInPlace:(NSDictionary<NSString *, NSArray<NSString *> *> *)valuesToSet
                          removingKeys:(NSArray<NSString *> *)keysToRemove
                                 toURL:(NSURL *)fileURL
@@ -397,55 +471,16 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         }
         TagLib::MP4::Tag *tag = file.tag();
         if (updateTrackPair) {
-            NSString *existingFormatting = nil;
-            const char *existingFormattingKey = tag->itemMap().contains(kTagLibAudioMetadataMP4TrackNumberTextKey)
-                ? kTagLibAudioMetadataMP4TrackNumberTextKey
-                : kLegacyAudioMatorMP4TrackNumberTextKey;
-            if (tag->itemMap().contains(existingFormattingKey)) {
-                existingFormatting = TagStringToNSString(
-                    tag->itemMap()[existingFormattingKey].toStringList().toString()
-                );
-            }
+            // Never create or rename private number-text provenance. Native
+            // trkn/disk are the only totals. Legacy atoms are read-only until an
+            // explicit, version-guarded normalization plan retires them.
             RemoveRecognizedMP4NumberPairFreeformItems(tag, true, false);
             tag->setTrack(trackNumber > 0 ? (unsigned int)trackNumber : 0);
             SetMP4IntPairItem(tag, "trkn", trackNumber, totalTracks);
-            SetMP4TextItem(tag, kLegacyAudioMatorMP4TrackNumberTextKey, nil);
-            if (existingFormatting) {
-                NSInteger ignoredNumber = 0;
-                NSInteger ignoredTotal = 0;
-                NSInteger padWidth = 0;
-                ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
-                SetMP4TextItem(
-                    tag,
-                    kTagLibAudioMetadataMP4TrackNumberTextKey,
-                    BuildTRCKString(trackNumber, totalTracks, padWidth)
-                );
-            }
         }
         if (updateDiscPair) {
-            NSString *existingFormatting = nil;
-            const char *existingFormattingKey = tag->itemMap().contains(kTagLibAudioMetadataMP4DiscNumberTextKey)
-                ? kTagLibAudioMetadataMP4DiscNumberTextKey
-                : kLegacyAudioMatorMP4DiscNumberTextKey;
-            if (tag->itemMap().contains(existingFormattingKey)) {
-                existingFormatting = TagStringToNSString(
-                    tag->itemMap()[existingFormattingKey].toStringList().toString()
-                );
-            }
             RemoveRecognizedMP4NumberPairFreeformItems(tag, false, true);
             SetMP4IntPairItem(tag, "disk", discNumber, totalDiscs);
-            SetMP4TextItem(tag, kLegacyAudioMatorMP4DiscNumberTextKey, nil);
-            if (existingFormatting) {
-                NSInteger ignoredNumber = 0;
-                NSInteger ignoredTotal = 0;
-                NSInteger padWidth = 0;
-                ParseNumberPairFromNSString(existingFormatting, ignoredNumber, ignoredTotal, padWidth);
-                SetMP4TextItem(
-                    tag,
-                    kTagLibAudioMetadataMP4DiscNumberTextKey,
-                    BuildTRCKString(discNumber, totalDiscs, padWidth)
-                );
-            }
         }
         if (updateMovementPair) {
             SetMP4FreeformTextItem(
@@ -483,13 +518,17 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return YES;
     }
     TagLib::PropertyMap properties = file->properties();
+    const bool isAPE = dynamic_cast<TagLib::APE::File *>(file) != nullptr ||
+        dynamic_cast<TagLib::WavPack::File *>(file) != nullptr ||
+        dynamic_cast<TagLib::MPC::File *>(file) != nullptr;
     if (updateTrackPair) {
         NSString *existingTrackNumber = FirstStringFromProperty(properties, {"TRACKNUMBER", "TRACK"});
         properties.erase("TRACK");
+        properties.erase("TRACKNUMBER");
         properties.erase("TOTALTRACKS");
         SetPropertyMapDynamicString(
             properties,
-            @"TRACKNUMBER",
+            isAPE ? @"TRACK" : @"TRACKNUMBER",
             BuildPropertyMapNumberTextPreservingFormatting(existingTrackNumber, trackNumber)
         );
         SetPropertyMapDynamicString(properties, @"TRACKTOTAL", totalTracks > 0 ? [NSString stringWithFormat:@"%ld", (long)totalTracks] : nil);
@@ -497,10 +536,11 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     if (updateDiscPair) {
         NSString *existingDiscNumber = FirstStringFromProperty(properties, {"DISCNUMBER", "DISC"});
         properties.erase("DISC");
+        properties.erase("DISCNUMBER");
         properties.erase("TOTALDISCS");
         SetPropertyMapDynamicString(
             properties,
-            @"DISCNUMBER",
+            isAPE ? @"DISC" : @"DISCNUMBER",
             BuildPropertyMapNumberTextPreservingFormatting(existingDiscNumber, discNumber)
         );
         SetPropertyMapDynamicString(properties, @"DISCTOTAL", totalDiscs > 0 ? [NSString stringWithFormat:@"%ld", (long)totalDiscs] : nil);

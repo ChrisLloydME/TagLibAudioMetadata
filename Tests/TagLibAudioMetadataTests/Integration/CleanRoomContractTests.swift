@@ -4,31 +4,44 @@ import TagLibAudioMetadata
 import CTagLibBridge
 
 struct CleanRoomContractTests {
-    @Test func mp4DateEditsResolveSingleFieldIntentAndRejectContradictoryReplacement() throws {
+    @Test func mp4DateEditsKeepYearAndReleaseDateIndependentWithoutContradictionChecks() throws {
         try HardeningFixture.withCopy("m4a", name: "testAudioFile") { url in
-            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.releaseDate = "2024-05-01"; $0.year = "2024" }
-            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.releaseDate = "2025-06-02" }
+            try TagLibMetadataManager.updateBasicMetadata(at: url) {
+                $0.year = "2004"
+                $0.releaseDate = "2017-06-09"
+            }
             var after = try TagLibMetadataManager.readMetadataResult(from: url)
-            #expect(after.releaseDate == "2025-06-02" && after.year == "2025")
+            #expect(after.year == "2004")
+            #expect(after.releaseDate == "2017-06-09")
+
+            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.releaseDate = "2025-06-02" }
+            after = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(after.releaseDate == "2025-06-02")
+            #expect(after.year == "2004", "Changing Release Date must not rewrite Year.")
+
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "2026" }
             after = try TagLibMetadataManager.readMetadataResult(from: url)
-            #expect(after.releaseDate == "2026-06-02" && after.year == "2026")
-            var conflicting = after
-            conflicting.year = "1999"
-            let original = try Data(contentsOf: url)
-            #expect(throws: MetadataValidationError.conflictingMP4Date(year: "1999", releaseDate: "2026-06-02")) {
-                try TagLibMetadataManager.replaceBasicMetadata(conflicting, to: url)
-            }
-            #expect(try Data(contentsOf: url) == original)
+            #expect(after.year == "2026")
+            #expect(after.releaseDate == "2025-06-02", "Changing Year must not rewrite Release Date.")
+
+            // Differing years are a positive case, not a conflict.
+            var independent = after
+            independent.year = "1999"
+            independent.releaseDate = "2026-06-02"
+            try TagLibMetadataManager.replaceBasicMetadata(independent, to: url)
+            after = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(after.year == "1999")
+            #expect(after.releaseDate == "2026-06-02")
+
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.releaseDate = "" }
             after = try TagLibMetadataManager.readMetadataResult(from: url)
-            #expect(after.year.isEmpty && after.releaseDate.isEmpty)
-            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "2027" }
-            after = try TagLibMetadataManager.readMetadataResult(from: url)
-            #expect(after.year == "2027" && after.releaseDate == "2027")
+            #expect(after.year == "1999", "Clearing Release Date must not clear Year.")
+            #expect(after.releaseDate.isEmpty)
+
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.year = "" }
             after = try TagLibMetadataManager.readMetadataResult(from: url)
-            #expect(after.year.isEmpty && after.releaseDate.isEmpty)
+            #expect(after.year.isEmpty)
+            #expect(after.releaseDate.isEmpty)
         }
     }
 

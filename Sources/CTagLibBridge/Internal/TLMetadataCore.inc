@@ -1,3 +1,32 @@
+static TagLib::Ogg::XiphComment *NativeXiphComment(TagLib::File *file)
+{
+    if (auto *flac = dynamic_cast<TagLib::FLAC::File *>(file)) return flac->xiphComment(false);
+    if (auto *vorbis = dynamic_cast<TagLib::Ogg::Vorbis::File *>(file)) return vorbis->tag();
+    if (auto *opus = dynamic_cast<TagLib::Ogg::Opus::File *>(file)) return opus->tag();
+    if (auto *oggFlac = dynamic_cast<TagLib::Ogg::FLAC::File *>(file)) return oggFlac->tag();
+    if (auto *speex = dynamic_cast<TagLib::Ogg::Speex::File *>(file)) return speex->tag();
+    return nullptr;
+}
+
+static TagLib::APE::Tag *NativeAPETag(TagLib::File *file)
+{
+    if (auto *ape = dynamic_cast<TagLib::APE::File *>(file)) return ape->APETag(false);
+    if (auto *wavPack = dynamic_cast<TagLib::WavPack::File *>(file)) return wavPack->APETag(false);
+    if (auto *mpc = dynamic_cast<TagLib::MPC::File *>(file)) return mpc->APETag(false);
+    return nullptr;
+}
+
+// Add exact native Xiph/APE keys that the engine PropertyMap dialect does not
+// project (notably YEAR alongside an independent DATE). This is a read-only
+// projection; writes use the native key APIs.
+static void AppendNativeTextKey(TagLib::PropertyMap &properties,
+                                const TagLib::String &key,
+                                const TagLib::StringList &values)
+{
+    if (values.isEmpty() || properties.contains(key)) return;
+    properties.replace(key, values);
+}
+
 // WAV has independent RIFF INFO and ID3v2 surfaces. TagLib's File::properties()
 // switches wholesale to ID3v2 once a tag exists, hiding unrelated INFO fields.
 // Present their union, with explicit ID3v2 values taking precedence per key.
@@ -14,7 +43,34 @@ static TagLib::PropertyMap VisibleMetadataProperties(TagLib::File *file)
         }
         return properties;
     }
-    return file->properties();
+    TagLib::PropertyMap properties = file->properties();
+    // The engine projection omits a small set of independent target keys.
+    // Expose only those exact native keys; mapping TRACK/DISC or other aliases
+    // twice would make a raw delta look changed on every unrelated save.
+    static const char *kNativeOnlyKeys[] = {
+        "YEAR", "DATE", "RELEASESTATUS", "CONTENTGROUP", "ARTISTS",
+        "REPLAYGAIN_TRACK_PEAK", "REPLAYGAIN_ALBUM_PEAK"
+    };
+    auto appendIfWanted = [&](const TagLib::String &key, const TagLib::StringList &values) {
+        for (const char *wanted : kNativeOnlyKeys) {
+            if (key == TagLib::String(wanted, TagLib::String::Latin1)) {
+                AppendNativeTextKey(properties, key, values);
+                return;
+            }
+        }
+    };
+    if (auto *xiph = NativeXiphComment(file)) {
+        for (const auto &[key, values] : xiph->fieldListMap()) {
+            appendIfWanted(key, values);
+        }
+    } else if (auto *ape = NativeAPETag(file)) {
+        for (const auto &[key, item] : ape->itemListMap()) {
+            if (item.type() == TagLib::APE::Item::Text) {
+                appendIfWanted(item.key(), item.values());
+            }
+        }
+    }
+    return properties;
 }
 
 // Creating a preferred tag must not shadow metadata that only exists in a
@@ -81,6 +137,16 @@ static TagLib::ID3v2::Tag *NativeID3v2TagForWrite(TagLib::File *file)
     return nullptr;
 }
 
+// Preserve the existing ID3v2 major version during an ordinary edit. A brand
+// new tag defaults to v2.4; conversion is a separately previewed operation.
+static TagLib::ID3v2::Version ID3v2SaveVersion(TagLib::ID3v2::Tag * _Nullable tag)
+{
+    if (tag && tag->header() && tag->header()->majorVersion() == 3) {
+        return TagLib::ID3v2::v3;
+    }
+    return TagLib::ID3v2::v4;
+}
+
 static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
 {
     ValidateWritablePrimaryTagSurface(file);
@@ -91,7 +157,7 @@ static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
     if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) {
         // A delta must not duplicate the ID3v2 projection into ID3v1.
         return mpeg->save(TagLib::MPEG::File::ID3v2, TagLib::File::StripNone,
-                          TagLib::ID3v2::v4, TagLib::File::DoNotDuplicate);
+                          ID3v2SaveVersion(mpeg->ID3v2Tag(false)), TagLib::File::DoNotDuplicate);
     }
     return file->save();
 }
@@ -358,19 +424,46 @@ static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError 
         }
     }
 
-    NSString *validatedYear = TagStringToNSString(NSStringToTagString(metadata.year));
-    if (validatedYear.length > 4 && [validatedYear containsString:@"-"]) {
-        validatedYear = [validatedYear substringToIndex:4];
-    }
-    unsigned long long ignoredYear = 0;
-    if (!ParseUnsignedDecimalString(validatedYear,
-                                    std::numeric_limits<unsigned int>::max(),
-                                    ignoredYear)) {
-        return SetNumericValidationError(
-            error,
-            [NSString stringWithFormat:@"Year must be an unsigned decimal value no greater than %u",
-                                       std::numeric_limits<unsigned int>::max()]
-        );
+    // YEAR is stored as text and may legitimately contain a complete date.
+    // Explicit writes must still be representable: an all-digit value is an
+    // unsigned 32-bit year, while a date form starts with a four-digit year and
+    // a separator. Existing arbitrary text is preserved on read and unrelated
+    // saves; this check applies to writes.
+    NSString *yearText = TrimmedStringOrNil(metadata.year);
+    if (yearText.length > 0) {
+        bool allDigits = true;
+        for (NSUInteger index = 0; index < yearText.length; ++index) {
+            unichar character = [yearText characterAtIndex:index];
+            if (character < '0' || character > '9') { allDigits = false; break; }
+        }
+        if (allDigits) {
+            unsigned long long parsedYear = 0;
+            if (!ParseUnsignedDecimalString(yearText,
+                                            std::numeric_limits<unsigned int>::max(),
+                                            parsedYear)) {
+                return SetNumericValidationError(
+                    error,
+                    [NSString stringWithFormat:@"Year must be an unsigned decimal value no greater than %u",
+                                               std::numeric_limits<unsigned int>::max()]
+                );
+            }
+        } else {
+            bool datePrefix = yearText.length >= 5;
+            for (NSUInteger index = 0; datePrefix && index < 4; ++index) {
+                unichar character = [yearText characterAtIndex:index];
+                if (character < '0' || character > '9') datePrefix = false;
+            }
+            if (datePrefix) {
+                unichar separator = [yearText characterAtIndex:4];
+                datePrefix = separator == '-' || separator == '/' || separator == '.';
+            }
+            if (!datePrefix) {
+                return SetNumericValidationError(
+                    error,
+                    @"Year must be an unsigned year or complete date text"
+                );
+            }
+        }
     }
 
     switch (metadata.explicitAdvisory) {
@@ -384,17 +477,6 @@ static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError 
     }
 
     return YES;
-}
-
-static unsigned int ValidatedBasicYearValue(NSString * _Nullable year)
-{
-    NSString *trimmed = TrimmedStringOrNil(year);
-    if (trimmed.length > 4 && [trimmed containsString:@"-"]) {
-        trimmed = [trimmed substringToIndex:4];
-    }
-    unsigned long long parsed = 0;
-    bool valid = ParseUnsignedDecimalString(trimmed, std::numeric_limits<unsigned int>::max(), parsed);
-    return valid ? static_cast<unsigned int>(parsed) : 0;
 }
 
 static NSString * _Nullable UppercaseTrimmedString(NSString * _Nullable value) {
@@ -523,12 +605,13 @@ typedef struct {
 
 static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "TITLE", { nullptr }, "TIT2", nullptr, "\xA9" "nam", nullptr, false, false, false },
-    { "ARTIST", { "ARTISTS", nullptr }, "TPE1", nullptr, "\xA9" "ART", nullptr, true, true, false },
+    { "ARTIST", { nullptr }, "TPE1", nullptr, "\xA9" "ART", nullptr, true, true, false },
     { "ALBUM", { nullptr }, "TALB", nullptr, "\xA9" "alb", nullptr, false, false, false },
     { "ALBUMARTIST", { "ALBUM ARTIST", nullptr }, "TPE2", nullptr, "aART", nullptr, true, true, false },
-    { "DATE", { "YEAR", nullptr }, "TDRC", nullptr, nullptr, nullptr, false, false, false },
-    { "RELEASEDATE", { nullptr }, "TDRL", nullptr, "\xA9" "day", nullptr, false, false, false },
-    { "ORIGINALDATE", { "ORIGINAL YEAR", nullptr }, "TDOR", nullptr, nullptr, "ORIGINAL YEAR", false, false, false },
+    { "DATE", { "YEAR", nullptr }, "TDRC", nullptr, "\xA9" "day", nullptr, false, false, false },
+    { "STANDALONEDATE", { nullptr }, nullptr, "DATE", nullptr, "DATE", false, false, false },
+    { "RELEASEDATE", { nullptr }, "TDRL", nullptr, nullptr, "RELEASEDATE", false, false, false },
+    { "ORIGINALDATE", { "ORIGINAL YEAR", nullptr }, "TDOR", nullptr, nullptr, "ORIGINALDATE", false, false, false },
     { "TRACKNUMBER", { "TRACK", nullptr }, "TRCK", nullptr, "trkn", nullptr, false, false, false },
     { "TRACKTOTAL", { "TOTALTRACKS", nullptr }, "TRCK", nullptr, "trkn", nullptr, false, false, false },
     { "DISCNUMBER", { "DISC", nullptr }, "TPOS", nullptr, "disk", nullptr, false, false, false },
@@ -543,7 +626,7 @@ static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "ALBUMSORT", { nullptr }, "TSOA", nullptr, "soal", nullptr, false, false, false },
     { "ALBUMARTISTSORT", { nullptr }, "TSO2", nullptr, "soaa", nullptr, false, false, false },
     { "COMPOSERSORT", { nullptr }, "TSOC", nullptr, "soco", nullptr, false, false, false },
-    { "CONDUCTOR", { nullptr }, "TPE3", nullptr, nullptr, "CONDUCTOR", true, true, false },
+    { "CONDUCTOR", { nullptr }, "TPE3", nullptr, "\xA9" "con", nullptr, true, true, false },
     { "REMIXER", { nullptr }, "TPE4", nullptr, nullptr, "REMIXER", true, true, false },
     { "PRODUCER", { nullptr }, nullptr, "PRODUCER", nullptr, "PRODUCER", true, true, false },
     { "ENGINEER", { nullptr }, nullptr, "ENGINEER", nullptr, "ENGINEER", true, true, false },
@@ -552,51 +635,71 @@ static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "INVOLVEDPEOPLE", { nullptr }, "TIPL", nullptr, nullptr, "INVOLVEDPEOPLE", true, true, true },
     { "MUSICIANCREDITS", { nullptr }, "TMCL", nullptr, nullptr, "MUSICIANCREDITS", true, true, true },
     { "COPYRIGHT", { nullptr }, "TCOP", nullptr, "cprt", nullptr, false, false, false },
-    { "LABEL", { "PUBLISHER", nullptr }, "TPUB", nullptr, nullptr, "LABEL", false, false, false },
-    { "ENCODEDBY", { "ENCODING", nullptr }, "TENC", nullptr, "\xA9" "too", nullptr, false, false, false },
-    { "ENCODERSETTINGS", { nullptr }, "TSSE", nullptr, nullptr, "ENCODERSETTINGS", false, false, false },
+    { "LABEL", { "PUBLISHER", nullptr }, "TPUB", nullptr, "\xA9" "pub", nullptr, false, false, false },
+    { "ENCODEDBY", { "ENCODING", nullptr }, "TENC", nullptr, "\xA9" "enc", nullptr, false, false, false },
+    { "ENCODERSETTINGS", { nullptr }, "TSSE", nullptr, "\xA9" "too", nullptr, false, false, false },
     { "ISRC", { nullptr }, "TSRC", nullptr, nullptr, "ISRC", false, false, false },
     { "BARCODE", { "UPC", "EAN", nullptr }, nullptr, "BARCODE", nullptr, "BARCODE", false, false, false },
     { "CATALOGNUMBER", { "CATALOG NUMBER", "CATALOG", nullptr }, nullptr, "CATALOGNUMBER", nullptr, "CATALOGNUMBER", false, false, false },
-    { "RELEASETYPE", { "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ ALBUM TYPE", nullptr }, nullptr, "RELEASETYPE", nullptr, "RELEASETYPE", false, false, false },
-    { "RELEASESTATUS", { "MUSICBRAINZ_ALBUMSTATUS", "MUSICBRAINZ ALBUM STATUS", nullptr }, nullptr, "RELEASESTATUS", nullptr, "RELEASESTATUS", false, false, false },
-    { "RELEASECOUNTRY", { "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "MUSICBRAINZ ALBUM RELEASE COUNTRY", nullptr }, nullptr, "RELEASECOUNTRY", nullptr, "MusicBrainz Album Release Country", false, false, false },
+    { "RELEASETYPE", { "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ ALBUM TYPE", nullptr }, nullptr, "MusicBrainz Album Type", nullptr, "MusicBrainz Album Type", false, false, false },
+    { "RELEASESTATUS", { "MUSICBRAINZ_ALBUMSTATUS", "MUSICBRAINZ ALBUM STATUS", nullptr }, nullptr, "MusicBrainz Album Status", nullptr, "MusicBrainz Album Status", false, false, false },
+    { "RELEASECOUNTRY", { "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "MUSICBRAINZ ALBUM RELEASE COUNTRY", nullptr }, nullptr, "MusicBrainz Album Release Country", nullptr, "MusicBrainz Album Release Country", false, false, false },
     { "ASIN", { nullptr }, nullptr, "ASIN", nullptr, "ASIN", false, false, false },
-    { "MEDIATYPE", { "MEDIA", "MEDIA TYPE", nullptr }, "TMED", nullptr, nullptr, "MEDIATYPE", false, false, false },
+    { "MEDIATYPE", { "MEDIA", "MEDIA TYPE", nullptr }, "TMED", nullptr, nullptr, "MEDIA", false, false, false },
     { "SUBTITLE", { nullptr }, "TIT3", nullptr, nullptr, "SUBTITLE", false, false, false },
-    { "GROUPING", { nullptr }, "TIT1", nullptr, "\xA9" "grp", nullptr, true, false, false },
+    { "GROUPING", { nullptr }, "GRP1", nullptr, nullptr, "GROUPING", true, false, false },
+    { "CONTENTGROUP", { nullptr }, "TIT1", nullptr, "\xA9" "grp", nullptr, false, false, false },
     { "DISCSUBTITLE", { nullptr }, "TSST", nullptr, nullptr, "DISCSUBTITLE", false, false, false },
-    { "MOVEMENT", { "MOVEMENTNAME", nullptr }, "MVNM", nullptr, nullptr, "MOVEMENT", false, false, false },
-    { "MOVEMENTNUMBER", { nullptr }, "MVIN", nullptr, nullptr, "MOVEMENTNUMBER", false, false, false },
-    { "MOVEMENTCOUNT", { nullptr }, "MVIN", nullptr, nullptr, "MOVEMENTCOUNT", false, false, false },
-    { "WORK", { nullptr }, nullptr, "WORK", nullptr, "WORK", false, false, false },
+    { "MOVEMENT", { "MOVEMENTNAME", nullptr }, "MVNM", nullptr, "\xA9" "mvn", nullptr, false, false, false },
+    { "MOVEMENTNUMBER", { nullptr }, "MVIN", nullptr, "\xA9" "mvi", nullptr, false, false, false },
+    { "MOVEMENTCOUNT", { nullptr }, "MVIN", nullptr, "\xA9" "mvc", nullptr, false, false, false },
+    { "WORK", { nullptr }, nullptr, "WORK", "\xA9" "wrk", nullptr, false, false, false },
     { "MOOD", { nullptr }, "TMOO", nullptr, nullptr, "MOOD", true, false, false },
     { "LANGUAGE", { nullptr }, "TLAN", nullptr, nullptr, "LANGUAGE", true, false, false },
     { "INITIALKEY", { "KEY", nullptr }, "TKEY", nullptr, nullptr, "INITIALKEY", false, false, false },
     { "MUSICBRAINZ_ARTISTID", { "MUSICBRAINZ ARTISTID", "MUSICBRAINZ ARTIST ID", nullptr }, nullptr, "MusicBrainz Artist Id", nullptr, "MusicBrainz Artist Id", false, false, false },
     { "MUSICBRAINZ_ALBUMID", { "MUSICBRAINZ ALBUMID", "MUSICBRAINZ ALBUM ID", nullptr }, nullptr, "MusicBrainz Album Id", nullptr, "MusicBrainz Album Id", false, false, false },
     { "MUSICBRAINZ_ALBUMARTISTID", { "MUSICBRAINZ ALBUMARTISTID", "MUSICBRAINZ ALBUM ARTIST ID", nullptr }, nullptr, "MusicBrainz Album Artist Id", nullptr, "MusicBrainz Album Artist Id", false, false, false },
-    { "MUSICBRAINZ_TRACKID", { "MUSICBRAINZ TRACKID", "MUSICBRAINZ TRACK ID", nullptr }, nullptr, "MusicBrainz Track Id", nullptr, "MusicBrainz Track Id", false, false, false },
+    { "MUSICBRAINZ_TRACKID", { "MUSICBRAINZ TRACKID", "MUSICBRAINZ TRACK ID", nullptr }, "UFID", nullptr, nullptr, "MusicBrainz Track Id", false, false, false },
     { "MUSICBRAINZ_RELEASEGROUPID", { "MUSICBRAINZ RELEASEGROUPID", "MUSICBRAINZ RELEASE GROUP ID", nullptr }, nullptr, "MusicBrainz Release Group Id", nullptr, "MusicBrainz Release Group Id", false, false, false },
     { "MUSICBRAINZ_RELEASETRACKID", { "MUSICBRAINZ RELEASETRACKID", "MUSICBRAINZ RELEASE TRACK ID", nullptr }, nullptr, "MusicBrainz Release Track Id", nullptr, "MusicBrainz Release Track Id", false, false, false },
     { "MUSICBRAINZ_WORKID", { "MUSICBRAINZ WORKID", "MUSICBRAINZ WORK ID", nullptr }, nullptr, "MusicBrainz Work Id", nullptr, "MusicBrainz Work Id", false, false, false },
-    { "MUSICBRAINZ_ARTISTTYPE", { "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE", nullptr }, nullptr, "ARTISTTYPE", nullptr, "ARTISTTYPE", false, false, false },
+    { "MUSICBRAINZ_ARTISTTYPE", { "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE", nullptr }, nullptr, "MusicBrainz Artist Type", nullptr, "MusicBrainz Artist Type", false, false, false },
     { "ACOUSTID_ID", { "ACOUSTID ID", nullptr }, nullptr, "Acoustid Id", nullptr, "Acoustid Id", false, false, false },
     { "ACOUSTID_FINGERPRINT", { "ACOUSTID FINGERPRINT", nullptr }, nullptr, "Acoustid Fingerprint", nullptr, "Acoustid Fingerprint", false, false, false },
     { "MUSICIP_PUID", { "MUSICIP PUID", nullptr }, nullptr, "MusicIP PUID", nullptr, "MusicIP PUID", false, false, false },
     { "REPLAYGAIN_TRACK_GAIN", { nullptr }, nullptr, "REPLAYGAIN_TRACK_GAIN", nullptr, "REPLAYGAIN_TRACK_GAIN", false, false, false },
     { "REPLAYGAIN_ALBUM_GAIN", { nullptr }, nullptr, "REPLAYGAIN_ALBUM_GAIN", nullptr, "REPLAYGAIN_ALBUM_GAIN", false, false, false },
-    { "ITUNESALBUMID", { nullptr }, nullptr, "ITUNESALBUMID", nullptr, "ITUNESALBUMID", false, false, false },
-    { "ITUNESARTISTID", { nullptr }, nullptr, "ITUNESARTISTID", nullptr, "ITUNESARTISTID", false, false, false },
-    { "ITUNESCATALOGID", { nullptr }, nullptr, "ITUNESCATALOGID", nullptr, "ITUNESCATALOGID", false, false, false },
-    { "ITUNESGENREID", { nullptr }, nullptr, "ITUNESGENREID", nullptr, "ITUNESGENREID", false, false, false },
-    { "ITUNESMEDIATYPE", { nullptr }, nullptr, "ITUNESMEDIATYPE", nullptr, "ITUNESMEDIATYPE", false, false, false },
-    { "ITUNESPURCHASEDATE", { nullptr }, nullptr, "ITUNESPURCHASEDATE", nullptr, "ITUNESPURCHASEDATE", false, false, false },
-    { "ITUNNORM", { nullptr }, nullptr, "ITUNNORM", nullptr, "ITUNNORM", false, false, false },
-    { "ITUNSMPB", { nullptr }, nullptr, "ITUNSMPB", nullptr, "ITUNSMPB", false, false, false },
-    { "ITUNESADVISORY", { "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", nullptr }, nullptr, "ITUNESADVISORY", "rtng", "ITUNESADVISORY", false, false, false },
+    { "ITUNESALBUMID", { nullptr }, nullptr, "ITUNESALBUMID", "plID", nullptr, false, false, false },
+    { "ITUNESARTISTID", { nullptr }, nullptr, "ITUNESARTISTID", "atID", nullptr, false, false, false },
+    { "ITUNESCATALOGID", { nullptr }, nullptr, "ITUNESCATALOGID", "cnID", nullptr, false, false, false },
+    { "ITUNESGENREID", { nullptr }, nullptr, "ITUNESGENREID", "geID", nullptr, false, false, false },
+    { "ITUNESMEDIATYPE", { nullptr }, nullptr, "ITUNESMEDIATYPE", "stik", nullptr, false, false, false },
+    { "ITUNESPURCHASEDATE", { nullptr }, nullptr, "ITUNESPURCHASEDATE", "purd", nullptr, false, false, false },
+    { "ITUNNORM", { nullptr }, nullptr, "iTunNORM", nullptr, "iTunNORM", false, false, false },
+    { "ITUNSMPB", { nullptr }, nullptr, "iTunSMPB", nullptr, "iTunSMPB", false, false, false },
+    { "ITUNESADVISORY", { "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", nullptr }, nullptr, "ITUNESADVISORY", "rtng", nullptr, false, false, false },
     { "BPM", { nullptr }, "TBPM", nullptr, "tmpo", nullptr, false, false, false },
     { "COMPILATION", { nullptr }, "TCMP", nullptr, "cpil", nullptr, false, false, false },
+    { "REPLAYGAIN_TRACK_PEAK", { nullptr }, nullptr, "REPLAYGAIN_TRACK_PEAK", nullptr, "REPLAYGAIN_TRACK_PEAK", false, false, false },
+    { "REPLAYGAIN_ALBUM_PEAK", { nullptr }, nullptr, "REPLAYGAIN_ALBUM_PEAK", nullptr, "REPLAYGAIN_ALBUM_PEAK", false, false, false },
+    { "ARTISTS", { nullptr }, nullptr, "ARTISTS", nullptr, "ARTISTS", true, true, false },
+    { "DIRECTOR", { nullptr }, nullptr, nullptr, "\xA9" "dir", nullptr, true, true, false },
+    { "ITUNESACCOUNT", { nullptr }, nullptr, nullptr, "apID", nullptr, false, false, false },
+    { "ITUNESCOMPOSERID", { nullptr }, nullptr, nullptr, "cmID", nullptr, false, false, false },
+    { "ITUNESCOUNTRYID", { nullptr }, nullptr, nullptr, "sfID", nullptr, false, false, false },
+    { "ITUNESGAPLESS", { "GAPLESSPLAYBACK", nullptr }, nullptr, nullptr, "pgap", nullptr, false, false, false },
+    { "ITUNESHDVIDEO", { "HDVIDEO", nullptr }, nullptr, nullptr, "hdvd", nullptr, false, false, false },
+    { "ITUNESOWNER", { "OWNER", nullptr }, nullptr, nullptr, "ownr", nullptr, false, false, false },
+    { "RATE", { nullptr }, nullptr, nullptr, "rate", nullptr, false, false, false },
+    { "SHOWMOVEMENT", { "SHOWWORKMOVEMENT", nullptr }, nullptr, nullptr, "shwm", nullptr, false, false, false },
+    { "STOREDESCRIPTION", { nullptr }, nullptr, nullptr, "sdes", nullptr, false, false, false },
+    { "TVEPISODE", { nullptr }, nullptr, nullptr, "tves", nullptr, false, false, false },
+    { "TVEPISODEID", { nullptr }, nullptr, nullptr, "tven", nullptr, false, false, false },
+    { "TVNETWORK", { nullptr }, nullptr, nullptr, "tvnn", nullptr, false, false, false },
+    { "TVSEASON", { nullptr }, nullptr, nullptr, "tvsn", nullptr, false, false, false },
+    { "TVSHOW", { nullptr }, nullptr, nullptr, "tvsh", nullptr, false, false, false },
+    { "TVSHOWSORT", { "SHOWSORT", nullptr }, nullptr, nullptr, "sosn", nullptr, false, false, false },
     { "ORIGINALALBUM", { nullptr }, "TOAL", nullptr, nullptr, "ORIGINALALBUM", false, false, false },
     { "ORIGINALARTIST", { nullptr }, "TOPE", nullptr, nullptr, "ORIGINALARTIST", true, true, false },
 };

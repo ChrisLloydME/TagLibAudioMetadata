@@ -171,6 +171,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case conflictingNumberRepresentations
     case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
     case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
+    case ambiguousNumberRecovery(field: String, identities: [String])
 
     public var errorDescription: String? {
         switch self {
@@ -203,6 +204,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(field.rawValue) requires a role-qualified key; use RawMetadataPatch or StructuredMetadata instead of the typed Patch field."
         case .unsupportedPartialPairRemoval(let field, let format):
             return "\(field.rawValue) requires a positive number when its paired total is present for \(format); set the number or remove both components."
+        case .ambiguousNumberRecovery(let field, let identities):
+            return "\(field) has ambiguous legacy numbering recovery; resolve the exact identities explicitly: \(identities.joined(separator: ", "))."
         }
     }
 }
@@ -279,57 +282,6 @@ extension TagLibMetadataManager {
     private struct ValidatedMetadataPatch: Sendable {
         var fields: [MetadataFieldKey: MetadataPatchValue]
         var customFields: [String: MetadataPatchValue]
-    }
-
-    private struct SemanticPropertyStorage: Sendable {
-        var writeKey: String
-        var keysToRemove: Set<String>
-        var nativeMP4Key: String? = nil
-    }
-
-    nonisolated private static func propertyStorage(
-        for field: MetadataFieldKey,
-        fileExtension: String
-    ) throws -> SemanticPropertyStorage {
-        guard let schema = MetadataFieldRegistry.schema(for: field),
-              let canonicalKey = schema.propertyMapKeys.first else {
-            throw MetadataPatchValidationError.unsupportedField(field)
-        }
-
-        let formatCapability: FormatCapability? = Self.capability(forExtension: fileExtension)
-        let isMP4 = formatCapability?.metadataFieldFormats.contains(MetadataFieldFormat.mp4) == true
-        if field == .date, isMP4 {
-            throw MetadataPatchValidationError.unsupportedFieldForFormat(
-                field: field,
-                format: formatCapability?.identifier ?? fileExtension
-            )
-        }
-
-        if field == .releaseDate, isMP4 {
-            // TagLib exposes the native MP4 ©day atom through PropertyMap's DATE key.
-            // RELEASEDATE would create a freeform field instead of updating ©day.
-            return SemanticPropertyStorage(
-                writeKey: "DATE",
-                keysToRemove: ["DATE", "RELEASEDATE"]
-            )
-        }
-
-        if isMP4, let nativeKey = schema.mappings.first(where: {
-            $0.format == .mp4 && $0.storageKind == .mp4Freeform
-        })?.keys.first {
-            var aliases = Set(schema.propertyMapKeys.map { $0.uppercased() })
-            for mapping in schema.mappings where mapping.format == .mp4 {
-                aliases.formUnion(mapping.keys.map { $0.uppercased() })
-            }
-            aliases.formUnion(schema.propertyMapKeys.map { "----:COM.APPLE.ITUNES:\($0.uppercased())" })
-            if field == .work { aliases.insert("©WRK") }
-            return SemanticPropertyStorage(writeKey: nativeKey, keysToRemove: aliases, nativeMP4Key: nativeKey)
-        }
-
-        return SemanticPropertyStorage(
-            writeKey: canonicalKey,
-            keysToRemove: Set(schema.propertyMapKeys)
-        )
     }
 
     nonisolated private static func validate(_ patch: MetadataPatch) throws -> ValidatedMetadataPatch {
@@ -418,12 +370,13 @@ extension TagLibMetadataManager {
         try afterExtraction()
         let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
+        let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
         let basic = basicMetadata(
             fromBridgeMetadata: projections.basic,
             rawDump: raw,
-            fileExtension: url.pathExtension
+            fileExtension: url.pathExtension,
+            structured: structured
         )
-        let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
         guard version == (try? fileVersion(at: url)) else {
             throw TagLibManagerError.fileChanged
         }
@@ -495,7 +448,7 @@ extension TagLibMetadataManager {
         let fieldStorage = try validatedPatch.fields.reduce(into: [MetadataFieldKey: SemanticPropertyStorage]()) {
             result, entry in
             guard !structuredNumberPairFields.contains(entry.key) else { return }
-            result[entry.key] = try propertyStorage(for: entry.key, fileExtension: ext)
+            result[entry.key] = try semanticStorage(for: entry.key, fileExtension: ext)
         }
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
@@ -513,10 +466,20 @@ extension TagLibMetadataManager {
 
             if patchesNumberPair {
                 let current = before.basic
-                var track = current.track
-                var trackTotal = current.trackTotal
-                var disc = current.disc
-                var discTotal = current.discTotal
+                let inventory = numberingInventory(from: before)
+                func resolved(_ component: MetadataNumberComponentInventory, field: String) throws -> Int {
+                    if component.isUnresolved {
+                        throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                            field: field,
+                            identities: component.identities
+                        )
+                    }
+                    return component.resolvedValue ?? 0
+                }
+                var track = try resolved(inventory.track.number, field: "track")
+                var trackTotal = try resolved(inventory.track.total, field: "trackTotal")
+                var disc = try resolved(inventory.disc.number, field: "disc")
+                var discTotal = try resolved(inventory.disc.total, field: "discTotal")
                 var movementNumber = current.movementNumber
                 var movementCount = current.movementCount
 
@@ -585,8 +548,24 @@ extension TagLibMetadataManager {
             }
 
             if let numberText = patch.numberText {
-                let trackPair = numberText.trackNumberText.map(parseNumberPair)
-                let discPair = numberText.discNumberText.map(parseNumberPair)
+                let inventory = numberingInventory(from: before)
+                func resolvedTotal(_ component: MetadataNumberComponentInventory, field: String) throws -> Int {
+                    if component.isUnresolved {
+                        throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                            field: field,
+                            identities: component.identities
+                        )
+                    }
+                    return component.resolvedValue ?? 0
+                }
+                var trackPair = numberText.trackNumberText.map(parseNumberPair)
+                var discPair = numberText.discNumberText.map(parseNumberPair)
+                if let pair = trackPair, pair.total == 0 {
+                    trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")
+                }
+                if let pair = discPair, pair.total == 0 {
+                    discPair?.total = try resolvedTotal(inventory.disc.total, field: "discTotal")
+                }
                 try TagLibMetadataExtractor.writeNumberPairsInPlace(
                     trackNumber: trackPair?.number ?? 0,
                     totalTracks: trackPair?.total ?? 0,
@@ -614,22 +593,37 @@ extension TagLibMetadataManager {
                 }
             }
 
+            var id3Frames: [StructuredID3v2Frame] = []
+            var nativeTextValues: [String: [String]] = [:]
+            var nativeTextRemovals: Set<String> = []
             for (field, value) in validatedPatch.fields where !structuredNumberPairFields.contains(field) {
                 guard let storage = fieldStorage[field] else { continue }
-                if let nativeKey = storage.nativeMP4Key {
+                switch storage.mechanism {
+                case .mp4Atom:
                     nativeFieldAliases.formUnion(storage.keysToRemove)
-                    let oldKeys = before.structured.mp4Atoms.map(\.key).filter {
-                        storage.keysToRemove.contains($0.uppercased())
-                    }
-                    nativeAtoms.append(contentsOf: oldKeys.filter { $0 != nativeKey }.map {
-                        StructuredMP4Atom(key: $0, type: "stringList", values: [])
+                    nativeAtoms.append(contentsOf: storage.nativeAliasesToRemove.map {
+                        StructuredMP4Atom(key: $0, type: "stringList", values: [], remove: true)
                     })
-                    nativeAtoms.append(StructuredMP4Atom(key: nativeKey, type: "stringList", values: value.propertyMapValues))
-                    continue
-                }
-                keysToRemove.formUnion(storage.keysToRemove)
-                if !value.propertyMapValues.isEmpty {
-                    propertyValues[storage.writeKey] = value.propertyMapValues
+                    if let atom = structuredMP4Atom(for: storage.mechanism, value: value) {
+                        nativeAtoms.append(atom)
+                    }
+                case .id3Frame(var frame):
+                    nativeFieldAliases.formUnion(storage.keysToRemove)
+                    frame.values = value.propertyMapValues
+                    id3Frames.append(frame)
+                case .nativeTextKey(let key):
+                    nativeFieldAliases.formUnion(storage.keysToRemove)
+                    nativeTextRemovals.formUnion(storage.keysToRemove)
+                    if value.propertyMapValues.isEmpty {
+                        nativeTextRemovals.insert(key)
+                    } else {
+                        nativeTextValues[key] = value.propertyMapValues
+                    }
+                case .propertyMap(let key):
+                    keysToRemove.formUnion(storage.keysToRemove)
+                    if !value.propertyMapValues.isEmpty {
+                        propertyValues[key] = value.propertyMapValues
+                    }
                 }
             }
 
@@ -661,6 +655,14 @@ extension TagLibMetadataManager {
                 )
             }
 
+            if !nativeTextValues.isEmpty || !nativeTextRemovals.isEmpty {
+                try TagLibMetadataExtractor.applyNativeTextKeyValuesInPlace(
+                    nativeTextValues,
+                    removingKeys: Array(nativeTextRemovals),
+                    to: mutationURL
+                )
+            }
+
             if !propertyValues.isEmpty || !keysToRemove.isEmpty {
                 if ext == "wav" {
                     try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
@@ -671,10 +673,16 @@ extension TagLibMetadataManager {
                 }
             }
 
-            if !nativeAtoms.isEmpty {
+            if !nativeAtoms.isEmpty || !id3Frames.isEmpty {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
-                    bridgePayload(from: StructuredMetadata(mp4Atoms: nativeAtoms), includeProperties: false,
-                        replacingCollections: [], riffPolicy: .preserveInfo), to: mutationURL)
+                    bridgePayload(
+                        from: StructuredMetadata(id3v2Frames: id3Frames, mp4Atoms: nativeAtoms),
+                        includeProperties: false,
+                        replacingCollections: [],
+                        riffPolicy: .preserveInfo
+                    ),
+                    to: mutationURL
+                )
             }
 
             switch patch.artwork {
@@ -709,14 +717,15 @@ extension TagLibMetadataManager {
                 )
             }
             let afterRaw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
-            let afterBasic = basicMetadata(
-                fromBridgeMetadata: bridgeBasic,
-                rawDump: afterRaw,
-                fileExtension: mutationURL.pathExtension
-            )
             let afterStructured = (projections["structured"] as? [String: NSObject]).map {
                 structuredMetadata(fromBridgeDictionary: $0)
             } ?? StructuredMetadata()
+            let afterBasic = basicMetadata(
+                fromBridgeMetadata: bridgeBasic,
+                rawDump: afterRaw,
+                fileExtension: mutationURL.pathExtension,
+                structured: afterStructured
+            )
             var intentionallyChangedKeys = keysToRemove.union(nativeFieldAliases)
             for field in expectedNumberPairs.keys {
                 intentionallyChangedKeys.formUnion(MetadataFieldRegistry.schema(for: field)?.propertyMapKeys ?? [])
@@ -755,15 +764,56 @@ extension TagLibMetadataManager {
             for (field, value) in validatedPatch.fields where expectedNumberPairs[field] == nil {
                 guard let storage = fieldStorage[field] else { continue }
                 let actual: [String]
-                if let nativeKey = storage.nativeMP4Key {
-                    actual = afterStructured.mp4Atoms.first { $0.key == nativeKey }?.values ?? []
-                    let stale = afterStructured.mp4Atoms.filter {
-                        $0.key != nativeKey && storage.keysToRemove.contains($0.key.uppercased())
+                switch storage.mechanism {
+                case .mp4Atom(let key, let type):
+                    let atom = afterStructured.mp4Atoms.first { $0.key == key }
+                    if value == .remove {
+                        actual = atom == nil ? [] : (atom?.values ?? [atom?.value ?? ""])
+                        if let atom, !atom.values.isEmpty || !atom.value.isEmpty {
+                            warnings.append("Patched field \(field.rawValue) remains after removal.")
+                        }
+                    } else if type == "stringList" {
+                        actual = atom?.values ?? []
+                    } else if type == "bool" {
+                        actual = [structuredBoolean(atom?.value ?? "") == true ? "1" : "0"]
+                    } else {
+                        actual = [Int(atom?.value ?? "") ?? 0].map(String.init)
                     }
-                    if !stale.isEmpty { warnings.append("Patched field \(field.rawValue) has stale native aliases.") }
-                } else {
+                    let stale = afterStructured.mp4Atoms.filter {
+                        storage.nativeAliasesToRemove.contains($0.key)
+                    }
+                    if !stale.isEmpty {
+                        warnings.append("Patched field \(field.rawValue) has stale native aliases.")
+                    }
+                case .id3Frame(let expectedFrame):
+                    if expectedFrame.type == "versionedText" {
+                        let frameIDs = [expectedFrame.v23ID, expectedFrame.v24ID].compactMap { $0 }
+                        let descriptions = [expectedFrame.v23Description, expectedFrame.v24Description].compactMap { $0 }
+                        if value == .remove {
+                            let remains = afterStructured.id3v2Frames.contains { frame in
+                                frameIDs.contains(frame.frameID)
+                                    || (frame.frameID == "TXXX" && descriptions.contains(frame.description ?? ""))
+                            }
+                            if remains {
+                                warnings.append("Patched field \(field.rawValue) remains after removal.")
+                            }
+                            actual = remains ? value.propertyMapValues : []
+                        } else {
+                            let matching = afterStructured.id3v2Frames.first { frame in
+                                frameIDs.contains(frame.frameID)
+                                    || (frame.frameID == "TXXX" && descriptions.contains(frame.description ?? ""))
+                            }
+                            actual = matching.map { $0.values.isEmpty ? [$0.value] : $0.values } ?? []
+                        }
+                    } else {
+                        let matching = afterStructured.id3v2Frames.first {
+                            $0.frameID == expectedFrame.frameID && $0.description == expectedFrame.description
+                        }
+                        actual = matching?.values ?? []
+                    }
+                case .nativeTextKey(let key), .propertyMap(let key):
                     actual = afterRaw.properties.first {
-                        storage.writeKey.caseInsensitiveCompare($0.key) == .orderedSame
+                        key.caseInsensitiveCompare($0.key) == .orderedSame
                     }?.values ?? []
                 }
                 if field != .date,
@@ -778,7 +828,7 @@ extension TagLibMetadataManager {
                     }
                 }
                 if actual != value.propertyMapValues {
-                    warnings.append("Patched field \(storage.writeKey) differs after save.")
+                    warnings.append("Patched field \(field.rawValue) differs after save.")
                 }
             }
             if capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
@@ -806,7 +856,7 @@ extension TagLibMetadataManager {
                     let expectedTrackText = trackNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
                     let expectedTrackPair = parseNumberPair(expectedTrackText)
                     let trackPairStoredAcrossFields = afterBasic.track == expectedTrackPair.number &&
-                        afterBasic.trackTotal == expectedTrackPair.total
+                        afterBasic.trackTotal == (expectedNumberPairs[.trackTotal] ?? expectedTrackPair.total)
                     if afterBasic.trackNumberText != expectedTrackText && !trackPairStoredAcrossFields {
                         warnings.append("Patched track number text differs after save.")
                     }
@@ -815,7 +865,7 @@ extension TagLibMetadataManager {
                     let expectedDiscText = discNumberText.trimmingCharacters(in: .whitespacesAndNewlines)
                     let expectedDiscPair = parseNumberPair(expectedDiscText)
                     let discPairStoredAcrossFields = afterBasic.disc == expectedDiscPair.number &&
-                        afterBasic.discTotal == expectedDiscPair.total
+                        afterBasic.discTotal == (expectedNumberPairs[.discTotal] ?? expectedDiscPair.total)
                     if afterBasic.discNumberText != expectedDiscText && !discPairStoredAcrossFields {
                         warnings.append("Patched disc number text differs after save.")
                     }
