@@ -51,8 +51,8 @@ Same command, after the changes:
 | Runner | Result |
 | --- | --- |
 | XCTest | 156 executed, 2 skipped, 0 failed |
-| Swift Testing | 85 tests in 21 suites, 1 environment-dependent failure |
-| Overall | 238 passed, 2 skipped, 1 environment-dependent failure of 241 exercised |
+| Swift Testing | 86 tests in 21 suites, 1 environment-dependent failure |
+| Overall | 239 passed, 2 skipped, 1 environment-dependent failure of 242 exercised |
 
 The only failure is the same privilege-bit precondition. No new baseline failure remains.
 
