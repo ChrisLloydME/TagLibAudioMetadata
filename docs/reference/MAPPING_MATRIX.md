@@ -6,11 +6,11 @@ Contract `AM-TLAM-MAPPING-2.2` (decision date `2026-11-09`). The table is genera
 from the executable `MetadataMappingCatalog` target table; the Swift catalog 
 is the package-side source of truth for semantic-to-native targets.
 
-`100` semantic profiles; `498` native target registrations (`495` preferred write targets).
+`100` semantic profiles; `498` native target registrations (`491` preferred write targets).
 
 | Family | Targets | Preferred write targets |
 | --- | --- | --- |
-| ID3v2.3 | 83 | 83 |
+| ID3v2.3 | 83 | 79 |
 | ID3v2.4 | 83 | 83 |
 | MP4 | 99 | 98 |
 | Vorbis | 83 | 83 |
@@ -57,7 +57,7 @@ extension frame, `F(...)` is an exact MP4 freeform description, and
 | `CONDUCTOR` | `textArray` | **TPE3** | **TPE3** | **©con** | **CONDUCTOR** | **CONDUCTOR** | **WM/Conductor** | — | — |
 | `CONTENTGROUP` | `text` | **TIT1** | **TIT1** | **©grp** | **CONTENTGROUP** | **CONTENTGROUP** | **WM/ContentGroupDescription** | — | — |
 | `COPYRIGHT` | `text` | **TCOP** | **TCOP** | **cprt** | **COPYRIGHT** | **COPYRIGHT** | **Copyright** | **ICOP** | — |
-| `DATE` | `text` | **TDAT** | **TXXX(DATE)** | **F(DATE)** | **DATE** | **DATE** | **DATE** | — | — |
+| `DATE` | `text` | TDAT (read) | **TXXX(DATE)** | **F(DATE)** | **DATE** | **DATE** | **DATE** | — | — |
 | `DIRECTOR` | `textArray` | — | — | **©dir** | — | — | — | — | — |
 | `DISCNUMBER` | `integer` | **TPOS#number** | **TPOS#number** | **disk#number** | **DISCNUMBER** | **DISC** | **WM/PartOfSet#number** | — | — |
 | `DISCSUBTITLE` | `text` | **TXXX(DISCSUBTITLE)** | **TSST** | **F(DISCSUBTITLE)** | **DISCSUBTITLE** | **DISCSUBTITLE** | **WM/SetSubTitle** | — | — |
@@ -105,14 +105,14 @@ extension frame, `F(...)` is an exact MP4 freeform description, and
 | `MUSICIP_PUID` | `text` | **TXXX(MusicIP PUID)** | **TXXX(MusicIP PUID)** | **F(MusicIP PUID)** | **MUSICIP_PUID** | **MUSICIP_PUID** | **MusicIP/PUID** | — | — |
 | `ORIGINALALBUM` | `text` | **TOAL** | **TOAL** | **F(ORIGINALALBUM)** | **ORIGINALALBUM** | **ORIGINALALBUM** | **WM/OriginalAlbumTitle** | — | — |
 | `ORIGINALARTIST` | `textArray` | **TOPE** | **TOPE** | **F(ORIGINALARTIST)** | **ORIGINALARTIST** | **ORIGINALARTIST** | **WM/OriginalArtist** | — | — |
-| `ORIGINALDATE` | `text` | **TORY (year only) (engine)** | **TDOR** | **F(ORIGINALDATE)** | **ORIGINALDATE** | **ORIGINALDATE** | **WM/OriginalReleaseYear** | — | — |
+| `ORIGINALDATE` | `text` | TORY (read) | **TDOR** | **F(ORIGINALDATE)** | **ORIGINALDATE** | **ORIGINALDATE** | **WM/OriginalReleaseYear** | — | — |
 | `OWNER` | `text` | — | — | **ownr** | — | — | — | — | — |
 | `PERFORMER` | `roleText` | **IPLS (roles)** | **TMCL (roles)** | **F(PERFORMER)** | **PERFORMER** | **PERFORMER** | — | — | — |
 | `PICTURE` | `pictureCollection` | **APIC** | **APIC** | **covr** | **PICTURE** | **COVER ART** | **WM/Picture** | — | — |
 | `PRODUCER` | `textArray` | **TXXX(PRODUCER)** | **TXXX(PRODUCER)** | **F(PRODUCER)** | **PRODUCER** | **PRODUCER** | **WM/Producer** | — | — |
 | `RATE` | `integer` | — | — | rate (read) | — | — | — | — | — |
 | `RELEASECOUNTRY` | `text` | **TXXX(MusicBrainz Album Release Country)** | **TXXX(MusicBrainz Album Release Country)** | **F(MusicBrainz Album Release Country)** | **RELEASECOUNTRY** | **RELEASECOUNTRY** | **MusicBrainz/Album Release Country** | — | — |
-| `RELEASEDATE` | `text` | **EXT(TDRL)** | **TDRL** | **F(RELEASEDATE)** | **RELEASEDATE** | **RELEASEDATE** | — | — | — |
+| `RELEASEDATE` | `text` | EXT(TDRL) (read) | **TDRL** | **F(RELEASEDATE)** | **RELEASEDATE** | **RELEASEDATE** | — | — | — |
 | `RELEASESTATUS` | `text` | **TXXX(MusicBrainz Album Status)** | **TXXX(MusicBrainz Album Status)** | **F(MusicBrainz Album Status)** | **RELEASESTATUS** | **MUSICBRAINZ_ALBUMSTATUS** | **MusicBrainz/Album Status** | — | — |
 | `RELEASETYPE` | `textArray` | **TXXX(MusicBrainz Album Type)** | **TXXX(MusicBrainz Album Type)** | **F(MusicBrainz Album Type)** | **RELEASETYPE** | **MUSICBRAINZ_ALBUMTYPE** | **MusicBrainz/Album Type** | — | — |
 | `REMIXER` | `textArray` | **TPE4** | **TPE4** | **F(REMIXER)** | **REMIXER** | **MIXARTIST** | **WM/ModifiedBy** | — | — |
@@ -135,7 +135,7 @@ extension frame, `F(...)` is an exact MP4 freeform description, and
 | `TVSEASON` | `integer` | — | — | **tvsn** | — | — | — | — | PART_NUMBER@60 (read) |
 | `TVSHOW` | `text` | — | — | **tvsh** | — | — | — | — | — |
 | `WORK` | `text` | **TXXX(WORK)** | **TXXX(WORK)** | **©wrk** | **WORK** | **WORK** | — | — | — |
-| `YEAR` | `text` | **TYER** | **TDRC** | **©day** | **YEAR** | **YEAR** | **WM/Year** | **ICRD** | — |
+| `YEAR` | `text` | TYER (read) | **TDRC** | **©day** | **YEAR** | **YEAR** | **WM/Year** | **ICRD** | — |
 
 ## How to use this table
 

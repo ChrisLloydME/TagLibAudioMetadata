@@ -17,7 +17,7 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
         return NO;
     }
 
-    file.setProperties(BuildRawPropertyMap(properties));
+    SetPropertiesPreservingNativeDates(&file, BuildRawPropertyMap(properties), true);
 
     if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
@@ -52,7 +52,7 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
         return NO;
     }
 
-    file.setProperties(BuildRawPropertyMapValues(properties));
+    SetPropertiesPreservingNativeDates(&file, BuildRawPropertyMapValues(properties), true);
 
     if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {

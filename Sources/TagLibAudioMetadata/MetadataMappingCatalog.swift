@@ -74,7 +74,7 @@ public enum MetadataMappingCatalog {
             semanticKey: "YEAR",
             shape: .text,
             targets: [
-                MetadataNativeTarget(family: .id3v23, storage: .textFrame, nativeIdentity: "TYER", shape: .text, preferredWrite: true),
+                MetadataNativeTarget(family: .id3v23, storage: .textFrame, nativeIdentity: "TYER", shape: .text, preferredWrite: false, note: "read-only: independent v2.3 date codec is not verified"),
                 MetadataNativeTarget(family: .id3v24, storage: .textFrame, nativeIdentity: "TDRC", shape: .text, preferredWrite: true),
                 MetadataNativeTarget(family: .mp4, storage: .mp4Atom, nativeIdentity: "©day", shape: .text, preferredWrite: true),
                 MetadataNativeTarget(family: .vorbisComment, storage: .textKey, nativeIdentity: "YEAR", shape: .text, preferredWrite: true),
@@ -87,7 +87,7 @@ public enum MetadataMappingCatalog {
             semanticKey: "DATE",
             shape: .text,
             targets: [
-                MetadataNativeTarget(family: .id3v23, storage: .textFrame, nativeIdentity: "TDAT", shape: .text, preferredWrite: true, note: "legacy DDMM text"),
+                MetadataNativeTarget(family: .id3v23, storage: .textFrame, nativeIdentity: "TDAT", shape: .text, preferredWrite: false, note: "read-only: legacy DDMM codec is not independently verified"),
                 MetadataNativeTarget(family: .id3v24, storage: .userTextFrame, nativeIdentity: "DATE", shape: .text, preferredWrite: true),
                 MetadataNativeTarget(family: .mp4, storage: .mp4Freeform, nativeIdentity: "DATE", shape: .text, preferredWrite: true, note: "explicit conventional extension"),
                 MetadataNativeTarget(family: .vorbisComment, storage: .textKey, nativeIdentity: "DATE", shape: .text, preferredWrite: true),
@@ -99,7 +99,7 @@ public enum MetadataMappingCatalog {
             semanticKey: "RELEASEDATE",
             shape: .text,
             targets: [
-                MetadataNativeTarget(family: .id3v23, storage: .extensionFrame, nativeIdentity: "TDRL", shape: .text, preferredWrite: true, note: "version-extension frame"),
+                MetadataNativeTarget(family: .id3v23, storage: .extensionFrame, nativeIdentity: "TDRL", shape: .text, preferredWrite: false, note: "read-only: v2.3 extension codec is not independently verified"),
                 MetadataNativeTarget(family: .id3v24, storage: .textFrame, nativeIdentity: "TDRL", shape: .text, preferredWrite: true),
                 MetadataNativeTarget(family: .mp4, storage: .mp4Freeform, nativeIdentity: "RELEASEDATE", shape: .text, preferredWrite: true, note: "explicit conventional extension"),
                 MetadataNativeTarget(family: .vorbisComment, storage: .textKey, nativeIdentity: "RELEASEDATE", shape: .text, preferredWrite: true),
@@ -110,7 +110,7 @@ public enum MetadataMappingCatalog {
             semanticKey: "ORIGINALDATE",
             shape: .text,
             targets: [
-                MetadataNativeTarget(family: .id3v23, storage: .engineTextKey, nativeIdentity: "TORY (year only)", shape: .text, preferredWrite: true, note: "engine text mapping"),
+                MetadataNativeTarget(family: .id3v23, storage: .textFrame, nativeIdentity: "TORY", shape: .text, preferredWrite: false, note: "read-only: year-precision v2.3 original date codec is not verified"),
                 MetadataNativeTarget(family: .id3v24, storage: .textFrame, nativeIdentity: "TDOR", shape: .text, preferredWrite: true),
                 MetadataNativeTarget(family: .mp4, storage: .mp4Freeform, nativeIdentity: "ORIGINALDATE", shape: .text, preferredWrite: true, note: "explicit conventional extension"),
                 MetadataNativeTarget(family: .vorbisComment, storage: .textKey, nativeIdentity: "ORIGINALDATE", shape: .text, preferredWrite: true),

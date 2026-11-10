@@ -73,7 +73,7 @@ print(capability.writeSupport(for: .standaloneDate))
 print(capability.writeSupport(for: .artwork))
 ```
 
-`readSupport` and `writeSupport` combine family flags, schema mappings, optional field allowlists, and artwork flags. `writeSupport` also respects schema-level write withholding and requires a writable native target when the format declares a concrete native family. A PropertyMap alias cannot override a read-only or unavailable native target. Formats exposing only PropertyMap retain mapping and allowlist checks, including tracker title/name fields. These are declared checks, not a guarantee that a typed write will succeed:
+`readSupport` and `writeSupport` combine family flags, schema mappings, optional field allowlists, and artwork flags. `writeSupport` also respects schema-level write withholding and requires a writable native target when the format declares a concrete native family. A PropertyMap alias cannot override a read-only or unavailable native target. Semantic write capability follows the primary write family; secondary readable tags such as ID3 on FLAC or APE on MPEG do not select the semantic write destination. Formats exposing only PropertyMap retain mapping and allowlist checks, including tracker title/name fields. These are declared checks, not a guarantee that a typed write will succeed:
 
 - `.rate` has a readable MP4 mapping but no preferred write target; `writeSupport(for: .rate)` returns `.unsupported`, and the typed patch rejects it without mutation.
 - RIFF INFO is not in `metadataFieldFormats`, so a field that exists only as RIFF INFO needs the raw/structured path.

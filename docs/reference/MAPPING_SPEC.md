@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract implemented in `0.7.0`; see [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`, with working-tree corrections to native read/write/verification consistency; see [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -56,7 +56,7 @@ YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent stored fields and inde
 - `.releaseDate` is RELEASEDATE.
 - `.originalReleaseDate` is ORIGINALDATE.
 
-MP4 uses `©day` for YEAR. DATE and RELEASEDATE use explicit `DATE` and `RELEASEDATE` freeform extensions. ID3 writes the version-appropriate frame (`TYER`/`TDRC`, `TDAT`/`TXXX(DATE)`, `TDRL`, `TORY`/`TDOR`) and preserves the existing tag major version. Xiph/APE use the declared text keys. ASF uses its registered attributes. RIFF INFO has no independent DATE target.
+MP4 uses `©day` for YEAR. DATE and RELEASEDATE use explicit `DATE` and `RELEASEDATE` freeform extensions. The registry records version-appropriate ID3 locations (`TYER`/`TDRC`, `TDAT`/`TXXX(DATE)`, `TDRL`, `TORY`/`TDOR`). ID3v2.4 writes use the verified codecs. Independent date writes on existing ID3v2.3 tags are currently read-only: typed patches and Basic date edits reject before mutation. `StructuredMetadata.id3v2MajorVersion` exposes the observed primary version for concrete-file capability UI; it is not a version-conversion request. Xiph/APE use the declared text keys. ASF uses its registered attributes. RIFF INFO has no independent DATE target.
 
 YEAR may contain complete stored date text. Read it as-is; never take the first four characters. `replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with `isRepresentableYearText`; the typed patch path does not run that Basic-specific validator. `MetadataValidationError.invalidYearText` is the Basic rejection.
 
@@ -162,3 +162,12 @@ The generated matrix lists every profile and exact target. Any normative change 
 - [Formats](FORMATS.md) — declared capability and container limits.
 - [Write semantics](../explanation/PRESERVATION.md) — preservation and verification.
 - [Migration](../operations/MIGRATION.md) — changes from the tagged releases.
+
+
+## Working-tree conformance repairs
+
+The unreleased repair branch separates native Xiph/APE YEAR and DATE ownership from engine aliases in reads, semantic writes, raw replacement/delta, and generic map replay. Untouched native date arrays and malformed values are verified without collapsing them. ID3/MP4 date preservation is checked against native frames/atoms; a changed engine DATE projection does not authorize changing an unedited native owner. The existing native layouts and contract ID are unchanged.
+
+FLAC scalar comments use the Xiph verification path even when a secondary ID3 surface is supported. Qualified MusicBrainz recording identifiers use the UFID owner codec. Semantic write capability follows the primary write family; secondary readable tags do not authorize semantic writes.
+
+ID3v2.3 date targets are registered read-only until a verified native codec exists. These changes do not establish an ID3v2.3 TDAT/TDRL codec, arbitrary unknown-advisory assignment, MKV writes, or a RATE scale. Unknown advisory preservation and typed known-state edits remain distinct from assigning a new unknown native code.

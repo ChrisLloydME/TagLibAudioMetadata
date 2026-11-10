@@ -167,3 +167,10 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - That a package update changes an application's conflict policy automatically.
 - That an untagged `main` state is a release.
 - That `replaceBasicMetadata` writes every property present on `BasicMetadata`.
+
+
+## Migrating from 0.7.0 to the 0.7.1 candidate
+
+The repair branch corrects Xiph/APE YEAR/DATE ownership in both native and visible-map paths, verifies date siblings natively, and fixes active-family comment verification and qualified UFID writes. No date companions or automatic user-file migration are required.
+
+`StructuredMetadata.id3v2MajorVersion` is optional read evidence. The existing initializer signature remains available. Date writes to concrete ID3v2.3 tags are now explicitly read-only until a verified independent codec exists; both typed and Basic date edits reject safely. Inspect this version before presenting concrete-file date editability. Do not convert tags automatically or claim v2.3 date support from an extension-wide ID3v2.4 capability result.
