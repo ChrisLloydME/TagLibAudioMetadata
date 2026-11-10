@@ -37,8 +37,17 @@ jobs:
           swift build --disable-keychain --disable-netrc
       - name: Strict warning build
         run: swift build --disable-keychain --disable-netrc -Xswiftc -warnings-as-errors -Xcc -Werror
+      - name: Test gate policy
+        run: python3 -m unittest discover -s scripts/tests
       - name: Test
-        run: swift test --disable-keychain --disable-netrc
+        run: bash scripts/validate-tests.sh debug
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-debug-test-evidence
+          path: .build/test-evidence/
+          if-no-files-found: warn
       - name: Consumer integration
         run: |
           swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataConsumer
@@ -83,7 +92,14 @@ jobs:
       - name: Record Xcode toolchain
         run: xcodebuild -version
       - name: Release tests against real fixtures
-        run: swift test --disable-keychain --disable-netrc -c release
+        run: bash scripts/validate-tests.sh release
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-release-test-evidence
+          path: .build/test-evidence/
+          if-no-files-found: warn
 
   thread-sanitizer:
     runs-on: xcode-27
