@@ -505,3 +505,7 @@ for url in urls {
 - [Transactions](../explanation/TRANSACTIONS.md) — staging, durability, concurrency.
 - [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md) — guarded rebases.
 - [Field reference](../reference/FIELDS.md) — keys, native targets, patch constraints.
+
+## MP4 Content Group independence
+
+`contentGroup` owns `©grp`; `grouping` owns `----:com.apple.iTunes:GROUPING`; `work` owns `©wrk`. Each can be set, replaced or removed without submitting companion fields. TagLib's raw PropertyMap may expose `©grp` as `GROUPING`; that engine spelling is not a second semantic Grouping field. Semantic verification permits this projection change for a Content Group edit and independently verifies untouched native sibling atoms and arrays. Missing `©grp` remains an empty Content Group on read even if independent Grouping is present.
