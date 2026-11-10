@@ -3,6 +3,21 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-11-10
+
+### Added
+
+- Optional primary ID3 tag version evidence on `StructuredMetadata`, retaining the existing initializer signature.
+
+### Fixed
+
+- Gate unverified ID3v2.3 semantic date edits as read-only before mutation instead of permitting destructive/coercing writes.
+- Keep native YEAR and DATE independent during Xiph/APE reads, semantic writes, raw deltas, full raw replacement, and Basic/number/advisory PropertyMap replay. Preserve untouched native date spelling, value arrays, malformed text and item types.
+- Verify untouched ID3/MP4 date owners instead of treating the engine DATE projection as a second independently stored field; allow only value-preserving legacy YEAR promotion when creating the first ID3v2 tag.
+- Verify FLAC comments through their active Xiph surface rather than requiring a secondary ID3 comment collection.
+- Route qualified MusicBrainz recording identifiers through the UFID owner codec for set/replace/remove, rather than treating the owner URL as a frame ID.
+- Infer semantic write capability from the primary write family, not every secondary readable tag surface.
+
 ## [0.7.0] - 2026-11-09
 
 ### Added

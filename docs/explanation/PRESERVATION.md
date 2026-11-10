@@ -215,3 +215,8 @@ Preservation and verification happen on a sibling staging copy. The destination 
 - Behavior that the current tests do not exercise merely because the code compiles.
 - That a successful write with warnings is a partial failure; warnings are residual advisories after the requested checks passed.
 - That `replaceBasicMetadata` writes every property present on `BasicMetadata`; the MP4-exclusive fields are read/patch-only at that surface.
+
+
+## Independent date preservation corrections
+
+The working tree verifies unchanged date owners separately from engine aliases. Xiph/APE expose exact native YEAR/DATE, including absence; generic PropertyMap replay preserves their spelling, arrays and native types. Raw deltas change only the requested native date keys, while full raw replacement intentionally replaces the visible map. ID3/MP4 verification compares untouched date frames/atoms and permits only value-preserving legacy YEAR promotion when creating the first rich tag. See [the mapping contract](../reference/MAPPING_SPEC.md#working-tree-conformance-repairs).

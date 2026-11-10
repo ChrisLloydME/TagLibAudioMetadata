@@ -53,17 +53,23 @@ static TagLib::PropertyMap VisibleMetadataProperties(TagLib::File *file)
     };
     auto appendIfWanted = [&](const TagLib::String &key, const TagLib::StringList &values) {
         for (const char *wanted : kNativeOnlyKeys) {
-            if (key == TagLib::String(wanted, TagLib::String::Latin1)) {
-                AppendNativeTextKey(properties, key, values);
+            if (key.upper() == TagLib::String(wanted, TagLib::String::Latin1)) {
+                AppendNativeTextKey(properties, TagLib::String(wanted, TagLib::String::Latin1), values);
                 return;
             }
         }
     };
     if (auto *xiph = NativeXiphComment(file)) {
+        properties.erase("YEAR");
+        properties.erase("DATE");
         for (const auto &[key, values] : xiph->fieldListMap()) {
             appendIfWanted(key, values);
         }
     } else if (auto *ape = NativeAPETag(file)) {
+        // TagLib projects native Year as DATE. Replace that collision with
+        // exact native owners, including absence, rather than synthesize DATE.
+        properties.erase("YEAR");
+        properties.erase("DATE");
         for (const auto &[key, item] : ape->itemListMap()) {
             if (item.type() == TagLib::APE::Item::Text) {
                 appendIfWanted(item.key(), item.values());

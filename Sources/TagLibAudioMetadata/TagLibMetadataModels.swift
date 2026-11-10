@@ -666,6 +666,8 @@ public struct StructuredComment: Identifiable, Hashable, Sendable {
 }
 
 public struct StructuredMetadata: Hashable, Sendable {
+    /// Observed primary tag version. Read-only evidence, not a conversion request.
+    public var id3v2MajorVersion: Int?
     public var properties: [StructuredPropertyEntry]
     public var id3v2Frames: [StructuredID3v2Frame]
     public var mp4Atoms: [StructuredMP4Atom]
@@ -685,6 +687,23 @@ public struct StructuredMetadata: Hashable, Sendable {
         comments: [StructuredComment] = [],
         warnings: [String] = []
     ) {
+        self.init(properties: properties, id3v2Frames: id3v2Frames, mp4Atoms: mp4Atoms,
+                  asfAttributes: asfAttributes, artwork: artwork, lyrics: lyrics,
+                  comments: comments, warnings: warnings, id3v2MajorVersion: nil)
+    }
+
+    public init(
+        properties: [StructuredPropertyEntry] = [],
+        id3v2Frames: [StructuredID3v2Frame] = [],
+        mp4Atoms: [StructuredMP4Atom] = [],
+        asfAttributes: [StructuredASFAttribute] = [],
+        artwork: [StructuredArtwork] = [],
+        lyrics: [StructuredLyrics] = [],
+        comments: [StructuredComment] = [],
+        warnings: [String] = [],
+        id3v2MajorVersion: Int?
+    ) {
+        self.id3v2MajorVersion = id3v2MajorVersion
         self.properties = properties
         self.id3v2Frames = id3v2Frames
         self.mp4Atoms = mp4Atoms

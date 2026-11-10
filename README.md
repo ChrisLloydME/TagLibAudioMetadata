@@ -4,6 +4,8 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
+> **0.7.1 candidate.** This branch contains the coordinated Mapping repair candidate; the maintainer will publish the tag/release manually. The latest published release remains 0.7.0 until that happens.
+
 > **Documentation scope.** These docs describe `0.7.0`, including the package-side `AM-TLAM-MAPPING-2.2` implementation. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
 
 ## At a glance
@@ -31,7 +33,7 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.7.0"
+        from: "0.7.1"
     )
 ]
 ```
