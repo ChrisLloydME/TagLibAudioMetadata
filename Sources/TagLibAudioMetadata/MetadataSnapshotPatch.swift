@@ -466,6 +466,12 @@ extension TagLibMetadataManager {
                 try requireAudioContent(at: mutationURL, matching: expectedAudioContent)
             }
             let before = try readSnapshot(from: mutationURL)
+            if before.structured.id3v2MajorVersion == 3,
+               let field = validatedPatch.fields.keys.first(where: {
+                   [.year, .date, .standaloneDate, .releaseDate, .originalReleaseDate].contains($0)
+               }) {
+                throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+            }
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
             var keysToRemove: Set<String> = []
@@ -756,6 +762,13 @@ extension TagLibMetadataManager {
             if patch.explicitAdvisory != nil {
                 intentionallyChangedKeys.formUnion(["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", "RTNG"])
             }
+            // Engine DATE can project YEAR or standalone DATE depending on tag
+            // contents. Native ownership is verified below, so that projection
+            // must not make an independent DATE removal fail spuriously.
+            if validatedPatch.fields[.year] != nil || validatedPatch.fields[.date] != nil
+                || validatedPatch.fields[.standaloneDate] != nil {
+                intentionallyChangedKeys.insert("DATE")
+            }
             let beforeValues = exactPropertyValues(before.raw)
             let afterValues = exactPropertyValues(afterRaw)
             for key in Set(beforeValues.keys).union(afterValues.keys) {
@@ -765,6 +778,56 @@ extension TagLibMetadataManager {
                 guard !intentionallyChangedKeys.contains(unqualified) else { continue }
                 if beforeValues[key] != afterValues[key] {
                     warnings.append("Unedited PropertyMap field \(key) changed during the patch.")
+                }
+            }
+            // PropertyMap aliases can overlap semantic identities. Exact native
+            // Xiph/APE date values must remain unchanged even when their engine
+            // spelling appears in intentionallyChangedKeys for another field.
+            let nativeTextDateFamily = ["flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex", "ape", "wavpack", "musepack"]
+                .contains(capability(forExtension: ext)?.identifier ?? "")
+            if nativeTextDateFamily {
+                for (field, key) in [(MetadataFieldKey.year, "YEAR"), (.standaloneDate, "DATE"),
+                                     (.releaseDate, "RELEASEDATE"), (.originalReleaseDate, "ORIGINALDATE")] {
+                    let changed = validatedPatch.fields[field] != nil
+                        || (field == .year && validatedPatch.fields[.date] != nil)
+                    guard !changed else { continue }
+                    let old = before.structured.properties.filter { $0.key.uppercased() == key }
+                    let new = afterStructured.properties.filter { $0.key.uppercased() == key }
+                    if old != new { warnings.append("Unedited native date field \(key) changed during the patch.") }
+                }
+            }
+            let dateFields: [MetadataFieldKey] = [.year, .standaloneDate, .releaseDate, .originalReleaseDate]
+            let identifier = capability(forExtension: ext)?.identifier ?? ""
+            for field in dateFields {
+                guard validatedPatch.fields[field] == nil,
+                      !(field == .year && validatedPatch.fields[.date] != nil),
+                      let schema = MetadataFieldRegistry.schema(for: field) else { continue }
+                if identifier == "mp4" {
+                    let keys = Set(schema.targets(for: .mp4).map { target in
+                        target.storage == .mp4Freeform
+                            ? "----:com.apple.iTunes:" + target.nativeIdentity : target.nativeIdentity
+                    })
+                    if before.structured.mp4Atoms.filter({ keys.contains($0.key) })
+                        != afterStructured.mp4Atoms.filter({ keys.contains($0.key) }) {
+                        warnings.append("Unedited native date field \(field.rawValue) changed during the patch.")
+                    }
+                } else if !nativeTextDateFamily,
+                          capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
+                    let targets = schema.targets(for: .id3v23) + schema.targets(for: .id3v24)
+                    func owned(_ frame: StructuredID3v2Frame) -> Bool {
+                        targets.contains { target in
+                            target.storage == .userTextFrame
+                                ? frame.frameID == "TXXX" && frame.description == target.nativeIdentity
+                                : frame.frameID == target.nativeIdentity
+                        }
+                    }
+                    // Creating the first rich tag promotes an existing ID3v1
+                    // YEAR into ID3v2; it is the same semantic native value.
+                    let promotedLegacyYear = field == .year && before.structured.id3v2Frames.isEmpty
+                        && before.raw.properties.first(where: { $0.key == "DATE" })?.values == [afterBasic.year]
+                    if !promotedLegacyYear, before.structured.id3v2Frames.filter(owned) != afterStructured.id3v2Frames.filter(owned) {
+                        warnings.append("Unedited native date field \(field.rawValue) changed during the patch.")
+                    }
                 }
             }
             if patch.artwork == .unchanged, before.structured.artwork != afterStructured.artwork {
@@ -859,7 +922,10 @@ extension TagLibMetadataManager {
                     warnings.append("Patched field \(field.rawValue) differs after save.")
                 }
             }
-            if capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
+            let formats = capability(forExtension: ext)?.metadataFieldFormats ?? []
+            // FLAC may contain secondary ID3 tags, but its semantic comment
+            // writes use Xiph. Verify the active family, not every possible tag.
+            if formats.contains(.id3v2), !nativeTextDateFamily, !formats.contains(.asf) {
                 for field in [MetadataFieldKey.comment, .lyrics] {
                     guard let value = validatedPatch.fields[field] else { continue }
                     let texts = field == .comment ? afterStructured.comments.map(\.text) : afterStructured.lyrics.map(\.text)

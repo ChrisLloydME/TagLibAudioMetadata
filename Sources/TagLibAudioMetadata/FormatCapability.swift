@@ -95,7 +95,16 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
         // native targets. They must not bypass a concrete family's policy.
         // Formats with only a PropertyMap surface retain their existing
         // mapping/allowlist checks (for example tracker title/name fields).
-        let nativeFormats = metadataFieldFormats.subtracting([.tagLibPropertyMap])
+        // A container can carry secondary tags (FLAC/ID3, MP3/APE).
+        // Those readable surfaces do not authorize semantic writes there.
+        let primaryFormat: MetadataFieldFormat? = switch identifier {
+        case "mp4": .mp4
+        case "flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex": .xiph
+        case "ape", "wavpack", "musepack": .ape
+        case "asf": .asf
+        default: metadataFieldFormats.contains(.id3v2) ? .id3v2 : nil
+        }
+        let nativeFormats: Set<MetadataFieldFormat> = primaryFormat.map { [$0] } ?? []
         if !nativeFormats.isEmpty,
            !nativeFormats.contains(where: { schema.capability(for: $0).isWritable }) {
             return .unsupported

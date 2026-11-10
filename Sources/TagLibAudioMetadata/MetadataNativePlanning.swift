@@ -141,6 +141,9 @@ extension TagLibMetadataManager {
                 )
             }
             var removals = Set(schema.propertyMapKeys.map { $0.uppercased() })
+            // DATE is an engine-level YEAR alias, but on Xiph/APE it owns
+            // independent native storage. Never retire another semantic slot.
+            if field == .year || field == .date { removals.remove("DATE") }
             for candidate in schema.nativeTargets where candidate.family == nativeFamily {
                 removals.insert(candidate.nativeIdentity.uppercased())
             }
@@ -194,6 +197,16 @@ extension TagLibMetadataManager {
         }
 
         if formats.contains(.id3v2) {
+            // UFID's native identity is its owner, not a four-byte frame ID.
+            // TagLib's canonical property codec owns that qualified identifier.
+            if schema.writeTarget(for: .id3v24)?.storage == .identifierFrame,
+               let engineKey {
+                return SemanticPropertyStorage(
+                    mechanism: .propertyMap(key: engineKey),
+                    keysToRemove: Set(schema.propertyMapKeys.map { $0.uppercased() }),
+                    nativeAliasesToRemove: []
+                )
+            }
             guard let frame = id3Frame(for: field, schema: schema) else {
                 throw MetadataPatchValidationError.unsupportedFieldForFormat(
                     field: field,

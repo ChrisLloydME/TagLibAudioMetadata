@@ -1162,28 +1162,51 @@ static void RemoveASFCommonAttributeAlias(TagLib::ASF::Tag *tag, const char *pro
     }
 }
 
-// APE maps both native Date and Year to DATE. Replaying an unchanged map must
-// retain the original native spelling and complete date rather than migrate it.
-static void SetPropertiesPreservingNativeDates(TagLib::File *file, const TagLib::PropertyMap &properties)
+// Restore exact native YEAR/DATE after PropertyMap operations. TagLib maps
+// APE Year and Date to one engine key, so the projection cannot own either.
+static void SetExactNativeDateKeys(TagLib::File *file, const TagLib::PropertyMap &dates,
+                                   const char *onlyKey = nullptr)
 {
-    TagLib::APE::Tag *ape = nullptr;
-    if (auto *f = dynamic_cast<TagLib::APE::File *>(file)) ape = f->APETag();
-    if (auto *f = dynamic_cast<TagLib::WavPack::File *>(file)) ape = f->APETag();
-    if (auto *f = dynamic_cast<TagLib::MPC::File *>(file)) ape = f->APETag();
-    TagLib::APE::ItemListMap original;
-    bool preserveDate = false;
-    if (ape) {
-        auto before = file->properties();
-        auto desired = properties;
-        preserveDate = before["DATE"] == desired["DATE"] && before["YEAR"] == desired["YEAR"];
-        if (preserveDate) original = ape->itemListMap();
+    for (const char *key : { "YEAR", "DATE" }) {
+        if (onlyKey && std::strcmp(key, onlyKey) != 0) continue;
+        auto values = dates;
+        const auto list = values[key];
+        if (auto *xiph = NativeXiphComment(file)) {
+            xiph->removeFields(key);
+            for (const auto &value : list) xiph->addField(key, value, false);
+        } else if (auto *ape = NativeAPETag(file)) {
+            ape->removeItem(key);
+            if (!list.isEmpty()) ape->setItem(key, TagLib::APE::Item(key, list));
+        }
     }
-    file->setProperties(properties);
-    if (ape && preserveDate) {
-        ape->removeItem("DATE");
-        ape->removeItem("YEAR");
-        for (const auto &[key, item] : original) {
-            if (key.upper() == "DATE" || key.upper() == "YEAR") ape->setItem(item.key(), item);
+}
+
+static void SetPropertiesPreservingNativeDates(TagLib::File *file, const TagLib::PropertyMap &properties,
+                                               bool exactDateReplacement = false)
+{
+    auto *ape = NativeAPETag(file);
+    auto *xiph = NativeXiphComment(file);
+    if (!ape && !xiph) { file->setProperties(properties); return; }
+    const auto apeItems = ape ? ape->itemListMap() : TagLib::APE::ItemListMap();
+    const auto xiphFields = xiph ? xiph->fieldListMap() : TagLib::Ogg::FieldListMap();
+    auto engineValues = properties;
+    engineValues.erase("YEAR");
+    engineValues.erase("DATE");
+    file->setProperties(engineValues);
+    if (exactDateReplacement) { SetExactNativeDateKeys(file, properties); return; }
+    // Preserve exact spellings, value arrays and native item types, including
+    // absence, when a different semantic field is being edited.
+    if (ape) {
+        ape->removeItem("YEAR"); ape->removeItem("DATE");
+        for (const auto &[key, item] : apeItems) {
+            if (key.upper() == "YEAR" || key.upper() == "DATE") ape->setItem(item.key(), item);
+        }
+    } else {
+        xiph->removeFields("YEAR"); xiph->removeFields("DATE");
+        for (const auto &[key, values] : xiphFields) {
+            if (key.upper() == "YEAR" || key.upper() == "DATE") {
+                for (const auto &value : values) xiph->addField(key, value, false);
+            }
         }
     }
 }
