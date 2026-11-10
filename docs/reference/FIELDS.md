@@ -94,11 +94,11 @@ Column meanings:
 
 | Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `date` | Recording Date (legacy YEAR spelling) | `YEAR` | `DATE`, `YEAR` | `TYER` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | legacy alias |
-| `year` | Year | `YEAR` | `YEAR`, `DATE` | `TYER` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | — |
-| `standaloneDate` | Date | `DATE` | `STANDALONEDATE` | `TDAT` | `TXXX:DATE` | `----:com.apple.iTunes:DATE` | `DATE` | `DATE` | `DATE` | — | — |
-| `releaseDate` | Release Date | `RELEASEDATE` | `RELEASEDATE` | `EXTFRAME:TDRL` | `TDRL` | `----:com.apple.iTunes:RELEASEDATE` | `RELEASEDATE` | `RELEASEDATE` | — | — | — |
-| `originalReleaseDate` | Original Release Date | `ORIGINALDATE` | `ORIGINALDATE`, `ORIGINAL YEAR` | `TORY (year only) (engine)` | `TDOR` | `----:com.apple.iTunes:ORIGINALDATE` | `ORIGINALDATE` | `ORIGINALDATE` | `WM/OriginalReleaseYear` | — | — |
+| `date` | Recording Date (legacy YEAR spelling) | `YEAR` | `DATE`, `YEAR` | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | legacy alias |
+| `year` | Year | `YEAR` | `YEAR`, `DATE` | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | — |
+| `standaloneDate` | Date | `DATE` | `STANDALONEDATE` | `TDAT (read)` | `TXXX:DATE` | `----:com.apple.iTunes:DATE` | `DATE` | `DATE` | `DATE` | — | — |
+| `releaseDate` | Release Date | `RELEASEDATE` | `RELEASEDATE` | `EXTFRAME:TDRL (read)` | `TDRL` | `----:com.apple.iTunes:RELEASEDATE` | `RELEASEDATE` | `RELEASEDATE` | — | — | — |
+| `originalReleaseDate` | Original Release Date | `ORIGINALDATE` | `ORIGINALDATE`, `ORIGINAL YEAR` | `TORY (read)` | `TDOR` | `----:com.apple.iTunes:ORIGINALDATE` | `ORIGINALDATE` | `ORIGINALDATE` | `WM/OriginalReleaseYear` | — | — |
 
 ### People
 

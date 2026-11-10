@@ -352,9 +352,17 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
         @"properties": propertiesOut,
         @"id3v2Frames": rawFramesOut,
     };
+    TagLib::ID3v2::Tag *primaryID3 = nullptr;
+    if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(baseFile)) primaryID3 = mpeg->ID3v2Tag(false);
+    else if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(baseFile)) primaryID3 = wav->ID3v2Tag();
+    else if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(baseFile)) primaryID3 = aiff->tag();
+    else if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(baseFile)) primaryID3 = tta->ID3v2Tag(false);
+    else if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(baseFile)) primaryID3 = dsf->tag();
+    else if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(baseFile)) primaryID3 = dff->ID3v2Tag(false);
     NSDictionary<NSString *, NSObject *> *structured = @{
         @"properties": propertiesOut,
         @"id3v2Frames": structuredFramesOut,
+        @"id3v2MajorVersion": primaryID3 && primaryID3->header() ? @(primaryID3->header()->majorVersion()) : @0,
         @"mp4Atoms": mp4AtomsOut,
         @"asfAttributes": asfAttributesOut,
         @"artwork": artworkOut,

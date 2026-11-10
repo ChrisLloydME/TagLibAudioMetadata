@@ -2,24 +2,24 @@
 
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
 
-The current documentation describes `0.7.0`, including the package-side `AM-TLAM-MAPPING-2.2` implementation. Results below are the latest observed Debug and Release runs after repairing the field write-capability checks.
+The current documentation describes the working tree, including unreleased native Mapping consistency repairs on top of `0.7.0`. The latest published package remains `0.7.0`. Results below are the latest observed Debug and Release runs after the native Mapping repairs (2026-11-10).
 
-## Latest observed run (2026-11-09)
+## Latest observed run (2026-11-10)
 
 | Field | Value |
 | --- | --- |
-| Source revision | `6020eeb`, merged unchanged into `main` as `bca0463`; release preparation changes documentation only |
-| Branch | `main` |
+| Source revision | `codex/mapping-conformance-repairs`, based on `0f89fbe`; native Mapping/read/write/verification repairs and regression matrix |
+| Branch | `codex/mapping-conformance-repairs` |
 | Host | macOS 27.2, arm64 |
 | Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
 | Debug command | `swift test --disable-sandbox --disable-keychain --disable-netrc` with workspace-local Clang/Swift module caches |
 | Release command | `swift test -c release --disable-sandbox --disable-keychain --disable-netrc` with the same caches |
 | Debug XCTest | 158 executed: 156 passed, 2 opt-in skips, 0 failures |
 | Release XCTest | 158 executed: 156 passed, 2 opt-in skips, 0 failures |
-| Debug Swift Testing | 108 tests in 24 suites: all passed |
-| Release Swift Testing | 108 tests in 24 suites: all passed |
+| Debug Swift Testing | 112 tests in 25 suites: all passed |
+| Release Swift Testing | 112 tests in 25 suites: all passed |
 | Environment failure | None in these runs, executed with expanded filesystem access. The privilege rejection test passed unchanged. |
-| Production source changes | Write-capability queries respect schema-level withholding and concrete native-family write policy; PropertyMap-only allowlist behavior is preserved. |
+| Production source changes | Native YEAR/DATE ownership, exact raw replay, untouched date verification, active-family comments, qualified UFID, primary-family capabilities, and version-aware v2.3 read-only gates. |
 | Strict build | `swift build -Xswiftc -warnings-as-errors -Xcc -Werror` passed in this pass. |
 | Documentation check | `python3 scripts/check-docs.py` passed for 45 Markdown files. |
 | Generated checks | `generate-api-reference.py --check`, `generate-field-schema.py --check`, `generate-format-matrix.py --check`, and `generate-mapping-matrix.py --check` passed. |
@@ -33,7 +33,7 @@ Earlier restricted runs failed the privilege test's own precondition because the
 
 [CI run 42604530085](https://github.com/ChrisLloydME/TagLibAudioMetadata/actions/runs/42604530085) passed on merged revision `bca046343309fdc9f5e7618900a1eb5b67bae418`. All nine executed jobs succeeded: strict build/tests/consumers/link audit, Release tests, AddressSanitizer, ThreadSanitizer, and the five minimum-platform builds (macOS 13 arm64/x86_64, iOS 16 arm64, iOS 16 Simulator arm64/x86_64). The `remote-tag-consumer` job was skipped because this was a branch push; it runs after publishing the tag.
 
-The release-preparation diff contains documentation only and retains the same production source, tests, manifest, and binary dependency. The tag-triggered run remains a separate release gate.
+This hosted run is historical evidence for 0.7.0, not for the current repair branch. Current repairs change production code and have local strict/Debug/Release/consumer evidence above; a new hosted run is separate evidence.
 
 ## Remaining verification limits
 
@@ -56,6 +56,7 @@ Do not treat the local or hosted runs above as evidence for:
 | MP4-exclusive Basic fields | Readable through `BasicMetadata`, but `replaceBasicMetadata`/`updateBasicMetadata` do not write them; use `MetadataPatch` or structured writes. |
 | Number text | Exact MP4 text padding has no standard portable atom. The formatted-number API normalizes to the native pair and never creates private atoms. |
 | Legacy totals | A sole valid orphan total is recovered; contradictory aliases block typed pair edits as `.ambiguous`. ASF number-total-only layouts remain unsupported. |
+| ID3v2.3 dates | Exposed read-only until a verified independent native codec exists. `id3v2MajorVersion` identifies the concrete tag; typed and Basic date edits reject before mutation. Legacy engine projections are not verified native date reads. |
 | Date coverage | YEAR/DATE/RELEASEDATE/ORIGINALDATE independence is verified for MP3, MP4, FLAC, and Ogg fixtures. RIFF INFO has no native DATE key; WAV writes DATE through ID3v2. AIFF/Opus/AAC independent-date fixtures are still missing. |
 | Transaction boundary | Coordination remains process-local; an external writer can race the final identity check. |
 | Structured comments/lyrics | Replace-all is supported on ID3-backed formats and TrueAudio; MP4 ignores structured comments/lyrics; APE-family and FLAC/Ogg reject them. |

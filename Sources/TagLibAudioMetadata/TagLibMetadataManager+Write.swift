@@ -943,6 +943,16 @@ extension TagLibMetadataManager {
         let exactVerification = verification
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let current = try readBasicMetadataRawAndStructured(from: mutationURL)
+            if current.structured.id3v2MajorVersion == 3 {
+                let dates: [(MetadataFieldKey, String, String)] = [
+                    (.year, meta.year, current.metadata.year), (.standaloneDate, meta.date, current.metadata.date),
+                    (.releaseDate, meta.releaseDate, current.metadata.releaseDate),
+                    (.originalReleaseDate, meta.originalReleaseDate, current.metadata.originalReleaseDate)
+                ]
+                if let changed = dates.first(where: { $0.1 != $0.2 }) {
+                    throw MetadataPatchValidationError.unsupportedFieldForFormat(field: changed.0, format: "ID3v2.3 independent dates (read-only)")
+                }
+            }
             let numberingIdentifier = capability(forExtension: ext)?.identifier ?? ext
             let isID3Primary = ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"]
                 .contains(numberingIdentifier)

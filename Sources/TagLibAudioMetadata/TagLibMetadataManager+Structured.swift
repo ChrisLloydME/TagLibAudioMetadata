@@ -457,7 +457,8 @@ extension TagLibMetadataManager {
             artwork: artwork,
             lyrics: lyrics,
             comments: comments,
-            warnings: warnings
+            warnings: warnings,
+            id3v2MajorVersion: (dict["id3v2MajorVersion"] as? NSNumber).flatMap { $0.intValue > 0 ? $0.intValue : nil }
         )
     }
 

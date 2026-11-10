@@ -2306,6 +2306,8 @@ struct StructuredMetadata: Hashable, Sendable
 ### Properties
 
 ```swift
+/// Observed primary tag version. Read-only evidence, not a conversion request.
+var id3v2MajorVersion: Int?
 var properties: [StructuredPropertyEntry]
 var id3v2Frames: [StructuredID3v2Frame]
 var mp4Atoms: [StructuredMP4Atom]
@@ -2328,6 +2330,20 @@ init(
     lyrics: [StructuredLyrics] = [],
     comments: [StructuredComment] = [],
     warnings: [String] = []
+)
+```
+
+```swift
+init(
+    properties: [StructuredPropertyEntry] = [],
+    id3v2Frames: [StructuredID3v2Frame] = [],
+    mp4Atoms: [StructuredMP4Atom] = [],
+    asfAttributes: [StructuredASFAttribute] = [],
+    artwork: [StructuredArtwork] = [],
+    lyrics: [StructuredLyrics] = [],
+    comments: [StructuredComment] = [],
+    warnings: [String] = [],
+    id3v2MajorVersion: Int?
 )
 ```
 
@@ -2394,7 +2410,7 @@ init(
 
 ## `TagLibManagerError`
 
-Source: [TagLibMetadataModels.swift:699](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L699)
+Source: [TagLibMetadataModels.swift:718](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L718)
 
 ```swift
 enum TagLibManagerError: Error, Sendable, LocalizedError

@@ -317,6 +317,27 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         }
     }
     SetPropertiesPreservingNativeDates(file, properties);
+    if (NativeXiphComment(file) || NativeAPETag(file)) {
+        auto dates = VisibleMetadataProperties(file);
+        NSMutableSet<NSString *> *changedDates = [NSMutableSet set];
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *upper = key.uppercaseString;
+            if ([upper isEqualToString:@"YEAR"] || [upper isEqualToString:@"DATE"]) {
+                dates.erase(NSStringToTagString(upper));
+                [changedDates addObject:upper];
+            }
+        }
+        for (NSString *key in valuesToSet ?: @{}) {
+            NSString *upper = key.uppercaseString;
+            if ([upper isEqualToString:@"YEAR"] || [upper isEqualToString:@"DATE"]) {
+                TagLib::StringList values;
+                for (NSString *value in valuesToSet[key]) values.append(NSStringToTagString(value));
+                dates.replace(NSStringToTagString(upper), values);
+                [changedDates addObject:upper];
+            }
+        }
+        for (NSString *key in changedDates) SetExactNativeDateKeys(file, dates, key.UTF8String);
+    }
     if (mp4) {
         NSMutableSet<NSString *> *descriptions = [NSMutableSet set];
         for (const auto &[key, item] : originalMP4Items) {
