@@ -169,7 +169,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - That `replaceBasicMetadata` writes every property present on `BasicMetadata`.
 
 
-## Unreleased native Mapping consistency repairs
+## Migrating from 0.7.0 to the 0.7.1 candidate
 
 The repair branch corrects Xiph/APE YEAR/DATE ownership in both native and visible-map paths, verifies date siblings natively, and fixes active-family comment verification and qualified UFID writes. No date companions or automatic user-file migration are required.
 
