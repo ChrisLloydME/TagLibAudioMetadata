@@ -2,6 +2,8 @@
 
 This guide explains how the package is tested, how to run the checks, and what the results do and do not establish. It is not a claim that the current working tree passes. The latest observed result and its environment are in [Status](STATUS.md).
 
+See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md) for the independent lifecycle matrix, mandatory mixed-framework gate and remaining coverage limits. The current test-system branch exposes four real mapping failures; older passing counts do not waive them.
+
 ## Test layers
 
 The single SwiftPM test target is organized physically by layer:
