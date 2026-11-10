@@ -1,5 +1,9 @@
 # Current validation status
 
+## Test-system audit — 2026-11-10
+
+The `codex/package-test-system-upgrade` branch adds independent MP4 lifecycle checks and exposes four mandatory failures (Encoded By removal, Encoder Settings verification, Movement Number and Movement Count native ownership). Debug and Release reproduce them. See [the audit record](../records/remediation/REM-2026-11-10-package-test-system.md). This branch is not release-ready despite earlier passing suite totals.
+
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
 
 The current documentation describes the working tree, including the `0.7.1` native Mapping repair candidate on top of `0.7.0`. The latest published package remains `0.7.0`. Results below are the latest observed Debug and Release runs after the native Mapping repairs (2026-11-10).
