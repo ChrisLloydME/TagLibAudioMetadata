@@ -375,7 +375,7 @@ extension TagLibMetadataManager {
         let publisher = mp4Text("\u{00A9}pub") ?? meta.label
         let contentGroup = isASF
             ? asfText("WM/ContentGroupDescription")
-            : (mp4Text("\u{00A9}grp") ?? meta.grouping)
+            : (mp4Text("\u{00A9}grp") ?? (isMP4 ? nil : meta.grouping))
         let grouping = mp4Text("----:com.apple.iTunes:GROUPING") ?? (isMP4 || isASF ? nil : meta.grouping)
         let asfArtists = isASF ? asfText("WM/ARTISTS") : nil
         let work = mp4Text("\u{00A9}wrk") ?? meta.work

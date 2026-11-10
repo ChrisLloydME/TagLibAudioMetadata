@@ -3,6 +3,13 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Permit MP4 Content Group-only set/replace/remove by recognizing the engine's GROUPING projection of ©grp, while verifying untouched native Grouping and Work atoms independently.
+- Keep absent MP4 Content Group empty instead of falling back to an independent Grouping value during reads and removal verification.
+
 ## [0.7.1] - 2026-11-10
 
 ### Added

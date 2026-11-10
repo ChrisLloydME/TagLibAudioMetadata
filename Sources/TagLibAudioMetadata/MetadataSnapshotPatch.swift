@@ -769,6 +769,14 @@ extension TagLibMetadataManager {
                 || validatedPatch.fields[.standaloneDate] != nil {
                 intentionallyChangedKeys.insert("DATE")
             }
+            // TagLib projects MP4 ©grp as PropertyMap GROUPING, although
+            // semantic GROUPING belongs to the independent iTunes freeform.
+            // Allow this engine projection only for a Content Group edit;
+            // exact native siblings are still checked below.
+            let isMP4 = capability(forExtension: ext)?.identifier == "mp4"
+            if isMP4, validatedPatch.fields[.contentGroup] != nil {
+                intentionallyChangedKeys.insert("GROUPING")
+            }
             let beforeValues = exactPropertyValues(before.raw)
             let afterValues = exactPropertyValues(afterRaw)
             for key in Set(beforeValues.keys).union(afterValues.keys) {
@@ -798,7 +806,8 @@ extension TagLibMetadataManager {
             }
             let dateFields: [MetadataFieldKey] = [.year, .standaloneDate, .releaseDate, .originalReleaseDate]
             let identifier = capability(forExtension: ext)?.identifier ?? ""
-            for field in dateFields {
+            let independentNativeFields = dateFields + (identifier == "mp4" ? [.contentGroup, .grouping, .work] : [])
+            for field in independentNativeFields {
                 guard validatedPatch.fields[field] == nil,
                       !(field == .year && validatedPatch.fields[.date] != nil),
                       let schema = MetadataFieldRegistry.schema(for: field) else { continue }
@@ -809,7 +818,8 @@ extension TagLibMetadataManager {
                     })
                     if before.structured.mp4Atoms.filter({ keys.contains($0.key) })
                         != afterStructured.mp4Atoms.filter({ keys.contains($0.key) }) {
-                        warnings.append("Unedited native date field \(field.rawValue) changed during the patch.")
+                        let kind = dateFields.contains(field) ? "date field" : "field"
+                        warnings.append("Unedited native \(kind) \(field.rawValue) changed during the patch.")
                     }
                 } else if !nativeTextDateFamily,
                           capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
