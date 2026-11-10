@@ -4,6 +4,8 @@ The package consumes an immutable, checksum-pinned TagLib 2.3.1 dynamic XCFramew
 
 This page applies to the current working tree and tagged releases alike. Version `0.7.0` includes mapping contract 2.2 behavior. Use the [migration guide](MIGRATION.md) when comparing behavior across releases.
 
+The repair branch targets `0.7.1`; its publication is maintainer-owned. The example below resolves only after that tag is published. Use a local override for prepublication integration tests.
+
 ## Add the package
 
 Depend on the Swift facade for normal application code. This version range selects the newest compatible tagged release:
@@ -11,7 +13,7 @@ Depend on the Swift facade for normal application code. This version range selec
 ```swift
 .package(
     url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-    from: "0.7.0"
+    from: "0.7.1"
 )
 
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")

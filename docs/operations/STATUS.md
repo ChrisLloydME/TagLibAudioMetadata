@@ -2,7 +2,7 @@
 
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
 
-The current documentation describes the working tree, including unreleased native Mapping consistency repairs on top of `0.7.0`. The latest published package remains `0.7.0`. Results below are the latest observed Debug and Release runs after the native Mapping repairs (2026-11-10).
+The current documentation describes the working tree, including the `0.7.1` native Mapping repair candidate on top of `0.7.0`. The latest published package remains `0.7.0`. Results below are the latest observed Debug and Release runs after the native Mapping repairs (2026-11-10).
 
 ## Latest observed run (2026-11-10)
 
@@ -86,3 +86,10 @@ These are historical snapshots at the revisions shown. They are not current merg
 ## Updating this page
 
 Update this page only when a validation campaign changes the latest known state. Include the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not turn it into a log; record a campaign in `docs/records/` and summarize the current state here.
+
+
+## 0.7.1 candidate boundary
+
+The source repair is committed as `284dd89` on `codex/mapping-conformance-repairs`; the following documentation/version-preparation commit does not change production code. No tag or GitHub Release was created. The maintainer publishes 0.7.1 manually after local-override acceptance. AudioMator's normal released-tag resolution remains a postpublication step, not an already-passing remote 0.7.1 consumer result.
+
+Local package validation: strict build, Debug and Release each pass 158 XCTest declarations (156 passed, 2 existing opt-in skips), plus 112 Swift Testing tests in 25 suites. Both facade and low-level consumers pass. The earlier local ASan run passed, but version/capability work followed it; do not treat it as final-revision sanitizer evidence. Hosted CI on the repair commit provides separate current-revision sanitizer/platform evidence when complete.
