@@ -2,6 +2,8 @@
 
 This guide explains how the package is tested, how to run the checks, and what the results do and do not establish. It is not a claim that the current working tree passes. The latest observed result and its environment are in [Status](STATUS.md).
 
+See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md) for the independent lifecycle matrix, mandatory mixed-framework gate and remaining coverage limits. The audit regressions are mandatory normal tests. Current repaired-source results and historical failures are distinguished in the status page; older passing counts never waive a current failure.
+
 ## Test layers
 
 The single SwiftPM test target is organized physically by layer:
@@ -16,7 +18,13 @@ The single SwiftPM test target is organized physically by layer:
 | `Performance/` | Opt-in, non-gating throughput experiments. |
 | Root-level tests | Public Objective-C selectors, Swift nested types, deprecated function references, and no unsolicited console output. |
 
-The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision. The 2.2 mapping work adds `LegacyNumberingRecoveryTests` and `MP4ExclusiveFieldTests`, and extends the capability, date, advisory, and preservation fixtures. The latest observed counts and the environment-dependent privilege failure are in [Status](STATUS.md).
+The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
+
+The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`) requires named matrix/oracle execution evidence and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md). The 2.2 mapping work adds `LegacyNumberingRecoveryTests` and `MP4ExclusiveFieldTests`, and extends the capability, date, advisory, and preservation fixtures. The latest observed counts and the environment-dependent privilege failure are in [Status](STATUS.md).
+
+## Strict test compilation
+
+The full Debug/Release gates pass `-Xswiftc -warnings-as-errors -Xcc -Werror` to compilation. Only the test target demotes `DeprecatedDeclaration` because its source-compatibility checks deliberately reference deprecated APIs; those warnings remain visible. Production strict compilation has no exception.
 
 ## Standard commands
 

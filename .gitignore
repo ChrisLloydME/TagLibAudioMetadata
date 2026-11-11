@@ -19,3 +19,5 @@ xcuserdata/
 
 # Local-only working material (audit inputs, scratch notes)
 .local/
+
+__pycache__/

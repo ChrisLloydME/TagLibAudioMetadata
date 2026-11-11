@@ -225,7 +225,7 @@ struct ReviewMetadataIntegrityTests {
                 let metadata = TagLibAudioMetadata()
                 configure(metadata)
                 do {
-                    try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
+                    _ = try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
                     Issue.record("Expected null validation failure")
                 } catch let error as TagLibManagerError {
                     #expect(error.underlyingError?.domain == "TagLibMetadataExtractor")

@@ -14,14 +14,14 @@ struct MappingIndependenceRepairTests {
 
     @Test func dateEditsAndRemovalsNeverChangeSiblingFields() throws {
         for ext in ["mp3", "aac", "wav", "flac", "ogg", "ape", "wv", "m4a"] {
-            let url = try fixture(ext)
-            defer { try? FileManager.default.removeItem(at: url) }
             let seed: [MetadataFieldKey: MetadataPatchValue] = [
                 .year: .text("2004"), .standaloneDate: .text("2008-03-04"),
                 .releaseDate: .text("2017-06-09"), .originalReleaseDate: .text("1999-11-12")
             ]
             for field in seed.keys {
                 for value in [MetadataPatchValue.text("2020-02-03"), .remove] {
+                    let url = try fixture(ext)
+                    defer { try? FileManager.default.removeItem(at: url) }
                     do { try TagLibMetadataManager.applyMetadataPatch(.init(fields: seed), to: url) }
                     catch { Issue.record("Seed \(ext) / \(field): \(error)"); continue }
                     let before = try TagLibMetadataManager.readSnapshot(from: url).basic

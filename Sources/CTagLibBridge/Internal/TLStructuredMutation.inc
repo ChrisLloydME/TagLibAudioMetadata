@@ -297,6 +297,12 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             (entry[@"remove"] && !StructuredOptionalValueIsBooleanLike(entry, @"remove"))) {
             return SetStructuredPayloadValidationError(error, @"MP4 atom fields have invalid value types");
         }
+        if (([entry[@"key"] isEqualToString:@"©mvi"] || [entry[@"key"] isEqualToString:@"©mvc"]) && ![entry[@"remove"] boolValue]) {
+            const bool numeric = [type isEqualToString:@"int"] || [type isEqualToString:@"uint"] || [type isEqualToString:@"longLong"];
+            const long long value = [entry[@"value"] longLongValue];
+            if (!numeric || !entry[@"value"] || value < 0 || value > std::numeric_limits<short>::max())
+                return SetStructuredPayloadValidationError(error, @"MP4 movement integers must be between 0 and 32767");
+        }
         if (([type isEqualToString:@"int"] && !StructuredOptionalValueFitsInt(entry, @"value")) ||
             ([type isEqualToString:@"uint"] && !StructuredOptionalValueFitsUInt32(entry, @"value")) ||
             ([type isEqualToString:@"byte"] && !StructuredOptionalValueFitsUInt8(entry, @"value")) ||
@@ -966,6 +972,27 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Artwork(tag, artwork);
         if (!file.save()) {
             return SetStructuredPayloadValidationError(error, @"TagLib failed to save structured TrueAudio metadata");
+        }
+        return YES;
+    }
+
+    if (format == TLTagFileFormatDSF || format == TLTagFileFormatDSDIFF) {
+        // DSD tags expose native ID3 frames. Keep collection replacement for
+        // comments/lyrics unsupported, but permit exact text-frame replay.
+        if (mp4Atoms || asfAttributes || lyrics || comments) {
+            return SetStructuredPayloadValidationError(error, @"DSD supports ID3 frames, PropertyMap values and artwork only");
+        }
+        TagLib::FileRef reference(filePath, true, TagLib::AudioProperties::Fast);
+        auto *file = reference.file();
+        if (!file || !file->isValid()) {
+            return SetStructuredPayloadValidationError(error, @"Unable to open DSD file for structured metadata editing");
+        }
+        if (propertyValues) file->setProperties(MergedRawPropertyMapValues(file->properties(), propertyValues));
+        auto *tag = NativeID3v2TagForWrite(file);
+        UpsertID3v2StructuredFrames(tag, frames);
+        ReplaceID3v2Artwork(tag, artwork);
+        if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
+            return SetStructuredPayloadValidationError(error, @"TagLib failed to save structured DSD metadata");
         }
         return YES;
     }
