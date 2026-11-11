@@ -18,6 +18,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Add 8,282 independent native-state cases across MP4, ASF and thirteen additional containers, covering sparse dates, all MP4 fields together, adversarial date arrays and eleven explicitly inventoried public write families.
 - Require new matrices and reviewed declaration floors in the mixed-framework gate; add tampering regressions without relaxing existing failures or skips.
 
+### Documentation
+
+- Separate the published `0.7.2` release boundary from the unreleased branch across the README, hub, guides, reference, operations, and records index.
+- Document native-owner preservation across PropertyMap replay and low-level reads, MP4 Comment/Lyrics native routing, ASF custom-field ownership, and the current sparse-state gate evidence.
+
 ## [0.7.2] - 2026-11-11
 
 ### Fixed

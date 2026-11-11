@@ -46,3 +46,7 @@ The additional ASF custom-field route has independent set/replace/remove tests a
 No commit, tag, push, TagLib XCFramework rebuild or publication was performed. The accepted candidate is a dirty working tree on the named branch; the published 0.7.2 tag does not contain these repairs.
 
 The final runs include independent seed preconditions: each date mask's actual native presence and literal values are checked before mutation, and the all-owner MP4 matrix decodes every seeded sibling's value. Incorrect/missing fixture setup cannot turn multiple declared states into the same passing input. `summary.json` records actual/minimum named case counts and suite totals; the nine new state matrices sum to 8,282 observed executions per configuration.
+
+## Addendum — repository state after validation
+
+This record was written while the validated evidence was still an uncommitted working tree. The repair branch has since been committed, with `52dd4f2` recording this document and the preceding commits carrying the production and test changes, and pushed to `origin/metadataStateCoverageRepairs`. No version bump, tag, release, binary rebuild, or publication was performed. The phrase "dirty working tree" above describes the validation-time state, not the current branch state; the evidence and limits in this record are unchanged.
