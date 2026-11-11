@@ -48,7 +48,11 @@ let package = Package(
             resources: [
                 .process("Audio"),
                 .process("Artwork"),
-            ]
+            ],
+            // Source compatibility tests deliberately reference deprecated API.
+            // Keep those diagnostics visible while all other warnings remain
+            // errors under validate-tests.sh. Production gets no exception.
+            swiftSettings: [.unsafeFlags(["-Wwarning", "DeprecatedDeclaration"])]
         ),
     ],
     cxxLanguageStandard: .gnucxx20
