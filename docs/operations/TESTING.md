@@ -20,7 +20,9 @@ The single SwiftPM test target is organized physically by layer:
 
 The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
 
-The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`) requires named matrix/oracle execution evidence and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate. The latest recorded acceptance on the repair line included in `0.7.2` is 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites; the gate policy has 22 Python regressions. No full accepted gate was rerun on the final release commit. Do not compare counts across revisions without checking scope and opt-ins. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md) and [Status](STATUS.md).
+The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`) requires named matrix/oracle execution evidence and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate.
+
+The current branch gate requires the sparse-state matrices and 8,282 additional parameterized cases in addition to the previous lifecycle evidence. Its latest observed result is 158 XCTest declarations (156 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, and 24 policy regressions; both Debug and Release gates were accepted. The latest observed result and environment belong to [Status](STATUS.md); the required inventory belongs to [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance). The `0.7.2` release line's 165 Swift Testing declarations in 36 suites and 22 policy regressions are historical and do not certify this branch. Do not compare counts across revisions without checking scope and opt-ins.
 
 ## Strict test compilation
 
@@ -144,6 +146,8 @@ Some integration tests use independent parsers or external tools rather than the
 - an APEv2 item parser and Xiph comment readers for FLAC and Ogg packet payloads;
 - a bounded ASF header/attribute parser;
 - FLAC metadata-block and Ogg packet comparison that excludes padding but retains duplicates, whitespace and complete audio bytes;
+- sparse-state matrices that verify each seeded native date presence and literal value before mutation, then compare unchanged owners, arrays, duplicates, whitespace and audio after every applicable write surface;
+- an independent ASF Content Description reader with literal wire vectors and malformed-length bounds;
 - generated AIFF and corpus fixtures.
 
 These oracles are intentionally bounded. They do not establish universal codec conformance, every native metadata variant, or correctness of the precompiled TagLib binary. FFprobe/FFmpeg were used during fixture acquisition and historical verification campaigns, but the current suite does not invoke them; the opt-in corpus generator requires FFmpeg.
@@ -194,7 +198,3 @@ Record the revision, environment, command, opt-in state, counts, skips, and any 
 ## Numbering acceptance regressions
 
 `IndependentAcceptanceProbes` retains the eight originally failing acceptance cases. `NumberingRepairRegressionTests` adds cross-format native cleanup, both private namespaces and foreign lookalikes, explicit legacy resolution, native absence/removal, malformed multi-value rejection, empty-group byte preservation, MP4 bounds and formatted orphan-total preservation. Repairs and exact observed results are in the [numbering acceptance repair record](../records/remediation/REM-2026-11-09-numbering-acceptance-repairs.md). These suites use temporary fixture copies; they do not operate on a user library.
-
-## Unreleased sparse-state gate
-
-The state coverage and API inventory in [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance) are mandatory. The gate requires the complete 8,282 new state cases in addition to the prior matrices and at least 158 XCTest / 179 Swift Testing declarations. `python3 -m unittest discover -s scripts/tests` tests count/evidence tampering. See [current repair evidence](../records/remediation/REM-2026-11-11-state-coverage.md) for actual results; 0.7.2's historical counts do not certify this candidate.

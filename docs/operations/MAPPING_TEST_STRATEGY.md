@@ -2,7 +2,7 @@
 
 Mapping conformance requires executable field-operation evidence. Registry membership, documentation agreement and a successful aggregate test count do not establish independent persistence.
 
-For the repair line included in `0.7.2`, the recorded full gate result is 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites, with both Debug and Release accepted under expanded filesystem access. No full accepted gate was rerun on the final release commit. The gate-policy suite has 22 Python regressions. The environment-dependent privilege test remains mandatory; the latest observed state is in [Status](STATUS.md).
+The current branch gate requires the sparse-state matrices below, all prior matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions. Its latest observed run is in [Status](STATUS.md) and the [state-coverage record](../records/remediation/REM-2026-11-11-state-coverage.md). For historical comparison, the repair line included in `0.7.2` recorded 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites, with both Debug and Release accepted under expanded filesystem access; that line had 22 policy regressions. Those release-line counts do not certify the current branch. No full accepted gate was rerun on the final `0.7.2` release commit. The environment-dependent privilege test remains mandatory.
 
 ## Required layers
 
@@ -34,7 +34,7 @@ The MP4 pair matrix checks 32767/32768/65535 across semantic, Basic, structured 
 
 ## Known limits
 
-These are explicit field subsets, not the complete field × format × tag-version cross-product. The systematic lifecycle evidence is 86 MP4 fields, 30 FLAC fields, 30 APE/Xiph fields per tested container, 22 ID3v2.4 fields per tested container and seven ASF attributes. Raw whole-map replacement, all multi-value/domain-grammar combinations, uncommon variants and every native binary structure are not universally covered. Ogg packet probes do not certify CRC/stream synchronization or codec validity. ID3 frame probes intentionally reject unsupported flags/encodings. Generic textual samples test storage; they do not define UUID/ISRC/ReplayGain validation policy. Minimum-platform, sanitizer and device jobs are separate evidence.
+These are explicit field subsets, not the complete field × format × tag-version cross-product. The systematic lifecycle and sparse-state evidence covers 88 MP4 fields, 30 FLAC fields, 30 APE/Xiph fields per tested container, 22 ID3v2.4 fields per tested container and seven ASF attributes. Raw whole-map replacement, all multi-value/domain-grammar combinations, uncommon variants and every native binary structure are not universally covered. Ogg packet probes do not certify CRC/stream synchronization or codec validity. ID3 frame probes intentionally reject unsupported flags/encodings. Generic textual samples test storage; they do not define UUID/ISRC/ReplayGain validation policy. Minimum-platform, sanitizer and device jobs are separate evidence.
 
 ## Mixed-framework gate
 

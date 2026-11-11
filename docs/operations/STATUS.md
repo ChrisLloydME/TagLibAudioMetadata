@@ -6,18 +6,28 @@ This page is a snapshot of the latest known validation state for the current sou
 
 | Item | State |
 | --- | --- |
-| Current release | `0.7.2`, declared 2026-11-11 |
-| Source | `0.7.2` release commit |
-| Later tag | None |
-| Documentation scope | Current pages describe `0.7.2`; release-specific behavior is called out in [Migration](MIGRATION.md) |
+| Latest published release and tag | `0.7.2`, declared 2026-11-11 |
+| Current source branch | `codex/metadata-state-coverage-repairs`, based on `0.7.2` |
+| Current branch release status | Unreleased; no version bump, tag, binary rebuild, or publication |
+| Documentation scope | Current source tree; post-`0.7.2` behavior is identified in [Migration](MIGRATION.md) |
 
-Version `0.7.2` includes mapping contract 2.2, the `0.7.1` date/ownership corrections, and the audit-integrity, native-mapping, package test-system and MP4 Content Group repairs. The release notes are in the [changelog](../../CHANGELOG.md).
+Version `0.7.2` includes mapping contract 2.2, the `0.7.1` date/ownership corrections, and the audit-integrity, native-mapping, package test-system and MP4 Content Group repairs. Its release notes are in the [changelog](../../CHANGELOG.md). The current branch does not change the published binary or the mapping contract ID.
 
-## Unreleased working-tree candidate
+## Current branch candidate
 
-`codex/metadata-state-coverage-repairs` is based on the 0.7.2 release and repairs state/API gaps discovered during application adoption. It is not included in the published 0.7.2 tag. The expanded gate requires 8,282 additional state cases, all previous matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions. Both final Debug and Release gates passed: 158 XCTest (156 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, zero failures; both independent consumers and all 24 policy tests passed. See [the repair record](../records/remediation/REM-2026-11-11-state-coverage.md) for current-worktree execution evidence. Historical release-line results below do not certify this candidate.
+`codex/metadata-state-coverage-repairs` repairs native-owner state loss found during application adoption. It is not included in the published `0.7.2` tag and is not a release. The expanded gate requires the new state matrices, all previous matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions.
 
-## Latest observed release-line package gate
+| Check | Debug | Release |
+| --- | --- | --- |
+| Gate result | `accepted: true` | `accepted: true` |
+| XCTest | 158 executed; 156 passed, two original opt-in skips, 0 failures | Same |
+| Swift Testing | 179 declarations in 41 suites passed | Same |
+| State matrices | 8,282 additional parameterized cases | Same |
+| Gate policy | 24 Python regressions passed | Same |
+
+Both gates compiled production and tests with Swift/C warnings as errors, and the mandatory privilege test passed with expanded filesystem access. Both independent consumers passed in separate runs, and all 24 policy tests passed. The current branch evidence is recorded in [the state-coverage repair record](../records/remediation/REM-2026-11-11-state-coverage.md). Historical release-line results below do not certify this candidate.
+
+## Latest observed 0.7.2 release-line package gate
 
 The recorded repair campaign examined the repaired working tree based on `c3f1481`; those repairs are included in the `0.7.2` release. The campaign used expanded filesystem access for module caches and the privilege-test prerequisites. Both configurations were accepted:
 
@@ -52,9 +62,16 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 - The test system adds independent MP4, FLAC, APE-family, Ogg, ASF and ID3-container lifecycle matrices, named gate evidence and strict compilation. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
 - DSF/DSDIFF structured writes now accept native ID3 frame upserts while retaining the explicit comment/lyric collection-replacement rejection.
 
+## What changed in the current branch
+
+- Native MP4 item and ID3 date-frame owners survive PropertyMap replay, including absence; low-level date reads use native owners on MP4, ID3, Xiph, and APE.
+- MP4 `.comment`/`.lyrics` use native `©cmt`/`©lyr`; ASF semantic custom fields use native Unicode attributes and reconcile only their case aliases.
+- Whole-map replacement retains unchanged submitted arrays literally; MP4 custom-field writes retain existing name spelling and unchanged projections do not collapse native arrays; ARTIST no longer falls back to ARTISTS.
+- The mixed-framework gate requires the sparse-state matrices and 8,282 additional cases. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance).
+
 ## Coverage and limits
 
-- The lifecycle matrices are explicit field subsets, not a complete field × format × tag-version × writer cross-product. The coverage inventory and minimum case counts are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
+- The lifecycle and sparse-state matrices are explicit field/state subsets, not a complete field × format × tag-version × writer cross-product. The coverage inventory and minimum case counts are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
 - Existing ID3v2.3 tags are read-only for independent date writes. Inspect `StructuredMetadata.id3v2MajorVersion`; an extension-level ID3v2.4 capability does not prove a concrete v2.3 file is writable.
 - MP4 track/disc components are unsigned 16-bit values through 65535; MP4 movement is bounded to 0...32767. External readers may decode MP4 native pairs differently.
 - Audio-content identity remains unavailable for many layouts, including MP3, MP4/M4A, raw AAC, Ogg, ASF, APE-family, DSD, and ambiguous chunk layouts. A nil identity never establishes continuity; see [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md).
@@ -65,7 +82,7 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 
 | Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
-| `0.7.2` | Current release, declared 2026-11-11 | Includes the audit, native-mapping, test-system and MP4 Content Group repairs above |
+| `0.7.2` | Latest published release, declared 2026-11-11 | Includes the audit, native-mapping, test-system and MP4 Content Group repairs above; does not include the current branch |
 | `0.7.1` | Release tag and merge `649b7a9`; date/ownership, comment verification and UFID repairs | Previous release; does not include the `0.7.2` repairs |
 | `0.7.0` | Release tag and mapping contract 2.2 | Introduced the field identities and date/number model described by the current mapping contract |
 | `AUD-2026-11-11` | Independent audit on the pre-repair tree | Historical failing evidence; the reproduced blockers were repaired by the audit-integrity campaign |
