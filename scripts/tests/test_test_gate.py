@@ -8,6 +8,10 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = ('Test Case \'-[Corpus testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]\' skipped (0.001 seconds).\n'
         'Test Case \'-[Benchmark testOptInIndependentFileSnapshotThroughput]\' skipped (0.001 seconds).\n'
         'Executed 158 tests, with 2 tests skipped and 0 failures (0 unexpected)\n'
+        'Suite SemanticLifecycleMatrixTests passed.\n'
+        'Suite FLACSemanticLifecycleTests passed.\n'
+        'Suite ID3SemanticLifecycleTests passed.\n'
+        'Suite NativeProbeContractTests passed.\n'
         'Test run with 116 tests in 27 suites passed after 8 seconds.\n')
 
 class TestGatePolicy(unittest.TestCase):
@@ -38,3 +42,31 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_skip_count_without_named_evidence_is_rejected(self):
         self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'skipped (' not in line)))
+
+    def test_earlier_failure_cannot_be_hidden_by_later_passing_summary(self):
+        self.assertFalse(self.accepted('Test run with 1 test in 1 suite failed.\n' + PASS))
+        self.assertFalse(self.accepted('Executed 1 test, with 1 failure (0 unexpected)\n' + PASS))
+
+    def test_mandatory_matrix_suites_cannot_be_filtered_out(self):
+        self.assertFalse(self.accepted(PASS.replace('Suite FLACSemanticLifecycleTests passed.\n', '')))
+
+    def test_swift_testing_skip_is_not_hidden_by_pass_summary(self):
+        self.assertFalse(self.accepted('Test mandatoryNativeWrite() skipped.\n' + PASS))
+
+    def test_allowlisted_skip_name_must_match_exactly(self):
+        self.assertFalse(self.accepted(PASS.replace('testOptInIndependentFileSnapshotThroughput', 'testOptInIndependentFileSnapshotThroughputSuffix')))
+
+    def test_real_xctest_optional_skip_diagnostic_is_not_a_swift_testing_skip(self):
+        diagnostic = ('/test/Corpus.swift:8: -[Corpus testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]'
+                      ' : Test skipped - External corpus is opt-in.\n')
+        self.assertTrue(self.accepted(diagnostic + PASS))
+
+    def test_runner_rejects_extra_filter_arguments(self):
+        runner = SCRIPT.with_name('validate-tests.sh')
+        result = subprocess.run(['bash', str(runner), 'debug', '--filter', 'OneTest'], capture_output=True)
+        self.assertEqual(result.returncode, 2)
+
+    def test_runner_rejects_unknown_configuration(self):
+        runner = SCRIPT.with_name('validate-tests.sh')
+        result = subprocess.run(['bash', str(runner), 'not-a-configuration'], capture_output=True)
+        self.assertEqual(result.returncode, 2)

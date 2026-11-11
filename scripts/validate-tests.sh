@@ -2,6 +2,7 @@
 # Full-suite gate; intentionally accepts no test filters or skips.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+[[ $# -le 1 ]] || { echo "No filters or extra arguments are permitted" >&2; exit 2; }
 MODE="${1:-debug}"
 case "$MODE" in debug|release) ;; *) echo 'Usage: validate-tests.sh [debug|release]' >&2; exit 2;; esac
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
