@@ -295,6 +295,15 @@ extension TagLibMetadataManager {
 
         var unmatchedFrames = after.id3v2Frames
         for frame in expected.id3v2Frames {
+            // Empty text is the structured removal operation. Verify absence,
+            // rather than searching for a frame the writer correctly removed.
+            if ["text", "userText"].contains(frame.type), frame.values.isEmpty, frame.value.isEmpty {
+                let remains = after.id3v2Frames.contains {
+                    $0.frameID == frame.frameID && (frame.type != "userText" || $0.description == frame.description)
+                }
+                if remains { warnings.append("ID3v2 frame \(frame.frameID) remains after removal.") }
+                continue
+            }
             if let index = unmatchedFrames.firstIndex(where: { structuredID3v2FrameMatches(frame, $0) }) {
                 unmatchedFrames.remove(at: index)
             } else {
