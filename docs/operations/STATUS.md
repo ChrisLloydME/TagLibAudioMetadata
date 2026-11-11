@@ -1,6 +1,39 @@
 # Current validation status
 
-## Native mapping follow-up — 2026-11-11
+## Independent audit — 2026-11-11 (current augmented working tree)
+
+**NOT READY TO MERGE OR RELEASE.** The independent audit at `26fc76f` plus its
+uncommitted regression tests found two reproduced P0 data-integrity defects and
+three P1 defects. See [AUD-2026-11-11-package-audit](../records/audits/AUD-2026-11-11-package-audit.md).
+
+| Check | Result |
+| --- | --- |
+| Environment | macOS 27.2 (26B123), Xcode 27.2 (27B52), Apple Swift 6.4.2; host manifest sandbox unavailable |
+| Debug gate (`TAGLIB_DISABLE_MANIFEST_SANDBOX=1`) | **fail closed** (`accepted: false`) |
+| Release gate | **fail closed** (`accepted: false`) |
+| XCTest | 158 executed: 156 passed, 2 existing opt-in skips, 0 failures |
+| Swift Testing | 152 declarations in 32 suites: 33 issues; 16 audit regressions failed |
+| Environment failure | `CleanRoomPrivilegeTests` fails its own setuid/setgid precondition because this host strips the bits (`0o644` observed, `0o4644` requested); not a production defect |
+| Strict build | `-Xswiftc -warnings-as-errors -Xcc -Werror` passed with `--disable-sandbox` (manifest sandbox unavailable) |
+| Consumers | Both facade and low-level consumers passed |
+| Documentation check | Passed after the audit record/index update |
+| Sanitizers / minimum platforms / hosted CI | Not run in this audit |
+
+Reproduced blockers: persistent Basic edits collapse unedited multi-value date
+slots (P0); ASF Encoder Settings is dropped and rewritten as Encoded By while
+ID3 TSSE pollutes Encoded By (P0); MP4 Basic/low-level alias cleanup is
+incomplete (P1); MP4 track/disc 32768…65535 is misread (P1); the mixed-framework
+gate accepted incomplete evidence before this audit repaired it (P1, testing
+infrastructure). The final gate logs are
+`.build/test-evidence/debug-20261111-105705-62009/` and
+`.build/test-evidence/release-20261111-105805-62136/`.
+
+The new `AuditProbeTests` are intentionally failing regression candidates. They
+must be repaired in production, not deleted, skipped, or added to an expected
+failure list. The earlier local repair paragraph below is retained as history;
+it is not a current acceptance verdict for this augmented tree.
+
+## Native mapping follow-up — 2026-11-11 (pre-audit local claim)
 
 The `codex/native-mapping-followup-repairs` working tree resolves the seven field/format combinations exposed by the expanded matrices. Complete Debug/Release gates both pass: 156 XCTest passed, two existing optional skips, and 128 Swift Testing declarations passed. Strict compilation passes. This is local repaired-source evidence, not a newly published package. See [repair acceptance](../records/remediation/REM-2026-11-11-native-mapping-followup.md).
 
