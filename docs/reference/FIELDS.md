@@ -234,6 +234,10 @@ Column meanings:
 | `custom` | Custom Field | `<explicit key>` | — | `TXXX:<description>` | `TXXX:<description>` | `----:com.apple.iTunes:<description>` | `<explicit key>` | `<explicit key>` | — | — | multi |
 
 <!-- END GENERATED FIELD TABLES -->
+## Container-specific numeric limits
+
+Global typed integer constraints are not a guarantee of native precision for every format. MP4 Track/Disc pairs accept components through 65535; this codec's independent Movement Number/Count atoms accept 0...32767. Semantic and Basic writes reject values outside those native limits before staging, rather than clamping or creating freeform duplicates. See [writing semantics](../guide/WRITING.md#native-ownership-and-integer-bounds).
+
 ## Typed-patch value contract
 
 `MetadataFieldSchema.acceptedPatchValueKinds` and `integerConstraint` are the validation tables used by `MetadataPatch` before staging. The table below is generated from those Swift properties and the catalog's `writeUnsupportedReason`.

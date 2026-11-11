@@ -509,3 +509,11 @@ for url in urls {
 ## MP4 Content Group independence
 
 `contentGroup` owns `©grp`; `grouping` owns `----:com.apple.iTunes:GROUPING`; `work` owns `©wrk`. Each can be set, replaced or removed without submitting companion fields. TagLib's raw PropertyMap may expose `©grp` as `GROUPING`; that engine spelling is not a second semantic Grouping field. Semantic verification permits this projection change for a Content Group edit and independently verifies untouched native sibling atoms and arrays. Missing `©grp` remains an empty Content Group on read even if independent Grouping is present.
+
+## Native ownership and integer bounds
+
+Content Group, Grouping and Work remain distinct in ID3 (`TIT1`, `GRP1`, `TXXX:WORK`) and Xiph/APE (`CONTENTGROUP`, `GROUPING`, `WORK`). A container engine's PropertyMap projection is not another stored semantic field. Verification checks the exact untouched native owners when allowing a known overlapping projection to change.
+
+MP4 Encoded By owns `©enc`; Encoder Settings owns `©too`. Compatible freeform `ENCODEDBY` and `ENCODING`/`ENCODERSETTINGS` values are read under those respective owners. Editing Encoded By must not remove an independent legacy Encoder Settings value.
+
+MP4 Movement Number and Count use separate integer atoms `©mvi` and `©mvc`, not freeform duplicates. A semantic edit changes only its requested component, including in a patch that also edits Track/Disc. Basic and low-level pair writes intentionally own both movement components. This codec reliably supports nonnegative signed 16-bit values (`0...32767`); the broader global integer schema is not a guarantee for every container. Semantic, Basic and structured facade preflight reject larger values before staging; bridge writers also guard their native range. Typed `.integer(0)` stays present, whereas `.remove` deletes the atom. Basic/low-level zero retains its existing absent/default meaning. Existing legacy freeform components remain readable and are retired only when that component is explicitly owned by the write.
