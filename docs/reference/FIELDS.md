@@ -24,6 +24,8 @@ Typed writes are withheld for: .rate — no verified native rating type or scale
 
 `year` is the canonical YEAR identity. `date` is a legacy YEAR-slot spelling kept for source compatibility; it is not a separate stored field and it is not marked `@available(*, deprecated)` in the enum. Supplying both `.date` and `.year` in one patch throws `MetadataPatchValidationError.conflictingYearRepresentations`. `standaloneDate` is the independent DATE identity.
 
+`BasicMetadata.date` is not the typed `.date` key: it carries the standalone DATE projection (the same slot as `.standaloneDate`), while `BasicMetadata.year` carries YEAR. Use the typed or Basic field whose model you are actually editing.
+
 ## How to query the registry
 
 ```swift
@@ -350,6 +352,8 @@ Global typed integer constraints are not a guarantee of native precision for eve
 `.remove` is accepted by every field that passes the kind check; it is not a value kind. Empty text and empty arrays are validation errors, not deletion aliases.
 <!-- END GENERATED PATCH CONTRACT -->
 Role-qualified fields (`performer`, `involvedPeople`, `musicianCredits`) have schemas but are rejected by the typed patch API because their native keys carry a role. Use `RawMetadataPatch` or `StructuredMetadata` for those. `.artwork`, `.custom`, and `.explicitContent` use dedicated `MetadataPatch` properties. `rate` accepts an integer at the schema layer but is read-only for typed writes because no verified native rating type and scale are registered.
+
+The generated `.date`, `.year`, `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` rows describe schema-level kinds and ranges, not a concrete file's editability. Existing ID3v2.3 tags are read-only for independent date writes: typed patches reject before staging and a Basic replacement rejects only when a date changes. Read `StructuredMetadata.id3v2MajorVersion` before presenting that edit. See [Formats](FORMATS.md#dates).
 
 Empty text, empty arrays, and array elements that are empty after trimming are validation errors; `.remove` is the explicit deletion request. Do not use `.text("")` or `.values([])` as an implicit deletion alias.
 

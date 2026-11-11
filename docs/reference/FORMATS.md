@@ -2,7 +2,7 @@
 
 This is the canonical reference for declared format coverage. It describes the capability registry in `Sources/CTagLibBridge/TLFormatRegistry.mm`, the container masks in `Sources/CTagLibBridge/Internal/TLMetadataCore.inc`, the evidence labels and field allowlists in `Sources/CTagLibBridge/Internal/TLRawInspection.inc`, and the field schema in `Sources/TagLibAudioMetadata/MetadataFieldSchema.swift`.
 
-Version `0.7.0` implements the package side of mapping contract `AM-TLAM-MAPPING-2.2`. The matrix below is generated from the source registry. A declared label is not proof that every file, field, codec variant, or platform works: query the capability API for the extension and field in question, then validate a concrete file.
+Version `0.7.1` is the latest published tag; current `main` also contains unreleased post-0.7.1 repairs. The package side of mapping contract `AM-TLAM-MAPPING-2.2` was introduced in `0.7.0`. The matrix below is generated from the source registry. A declared label is not proof that every file, field, codec variant, or platform works: query the capability API for the extension and field in question, then validate a concrete file.
 
 ## How to read capability evidence
 
@@ -18,7 +18,7 @@ let fieldSupport = concrete.writeSupport(for: .artwork)
 | `probeFile(at:)` | Opens and parses a concrete file, then returns its declared family capability. Does not test POSIX write permission, ACLs, disk space, or sandbox access. |
 | `supportLevel` | Evidence level for the capability's requested extension, or the primary extension for `formatCapabilities`. |
 | `supportLevel(forExtension:)` | Evidence level for another alias in the same family. |
-| `readSupport(for:)` / `writeSupport(for:)` | Family flags, field mappings, artwork flags, explicit allowlists, and canonical schema lookup. This is a declared capability, not a typed-write promise; `.rate` is the current read-only field despite having a readable mapping. |
+| `readSupport(for:)` / `writeSupport(for:)` | Family flags, field mappings, artwork flags, explicit allowlists, schema-level withholding, and primary-native-family capability. A secondary readable tag surface does not authorize a semantic write. This is a declared capability, not a typed-write promise; `.rate` is read-only despite having a readable mapping, and a concrete ID3v2.3 tag must be checked for date editability. |
 | `canWriteArtwork` | Artwork write availability; separate from `structuredWriteSupport`. |
 | `structuredReadSupport` / `structuredWriteSupport` | Non-artwork structured frames, atoms, and attributes. A `.propertyMap` level can still support structured artwork. |
 | `preservesMultiValueProperties` | Family-level repeated-`PropertyMap` support, not a per-field guarantee. |
@@ -86,11 +86,12 @@ The registry contains 22 families and 37 extensions. R/W means a declared save p
 | --- | --- |
 | ID3-backed: MPEG/MP2, raw AAC, WAV, AIFF/AIFF-C, TrueAudio, DSF, DSDIFF | Combined `TRCK` / `TPOS`; movement number/count uses `MVIN`. Standalone `TXXX:TRACKTOTAL`, `TXXX:TOTALTRACKS`, `TXXX:DISCTOTAL`, and `TXXX:TOTALDISCS` are readable legacy aliases. |
 | MP4 | Native `trkn` / `disk` integer pairs. `----:com.apple.iTunes:TRACKTOTAL` and sibling freeforms are legacy aliases, never the write target. |
+| MP4 movement | Independent integer atoms `©mvi` / `©mvc`; movement is not a shared `trkn`-style pair. |
 | FLAC, Ogg Vorbis/Opus/FLAC/Speex | Separate `TRACKNUMBER` / `TRACKTOTAL` and `DISCNUMBER` / `DISCTOTAL` keys. |
 | APE, WavPack, Musepack | Separate `TRACK` / `TRACKTOTAL` and `DISC` / `DISCTOTAL` keys. |
 | ASF | `WM/TrackNumber` and `WM/PartOfSet` text pairs; normalized writers combine `number/total` in the native attribute. |
 
-- Track and disc components begin at one. `.remove` unsets a component; BPM and movement numbering begin at zero.
+- Track and disc components begin at one. `.remove` unsets a component; BPM and movement numbering begin at zero. MP4 track/disc native pairs accept components through the full unsigned 16-bit maximum `65535`, with `0` reserved for a retained-total sentinel; a present component starts at one. MP4 movement values are bounded to `0...32767` and reject before staging when outside the range.
 - Removing a first component while retaining a total is supported on MP4 (`0/total` sentinel), ID3-backed formats (`/total` text), and separate-key Xiph/APE layouts. **ASF rejects a number-zero-plus-total request** because its number codec has no verified total-only representation. Remove both components to clear an ASF pair.
 - Native positive components are authoritative. A sole valid orphan total is exposed as `.recoveredLegacy` by `numberingInventory(at:)`; contradictory or malformed aliases are `.ambiguous`/`.invalid`.
 - A typed pair edit resolves the untouched component, writes the native pair, and retires only the touched group's recognized aliases. Unrelated Basic edits preserve orphan totals and private provenance.
@@ -100,15 +101,15 @@ The registry contains 22 families and 37 extensions. R/W means a declared save p
 
 | Semantic field | ID3v2.3 | ID3v2.4 | MP4 | Xiph/APE | ASF | RIFF INFO |
 | --- | --- | --- | --- | --- | --- | --- |
-| `.year` (canonical YEAR) | `TYER` | `TDRC` | `©day` | `YEAR` | `WM/Year` | `ICRD` |
-| `.date` (legacy YEAR spelling) | `TYER` | `TDRC` | `©day` | `YEAR` | `WM/Year` | `ICRD` |
-| `.standaloneDate` | `TDAT` | `TXXX(DATE)` | `DATE` freeform | `DATE` | `DATE` extension | — |
-| `.releaseDate` | `EXTFRAME(TDRL)` | `TDRL` | `RELEASEDATE` freeform | `RELEASEDATE` | — | — |
-| `.originalReleaseDate` | `TORY` (year only) | `TDOR` | `ORIGINALDATE` freeform | `ORIGINALDATE` | `WM/OriginalReleaseYear` | — |
+| `.year` (canonical YEAR) | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `WM/Year` | `ICRD` |
+| `.date` (legacy YEAR spelling) | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `WM/Year` | `ICRD` |
+| `.standaloneDate` | `TDAT (read)` | `TXXX(DATE)` | `DATE` freeform | `DATE` | `DATE` extension | — |
+| `.releaseDate` | `EXTFRAME(TDRL) (read)` | `TDRL` | `RELEASEDATE` freeform | `RELEASEDATE` | — | — |
+| `.originalReleaseDate` | `TORY` (read; year only) | `TDOR` | `ORIGINALDATE` freeform | `ORIGINALDATE` | `WM/OriginalReleaseYear` | — |
 
 YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent. `BasicMetadata.year` is complete stored text, not a four-character projection. MP4 `©day` is the YEAR slot; a release date lives in the `RELEASEDATE` freeform, never `©day`. Changing or clearing one date field never rewrites another. `MetadataValidationError.conflictingMP4Date` remains only for source compatibility and is not thrown by current writers.
 
-`.date` writes the same YEAR targets as `.year`; it is a legacy API spelling, not a standalone DATE and not an `@available`-deprecated enum case. Do not supply both in one patch. RIFF INFO has no native DATE key; WAV and AIFF/AIFF-C can still write `.standaloneDate` through their ID3v2 surface, but the value is not stored in INFO.
+`.date` writes the same YEAR targets as `.year` where that target is writable; it is a legacy API spelling, not a standalone DATE and not an `@available`-deprecated enum case. Do not supply both in one patch. Existing ID3v2.3 tags are read-only for all independent date writes: typed patches reject before staging, and a Basic replacement rejects when a date value changes. Read `StructuredMetadata.id3v2MajorVersion` before presenting date editability for a concrete file; an extension-level ID3v2 capability may reflect the verified v2.4 codec. RIFF INFO has no native DATE key; WAV and AIFF/AIFF-C can still write `.standaloneDate` through their ID3v2 surface, but the value is not stored in INFO.
 
 ### Advisory
 
@@ -149,7 +150,8 @@ For DSD, the descriptor reports `container` structured write support: native ID3
 ### MP4
 
 - Raw PropertyMap APIs accept prefixless TagLib keys, not native `----:` atom identifiers. Use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys.
-- Native `trkn`/`disk` are authoritative. Recognized number aliases are cleaned up when the corresponding pair changes; unrelated Basic edits preserve them.
+- Native `trkn`/`disk` are authoritative. Recognized number aliases are cleaned up when the corresponding pair changes; unrelated Basic edits preserve them. Movement Number/Count use independent `©mvi`/`©mvc` atoms and are bounded to `0...32767`; track/disc components accept the unsigned 16-bit maximum `65535`, with `0` reserved for a retained-total sentinel.
+- Content Group (`©grp`), Grouping (`----:com.apple.iTunes:GROUPING`) and Work (`©wrk`) are independent; a missing Content Group does not fall back to Grouping. Encoded By (`©enc`) and Encoder Settings (`©too`) are independent native owners.
 - `.date` and `.year` both write `©day` (YEAR); `.standaloneDate` and `.releaseDate` use their freeform extensions. Supplying `.date` and `.year` together is rejected before staging.
 - Native advisory is `rtng`; recognized freeform aliases (`ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT`) are removed when the advisory changes. `BasicMetadata` replacement also runs the canonical advisory writer, so MP4 freeform advisory aliases can be retired even when the caller did not edit the advisory projection.
 - `covr` is returned both as an artwork entry and as a `coverArtList` MP4 atom. Use the artwork collection to replace it; `coverArtList` is inspection-only for direct atom writes.
@@ -216,7 +218,7 @@ Fixture provenance, hashes, and licensing are in [Tests/TagLibAudioMetadataTests
 - Pinned upstream files cover DSF, DSDIFF, APE, Musepack, and Ogg FLAC.
 - `info-only.wav` protects RIFF INFO visibility after ID3v2 creation.
 - `clean-room.aiff` is generated PCM with one `COMM` and one `SSND` chunk.
-- Independent oracles include bounded RIFF INFO, ID3v2, MP4 atom, APEv2, and ASF parsers. Fixture acquisition and historical verification campaigns used FFprobe/FFmpeg; those tools are not invoked by the current test suite. See [Testing](../operations/TESTING.md) and the historical verification records.
+- Independent oracles include bounded RIFF INFO, ID3v2, MP4 atom, APEv2, Ogg comment/packet, FLAC metadata-block, and ASF parsers, plus independent MP4/FLAC/ID3 lifecycle matrices. Fixture acquisition and historical verification campaigns used FFprobe/FFmpeg; those tools are not invoked by the current test suite. See [Testing](../operations/TESTING.md), [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md), and the historical verification records.
 
 Fixture coverage is finite. It does not establish universal codec conformance, every metadata variant, or every platform runtime.
 
@@ -226,3 +228,4 @@ Fixture coverage is finite. It does not establish universal codec conformance, e
 - [Mapping contract](MAPPING_SPEC.md) — native mapping policy and generated matrix.
 - [Capabilities guide](../guide/CAPABILITIES.md) — querying support from application code.
 - [Write semantics](../explanation/PRESERVATION.md) — preservation and verification.
+- [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — lifecycle evidence and gate limits.

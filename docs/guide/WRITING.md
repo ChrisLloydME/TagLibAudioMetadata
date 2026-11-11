@@ -50,7 +50,8 @@ for warning in result.warnings {
 Rules enforced before staging:
 
 - Field/value kinds come from `MetadataFieldRegistry`. Track, disc, totals, BPM, movement numbering, MP4 store IDs, and TV numbers are integers; compilation and the MP4 Booleans are Booleans; ordinary fields accept text and, when the schema is multi-value, an array.
-- Track/disc components accept `1...Int32.max` for text-backed pairs and `1...65535` on native MP4 pairs. `rate` accepts an integer at the schema layer but is read-only for typed writes.
+- Track/disc components accept `1...Int32.max` for text-backed pairs and `1...65535` on native MP4 pairs. Movement numbering accepts `0...Int32.max` at the schema layer, with MP4 restricted to `0...32767`. `rate` accepts an integer at the schema layer but is read-only for typed writes.
+- An existing ID3v2.3 tag is read-only for date fields: a typed date patch rejects before staging, even when the requested value equals the current value. Inspect `StructuredMetadata.id3v2MajorVersion` before offering date edits for a concrete file.
 - Role-qualified fields `.performer`, `.involvedPeople`, and `.musicianCredits` are rejected because their keys carry roles. Use a raw or structured API.
 - `customFields` accepts only unknown keys. Known keys, aliases, case variants, and a typed/custom collision are rejected.
 - `.text` and `.values` are trimmed once; empty text, empty arrays, and empty elements are errors. `.remove` is the explicit deletion request.
@@ -78,7 +79,7 @@ let patch = MetadataPatch(fields: [
 
 ### Track, disc, and formatted number text
 
-Track and disc fields are semantic pairs. Patching only `.track` preserves the existing total; patching only `.trackTotal` preserves the number. Native ID3 formats use combined `TRCK`/`TPOS`, MP4 uses `trkn`/`disk`, and generic/Xiph formats use separate number/total keys. ID3 movement uses `MVIN`; patching one movement component preserves the other.
+Track and disc fields are semantic pairs. Patching only `.track` preserves the existing total; patching only `.trackTotal` preserves the number. Native ID3 formats use combined `TRCK`/`TPOS`, MP4 uses `trkn`/`disk`, and generic/Xiph formats use separate number/total keys. ID3 movement uses `MVIN`; MP4 movement uses independent `©mvi`/`©mvc` atoms. A semantic movement patch preserves the untouched component, while Basic and low-level pair writes intentionally own both movement components.
 
 Removing a first component while retaining a total is supported on MP4 (`0/total` sentinel), ID3-backed formats (`/total` text), and separate Xiph/APE keys. ASF rejects a number-zero-plus-total pair because it has no verified total-only representation. Remove both components to clear an ASF pair.
 
@@ -94,7 +95,7 @@ let patch = MetadataPatch(
 
 Ordinary numeric Basic and patch writes use native numeric storage. On MP4 they do not add private formatting atoms to a standard-only file. Legacy `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed by default write surfaces; they are preserved until an explicit, version-guarded normalization plan retires selected identities.
 
-MP4 track/disc numbers and totals round-trip through 65535 as unsigned 16-bit components. Some external readers interpret the high half as signed; the package preserves the native value. Movement number/count retains its separate maximum of 32767.
+MP4 track/disc numbers and totals round-trip through 65535 as unsigned 16-bit components. Some external readers interpret the high half as signed; the package preserves the native value. MP4 movement number/count uses the separate `©mvi`/`©mvc` atoms and a `0...32767` range; larger values reject before staging rather than being clamped.
 
 A number-only `numberText` value preserves the resolved existing total. Exact MP4 text padding has no portable atom, so the display normalizes to the native pair.
 
@@ -138,7 +139,11 @@ try TagLibMetadataManager.applyMetadataPatch(
 
 MP4 YEAR is `©day`. RELEASEDATE and DATE are explicit freeform extensions; nothing is synthesized. Changing or clearing one field never rewrites another. `year` stores complete text and is not truncated to four characters. `updateBasicMetadata` performs no reconciliation, and `MetadataValidationError.conflictingMP4Date` is retained only for source compatibility.
 
-`.date` is a legacy YEAR-slot spelling: it writes the same native target as `.year`, including MP4 `©day`. It is not a standalone DATE and is not marked `@available(*, deprecated)` in the enum. Supplying `.date` and `.year` together throws `MetadataPatchValidationError.conflictingYearRepresentations`.
+An existing ID3v2.3 tag cannot accept independent date edits. Typed date patches reject before mutation; a Basic replacement rejects only when one of the four date values changes, so an unrelated edit still preserves the native dates. Read `StructuredMetadata.id3v2MajorVersion` for a concrete file. An extension-level `writeSupport` result may describe the verified ID3v2.4 codec and does not override concrete v2.3 read-only behavior.
+
+`.date` is a legacy YEAR-slot spelling: it writes the same native target as `.year` where writable, including MP4 `©day`. It is not a standalone DATE and is not marked `@available(*, deprecated)` in the enum. Supplying `.date` and `.year` together throws `MetadataPatchValidationError.conflictingYearRepresentations`.
+
+`BasicMetadata.date` is a different API: it carries the independent standalone DATE projection, equivalent to the typed `.standaloneDate`, while `BasicMetadata.year` carries the YEAR slot. Do not use the name `date` to infer that a Basic field and the typed `.date` key are interchangeable.
 
 `replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with `isRepresentableYearText`; non-date text such as `"Spring 2021"` throws `MetadataValidationError.invalidYearText`. The typed patch path does not run that Basic-specific validator.
 
@@ -148,7 +153,15 @@ The registry adds `director` (`©dir`), `itunesAccount` (`apID`), `itunesCompose
 
 These fields are readable through `BasicMetadata`, but `replaceBasicMetadata` does not write them: the bridge writer model has no matching properties. Use `applyMetadataPatch` or structured writes for them. See [Preservation](../explanation/PRESERVATION.md#basic-preservation-rules).
 
-### Artwork
+## Native ownership and integer bounds
+
+Content Group, Grouping and Work remain distinct. MP4 uses `©grp`, `----:com.apple.iTunes:GROUPING` and `©wrk`; ID3 uses `TIT1`, `GRP1` and `TXXX:WORK`; Xiph/APE use `CONTENTGROUP`, `GROUPING` and `WORK`. A missing MP4 Content Group is empty and does not fall back to independent Grouping. Semantic verification permits the engine's overlapping PropertyMap projection for the edited owner while checking untouched native siblings.
+
+MP4 Encoded By owns `©enc`; Encoder Settings owns `©too`. Compatible freeform `ENCODEDBY` and `ENCODING`/`ENCODERSETTINGS` values are read under those respective owners. Editing Encoded By must not remove an independent legacy Encoder Settings value, and neither field is a fallback for the other.
+
+MP4 track/disc components accept `0...65535` as unsigned stored components where the pair permits a retained total; a present number component starts at one. Movement Number and Count use separate integer atoms `©mvi` and `©mvc` and accept `0...32767`. Semantic, Basic and structured facade preflight reject out-of-range values before staging; bridge writers also guard their native range. Typed `.integer(0)` stays present for movement, whereas `.remove` deletes the atom. Basic/low-level zero retains its existing absent/default meaning.
+
+## Artwork
 
 ```swift
 let cover = try Data(contentsOf: coverURL)
@@ -297,6 +310,8 @@ let frame = StructuredID3v2Frame(
 
 Supported write types are `text`, `versionedText`, `userText`, `url`, `ufid`, `chapter`, `tableOfContents`, and `podcast`. `versionedText` uses `v23ID`/`v24ID` and optional descriptions for frames whose identity differs between ID3v2.3 and v2.4. `APIC`, `COMM`, and `USLT` must be edited through `artwork`, `comments`, and `lyrics`; `unknown` frames are read-only. `CHAP`/`CTOC` require a non-empty `elementID`; `UFID` requires an owner and non-empty data; URL frames require a `W`-prefixed ID and a non-empty URL.
 
+An ID3 `text` or `userText` entry with both empty `values` and empty `value` removes that frame identity. For `userText`, the description identifies the owner. Verification checks absence and preserves unrelated frames. URL/UFID removal has no equivalent empty-payload operation.
+
 `StructuredID3v2Frame.fields` is merged into the bridge payload dictionary and can overwrite reserved dictionary keys. Leave it empty.
 
 ### MP4 atoms
@@ -339,6 +354,8 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 `StructuredArtwork.container` is informational. `pictureTypeCode == 0` is valid (`Other`); an omitted type defaults to Front Cover (`3`). Verification compares bytes and MIME type everywhere, plus picture type and description for containers that serialize them (MP4 `covr` does not).
 
 Lyrics and comments are replace-all collections where supported. Empty text entries are skipped and cannot be verified as present.
+
+DSF/DSDIFF accept ID3 frame upserts, PropertyMap deltas and artwork through the structured writer. Comment/lyric collection replacement remains unsupported; a Basic edit that needs to replay those native collections fails without committing.
 
 ## Write formatted number text directly
 
@@ -507,21 +524,4 @@ for url in urls {
 - [Transactions](../explanation/TRANSACTIONS.md) — staging, durability, concurrency.
 - [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md) — guarded rebases.
 - [Field reference](../reference/FIELDS.md) — keys, native targets, patch constraints.
-
-## MP4 Content Group independence
-
-`contentGroup` owns `©grp`; `grouping` owns `----:com.apple.iTunes:GROUPING`; `work` owns `©wrk`. Each can be set, replaced or removed without submitting companion fields. TagLib's raw PropertyMap may expose `©grp` as `GROUPING`; that engine spelling is not a second semantic Grouping field. Semantic verification permits this projection change for a Content Group edit and independently verifies untouched native sibling atoms and arrays. Missing `©grp` remains an empty Content Group on read even if independent Grouping is present.
-
-## Native ownership and integer bounds
-
-Content Group, Grouping and Work remain distinct in ID3 (`TIT1`, `GRP1`, `TXXX:WORK`) and Xiph/APE (`CONTENTGROUP`, `GROUPING`, `WORK`). A container engine's PropertyMap projection is not another stored semantic field. Verification checks the exact untouched native owners when allowing a known overlapping projection to change.
-
-MP4 Encoded By owns `©enc`; Encoder Settings owns `©too`. Compatible freeform `ENCODEDBY` and `ENCODING`/`ENCODERSETTINGS` values are read under those respective owners. Editing Encoded By must not remove an independent legacy Encoder Settings value.
-
-MP4 Movement Number and Count use separate integer atoms `©mvi` and `©mvc`, not freeform duplicates. A semantic edit changes only its requested component, including in a patch that also edits Track/Disc. Basic and low-level pair writes intentionally own both movement components. This codec reliably supports nonnegative signed 16-bit values (`0...32767`); the broader global integer schema is not a guarantee for every container. Semantic, Basic and structured facade preflight reject larger values before staging; bridge writers also guard their native range. Typed `.integer(0)` stays present, whereas `.remove` deletes the atom. Basic/low-level zero retains its existing absent/default meaning. Existing legacy freeform components remain readable and are retired only when that component is explicitly owned by the write.
-
-### Structured ID3 text removal
-
-An ID3 `text` or `userText` entry with both empty `values` and empty `value` removes that frame identity. For `userText`, the description identifies the owner. Verification checks absence and preserves unrelated frames. URL/UFID removal has no equivalent empty-payload operation.
-
-DSF/DSDIFF accept ID3 frame upserts, PropertyMap deltas and artwork through the structured writer. Comment/lyric collection replacement remains unsupported; a Basic edit that needs to replay those native collections fails without committing.
+- [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent matrices and coverage limits.

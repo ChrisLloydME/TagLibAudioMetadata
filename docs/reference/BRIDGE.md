@@ -66,7 +66,7 @@ Properties are nullable `NSString *` unless marked numeric or Boolean.
 
 The bridge model does not expose the MP4-exclusive facade properties (`director`, store IDs, TV fields, and related Booleans). They are available through `BasicMetadata` reads and `MetadataPatch`/structured writes, not through `writeTagMetadata`.
 
-`year` is complete stored text and may contain a date. `standaloneDate` is the independent DATE slot; `releaseDate` and `originalReleaseDate` are separate. The bridge selects the version-appropriate ID3 date frame and writes MP4 `©day`; it never truncates Year to four characters. `explicitAdvisoryRawValue` carries an unknown native advisory code while `explicitAdvisory` remains `.unspecified`.
+`year` is complete stored text and may contain a date. `standaloneDate` is the independent DATE slot; `releaseDate` and `originalReleaseDate` are separate. The bridge selects the version-appropriate ID3 date frame and writes MP4 `©day`; it never truncates Year to four characters. Existing ID3v2.3 tags are read-only for independent date edits through the typed and Basic facade paths; direct bridge writes do not inherit that preflight and should not be used for date edits on concrete v2.3 tags. `explicitAdvisoryRawValue` carries an unknown native advisory code while `explicitAdvisory` remains `.unspecified`.
 
 The package-internal `CTagLibBridgeInternalAPI` additionally exposes `applyNativeTextKeyValuesInPlace(_:removingKeys:to:)` for exact Xiph/APE text keys and versioned structured ID3 frame writes. These are not part of the public low-level product.
 
@@ -131,7 +131,7 @@ id3v2Frames:  NSArray<NSDictionary<NSString *, NSObject *> *>
               keys: id, value, optional description, optional language
 ```
 
-`structured` contains `properties`, `id3v2Frames`, `mp4Atoms`, `asfAttributes`, `artwork`, `lyrics`, `comments`, and `warnings`. The exact dictionaries are the ones consumed by `StructuredMetadata` in the facade; see the [model reference](MODELS.md).
+`structured` contains `properties`, `id3v2Frames`, `mp4Atoms`, `asfAttributes`, `artwork`, `lyrics`, `comments`, `warnings`, and `id3v2MajorVersion`. The version is a read evidence value (zero is normalized to nil by the facade), not a conversion request. The exact dictionaries are the ones consumed by `StructuredMetadata` in the facade; see the [model reference](MODELS.md).
 
 ## Thread safety and process boundaries
 
