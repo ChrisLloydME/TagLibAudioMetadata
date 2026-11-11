@@ -13,7 +13,11 @@ This page is a snapshot of the latest known validation state for the current sou
 
 Version `0.7.2` includes mapping contract 2.2, the `0.7.1` date/ownership corrections, and the audit-integrity, native-mapping, package test-system and MP4 Content Group repairs. The release notes are in the [changelog](../../CHANGELOG.md).
 
-## Latest observed package gate
+## Unreleased working-tree candidate
+
+`codex/metadata-state-coverage-repairs` is based on the 0.7.2 release and repairs state/API gaps discovered during application adoption. It is not included in the published 0.7.2 tag. The expanded gate requires 8,282 additional state cases, all previous matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions. Both final Debug and Release gates passed: 158 XCTest (156 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, zero failures; both independent consumers and all 24 policy tests passed. See [the repair record](../records/remediation/REM-2026-11-11-state-coverage.md) for current-worktree execution evidence. Historical release-line results below do not certify this candidate.
+
+## Latest observed release-line package gate
 
 The recorded repair campaign examined the repaired working tree based on `c3f1481`; those repairs are included in the `0.7.2` release. The campaign used expanded filesystem access for module caches and the privilege-test prerequisites. Both configurations were accepted:
 

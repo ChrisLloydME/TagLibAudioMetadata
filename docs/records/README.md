@@ -134,3 +134,5 @@ These are the items a future maintainer or agent should not describe as fully so
 ## Adding a record
 
 Follow [CONVENTIONS.md](CONVENTIONS.md) and start from [TEMPLATE.md](TEMPLATE.md). Add one row here and, if the record creates or leaves an actionable finding, add it to the open register. Do not rewrite an existing final record; add an addendum or a superseding record instead.
+
+- [Native owner state coverage and write-surface repairs](remediation/REM-2026-11-11-state-coverage.md) — unreleased candidate after 0.7.2; current final evidence is recorded there.
