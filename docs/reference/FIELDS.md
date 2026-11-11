@@ -184,8 +184,8 @@ Column meanings:
 
 | Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `encodedBy` | Encoded By | `ENCODEDBY` | `ENCODEDBY`, `ENCODING` | `TENC` | `TENC` | `©enc` | `ENCODEDBY` | `ENCODEDBY` | `WM/EncodedBy` | — | — |
-| `encoderSettings` | Encoder Settings | `ENCODING` | `ENCODERSETTINGS` | `TSSE` | `TSSE` | `©too` | `ENCODING` | `ENCODING` | `WM/EncodingSettings` | — | — |
+| `encodedBy` | Encoded By | `ENCODEDBY` | `ENCODEDBY` | `TENC` | `TENC` | `©enc` | `ENCODEDBY` | `ENCODEDBY` | `WM/EncodedBy` | — | — |
+| `encoderSettings` | Encoder Settings | `ENCODING` | `ENCODING`, `ENCODERSETTINGS` | `TSSE` | `TSSE` | `©too` | `ENCODING` | `ENCODING` | `WM/EncodingSettings` | — | — |
 | `bpm` | BPM | `BPM` | `BPM` | `TBPM` | `TBPM` | `tmpo` | `BPM` | `BPM` | `WM/BeatsPerMinute` | — | — |
 | `trackerName` | Tracker Name | `TRACKERNAME` | `TRACKERNAME` | — | — | — | — | — | — | — | — |
 

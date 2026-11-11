@@ -124,7 +124,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (!trimmed) continue;
             xiph->removeFields(NSStringToTagString(trimmed));
             for (NSString *value in valuesToSet[key]) {
-                NSString *trimmedValue = TrimmedStringOrNil(value);
+                NSString *trimmedValue = value;
                 if (trimmedValue) xiph->addField(NSStringToTagString(trimmed), NSStringToTagString(trimmedValue), false);
             }
             changed = true;
@@ -140,7 +140,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             ape->removeItem(NSStringToTagString(trimmed));
             TagLib::StringList values;
             for (NSString *value in valuesToSet[key]) {
-                NSString *trimmedValue = TrimmedStringOrNil(value);
+                NSString *trimmedValue = value;
                 if (trimmedValue) values.append(NSStringToTagString(trimmedValue));
             }
             if (!values.isEmpty()) {
@@ -159,7 +159,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (!trimmed) continue;
             tag->removeItem(NSStringToTagString(trimmed));
             for (NSString *value in valuesToSet[key]) {
-                NSString *trimmedValue = TrimmedStringOrNil(value);
+                NSString *trimmedValue = value;
                 if (trimmedValue) {
                     tag->addAttribute(
                         NSStringToTagString(trimmed),

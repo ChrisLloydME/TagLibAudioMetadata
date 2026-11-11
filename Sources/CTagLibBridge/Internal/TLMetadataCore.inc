@@ -642,8 +642,8 @@ static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "MUSICIANCREDITS", { nullptr }, "TMCL", nullptr, nullptr, "MUSICIANCREDITS", true, true, true },
     { "COPYRIGHT", { nullptr }, "TCOP", nullptr, "cprt", nullptr, false, false, false },
     { "LABEL", { "PUBLISHER", nullptr }, "TPUB", nullptr, "\xA9" "pub", nullptr, false, false, false },
-    { "ENCODEDBY", { "ENCODING", nullptr }, "TENC", nullptr, "\xA9" "enc", nullptr, false, false, false },
-    { "ENCODERSETTINGS", { nullptr }, "TSSE", nullptr, "\xA9" "too", nullptr, false, false, false },
+    { "ENCODEDBY", { nullptr }, "TENC", nullptr, "\xA9" "enc", nullptr, false, false, false },
+    { "ENCODING", { "ENCODERSETTINGS", nullptr }, "TSSE", nullptr, "\xA9" "too", nullptr, false, false, false },
     { "ISRC", { nullptr }, "TSRC", nullptr, nullptr, "ISRC", false, false, false },
     { "BARCODE", { "UPC", "EAN", nullptr }, nullptr, "BARCODE", nullptr, "BARCODE", false, false, false },
     { "CATALOGNUMBER", { "CATALOG NUMBER", "CATALOG", nullptr }, nullptr, "CATALOGNUMBER", nullptr, "CATALOGNUMBER", false, false, false },
@@ -933,3 +933,9 @@ static NSDictionary<NSString *, NSString *> *NormalizedRawPropertiesForWrite(NSD
 
     return [normalizedProperties copy];
 }
+
+// Declared before the generic codec template; implemented with other native
+// ID3 writers. Generic ID3 containers must use the same date owners as MPEG.
+static void SetVersionedID3v2TextFrames(TagLib::ID3v2::Tag *tag,
+    NSString * _Nullable value, NSString *v23Identifier,
+    NSString * _Nullable v24Identifier, NSString * _Nullable v24UserTextDescription = nil);

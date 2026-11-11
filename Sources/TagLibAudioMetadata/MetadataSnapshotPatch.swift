@@ -792,14 +792,14 @@ extension TagLibMetadataManager {
             if isMP4, validatedPatch.fields[.contentGroup] != nil {
                 intentionallyChangedKeys.insert("GROUPING")
             }
-            if isMP4, validatedPatch.fields[.encoderSettings] != nil {
+            if (isMP4 || capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true), validatedPatch.fields[.encoderSettings] != nil {
                 intentionallyChangedKeys.insert("ENCODING")
             }
             let primaryID3 = ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"]
                 .contains(capability(forExtension: ext)?.identifier ?? "")
-            if primaryID3, validatedPatch.fields[.contentGroup] != nil {
-                // TagLib projects TIT1 as WORK; independent TXXX:WORK is
-                // verified by exact native ownership below.
+            if (primaryID3 || capability(forExtension: ext)?.identifier == "asf"), validatedPatch.fields[.contentGroup] != nil {
+                // TagLib projects TIT1 and ASF Content Group as WORK.
+                // Exact native siblings are verified separately below.
                 intentionallyChangedKeys.insert("WORK")
             }
             let beforeValues = exactPropertyValues(before.raw)
@@ -833,7 +833,8 @@ extension TagLibMetadataManager {
             let identifier = capability(forExtension: ext)?.identifier ?? ""
             let independentNativeFields = dateFields
                 + (identifier == "mp4" || primaryID3 ? [.contentGroup, .grouping, .work] : [])
-                + (identifier == "mp4" ? [.encodedBy, .encoderSettings, .movementNumber, .movementCount] : [])
+                + (identifier == "mp4" || primaryID3 ? [.encodedBy, .encoderSettings] : [])
+                + (identifier == "mp4" ? [.movementNumber, .movementCount] : [])
             for field in independentNativeFields {
                 guard validatedPatch.fields[field] == nil,
                       !(field == .year && validatedPatch.fields[.date] != nil),
@@ -935,13 +936,17 @@ extension TagLibMetadataManager {
                         actual = matching?.values ?? []
                     }
                 case .nativeTextKey(let key), .propertyMap(let key):
+                    // TagLib exposes these exact APE owners under its
+                    // canonical PropertyMap dialect rather than native names.
+                    let isAPE = ["ape", "wavpack", "musepack"].contains(capability(forExtension: ext)?.identifier ?? "")
+                    let projectionKey: String = isAPE ? (["ALBUM ARTIST": "ALBUMARTIST", "MIXARTIST": "REMIXER"][key] ?? key) : key
                     let asfValues = afterStructured.asfAttributes
                         .filter { key.caseInsensitiveCompare($0.key) == .orderedSame }
                         .map(\.value)
                     actual = !asfValues.isEmpty
                         ? asfValues
                         : afterRaw.properties.first {
-                            key.caseInsensitiveCompare($0.key) == .orderedSame
+                            projectionKey.caseInsensitiveCompare($0.key) == .orderedSame
                         }?.values ?? []
                 }
                 if field != .date,

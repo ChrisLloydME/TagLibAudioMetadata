@@ -28,6 +28,16 @@ static NSString * _Nullable MP4TextItemValue(const TagLib::MP4::ItemMap &items,
     return TrimmedStringOrNil(TagStringToNSString(items[key].toStringList().toString(", ")));
 }
 
+// trkn/disk contain unsigned 16-bit components. TagLib's IntPair
+// projection sign-extends them; normalize at every bridge read surface.
+static TagLib::MP4::Item::IntPair MP4UnsignedPair(const TagLib::MP4::Item &item)
+{
+    auto pair = item.toIntPair();
+    pair.first = static_cast<unsigned short>(pair.first);
+    pair.second = static_cast<unsigned short>(pair.second);
+    return pair;
+}
+
 static void SetMP4IntPairItem(TagLib::MP4::Tag *tag,
                               const char *key,
                               NSInteger number,
@@ -55,6 +65,18 @@ static NSString * _Nullable MP4FreeformDescriptionForItemKey(const TagLib::Strin
     }
 
     return TrimmedStringOrNil([NSString stringWithUTF8String:rawKey.substr(prefix.size()).c_str()]);
+}
+
+static void RemoveMP4OwnedAliases(TagLib::MP4::Tag *tag, NSArray<NSString *> *names)
+{
+    TagLib::StringList removals;
+    for (const auto &[key, item] : tag->itemMap()) {
+        NSString *description = MP4FreeformDescriptionForItemKey(key);
+        for (NSString *name in names) {
+            if (description && [description caseInsensitiveCompare:name] == NSOrderedSame) { removals.append(key); break; }
+        }
+    }
+    for (const auto &key : removals) tag->removeItem(key);
 }
 
 static void SetMP4FreeformTextItem(TagLib::MP4::Tag *tag,
@@ -586,13 +608,12 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
         return true;
     }
 
-    if ([normalizedKey isEqualToString:@"ENCODEDBY"] ||
-        [normalizedKey isEqualToString:@"ENCODING"]) {
+    if ([normalizedKey isEqualToString:@"ENCODEDBY"]) {
         metadata.encodedBy = trimmedValue;
         return true;
     }
 
-    if ([normalizedKey isEqualToString:@"ENCODERSETTINGS"]) {
+    if ([normalizedKey isEqualToString:@"ENCODING"] || [normalizedKey isEqualToString:@"ENCODERSETTINGS"]) {
         metadata.encoderSettings = trimmedValue;
         return true;
     }
@@ -802,7 +823,7 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "LYRICS", metadata.lyrics);
     SetPropertyMapString(properties, "ISRC", metadata.isrc);
     SetPropertyMapString(properties, "ENCODEDBY", metadata.encodedBy);
-    SetPropertyMapString(properties, "ENCODERSETTINGS", metadata.encoderSettings);
+    SetPropertyMapString(properties, "ENCODING", metadata.encoderSettings);
     SetPropertyMapString(properties, "TITLESORT", metadata.sortTitle);
     SetPropertyMapString(properties, "ARTISTSORT", metadata.sortArtist);
     SetPropertyMapString(properties, "ALBUMSORT", metadata.sortAlbum);
@@ -1246,6 +1267,10 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
 {
     TagLib::PropertyMap existingProperties = file.properties();
     TagLib::PropertyMap properties = BuildGenericPropertyMap(metadata, &existingProperties);
+    auto *nativeID3 = NativeID3v2TagForWrite(&file);
+    if (nativeID3) {
+        for (const char *key : { "YEAR", "DATE", "RELEASEDATE", "ORIGINALDATE" }) properties.erase(key);
+    }
     if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
     if (auto *asf = dynamic_cast<TagLib::ASF::File *>(&file)) {
         struct Field { const char *key; TagLib::String current; NSString *desired; };
@@ -1329,11 +1354,17 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
         setNative("DATE", metadata.standaloneDate);
         setNative("WM/OriginalReleaseYear", metadata.originalReleaseDate);
         setNative("WM/ContentGroupDescription", metadata.contentGroup);
+        setNative("WM/EncodedBy", metadata.encodedBy);
+        setNative("WM/EncodingSettings", metadata.encoderSettings);
         setNative("WM/ARTISTS", metadata.artists);
         setNative("REPLAYGAIN_TRACK_PEAK", metadata.replayGainTrackPeak);
         setNative("REPLAYGAIN_ALBUM_PEAK", metadata.replayGainAlbumPeak);
     }
-    if (auto *id3 = NativeID3v2TagForWrite(&file)) {
+    if (auto *id3 = nativeID3) {
+        SetVersionedID3v2TextFrames(id3, metadata.year, @"TYER", @"TDRC");
+        SetVersionedID3v2TextFrames(id3, metadata.standaloneDate, @"TDAT", nil, @"DATE");
+        SetVersionedID3v2TextFrames(id3, metadata.originalReleaseDate, @"TORY", @"TDOR");
+        SetVersionedID3v2TextFrames(id3, metadata.releaseDate, @"TDRL", @"TDRL");
         SetNativeID3NumberPair(id3, "TRCK",
             BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks),
             @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);

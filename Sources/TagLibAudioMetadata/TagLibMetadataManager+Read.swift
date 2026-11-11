@@ -393,15 +393,15 @@ extension TagLibMetadataManager {
         } else {
             contentGroup = isASF ? asfText("WM/ContentGroupDescription") : meta.grouping
             grouping = isASF ? nil : meta.grouping
-            work = meta.work
+            work = isASF ? nil : meta.work
         }
         let asfArtists = isASF ? asfText("WM/ARTISTS") : nil
         let encodedBy = isMP4
             ? (mp4Text("\u{00A9}enc") ?? mp4Text("----:com.apple.iTunes:ENCODEDBY"))
-            : (isNativeText ? firstRawValue(for: ["ENCODEDBY"]) : meta.encodedBy)
+            : (isID3 ? frameValue("TENC") : (isASF ? asfText("WM/EncodedBy") : (isNativeText ? firstRawValue(for: ["ENCODEDBY"]) : meta.encodedBy)))
         let encoderSettings = isMP4
             ? (mp4Text("\u{00A9}too") ?? mp4Text("----:com.apple.iTunes:ENCODERSETTINGS") ?? mp4Text("----:com.apple.iTunes:ENCODING"))
-            : (isNativeText ? firstRawValue(for: ["ENCODING", "ENCODERSETTINGS"]) : meta.encoderSettings)
+            : (isID3 ? frameValue("TSSE") : (isASF ? asfText("WM/EncodingSettings") : (isNativeText ? firstRawValue(for: ["ENCODING", "ENCODERSETTINGS"]) : meta.encoderSettings)))
         let mediaType = mp4Text("----:com.apple.iTunes:MEDIA") ?? meta.mediaType
         let itunesAlbumID = mp4Integer("plID").map(String.init) ?? meta.itunesAlbumId
         let itunesArtistID = mp4Integer("atID").map(String.init) ?? meta.itunesArtistId
