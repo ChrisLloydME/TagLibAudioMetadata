@@ -284,6 +284,16 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             if (file->tag()) {
                 ExtractASFPicture(file->tag(), basic);
                 ExtractASFCustomAttributes(file->tag(), basic);
+                auto nativeText = [&](const char *key) -> NSString * {
+                    TagLib::StringList values;
+                    for (const auto &attribute : file->tag()->attributeListMap()[key]) {
+                        if (attribute.type() == TagLib::ASF::Attribute::UnicodeType) values.append(attribute.toString());
+                    }
+                    return values.isEmpty() ? nil : TagStringToNSString(values.toString(", "));
+                };
+                basic.year = nativeText("WM/Year");
+                basic.standaloneDate = nativeText("DATE");
+                basic.originalReleaseDate = nativeText("WM/OriginalReleaseYear");
                 ExtractArtworkFromComplexProperties(file->tag(), basic);
                 if (wantsStructured) AppendStructuredASF(file->tag(), asfAttributesOut, artworkOut);
             }
@@ -331,6 +341,14 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
         if (auto *file = dynamic_cast<TagLib::XM::File *>(baseFile)) {
             openedExpectedType = true; applyCommon(file); basic.codec = @"XM";
         }
+    }
+
+    if (NativeXiphComment(baseFile) || NativeAPETag(baseFile)) {
+        // Tag::year() may derive a four-digit year from native DATE. The
+        // low-level model must expose the independent native owners instead.
+        const auto nativeDates = VisibleMetadataProperties(baseFile);
+        basic.year = FirstStringFromProperty(nativeDates, { "YEAR" }, true);
+        basic.standaloneDate = FirstStringFromProperty(nativeDates, { "DATE" }, true);
     }
 
     const bool isTrackerFormat =

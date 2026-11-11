@@ -709,8 +709,9 @@ static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
             TagLib::StringList list;
             NSArray<NSString *> *values = (NSArray<NSString *> *)entry[@"values"];
             for (NSString *value in values ?: @[]) {
-                NSString *trimmed = TrimmedStringOrNil(value);
-                if (trimmed) list.append(NSStringToTagString(trimmed));
+                // Structured arrays are exact values, not display text.
+                // Semantic callers already normalize their own text intent.
+                list.append(NSStringToTagString(value));
             }
             if (list.isEmpty()) tag->removeItem(NSStringToTagString(key));
             else tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(list));
@@ -937,7 +938,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             return NO;
         }
         if (propertyValues) {
-            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+            SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
         TagLib::ID3v2::Tag *tag = PrepareMPEGID3v2Tag(file);
         UpsertID3v2StructuredFrames(tag, frames);
@@ -963,7 +964,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             return SetStructuredPayloadValidationError(error, @"Unable to open TrueAudio file for structured metadata editing");
         }
         if (propertyValues) {
-            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+            SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
         TagLib::ID3v2::Tag *tag = NativeID3v2TagForWrite(&file);
         UpsertID3v2StructuredFrames(tag, frames);
@@ -987,7 +988,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (!file || !file->isValid()) {
             return SetStructuredPayloadValidationError(error, @"Unable to open DSD file for structured metadata editing");
         }
-        if (propertyValues) file->setProperties(MergedRawPropertyMapValues(file->properties(), propertyValues));
+        if (propertyValues) SetPropertiesPreservingNativeDates(file, MergedRawPropertyMapValues(file->properties(), propertyValues));
         auto *tag = NativeID3v2TagForWrite(file);
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Artwork(tag, artwork);
@@ -1012,7 +1013,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
                 return NO;
             }
             if (propertyValues) {
-                file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+                SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
             }
             if (!ReplaceStructuredAPEFrontArtwork(file.APETag(true), artwork)) {
                 if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:250 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to apply structured APE-family artwork" }];
@@ -1047,7 +1048,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             // WAV's file-level PropertyMap also exposes RIFF INFO. Merge into
             // the ID3v2 tag only so preserveInfo does not duplicate INFO into
             // ID3 and id3v2Only does not carry INFO values into the new tag.
-            tag->setProperties(MergedRawPropertyMapValues(tag->properties(), propertyValues));
+            SetID3PropertiesPreservingNativeDates(tag, MergedRawPropertyMapValues(tag->properties(), propertyValues));
         }
         UpsertID3v2StructuredFrames(tag, frames);
         ReplaceID3v2Comments(tag, comments);
@@ -1083,7 +1084,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             return NO;
         }
         if (propertyValues) {
-            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+            SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
         TagLib::ID3v2::Tag *tag = file.tag();
         UpsertID3v2StructuredFrames(tag, frames);
@@ -1104,7 +1105,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             return NO;
         }
         if (propertyValues) {
-            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+            SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
         ApplyStructuredMP4Atoms(file.tag(), mp4Atoms);
         if (!ReplaceStructuredComplexArtwork(file.tag(), artwork)) {
@@ -1125,7 +1126,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             return NO;
         }
         if (propertyValues) {
-            file.setProperties(MergedRawPropertyMapValues(file.properties(), propertyValues));
+            SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
         }
         if (!ApplyStructuredASFAttributes(file.tag(), asfAttributes, error)) return NO;
         ReplaceStructuredASFArtwork(file.tag(), artwork);
@@ -1151,7 +1152,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         if (!file || !file->isValid()) {
             return SetStructuredPayloadValidationError(error, @"Unable to open audio file for structured artwork editing");
         }
-        if (propertyValues) file->setProperties(MergedRawPropertyMapValues(file->properties(), propertyValues));
+        if (propertyValues) SetPropertiesPreservingNativeDates(file, MergedRawPropertyMapValues(file->properties(), propertyValues));
         if (!ReplaceStructuredComplexArtwork(file, artwork) || !file->save()) {
             return SetStructuredPayloadValidationError(error, @"TagLib could not save structured artwork");
         }
@@ -1175,7 +1176,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             return SetStructuredPayloadValidationError(error, @"Unable to open audio file for structured metadata editing");
         }
         if (propertyValues) {
-            file->setProperties(MergedRawPropertyMapValues(file->properties(), propertyValues));
+            SetPropertiesPreservingNativeDates(file, MergedRawPropertyMapValues(file->properties(), propertyValues));
         }
         if (!ReplaceStructuredComplexArtwork(file, artwork) || !file->save()) {
             return SetStructuredPayloadValidationError(error, @"TagLib could not save structured metadata");

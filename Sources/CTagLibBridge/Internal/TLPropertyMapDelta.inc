@@ -251,7 +251,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         }
 
         wav->InfoTag()->setProperties(info);
-        wav->ID3v2Tag()->setProperties(id3);
+        SetID3PropertiesPreservingNativeDates(wav->ID3v2Tag(), id3);
         if (infoChanged &&
             !wav->save(TagLib::RIFF::WAV::File::Info, TagLib::File::StripNone)) {
             if (error) {
@@ -432,7 +432,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         }
         id3.replace(tagKey, values);
     }
-    wav.ID3v2Tag()->setProperties(id3);
+    SetID3PropertiesPreservingNativeDates(wav.ID3v2Tag(), id3);
     if (!wav.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

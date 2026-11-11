@@ -3,6 +3,21 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Route MP4 Comment/Lyrics through native atoms; preserve exact untouched MP4 and ID3 date owners, including absence, across PropertyMap replay.
+- Keep low-level YEAR/DATE reads independent on MP4, ID3, Xiph and APE; prevent scalar custom-field replay from collapsing unchanged native arrays.
+- Preserve existing MP4 custom-field name spelling, structured string-list whitespace and unchanged arrays during whole-map read/modify/write.
+- Keep Artist independent from ARTISTS; verify ASF native Date removal without falling back to WM/Year, and keep YEAR/DATE separate in raw replacement comparison.
+- Route ASF semantic custom fields through native attributes, reconcile edited case aliases, and verify their actual native values.
+
+### Tests
+
+- Add 8,282 independent native-state cases across MP4, ASF and thirteen additional containers, covering sparse dates, all MP4 fields together, adversarial date arrays and eleven explicitly inventoried public write families.
+- Require new matrices and reviewed declaration floors in the mixed-framework gate; add tampering regressions without relaxing existing failures or skips.
+
 ## [0.7.2] - 2026-11-11
 
 ### Fixed
