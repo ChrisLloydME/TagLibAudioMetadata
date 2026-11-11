@@ -410,8 +410,8 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { "TMED", nullptr, nullptr, "MEDIA", GetMediaType },
     { "MVNM", nullptr, nullptr, "MOVEMENT", GetMovement },
     { "MVIN", nullptr, nullptr, nullptr, GetMovementNumberPair },
-    { nullptr, nullptr, nullptr, "MOVEMENTNUMBER", GetMovementNumber },
-    { nullptr, nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
+    { nullptr, nullptr, "\xA9" "mvi", nullptr, GetMovementNumber },
+    { nullptr, nullptr, "\xA9" "mvc", nullptr, GetMovementCount },
     { "TCMP", nullptr, nullptr, nullptr, GetCompilation },
     { "TDRL", nullptr, nullptr, "RELEASEDATE", GetReleaseDate },
     { "TDRC", nullptr, nullptr, nullptr, GetDate },
@@ -508,7 +508,7 @@ static void SetVersionedID3v2TextFrames(TagLib::ID3v2::Tag *tag,
                                         NSString * _Nullable value,
                                         NSString * v23Identifier,
                                         NSString * _Nullable v24Identifier,
-                                        NSString * _Nullable v24UserTextDescription = nil)
+                                        NSString * _Nullable v24UserTextDescription)
 {
     if (!tag) return;
     if (v23Identifier.length == 4) SetID3v2TextFrame(tag, v23Identifier.UTF8String, nil);
@@ -554,7 +554,18 @@ static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,
     for (const auto &mapping : kWritableTextMappings) {
         NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
         if (mapping.mp4Atom) {
-            SetMP4TextItem(tag, mapping.mp4Atom, value);
+            NSMutableArray<NSString *> *aliases = [NSMutableArray array];
+            for (const auto &field : kMetadataFieldMappings) {
+                if (!field.mp4Atom || std::strcmp(field.mp4Atom, mapping.mp4Atom) != 0) continue;
+                [aliases addObject:@(field.canonicalPropertyKey)];
+                for (const char *alias : field.propertyAliases) { if (alias) [aliases addObject:@(alias)]; }
+            }
+            RemoveMP4OwnedAliases(tag, aliases);
+            if (std::strcmp(mapping.mp4Atom, "\xA9" "mvi") == 0)
+                SetMP4MovementItem(tag, mapping.mp4Atom, @"MOVEMENTNUMBER", metadata.movementNumber);
+            else if (std::strcmp(mapping.mp4Atom, "\xA9" "mvc") == 0)
+                SetMP4MovementItem(tag, mapping.mp4Atom, @"MOVEMENTCOUNT", metadata.movementCount);
+            else SetMP4TextItem(tag, mapping.mp4Atom, value);
         }
         if (mapping.mp4FreeformDescription) {
             const TLMetadataFieldMapping *field = nullptr;
@@ -759,9 +770,9 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     NSString *isrcValue = FirstStringFromProperty(properties, {"ISRC"});
     if (isrcValue.length > 0) metadata.isrc = isrcValue;
 
-    NSString *encodedByValue = FirstStringFromProperty(properties, {"ENCODEDBY", "ENCODING"});
+    NSString *encodedByValue = FirstStringFromProperty(properties, {"ENCODEDBY"});
     if (encodedByValue.length > 0) metadata.encodedBy = encodedByValue;
-    NSString *encoderSettingsValue = FirstStringFromProperty(properties, {"ENCODERSETTINGS"});
+    NSString *encoderSettingsValue = FirstStringFromProperty(properties, {"ENCODING", "ENCODERSETTINGS"});
     if (encoderSettingsValue.length > 0) metadata.encoderSettings = encoderSettingsValue;
 
     NSString *sortTitle = FirstStringFromProperty(properties, {"TITLESORT"});

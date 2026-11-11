@@ -1,14 +1,41 @@
 # Current validation status
 
-## Test-system audit — 2026-11-10
+## Audit integrity repairs — 2026-11-11
 
-The `codex/package-test-system-upgrade` branch adds independent MP4 lifecycle checks and exposes four mandatory failures (Encoded By removal, Encoder Settings verification, Movement Number and Movement Count native ownership). Debug and Release reproduce them. See [the audit record](../records/remediation/REM-2026-11-10-package-test-system.md). This branch is not release-ready despite earlier passing suite totals.
+**Local package gates pass.** The repaired working tree on `codex/audit-integrity-repairs`, based on `c3f1481`, resolves the reproduced blockers from the independent audit. See [the repair record](../records/remediation/REM-2026-11-11-audit-integrity-repairs.md). The original audit remains historical evidence of the defects before repair.
+
+| Check | Result |
+| --- | --- |
+| Environment | macOS 27.2 (26B123), Xcode 27.2 (27B52), Apple Swift 6.4.2, TagLib 2.3.1-r2 |
+| Debug and Release gates | Both `accepted: true`; strict test compilation |
+| XCTest, each configuration | 158 executed: 156 passed, 2 existing opt-in skips, zero failures |
+| Swift Testing, each configuration | 165 declarations in 36 suites passed; original 24 audit probes included |
+| Privilege rejection | Passed unchanged with expanded filesystem access |
+| Strict production build | Passed; no deprecated-diagnostic exception in production |
+| Gate policy | 22 Python tests passed |
+| Consumers | Facade and low-level executables passed |
+| Documentation | 52 Markdown files and all four generated-reference checks passed |
+| AudioMator override | 62 core and 574 serial app-hosted tests passed; unsigned Release build/artifact validation passed |
+| Publication / hosted CI / sanitizers | Not performed for this tree |
+
+The fixes cover untouched Basic dates, encoder ownership, MP4 alias retirement, unsigned MP4 pairs, Basic verification and additional projection/removal defects exposed by new matrices. There is no automatic YEAR/DATE reconciliation. Independent lifecycle cases now cover MP4, FLAC, APE-family, Vorbis/Opus, ASF and all seven tested ID3-backed containers, with explicit per-format field subsets. See [test acceptance](MAPPING_TEST_STRATEGY.md) for counts and limits.
+
+Evidence: `.build/test-evidence/debug-20261111-124030-69547/` and `.build/test-evidence/release-20261111-124120-69890/`. Local acceptance does not imply remote tag resolution, signing, notarization or interactive UI acceptance.
+
+## Native mapping follow-up — 2026-11-11 (pre-audit local claim)
+
+The `codex/native-mapping-followup-repairs` working tree resolves the seven field/format combinations exposed by the expanded matrices. Complete Debug/Release gates both pass: 156 XCTest passed, two existing optional skips, and 128 Swift Testing declarations passed. Strict compilation passes. This is local repaired-source evidence, not a newly published package. See [repair acceptance](../records/remediation/REM-2026-11-11-native-mapping-followup.md).
+
+
+## Earlier test-system audit — 2026-11-10 (before follow-up repairs)
+
+The `codex/package-test-system-upgrade` branch now uses independent per-operation MP4, FLAC and ID3v2.4 matrices. Mandatory failures include MP4 encoder fields and movement ownership, FLAC Content Group/Encoder Settings and ID3v2.4 Content Group. Debug and Release reproduce them. See [the audit record](../records/remediation/REM-2026-11-10-package-test-system.md). This branch is not release-ready despite earlier passing suite totals.
 
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
 
-The current documentation describes the working tree, including the `0.7.1` native Mapping repair candidate on top of `0.7.0`. The latest published package remains `0.7.0`. Results below are the latest observed Debug and Release runs after the native Mapping repairs (2026-11-10).
+The earlier mapping-repair baseline below is historical evidence, not the current test-system branch acceptance. Current matrix/gate results are recorded in [the expanded test-system evidence](../records/remediation/REM-2026-11-10-expanded-test-system.md).
 
-## Latest observed run (2026-11-10)
+## Earlier mapping-repair baseline (2026-11-10)
 
 | Field | Value |
 | --- | --- |
