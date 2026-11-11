@@ -217,7 +217,7 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
 
     // Track number
     if (items.contains("trkn")) {
-        TagLib::MP4::Item::IntPair trackPair = items["trkn"].toIntPair();
+        TagLib::MP4::Item::IntPair trackPair = MP4UnsignedPair(items["trkn"]);
         metadata.trackNumber = trackPair.first;
         metadata.totalTracks = trackPair.second;
         metadata.trackNumberText = trackPair.second > 0
@@ -227,7 +227,7 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
 
     // Disc number
     if (items.contains("disk")) {
-        TagLib::MP4::Item::IntPair discPair = items["disk"].toIntPair();
+        TagLib::MP4::Item::IntPair discPair = MP4UnsignedPair(items["disk"]);
         metadata.discNumber = discPair.first;
         metadata.totalDiscs = discPair.second;
         metadata.discNumberText = discPair.second > 0

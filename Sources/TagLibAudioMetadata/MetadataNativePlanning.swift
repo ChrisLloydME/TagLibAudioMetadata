@@ -171,7 +171,7 @@ extension TagLibMetadataManager {
             // stale lower-case aliases.
             let nativeFields: Set<MetadataFieldKey> = [
                 .year, .date, .standaloneDate, .originalReleaseDate,
-                .contentGroup, .artists, .replayGainTrackPeak, .replayGainAlbumPeak,
+                .contentGroup, .artists, .encodedBy, .encoderSettings, .replayGainTrackPeak, .replayGainAlbumPeak,
             ]
             var removals = Set(schema.propertyMapKeys.map { $0.uppercased() })
             if nativeFields.contains(field) {
