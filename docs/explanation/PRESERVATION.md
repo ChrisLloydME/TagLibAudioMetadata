@@ -240,3 +240,15 @@ Preservation and verification happen on a sibling staging copy. The destination 
 - [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent matrices and coverage limits.
 - [Testing](../operations/TESTING.md) — commands, gate policy, and evidence interpretation.
 - [Migration](../operations/MIGRATION.md) — release-specific ownership and bounds changes.
+
+## PropertyMap replay and sparse native owners
+
+Unchanged date owners survive engine PropertyMap replay on MP4 and ID3-backed files, including native absence. The bridge preserves exact MP4 items and detaches/restores untouched ID3 date frames rather than reconstructing their encoding and arrays. MP4 Comment/Lyrics use their native atoms, while qualified ID3 comment/lyric behavior remains in its codec.
+
+The low-level model reads YEAR and standalone DATE from their native owners on MP4, ID3, Xiph and APE. It does not populate one from another's engine projection. Its scalar API still cannot represent every native array or opaque structure; use selective patches and structured APIs for explicit native edits.
+
+An unchanged unknown-field scalar projection must not collapse its underlying native value array during low-level read/modify/write. Changed MP4 custom fields preserve the existing name spelling and reconcile case aliases. Array whole-map replacement retains arrays whose submitted values exactly equal the current visible values; its legacy normalization of newly submitted values and complete-map ownership still apply. YEAR and DATE remain separate keys in replacement verification.
+
+ASF native-field verification treats missing attributes as absent even when the engine still exposes a similarly named projection of a different owner. Artist does not fall back to independent ARTISTS.
+
+ASF semantic custom fields address native Unicode attributes because the engine PropertyMap cannot represent arbitrary ASF attributes. Edits reconcile only that field's case aliases; verification uses the native attribute collection. Unedited attributes, Content Description fields and packet tail remain protected by independent tests.
