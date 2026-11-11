@@ -152,12 +152,12 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         TagLib::ASF::Tag *tag = asf->tag();
         for (NSString *key in keysToRemove ?: @[]) {
             NSString *trimmed = TrimmedStringOrNil(key);
-            if (trimmed) { tag->removeItem(NSStringToTagString(trimmed)); changed = true; }
+            if (trimmed) { RemoveASFCommonAttributeAlias(tag, trimmed.uppercaseString.UTF8String); changed = true; }
         }
         for (NSString *key in valuesToSet ?: @{}) {
             NSString *trimmed = TrimmedStringOrNil(key);
             if (!trimmed) continue;
-            tag->removeItem(NSStringToTagString(trimmed));
+            RemoveASFCommonAttributeAlias(tag, trimmed.uppercaseString.UTF8String);
             for (NSString *value in valuesToSet[key]) {
                 NSString *trimmedValue = value;
                 if (trimmedValue) {
