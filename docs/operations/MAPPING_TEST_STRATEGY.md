@@ -2,7 +2,7 @@
 
 Mapping conformance requires executable field-operation evidence. Registry membership, documentation agreement and a successful aggregate test count do not establish independent persistence.
 
-For the post-0.7.1 repair line, the recorded full gate result is 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites, with both Debug and Release accepted under expanded filesystem access; those repairs are merged into current `main`, but no full accepted gate has been rerun on the exact merge commits. The gate-policy suite has 22 Python regressions. The environment-dependent privilege test remains mandatory; the latest observed state is in [Status](STATUS.md).
+For the repair line included in `0.7.2`, the recorded full gate result is 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites, with both Debug and Release accepted under expanded filesystem access. No full accepted gate was rerun on the final release commit. The gate-policy suite has 22 Python regressions. The environment-dependent privilege test remains mandatory; the latest observed state is in [Status](STATUS.md).
 
 ## Required layers
 

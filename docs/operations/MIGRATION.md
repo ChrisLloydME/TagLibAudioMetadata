@@ -1,6 +1,6 @@
 # Compatibility and migration
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. The latest published tag is `0.7.1` (2026-11-10). Current `main` contains post-0.7.1 repairs that are not yet tagged. Sections are newest first; review the behavioral changes that apply to your starting version.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.2` (2026-11-11) is the current release. Sections are newest first; review the behavioral changes that apply to your starting version.
 
 ## Compatibility promises
 
@@ -10,9 +10,9 @@ This guide describes source-compatibility expectations and the changes a consume
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.
 
-## Current main after 0.7.1 (unreleased)
+## Migrating from 0.7.1 to 0.7.2
 
-Current `main` contains audit-integrity, native-mapping follow-up, package test-system and MP4 Content Group repairs. There is no release tag after `0.7.1` and no automatic user-file migration. These changes are source-compatible unless an application depended on the old ownership or range behavior described below.
+Version `0.7.2` contains audit-integrity, native-mapping follow-up, package test-system and MP4 Content Group repairs. There is no automatic user-file migration. These changes are source-compatible unless an application depended on the old ownership or range behavior described below.
 
 ### Ownership and preservation corrections
 
