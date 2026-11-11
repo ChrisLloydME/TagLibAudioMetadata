@@ -1,8 +1,20 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe version `0.7.2`, including the audit, native-mapping, test-system and MP4 Content Group repairs finalized in that release. Mapping contract 2.2 behavior was introduced in `0.7.0`. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The published release is `0.7.2` (2026-11-11), including the audit, native-mapping, test-system and MP4 Content Group repairs finalized in that release. The current branch, `codex/metadata-state-coverage-repairs`, contains unreleased post-`0.7.2` repairs. The current pages describe the source tree at this revision and label behavior that is not in the published tag. Mapping contract 2.2 behavior was introduced in `0.7.0`. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
+
+## Release boundary
+
+| Item | State |
+| --- | --- |
+| Latest published tag | `0.7.2`, declared 2026-11-11 |
+| Current source branch | `codex/metadata-state-coverage-repairs`, after the `0.7.2` tag |
+| Published binary identity | TagLib 2.3.1-r2; unchanged by the unreleased repairs |
+| Documentation scope | Current source tree, with post-`0.7.2` behavior identified in the relevant pages |
+| Install target | `0.7.2` for production; branch resolution is for evaluation only and is not a released version |
+
+The current branch adds state-preservation repairs, not a new public mapping contract. The contract remains `AM-TLAM-MAPPING-2.2`. See [Migration](operations/MIGRATION.md) for the consumer-visible delta and [Status](operations/STATUS.md) for the observed evidence. For the documentation that matches the tagged release rather than this branch, read the repository at `0.7.2`; the tag is the release boundary.
 
 ## Reading paths
 
@@ -14,6 +26,14 @@ The source code, `Package.swift`, and the test target are the final authority fo
 4. [Writing metadata](guide/WRITING.md) — typed patches, Basic, raw, structured, erase.
 5. [Capabilities](guide/CAPABILITIES.md) — declared format and field support.
 6. [Formats](reference/FORMATS.md) — generated matrix and container limits.
+
+### I am evaluating the current branch against 0.7.2
+
+1. [Migration](operations/MIGRATION.md) — published-release boundary and unreleased change list.
+2. [Status](operations/STATUS.md) — observed gates and the limits of that evidence.
+3. [Write semantics](explanation/PRESERVATION.md) — native-owner and PropertyMap replay rules introduced by the candidate.
+4. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — current gate requirements and historical counts.
+5. [Engineering records](records/README.md) — the state-coverage campaign evidence.
 
 ### I am implementing an editor
 
@@ -31,7 +51,7 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 1. [Architecture](explanation/ARCHITECTURE.md) — modules, flows, invariants, source and test layout.
 2. [Development](operations/DEVELOPMENT.md) — change workflow, documentation pipeline, release, binary maintenance.
 3. [Testing](operations/TESTING.md) — commands, CI, opt-ins, evidence limits.
-4. [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — lifecycle matrices, gate policy, coverage limits.
+4. [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — lifecycle and sparse-state matrices, gate policy, coverage limits.
 5. [Status](operations/STATUS.md) — latest observed validation state.
 6. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
 7. [Engineering records](records/README.md) — past investigations and open findings.
@@ -58,11 +78,11 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 | Audio-content continuity | [explanation/AUDIO_CONTENT_CONTINUITY.md](explanation/AUDIO_CONTENT_CONTINUITY.md) | Identity availability, algorithm, guarded rebases, cost, limitations. | General snapshot semantics. |
 | Implementation architecture | [explanation/ARCHITECTURE.md](explanation/ARCHITECTURE.md) | Modules, read/write flows, invariants, source map, test layout. | Consumer recipes. |
 | Installation and distribution | [operations/INSTALLATION.md](operations/INSTALLATION.md) | Products, binary identity, slices, embedding, offline builds, diagnostics. | Format behavior. |
-| Testing | [operations/TESTING.md](operations/TESTING.md) | Test layers, commands, CI jobs, opt-ins, independent oracles, evidence limits. | Current pass/fail claims or matrix case counts. |
+| Testing | [operations/TESTING.md](operations/TESTING.md) | Test layers, commands, CI jobs, opt-ins, independent oracles, gate application, evidence limits. | Release verdicts or campaign narratives. |
 | Mapping test acceptance | [operations/MAPPING_TEST_STRATEGY.md](operations/MAPPING_TEST_STRATEGY.md) | Required lifecycle matrices, independent oracles, mixed-framework gate, minimum case counts, coverage limits. | General test commands or current status. |
-| Validation status | [operations/STATUS.md](operations/STATUS.md) | Latest observed run, environment, counts, skips, known failures, limitations. | Historical campaigns. |
+| Validation status | [operations/STATUS.md](operations/STATUS.md) | Latest observed run, environment, counts, skips, known failures, current branch/release boundary, limitations. | Historical campaigns. |
 | Development | [operations/DEVELOPMENT.md](operations/DEVELOPMENT.md) | Repository layout, source-of-truth rules, documentation pipeline, release, binary maintenance. | Application usage. |
-| Compatibility | [operations/MIGRATION.md](operations/MIGRATION.md) | Source-compatibility promises, deprecation map, behavioral changes, release migration. | Release notes for every version. |
+| Compatibility and current delta | [operations/MIGRATION.md](operations/MIGRATION.md) | Published-release boundary, post-release consumer changes, deprecation map, migration actions. | Release notes for every version. |
 | Third-party licensing | [operations/THIRD_PARTY_NOTICES.md](operations/THIRD_PARTY_NOTICES.md) | TagLib and utf8cpp provenance, licenses, corresponding source. | Behavior. |
 | Historical evidence | [records/README.md](records/README.md) | Audits, reviews, remediation, verification, migrations, maintenance logs. | Current contracts. |
 
@@ -111,8 +131,9 @@ A passing test establishes that the executed assertions passed in that environme
 - State the scope of a guarantee: which formats, which surfaces, which environment.
 - Do not describe a configured CI job as a passing result for a revision that did not run it.
 - Do not present `fixtureCovered` as universal format support.
+- Distinguish the latest published tag from the current source branch. Never describe unreleased behavior as part of a tagged release.
 - Update [Status](operations/STATUS.md) only after a validation campaign that changes the latest known state. Put the campaign narrative in a record.
-- Update [Migration](operations/MIGRATION.md) when a public API is deprecated or its semantics change.
+- Update [Migration](operations/MIGRATION.md) when a public API is deprecated, its semantics change, or a post-release branch adds a consumer-visible behavior change.
 - Regenerate the API, model, field, format, and mapping pages after a source change; do not edit their generated sections by hand.
 
 ## Documentation checks

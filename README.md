@@ -4,9 +4,9 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **Release status.** Version `0.7.2` (2026-11-11) is the current release. These docs describe that release and its finalized behavior.
+> **Release status.** `0.7.2` (2026-11-11) is the latest published tag. The current branch, `codex/metadata-state-coverage-repairs`, contains unreleased post-`0.7.2` repairs. These pages describe the current source tree and clearly label behavior that is not in the published tag. Install from `0.7.2` unless you are explicitly evaluating the branch.
 
-> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections, and `0.7.2` finalizes the audit, native-mapping, test-system and MP4 Content Group repairs. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
+> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs. The unreleased branch adds sparse native-owner preservation across public write surfaces and low-level reads. Use the [migration guide](docs/operations/MIGRATION.md) for the release boundary and current-branch changes.
 
 ## At a glance
 
@@ -18,6 +18,17 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 | Reads | Basic, raw `PropertyMap`, structured container models, numbering inventory, and an optional audio-content identity |
 | Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, explicit number normalization, and verified erase |
 | Commit model | Sibling staging copy, atomic rename, file and parent-directory sync; process-local coordination only |
+
+## Current source state
+
+The published `0.7.2` tag remains the installable release. The current branch is a post-release candidate that repairs native-owner state loss discovered during application adoption:
+
+- PropertyMap replay and low-level reads preserve existing native YEAR, DATE, RELEASEDATE and ORIGINALDATE owners, including absence, on MP4 and ID3-backed files; Xiph/APE and ASF reads distinguish their independent native keys instead of relying on engine projections.
+- MP4 semantic `.comment` and `.lyrics` patches address the native `©cmt`/`©lyr` atoms. Structured `comments`/`lyrics` collections remain unsupported on MP4.
+- ASF semantic custom fields address native Unicode attributes and reconcile only the edited field's case aliases.
+- The mixed-framework gate now requires the sparse-state matrices and 8,282 additional parameterized cases in addition to the prior lifecycle evidence.
+
+These changes are not in the published `0.7.2` tag. See [Migration](docs/operations/MIGRATION.md) for the change list and [Status](docs/operations/STATUS.md) for the observed validation results.
 
 ## Requirements
 
@@ -131,7 +142,7 @@ A failure before rename leaves the original path and bytes unchanged and removes
 
 Snapshot reads capture a `MetadataFileVersion`; pass it as `expectedVersion` to reject a stale edit. TagLib parser and mutation work is serialized by a process-wide recursive mutex, and same-entry transactions are serialized by a directory-identity/name lock shared by the facade and bridge. This is **process-local coordination, not cross-process exclusion**. An external writer can still race the final identity check and rename. See [Transactions and concurrency](docs/explanation/TRANSACTIONS.md).
 
-`MetadataPatch` and `RawMetadataPatch` are omission-safe deltas. Raw APIs use prefixless TagLib `PropertyMap` keys; native MP4 `----:` atom identifiers must go through `StructuredMetadata.mp4Atoms`. Neither delta comparison is a lossless oracle for opaque native metadata that TagLib does not expose. See [Write semantics](docs/explanation/PRESERVATION.md).
+`MetadataPatch` and `RawMetadataPatch` are omission-safe deltas. Raw APIs use prefixless TagLib `PropertyMap` keys; native MP4 `----:` atom identifiers must go through `StructuredMetadata.mp4Atoms`. Unchanged native date owners are restored across PropertyMap replay, including native absence, and a scalar projection does not authorize collapsing an existing native array. Neither delta comparison is a lossless oracle for opaque native metadata that TagLib does not expose. See [Write semantics](docs/explanation/PRESERVATION.md).
 
 ## Format evidence
 
