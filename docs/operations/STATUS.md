@@ -1,126 +1,71 @@
 # Current validation status
 
-## Audit integrity repairs — 2026-11-11
+This page is a snapshot of the latest known validation state for the current source tree and the limits that remain. It is not a chronological log of every campaign. Historical evidence, including the original failing audits, is retained in [engineering records](../records/README.md).
 
-**Local package gates pass.** The repaired working tree on `codex/audit-integrity-repairs`, based on `c3f1481`, resolves the reproduced blockers from the independent audit. See [the repair record](../records/remediation/REM-2026-11-11-audit-integrity-repairs.md). The original audit remains historical evidence of the defects before repair.
+## Release boundary
+
+| Item | State |
+| --- | --- |
+| Latest published tag | `0.7.1`, released 2026-11-10 from the merge at `649b7a9` |
+| Current source | `main` after `0.7.1`; includes unreleased audit-integrity, native-mapping follow-up, test-system and MP4 Content Group repairs |
+| Tag after `0.7.1` | None at the time of this update |
+| Documentation scope | Current pages describe the post-0.7.1 `main` working tree; release-specific behavior is called out in [Migration](MIGRATION.md) |
+
+The `0.7.1` tag includes mapping contract 2.2 and the date/ownership corrections released on 2026-11-10. The post-tag changes are described under `[Unreleased]` in the [changelog](../../CHANGELOG.md). Do not infer a new release from a passing local gate.
+
+## Latest observed package gate
+
+The recorded repair campaign examined the repaired working tree based on `c3f1481`; those repairs are merged into current post-0.7.1 `main`. The campaign used expanded filesystem access for module caches and the privilege-test prerequisites. Both configurations were accepted:
+
+| Check | Debug | Release |
+| --- | --- | --- |
+| Gate result | `accepted: true` | `accepted: true` |
+| XCTest | 158 executed; 156 passed, 2 existing opt-in skips, 0 failures | 158 executed; 156 passed, 2 existing opt-in skips, 0 failures |
+| Swift Testing | 165 declarations in 36 suites passed | 165 declarations in 36 suites passed |
+| Strict compilation | Swift and C/Objective-C warnings as errors | Same |
+| Privilege rejection | Passed with expanded filesystem access | Same |
+| Gate policy | 22 Python regressions passed | Same |
+
+Additional recorded checks:
 
 | Check | Result |
 | --- | --- |
-| Environment | macOS 27.2 (26B123), Xcode 27.2 (27B52), Apple Swift 6.4.2, TagLib 2.3.1-r2 |
-| Debug and Release gates | Both `accepted: true`; strict test compilation |
-| XCTest, each configuration | 158 executed: 156 passed, 2 existing opt-in skips, zero failures |
-| Swift Testing, each configuration | 165 declarations in 36 suites passed; original 24 audit probes included |
-| Privilege rejection | Passed unchanged with expanded filesystem access |
-| Strict production build | Passed; no deprecated-diagnostic exception in production |
-| Gate policy | 22 Python tests passed |
-| Consumers | Facade and low-level executables passed |
-| Documentation | 52 Markdown files and all four generated-reference checks passed |
-| AudioMator override | 62 core and 574 serial app-hosted tests passed; unsigned Release build/artifact validation passed |
-| Publication / hosted CI / sanitizers | Not performed for this tree |
+| Strict production build | Passed; the test-target `DeprecatedDeclaration` exception does not apply to production |
+| Package consumers | Facade-only and low-level executables passed |
+| Documentation | 52 Markdown files and all four generated-reference checks passed at the last documentation pass |
+| AudioMator local override | 62 core and 574 serial app-hosted tests passed; unsigned Release artifact validation passed |
+| Publication after 0.7.1 | Not performed |
+| Hosted CI, sanitizers, minimum-platform runtime for this tree | Not re-run or not claimed for the post-0.7.1 source |
 
-The fixes cover untouched Basic dates, encoder ownership, MP4 alias retirement, unsigned MP4 pairs, Basic verification and additional projection/removal defects exposed by new matrices. There is no automatic YEAR/DATE reconciliation. Independent lifecycle cases now cover MP4, FLAC, APE-family, Vorbis/Opus, ASF and all seven tested ID3-backed containers, with explicit per-format field subsets. See [test acceptance](MAPPING_TEST_STRATEGY.md) for counts and limits.
+Evidence: `.build/test-evidence/debug-20261111-124030-69547/`, `.build/test-evidence/release-20261111-124120-69890/`, the restricted rerun `.build/test-evidence/debug-20261111-132710-75098/`, and the [audit repair record](../records/remediation/REM-2026-11-11-audit-integrity-repairs.md).
 
-Evidence: `.build/test-evidence/debug-20261111-124030-69547/` and `.build/test-evidence/release-20261111-124120-69890/`. Local acceptance does not imply remote tag resolution, signing, notarization or interactive UI acceptance.
+No full accepted gate has been rerun on the exact merged `main` commits. A documentation-pass rerun in the restricted tool environment reproduced the same 158 XCTest and 165 Swift Testing counts, but failed only `privilegedFilesRejectBeforeCloneInBothTransactionEngines` because the host strips the privilege bits before the test can observe them. That is an environment-precondition failure, not evidence that the recorded acceptance failed. The full gate remains red in such an environment; use the authoritative gate and its prerequisites when making a release decision.
 
-## Native mapping follow-up — 2026-11-11 (pre-audit local claim)
+## What changed since 0.7.1
 
-The `codex/native-mapping-followup-repairs` working tree resolves the seven field/format combinations exposed by the expanded matrices. Complete Debug/Release gates both pass: 156 XCTest passed, two existing optional skips, and 128 Swift Testing declarations passed. Strict compilation passes. This is local repaired-source evidence, not a newly published package. See [repair acceptance](../records/remediation/REM-2026-11-11-native-mapping-followup.md).
+- Audit repairs preserve untouched Basic date arrays, malformed text, duplicates, whitespace and absence; separate Encoded By from Encoder Settings; retire only explicitly edited MP4 aliases; normalize MP4 pairs to unsigned 16-bit values; and verify Basic Date, Content Group, structured ID3 text removal, ASF projections and APE engine aliases.
+- Native-mapping follow-up repairs MP4 Content Group, Grouping and Work ownership; MP4 Movement Number/Count atoms; encoder ownership; ID3v2.4 Content Group; and FLAC/Ogg/ID3 container reads.
+- The test system adds independent MP4, FLAC, APE-family, Ogg, ASF and ID3-container lifecycle matrices, named gate evidence and strict compilation. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
+- DSF/DSDIFF structured writes now accept native ID3 frame upserts while retaining the explicit comment/lyric collection-replacement rejection.
 
+## Coverage and limits
 
-## Earlier test-system audit — 2026-11-10 (before follow-up repairs)
+- The lifecycle matrices are explicit field subsets, not a complete field × format × tag-version × writer cross-product. The coverage inventory and minimum case counts are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
+- Existing ID3v2.3 tags are read-only for independent date writes. Inspect `StructuredMetadata.id3v2MajorVersion`; an extension-level ID3v2.4 capability does not prove a concrete v2.3 file is writable.
+- MP4 track/disc components are unsigned 16-bit values through 65535; MP4 movement is bounded to 0...32767. External readers may decode MP4 native pairs differently.
+- Audio-content identity remains unavailable for many layouts, including MP3, MP4/M4A, raw AAC, Ogg, ASF, APE-family, DSD, and ambiguous chunk layouts. A nil identity never establishes continuity; see [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md).
+- Fixture coverage is finite. `fixtureCovered` does not certify every codec variant, unknown native structure, minimum-OS runtime, device, or external decoder.
+- A successful package test run does not validate an embedding application's signing, rpath, entitlement, or interactive UI behavior.
 
-The `codex/package-test-system-upgrade` branch now uses independent per-operation MP4, FLAC and ID3v2.4 matrices. Mandatory failures include MP4 encoder fields and movement ownership, FLAC Content Group/Encoder Settings and ID3v2.4 Content Group. Debug and Release reproduce them. See [the audit record](../records/remediation/REM-2026-11-10-package-test-system.md). This branch is not release-ready despite earlier passing suite totals.
+## Historical evidence
 
-This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
-
-The earlier mapping-repair baseline below is historical evidence, not the current test-system branch acceptance. Current matrix/gate results are recorded in [the expanded test-system evidence](../records/remediation/REM-2026-11-10-expanded-test-system.md).
-
-## Earlier mapping-repair baseline (2026-11-10)
-
-| Field | Value |
-| --- | --- |
-| Source revision | `codex/mapping-conformance-repairs`, based on `0f89fbe`; native Mapping/read/write/verification repairs and regression matrix |
-| Branch | `codex/mapping-conformance-repairs` |
-| Host | macOS 27.2, arm64 |
-| Toolchain | Xcode 27.2 (27B52), Apple Swift 6.4.2 |
-| Debug command | `swift test --disable-sandbox --disable-keychain --disable-netrc` with workspace-local Clang/Swift module caches |
-| Release command | `swift test -c release --disable-sandbox --disable-keychain --disable-netrc` with the same caches |
-| Debug XCTest | 158 executed: 156 passed, 2 opt-in skips, 0 failures |
-| Release XCTest | 158 executed: 156 passed, 2 opt-in skips, 0 failures |
-| Debug Swift Testing | 112 tests in 25 suites: all passed |
-| Release Swift Testing | 112 tests in 25 suites: all passed |
-| Environment failure | None in these runs, executed with expanded filesystem access. The privilege rejection test passed unchanged. |
-| Production source changes | Native YEAR/DATE ownership, exact raw replay, untouched date verification, active-family comments, qualified UFID, primary-family capabilities, and version-aware v2.3 read-only gates. |
-| Strict build | `swift build -Xswiftc -warnings-as-errors -Xcc -Werror` passed in this pass. |
-| Documentation check | `python3 scripts/check-docs.py` passed for 45 Markdown files. |
-| Generated checks | `generate-api-reference.py --check`, `generate-field-schema.py --check`, `generate-format-matrix.py --check`, and `generate-mapping-matrix.py --check` passed. |
-| Consumers | Both `TagLibAudioMetadataConsumer` and `TagLibAudioMetadataLowLevelConsumer` passed against this working tree. |
-
-The two XCTest skips are the opt-in external corpus and throughput benchmark. `--disable-sandbox` was required because SwiftPM's manifest sandbox could not launch in this environment; workspace-local module caches were required because the default caches were not writable. Those are build-isolation limitations, not package settings.
-
-Earlier restricted runs failed the privilege test's own precondition because the host stripped setuid/setgid bits after `chmod`. The latest runs used expanded filesystem access and passed the unchanged test; it was not skipped or weakened.
-
-## Hosted release-candidate verification
-
-[CI run 42604530085](https://github.com/ChrisLloydME/TagLibAudioMetadata/actions/runs/42604530085) passed on merged revision `bca046343309fdc9f5e7618900a1eb5b67bae418`. All nine executed jobs succeeded: strict build/tests/consumers/link audit, Release tests, AddressSanitizer, ThreadSanitizer, and the five minimum-platform builds (macOS 13 arm64/x86_64, iOS 16 arm64, iOS 16 Simulator arm64/x86_64). The `remote-tag-consumer` job was skipped because this was a branch push; it runs after publishing the tag.
-
-This hosted run is historical evidence for 0.7.0, not for the current repair branch. Current repairs change production code and have local strict/Debug/Release/consumer evidence above; a new hosted run is separate evidence.
-
-## Remaining verification limits
-
-Do not treat the local or hosted runs above as evidence for:
-
-- minimum-OS runtime, iOS runtime, x86_64 runtime, or physical-device execution;
-- cross-tool fixtures or an independent FFprobe/FFmpeg oracle for the 2.2 mappings;
-- AIFF, raw Opus, or raw AAC independent-date conformance;
-- the MKV native codec, typed `RATE` scale, or a verified media-kind label vocabulary;
-- AudioMator adoption, the mirrored specification, application previews/CSV/provider flows, or cross-repository synchronization;
-- a tag-triggered consumer run, release signing, archiving, or publication.
-
-## Current limitations relevant to 2.2
-
-| Area | Limitation |
-| --- | --- |
-| MP4 `RATE` | Registered as read-only; no verified native rating type or scale is available for typed writes. Existing values are preserved. `FormatCapability.writeSupport(for: .rate)` returns `.unsupported`, consistent with the schema and typed-write rejection. |
-| MP4 media kind | The native `stik` integer round-trips losslessly, including unknown codes. The label vocabulary is intentionally not bound to numeric codes. |
-| MKV | `tvEpisode` and `tvSeason` target registrations exist (`PART_NUMBER@TargetTypeValue=50/60`) but report `.unsupported`; no native codec is implemented. |
-| MP4-exclusive Basic fields | Readable through `BasicMetadata`, but `replaceBasicMetadata`/`updateBasicMetadata` do not write them; use `MetadataPatch` or structured writes. |
-| Number text | Exact MP4 text padding has no standard portable atom. The formatted-number API normalizes to the native pair and never creates private atoms. |
-| Legacy totals | A sole valid orphan total is recovered; contradictory aliases block typed pair edits as `.ambiguous`. ASF number-total-only layouts remain unsupported. |
-| ID3v2.3 dates | Exposed read-only until a verified independent native codec exists. `id3v2MajorVersion` identifies the concrete tag; typed and Basic date edits reject before mutation. Legacy engine projections are not verified native date reads. |
-| Date coverage | YEAR/DATE/RELEASEDATE/ORIGINALDATE independence is verified for MP3, MP4, FLAC, and Ogg fixtures. RIFF INFO has no native DATE key; WAV writes DATE through ID3v2. AIFF/Opus/AAC independent-date fixtures are still missing. |
-| Transaction boundary | Coordination remains process-local; an external writer can race the final identity check. |
-| Structured comments/lyrics | Replace-all is supported on ID3-backed formats and TrueAudio; MP4 ignores structured comments/lyrics; APE-family and FLAC/Ogg reject them. |
-| YEAR validation | `replaceBasicMetadata`/`updateBasicMetadata` reject non-date YEAR text with `MetadataValidationError.invalidYearText`; the typed `.year` patch path does not run that Basic-specific validator. |
-| Bridge model | `writeTagMetadata` cannot write the MP4-exclusive facade fields because `TagLibAudioMetadata` has no matching properties. |
-
-## Previous recorded evidence
-
-| Revision | Evidence | Result |
+| Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
-| `c46daa5` | `0.6.0` release candidate, merged as `2bf8d02` | Hosted CI run 40164904366: all nine executed jobs passed, with `remote-tag-consumer` skipped until tagging. |
-| `102ddc7` | Release source campaign | Xcode 223 passed, 2 opt-in skips, 0 failed; SwiftPM Debug 222 passed, 2 skipped with the privilege test skipped; Release, ASAN, TSAN, strict, five platform builds, and both consumers passed. |
-| `32d945d` | External pre-release assessment target | Xcode 223 passed, 2 opt-in skips, 0 failed; SwiftPM Debug with both opt-ins 225 passed; Release and sanitizers 223 passed, 2 skipped. The assessment held tagging for F-01/F-02. |
-| `1fff9f0` | Clean-room remediation final campaign | 208 tests; Debug with both opt-ins, Release, ASAN, TSAN, Xcode, five strict platform builds, consumers, and independent eight-format checks passed. |
-| `873cb3e` | Independent audio-identity audit | 222 discovered; 220 passed, 2 opt-in skips, 0 failures in Xcode Debug. iOS Simulator build passed. |
+| `0.7.1` | Release tag and merge `649b7a9`; date/ownership, comment verification and UFID repairs | Published baseline; does not include the post-tag repairs above |
+| `0.7.0` | Release tag and mapping contract 2.2 | Introduced the field identities and date/number model described by the current mapping contract |
+| `AUD-2026-11-11` | Independent audit on the pre-repair tree | Historical failing evidence; the reproduced blockers were repaired by the audit-integrity campaign |
+| Earlier test-system and native-mapping records | [Records index](../records/README.md) | Historical branch evidence; current source and status supersede their pass/fail claims |
 
-These are historical snapshots at the revisions shown. They are not current merge approvals and do not prove the current documentation or production tree.
+## Maintaining this page
 
-## How to interpret prior assessments
-
-- **READY WITH CAVEATS** in the clean-room remediation describes revision `1fff9f0`, not the current HEAD.
-- **READY WITH CAVEATS** in the audio-identity audit describes `873cb3e` and was conditional on fixing F1 and qualifying the documentation. F1 was fixed in `bedd725`; F2/F3 remain limitations.
-- **NOT READY TO MERGE** in the clean-room audit describes `615bc8c` and was superseded by the remediation.
-- **NOT READY TO TAG** in the 2026-10-25 pre-release assessment describes `32d945d`; its F-01 and F-02 findings are repaired in the `0.6.0` release, and hosted CI passed on `c46daa5`.
-- No historical verdict is a current merge decision. A new release or merge decision requires a fresh review of the target revision.
-
-## Updating this page
-
-Update this page only when a validation campaign changes the latest known state. Include the revision, environment, command, opt-in state, counts, skips, and any environment-dependent failure. Do not turn it into a log; record a campaign in `docs/records/` and summarize the current state here.
-
-
-## 0.7.1 candidate boundary
-
-The source repair is committed as `284dd89` on `codex/mapping-conformance-repairs`; the following documentation/version-preparation commit does not change production code. No tag or GitHub Release was created. The maintainer publishes 0.7.1 manually after local-override acceptance. AudioMator's normal released-tag resolution remains a postpublication step, not an already-passing remote 0.7.1 consumer result.
-
-Local package validation: strict build, Debug and Release each pass 158 XCTest declarations (156 passed, 2 existing opt-in skips), plus 112 Swift Testing tests in 25 suites. Both facade and low-level consumers pass. The earlier local ASan run passed, but version/capability work followed it; do not treat it as final-revision sanitizer evidence. Hosted CI on the repair commit provides separate current-revision sanitizer/platform evidence when complete.
+Update this page only when the latest known state changes: a new release or tag, a changed accepted gate result, a new limitation, or a materially different environment. Campaign narratives, superseded failures, and per-run evidence belong in [engineering records](../records/README.md). Do not turn this page into a chronological log, and do not claim a configured CI job passed for a revision that did not run it.
