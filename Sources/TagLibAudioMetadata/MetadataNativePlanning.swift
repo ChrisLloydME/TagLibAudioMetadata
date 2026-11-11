@@ -72,9 +72,9 @@ extension TagLibMetadataManager {
         let identifier = capability?.identifier ?? fileExtension.lowercased()
         let engineKey = schema.propertyMapKeys.first
 
-        // Comments and lyrics are qualified native collections, not scalar
-        // text frames. The existing collection-aware path owns them.
-        if field == .comment || field == .lyrics {
+        // ID3 comments/lyrics are qualified collections. MP4 instead owns
+        // ordinary ©cmt/©lyr atoms and must use its native planner below.
+        if identifier != "mp4", field == .comment || field == .lyrics {
             let key = field == .comment ? "COMMENT" : "LYRICS"
             return SemanticPropertyStorage(
                 mechanism: .propertyMap(key: key),
