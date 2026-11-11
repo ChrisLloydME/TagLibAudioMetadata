@@ -1,14 +1,19 @@
 # Current validation status
 
-## Test-system audit — 2026-11-10
+## Native mapping follow-up — 2026-11-11
 
-The `codex/package-test-system-upgrade` branch adds independent MP4 lifecycle checks and exposes four mandatory failures (Encoded By removal, Encoder Settings verification, Movement Number and Movement Count native ownership). Debug and Release reproduce them. See [the audit record](../records/remediation/REM-2026-11-10-package-test-system.md). This branch is not release-ready despite earlier passing suite totals.
+The `codex/native-mapping-followup-repairs` working tree resolves the seven field/format combinations exposed by the expanded matrices. Complete Debug/Release gates both pass: 156 XCTest passed, two existing optional skips, and 128 Swift Testing declarations passed. Strict compilation passes. This is local repaired-source evidence, not a newly published package. See [repair acceptance](../records/remediation/REM-2026-11-11-native-mapping-followup.md).
+
+
+## Earlier test-system audit — 2026-11-10 (before follow-up repairs)
+
+The `codex/package-test-system-upgrade` branch now uses independent per-operation MP4, FLAC and ID3v2.4 matrices. Mandatory failures include MP4 encoder fields and movement ownership, FLAC Content Group/Encoder Settings and ID3v2.4 Content Group. Debug and Release reproduce them. See [the audit record](../records/remediation/REM-2026-11-10-package-test-system.md). This branch is not release-ready despite earlier passing suite totals.
 
 This page records the latest known validation state and the limits that remain. It is a snapshot, not a chronological log. Historical campaigns belong in [engineering records](../records/README.md).
 
-The current documentation describes the working tree, including the `0.7.1` native Mapping repair candidate on top of `0.7.0`. The latest published package remains `0.7.0`. Results below are the latest observed Debug and Release runs after the native Mapping repairs (2026-11-10).
+The earlier mapping-repair baseline below is historical evidence, not the current test-system branch acceptance. Current matrix/gate results are recorded in [the expanded test-system evidence](../records/remediation/REM-2026-11-10-expanded-test-system.md).
 
-## Latest observed run (2026-11-10)
+## Earlier mapping-repair baseline (2026-11-10)
 
 | Field | Value |
 | --- | --- |
