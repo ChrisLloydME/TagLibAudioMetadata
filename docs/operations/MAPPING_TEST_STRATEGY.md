@@ -2,6 +2,8 @@
 
 Mapping conformance requires executable field-operation evidence. Registry membership, documentation agreement and a successful aggregate test count do not establish independent persistence.
 
+For the post-0.7.1 repair line, the recorded full gate result is 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites, with both Debug and Release accepted under expanded filesystem access; those repairs are merged into current `main`, but no full accepted gate has been rerun on the exact merge commits. The gate-policy suite has 22 Python regressions. The environment-dependent privilege test remains mandatory; the latest observed state is in [Status](STATUS.md).
+
 ## Required layers
 
 1. `MappingContractCoverageTests` checks registry structure, aliases and capabilities. These tests remain useful but are not codec conformance evidence.
@@ -36,7 +38,7 @@ These are explicit field subsets, not the complete field × format × tag-versio
 
 ## Mixed-framework gate
 
-Use `bash scripts/validate-tests.sh debug` and `bash scripts/validate-tests.sh release`. No filter/skip arguments are accepted. Restricted local environments may explicitly set `TAGLIB_DISABLE_MANIFEST_SANDBOX=1`. Evidence is retained under ignored `.build/test-evidence`.
+Use `bash scripts/validate-tests.sh debug` and `bash scripts/validate-tests.sh release`. No filter/skip arguments are accepted. Restricted local environments may explicitly set `TAGLIB_DISABLE_MANIFEST_SANDBOX=1`; state that workaround in the evidence. Logs and `summary.json` are retained under ignored `.build/test-evidence`.
 
 Both XCTest and Swift Testing must complete and pass. The only permitted skips are the two exact existing optional XCTest class/method identities. Missing framework summaries, any failed named test, unexpected skips, nonzero runner status and output-format changes fail acceptance. Named test evidence is mandatory for all 24 audit regressions/controls, all lifecycle matrices, Basic preservation, pair boundaries and native-probe vectors. Parameterized counts cannot shrink: 258 MP4, 90 FLAC, 66 MP3/ID3, 396 additional ID3-container, 270 APE, 180 Ogg, 21 ASF, 86 wrong-kind and five unavailable-field cases. Suite banners alone never establish execution.
 

@@ -13,12 +13,12 @@ This document is for contributors and automated agents working on the package it
 | `Sources/CTagLibBridge/include/` | Public bridge header. Foundation-only; no C++ types. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |
 | `IntegrationTests/Consumer/` | Facade-only and low-level consumer packages. |
-| `scripts/` | Binary build, preservation-corpus generation, documentation generators, and documentation checks. |
+| `scripts/` | Binary build, preservation-corpus generation, documentation generators/checks, the full-suite test gate, evidence summarizer, and gate-policy tests. |
 | `ThirdParty/TagLib/` | TagLib and utf8cpp license texts. |
 | `docs/guide/` | Task-based guides: getting started, reading, writing, capabilities. |
 | `docs/reference/` | API, models, fields, formats, bridge, mapping contract, generated matrix. |
 | `docs/explanation/` | Architecture, preservation, transactions, audio identity. |
-| `docs/operations/` | Installation, testing, status, development, migration, third-party notices. |
+| `docs/operations/` | Installation, testing, mapping test acceptance, status, development, migration, third-party notices. |
 | `docs/records/` | Immutable historical evidence. |
 | `.github/workflows/` | CI and binary-release workflows. |
 | `.local/` | Local-only working material, ignored by Git; not part of a clean clone. |
@@ -40,7 +40,7 @@ This document is for contributors and automated agents working on the package it
 2. Create a focused branch from the current development state. Do not rewrite existing history.
 3. Make logically coherent commits as work progresses. Do not accumulate an entire assignment into one commit.
 4. Keep production changes and documentation changes reviewable. Do not modify tests merely to make a documentation claim true.
-5. Run the relevant checks from [Testing](TESTING.md).
+5. Run the relevant checks from [Testing](TESTING.md). Use `bash scripts/validate-tests.sh debug` (or `release`) for full-suite acceptance; a bare `swift test` count is not gate evidence.
 6. Update the canonical document for any behavior change. If the change is an investigation or campaign, add a record.
 7. Run the documentation generators and `python3 scripts/check-docs.py`.
 8. Review the diff and internal links before committing.
@@ -112,6 +112,12 @@ Do not hand-edit generated content. Change the source, run the generator with `-
 - Update [Migration](MIGRATION.md) when a public API is deprecated or its behavior changes.
 - Regenerate the field, API, format, and mapping references after changing their sources.
 
+### Test gate maintenance
+
+The full-suite entry point is `scripts/validate-tests.sh`; it accepts only `debug` or `release` and rejects filters, extra arguments and skips. It writes logs and a `summary.json` under `.build/test-evidence/`, then runs `scripts/summarize-test-run.py`. The summarizer fails closed on missing XCTest/Swift Testing summaries, unexpected skips, failed named tests, missing required suites, and parameterized case counts below the frozen minima. `scripts/tests/` exercises those policy rules without running the package suite.
+
+Do not weaken a gate minimum, allow a new skip, or make a matrix expectation match a broken implementation to obtain a green result. The matrix inventory and case minima are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md); test commands and evidence limits are owned by [Testing](TESTING.md).
+
 ### Documentation checks
 
 `scripts/check-docs.py` validates:
@@ -124,7 +130,8 @@ Do not hand-edit generated content. Change the source, run the generator with `-
 - freshness of the generated API, model, field, format, and mapping sections;
 - coverage of every registered format extension in `FORMATS.md`;
 - coverage of every public bridge selector and constant in `BRIDGE.md`;
-- the prohibition on hand-editing generated markers.
+- the prohibition on hand-editing generated markers;
+- coverage of every current document, including [Mapping test acceptance](MAPPING_TEST_STRATEGY.md), in the documentation hub.
 
 Run it before committing:
 
@@ -147,7 +154,7 @@ Use [records/CONVENTIONS.md](../records/CONVENTIONS.md) and [records/TEMPLATE.md
 
 ## Release process
 
-1. Ensure the changelog's current release section describes the release and current docs match the code.
+1. Ensure the changelog's current release section describes the release and current docs match the code. The latest published tag is `0.7.1`; do not describe post-0.7.1 work as part of that tag.
 2. Confirm the pinned binary identity in `Package.swift` and `scripts/taglib-binary-version.env`.
 3. Run the test, sanitizer, release, strict-platform, consumer, and documentation checks that apply.
 4. Create a tag from the reviewed commit. The tag is the release boundary; do not rewrite it.

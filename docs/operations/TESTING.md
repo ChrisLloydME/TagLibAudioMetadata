@@ -20,7 +20,7 @@ The single SwiftPM test target is organized physically by layer:
 
 The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
 
-The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`) requires named matrix/oracle execution evidence and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md). The 2.2 mapping work adds `LegacyNumberingRecoveryTests` and `MP4ExclusiveFieldTests`, and extends the capability, date, advisory, and preservation fixtures. The latest observed counts and the environment-dependent privilege failure are in [Status](STATUS.md).
+The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`) requires named matrix/oracle execution evidence and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate. The latest recorded acceptance on the post-0.7.1 repair line is 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites; the gate policy has 22 Python regressions. Those repairs are merged into `main`, but no full accepted gate has been rerun on the exact merge commits. Do not compare counts across revisions without checking scope and opt-ins. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md) and [Status](STATUS.md).
 
 ## Strict test compilation
 
@@ -29,27 +29,35 @@ The full Debug/Release gates pass `-Xswiftc -warnings-as-errors -Xcc -Werror` to
 ## Standard commands
 
 ```sh
-# Resolve/build and run the suite.
-swift test --disable-keychain --disable-netrc
+# Full-suite acceptance gate (Debug). No filters or skips are accepted.
+bash scripts/validate-tests.sh debug
+
+# Full-suite acceptance gate (Release).
+bash scripts/validate-tests.sh release
+
+# Gate-policy regressions only, without running the package suite.
+python3 -m unittest discover -s scripts/tests
 
 # Strict compile: package Swift and C/Objective-C warnings are errors.
 swift build --disable-keychain --disable-netrc \
   -Xswiftc -warnings-as-errors -Xcc -Werror
 
-# Release mode.
-swift test --disable-keychain --disable-netrc -c release
+# Focused development run; not acceptance evidence.
+swift test --disable-keychain --disable-netrc
 
 # Sanitizers.
 swift test --disable-keychain --disable-netrc --sanitize=address
 swift test --disable-keychain --disable-netrc --sanitize=thread
 ```
 
-Some restricted environments cannot launch SwiftPM's manifest sandbox or write to the default module cache. `--disable-sandbox` and a workspace-local module cache can work around that, but they weaken or alter build isolation. Use them only when the environment requires it and state that in the verification record.
+The gate writes a timestamped `tests.log` and `summary.json` under `.build/test-evidence/`. The summary is accepted only when both frameworks complete, no unexpected skip or named failure occurs, all required suites execute, and every parameterized case count meets its frozen minimum. A bare `swift test` run or a suite banner is not equivalent evidence.
+
+Some restricted environments cannot launch SwiftPM's manifest sandbox or write to the default module cache. `scripts/validate-tests.sh` supports `TAGLIB_DISABLE_MANIFEST_SANDBOX=1` for that case; workspace-local module caches can avoid the default cache. These workarounds alter build isolation and must be stated in the verification record.
 
 ```sh
 CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-module-cache" \
 SWIFT_MODULE_CACHE_PATH="$PWD/.build/module-cache" \
-swift test --disable-keychain --disable-netrc --disable-sandbox
+TAGLIB_DISABLE_MANIFEST_SANDBOX=1 bash scripts/validate-tests.sh debug
 ```
 
 ### Minimum-platform builds
@@ -131,11 +139,11 @@ The benchmark keeps fixture setup outside timing and prints warmed snapshot thro
 Some integration tests use independent parsers or external tools rather than the package reader as the only oracle:
 
 - a bounded RIFF INFO parser for WAV surfaces;
-- an ID3v2 frame parser for native number, comment, lyric, and artwork checks;
-- an MP4 atom/item parser, including `mdat` payload comparison;
-- an APEv2 item parser;
+- independent ID3v2 frame readers, including a tag-boundary-preserving MP3 oracle and container-length/chunk readers for AAC/WAV/AIFF/TTA/DSF/DSDIFF;
+- an MP4 atom/item parser, including qualified freeform identities and `mdat` payload comparison;
+- an APEv2 item parser and Xiph comment readers for FLAC and Ogg packet payloads;
 - a bounded ASF header/attribute parser;
-- DSF/DSDIFF native frame checks;
+- FLAC metadata-block and Ogg packet comparison that excludes padding but retains duplicates, whitespace and complete audio bytes;
 - generated AIFF and corpus fixtures.
 
 These oracles are intentionally bounded. They do not establish universal codec conformance, every native metadata variant, or correctness of the precompiled TagLib binary. FFprobe/FFmpeg were used during fixture acquisition and historical verification campaigns, but the current suite does not invoke them; the opt-in corpus generator requires FFmpeg.
@@ -144,9 +152,9 @@ These oracles are intentionally bounded. They do not establish universal codec c
 
 | Job | What it does |
 | --- | --- |
-| `build-and-test` | Documentation check, clean build, strict warning build, `swift test`, both consumers, and a dynamic-link/binary-boundary audit. |
+| `build-and-test` | Documentation check, clean build, strict warning build, gate-policy tests, Debug `validate-tests.sh`, evidence artifact, both consumers, and a dynamic-link/binary-boundary audit. |
 | `address-sanitizer` | Full test suite under AddressSanitizer. |
-| `release-build-and-test` | Release-mode tests against real fixtures. |
+| `release-build-and-test` | Release-mode `validate-tests.sh` against real fixtures, with an evidence artifact. |
 | `thread-sanitizer` | Full test suite under ThreadSanitizer. |
 | `minimum-platform-builds` | Five compile/link checks for the supported deployment targets. |
 | `remote-tag-consumer` | On a tag build, a clean consumer resolves the published tag and runs. |
@@ -157,7 +165,7 @@ The CI configuration is evidence only for runs that actually executed. A configu
 
 `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` tries three permission sets: `0o4644` (setuid), `0o2644` (setgid), and `0o6644` (both). It verifies that both transaction engines reject the file without changing inode, mode, or bytes. The test's own precondition requires the requested bits to survive `chmod`.
 
-Some agent/sandbox environments silently strip those bits even when `chmod` reports success. In that environment the test fails at:
+Some agent/sandbox environments silently strip those bits even when `chmod` reports success. The documentation-pass rerun in this repository's restricted environment reproduced the full declaration counts but failed the gate only at this precondition. In that environment the test fails at:
 
 ```swift
 #expect(before.st_mode & 0o7777 == permissions)
