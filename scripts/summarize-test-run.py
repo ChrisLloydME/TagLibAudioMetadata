@@ -48,8 +48,23 @@ missing_suites = [suite for suite in required_suites if suite not in completed_s
 # that the frozen matrices must execute. Counts may grow when the coverage
 # inventory grows; they may not silently shrink.
 required_tests = {
-    'mp4LifecycleHasNativeOwnerAndPreservesSiblings': 258,
-    'wrongValueKindCannotPartiallyCommitAnotherField': 86,
+    'asfPublicWriteSurfacesPreserveSparseDateOwners': 80,
+    'asfCustomFieldLifecycleOwnsOnlyItsCaseAliases': 24,
+    'asfContentDescriptionVectorAndMalformedBounds': 1,
+    'allPublicWriteSurfacesRequireContainerStateEvidence': 1,
+    'publicWriteSurfacesPreserveSparseNativeOwners': 2080,
+    'allSixteenDatePresenceMasksAreExplicit': 1,
+    'textLifecyclePreservesEveryDatePresenceState': 114,
+    'unrelatedWriteSurfacesPreserveDateState': 176,
+    'interactionManifestIncludesEveryNativeField': 1,
+    'everyFieldPreservesAllSiblingDateStates': 4128,
+    'everyFieldPreservesAllOtherPresentOwners': 264,
+    'everyContainerAndDateMaskRequiresTextLifecycleEvidence': 1,
+    'nativeTextLifecycleAcrossSparseContainerStates': 1248,
+    'allAttributeOwnersAcrossDatePresenceStates': 168,
+
+    'mp4LifecycleHasNativeOwnerAndPreservesSiblings': 264,
+    'wrongValueKindCannotPartiallyCommitAnotherField': 88,
     'everyFieldRequiresAnExplicitCoverageDecision': 1,
     'unavailableTypedMP4WritesRejectBeforeMutation': 5,
     'independentCommentLifecycle': 90,
@@ -117,13 +132,16 @@ summary = {'runner_exit_status': status, 'xctest_executed': int(xctest[-1][0]) i
            'xctest_failures': int(xctest[-1][2]) if xctest else None,
            'swift_testing_declarations': int(swift[-1][0]) if swift else None,
            'swift_testing_result': swift[-1][2] if swift else None,
+           'swift_testing_suites': int(swift[-1][1]) if swift else None,
+           'required_case_counts': {name: executed_tests.get(name) for name in required_tests},
+           'minimum_required_case_counts': required_tests,
            'skipped_test_names': skipped, 'unexpected_skips': unexpected,
            'swift_testing_skips': swift_skips, 'missing_required_suites': missing_suites,
            'missing_required_tests': missing_tests,
            'failed_named_tests': failed_named_tests,
            'failed_xctest_names': failed_xctest}
-ok = (status == 0 and bool(xctest) and int(xctest[-1][0]) > 0 and int(xctest[-1][2]) == 0
-      and bool(swift) and int(swift[-1][0]) > 0 and swift[-1][2] == 'passed'
+ok = (status == 0 and bool(xctest) and int(xctest[-1][0]) >= 158 and int(xctest[-1][2]) == 0
+      and bool(swift) and int(swift[-1][0]) >= 179 and swift[-1][2] == 'passed'
       and not unexpected and not swift_skips and not missing_suites and not missing_tests
       and not failed_named_tests and not failed_xctest
       and all(int(result[2]) == 0 for result in xctest)

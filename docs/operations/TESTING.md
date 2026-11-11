@@ -194,3 +194,7 @@ Record the revision, environment, command, opt-in state, counts, skips, and any 
 ## Numbering acceptance regressions
 
 `IndependentAcceptanceProbes` retains the eight originally failing acceptance cases. `NumberingRepairRegressionTests` adds cross-format native cleanup, both private namespaces and foreign lookalikes, explicit legacy resolution, native absence/removal, malformed multi-value rejection, empty-group byte preservation, MP4 bounds and formatted orphan-total preservation. Repairs and exact observed results are in the [numbering acceptance repair record](../records/remediation/REM-2026-11-09-numbering-acceptance-repairs.md). These suites use temporary fixture copies; they do not operate on a user library.
+
+## Unreleased sparse-state gate
+
+The state coverage and API inventory in [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance) are mandatory. The gate requires the complete 8,282 new state cases in addition to the prior matrices and at least 158 XCTest / 179 Swift Testing declarations. `python3 -m unittest discover -s scripts/tests` tests count/evidence tampering. See [current repair evidence](../records/remediation/REM-2026-11-11-state-coverage.md) for actual results; 0.7.2's historical counts do not certify this candidate.
