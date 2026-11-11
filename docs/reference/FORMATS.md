@@ -2,7 +2,7 @@
 
 This is the canonical reference for declared format coverage. It describes the capability registry in `Sources/CTagLibBridge/TLFormatRegistry.mm`, the container masks in `Sources/CTagLibBridge/Internal/TLMetadataCore.inc`, the evidence labels and field allowlists in `Sources/CTagLibBridge/Internal/TLRawInspection.inc`, and the field schema in `Sources/TagLibAudioMetadata/MetadataFieldSchema.swift`.
 
-Version `0.7.2` is the current release; it finalizes the audit and native-mapping repairs that followed `0.7.1`. The package side of mapping contract `AM-TLAM-MAPPING-2.2` was introduced in `0.7.0`. The matrix below is generated from the source registry. A declared label is not proof that every file, field, codec variant, or platform works: query the capability API for the extension and field in question, then validate a concrete file.
+Version `0.7.2` is the latest published tag; it finalized the audit and native-mapping repairs that followed `0.7.1`. The current branch adds unreleased native-owner state preservation and applies the same capability registry. The package side of mapping contract `AM-TLAM-MAPPING-2.2` was introduced in `0.7.0`. The matrix below is generated from the source registry. A declared label is not proof that every file, field, codec variant, or platform works: query the capability API for the extension and field in question, then validate a concrete file.
 
 ## How to read capability evidence
 
@@ -126,7 +126,7 @@ The capability level is not enough to know which structured collections a format
 | Format family | Properties | ID3v2 frames | MP4 atoms | ASF attributes | Lyrics/comments | Artwork |
 | --- | --- | --- | --- | --- | --- | --- |
 | MPEG/ID3, raw AAC | Yes | Yes (ID3 types) | — | — | Yes | Yes |
-| MP4 | Yes | — | Yes | — | Structured `comments`/`lyrics` are ignored; use Basic or native atoms | Yes (`covr`) |
+| MP4 | Yes | — | Yes | — | Structured collections are ignored; typed `.comment`/`.lyrics` patches use `©cmt`/`©lyr` | Yes (`covr`) |
 | WAV, AIFF/AIFF-C | Yes | Yes | — | — | Yes | Yes |
 | TrueAudio | Yes | Yes | — | — | Yes | Yes |
 | ASF/WMA | Yes | — | — | Yes | — | Yes |
@@ -135,7 +135,7 @@ The capability level is not enough to know which structured collections a format
 | DSF, DSDIFF | Yes | Yes (upserts) | — | — | Rejected | Yes (ID3 picture path) |
 | Shorten, MOD, S3M, IT, XM | Read-only or PropertyMap-only; no structured collections beyond the fallback delta | — | — | — | — | — |
 
-For DSD, the descriptor reports `container` structured write support: native ID3 frame upserts, PropertyMap deltas and artwork are supported. Comment/lyric collection replacement remains unsupported. On MP4, a non-empty structured `comments` or `lyrics` array is not written; verification then fails if the caller expected those entries to persist.
+For DSD, the descriptor reports `container` structured write support: native ID3 frame upserts, PropertyMap deltas and artwork are supported. Comment/lyric collection replacement remains unsupported. On MP4, a non-empty structured `comments` or `lyrics` array is not written; verification then fails if the caller expected those entries to persist. This does not limit the typed `.comment` and `.lyrics` fields, which use the native `©cmt` and `©lyr` atoms.
 
 ## Format-specific limitations
 
@@ -152,6 +152,8 @@ For DSD, the descriptor reports `container` structured write support: native ID3
 - Raw PropertyMap APIs accept prefixless TagLib keys, not native `----:` atom identifiers. Use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys.
 - Native `trkn`/`disk` are authoritative. Recognized number aliases are cleaned up when the corresponding pair changes; unrelated Basic edits preserve them. Movement Number/Count use independent `©mvi`/`©mvc` atoms and are bounded to `0...32767`; track/disc components accept the unsigned 16-bit maximum `65535`, with `0` reserved for a retained-total sentinel.
 - Content Group (`©grp`), Grouping (`----:com.apple.iTunes:GROUPING`) and Work (`©wrk`) are independent; a missing Content Group does not fall back to Grouping. Encoded By (`©enc`) and Encoder Settings (`©too`) are independent native owners.
+- Typed `.comment` and `.lyrics` patches use the ordinary `©cmt` and `©lyr` atoms; they are not routed through the ID3 qualified-comment path. Structured `comments`/`lyrics` collections remain a separate, unsupported surface on MP4.
+- Unedited native date items are retained exactly through PropertyMap replay. A scalar engine `DATE` projection does not authorize creating, changing, or removing an independent `©day`, `DATE`, `RELEASEDATE`, or `ORIGINALDATE` owner.
 - `.date` and `.year` both write `©day` (YEAR); `.standaloneDate` and `.releaseDate` use their freeform extensions. Supplying `.date` and `.year` together is rejected before staging.
 - Native advisory is `rtng`; recognized freeform aliases (`ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT`) are removed when the advisory changes. `BasicMetadata` replacement also runs the canonical advisory writer, so MP4 freeform advisory aliases can be retired even when the caller did not edit the advisory projection.
 - `covr` is returned both as an artwork entry and as a `coverArtList` MP4 atom. Use the artwork collection to replace it; `coverArtList` is inspection-only for direct atom writes.
@@ -177,6 +179,7 @@ For DSD, the descriptor reports `container` structured write support: native ID3
 ### ASF/WMA
 
 - Structured attributes preserve name, type, language, and stream identity.
+- Semantic custom fields use native Unicode attributes because TagLib's ASF PropertyMap cannot represent arbitrary attributes. A set, replace, or remove reconciles only the edited field's case aliases; unchanged attributes, Content Description fields, and the packet tail remain intact.
 - Common ASF fields duplicated as custom attributes are treated as semantic aliases and cleared only when the corresponding common field changes. Unrelated attributes such as `PUBLISHER` are preserved.
 - `int` projects WORD and DWORD. An update retains an existing unambiguous native width; a new attribute uses DWORD. A WORD overflow or an ambiguous same-identity WORD/DWORD update rejects.
 - GUID attributes are inspection-only with the pinned encoder. Omit them from write payloads to preserve them; they are never silently encoded as binary.

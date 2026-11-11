@@ -62,6 +62,8 @@ The bridge supports five option bits: `basic`, `raw`, `structured`, `propertyMap
 
 `readMetadataResult` and `readBasicSnapshot` are lighter in returned model construction and public API surface, not in native extraction work: Basic metadata needs the structured projection to resolve exact MP4 and ID3 date/number identities. They do not return `StructuredMetadata`. Basic reads resolve MP4 Content Group, Movement Number/Count and unsigned pair components from their exact native owners rather than ambiguous engine projections.
 
+The unified extractor also clears any engine-provided date projection before populating the bridge Basic model. ID3 reads clear all four date slots and repopulate them from `TDRC`/`TYER`, `TDAT`/`TXXX(DATE)`, `TDRL`, and `TDOR`/`TORY`; MP4 reads use the native atom map and preserve absence; ASF reads its Unicode attributes; and Xiph/APE read YEAR and DATE from their visible native properties. This keeps an inferred or cross-owner projection from becoming a low-level date value.
+
 The unified bridge still constructs its internal Basic carrier during a structured-only traversal; removing that allocation requires a wider format-extractor split. This is an implementation detail, not a public contract.
 
 `updateBasicMetadata(at:_:)` reads a focused Basic snapshot, applies the closure, and passes the captured version to the version-checked replacement.
@@ -80,7 +82,7 @@ The facade transaction coordinator performs:
 2. destination validation and optional `expectedVersion` check;
 3. one sibling copy (`copyfile` with clone request and ACL preservation);
 4. in-place bridge mutation on the copy;
-5. format-specific preservation of unedited native owners, including `restoreUneditedBasicNativeValues` for Basic replacement;
+5. format-specific preservation of unedited native owners, including `restoreUneditedBasicNativeValues` for Basic replacement, exact MP4 item retention and detached ID3 date-frame restoration during PropertyMap replay, unchanged MP4 custom-field arrays, and native ASF custom attributes;
 6. semantic verification for the verified facade APIs;
 7. `F_FULLFSYNC`/`fsync` of the copy;
 8. final destination identity check;
@@ -96,6 +98,8 @@ A complex `MetadataPatch` can open and save the staged file separately for numbe
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged, `.remove` clears a property, `explicitAdvisory` retains all four advisory states, and artwork distinguishes unchanged, replacement, and removal. Typed fields are validated for kind and numeric range against `MetadataFieldRegistry` before staging. Schema-known keys are rejected from `customFields`, including aliases and case variants. Role-qualified fields such as `.performer` are rejected by the typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are part of the key.
 
 Most property changes are applied as a bridge delta to the current `PropertyMap`; MP4 track/disc pairs, movement, and advisory data use native `trkn`, `disk`, `©mvi`/`©mvc`, and `rtng` mutation, while ID3 advisory uses the supported `TXXX` representation. Track/disc components are normalized from the engine's signed projection to their unsigned 16-bit storage; movement remains bounded to `0...32767`. TagLib still saves the affected native tag, so the guarantee is semantic omission rather than byte-for-byte container preservation.
+
+PropertyMap replay is owner-aware for independent date slots. On MP4, untouched `©day`, `DATE`, `RELEASEDATE`, and `ORIGINALDATE` items are restored exactly, including absence; on ID3-backed files, untouched date frames are detached around `setProperties` and restored afterward so encoding, arrays, flags, and malformed text survive. A scalar custom field whose projection is unchanged retains an existing MP4 freeform name spelling and native array. ASF semantic custom fields bypass the PropertyMap and address native Unicode attributes. MP4 typed comments and lyrics use `©cmt`/`©lyr` rather than the qualified ID3 collection path; structured comment/lyric collections remain unsupported on MP4.
 
 Basic replacement restores unchanged native date owners and, on MP4, unchanged modeled atoms and compatibility aliases before verification. Existing ID3v2.3 tags reject independent date changes, while an unrelated Basic edit preserves their dates. Encoded By and Encoder Settings, and Content Group, Grouping and Work, are verified through independent native owners rather than fallback projections.
 
