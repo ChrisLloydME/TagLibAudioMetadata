@@ -56,7 +56,7 @@ struct AuditProbeTests {
                 .init(key: "----:com.apple.iTunes:WORK", type: "stringList", values: ["Legacy Work"])
             ]), to: url)
             let extracted = try TagLibMetadataExtractor.extractMetadata(from: url)
-            var model = try #require(extracted)
+            let model = extracted
             model.encodedBy = nil
             model.encoderSettings = nil
             model.itunesAlbumId = nil
@@ -258,7 +258,7 @@ struct AuditProbeTests {
         // Low-level bridge model
         try withM4A { url in
             let extracted = try TagLibMetadataExtractor.extractMetadata(from: url)
-            var model = try #require(extracted)
+            let model = extracted
             model.movementNumber = value
             model.movementCount = value
             try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
@@ -301,7 +301,7 @@ struct AuditProbeTests {
         try withM4A { url in
             let before = try Data(contentsOf: url)
             let extracted = try TagLibMetadataExtractor.extractMetadata(from: url)
-            var model = try #require(extracted)
+            let model = extracted
             model.movementNumber = value
             model.movementCount = value
             do {

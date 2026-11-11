@@ -347,6 +347,8 @@ extension TagLibMetadataManager {
         case "comment": metadata.comment
         case "lyrics": metadata.lyrics
         case "year": metadata.year
+        case "date": metadata.date
+        case "contentGroup": metadata.contentGroup
         case "albumArtist": metadata.albumArtist
         case "releaseDate": metadata.releaseDate
         case "originalReleaseDate": metadata.originalReleaseDate
