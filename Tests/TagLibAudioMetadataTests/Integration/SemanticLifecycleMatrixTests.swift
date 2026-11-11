@@ -5,7 +5,7 @@ import TagLibAudioMetadata
 /// Literal test expectations, frozen independently of the runtime registry.
 /// Do not regenerate these from production schemas to make a mismatch pass.
 struct SemanticLifecycleMatrixTests {
-    enum Kind: Sendable { case text, integer, boolean }
+    enum Kind: Equatable, Sendable { case text, integer, boolean }
     struct Case: Sendable {
         let field: MetadataFieldKey
         let atom: String
@@ -152,18 +152,50 @@ struct SemanticLifecycleMatrixTests {
         }
     }
 
-    @Test(arguments: cases) func mp4SetReplaceRemoveHasNativeOwnerAndPreservesSiblings(_ item: Case) throws {
+    enum Operation: String, CaseIterable, Sendable { case set, replace, remove }
+
+    @Test(arguments: cases, Operation.allCases)
+    func mp4LifecycleHasNativeOwnerAndPreservesSiblings(_ item: Case, _ operation: Operation) throws {
         try HardeningFixture.withCopy("m4a", name: "testAudioFile") { url in
             try TagLibMetadataManager.applyRawMetadataPatch(.init(valuesToSet: ["X-MATRIX-KEEP": ["A; B", "duplicate", "duplicate", "  padded  "]]), to: url)
-            for requested in [item.value(false), item.value(true), .remove] {
-                let before = try IndependentMP4Probe.read(url)
-                try TagLibMetadataManager.applyMetadataPatch(.init(fields: [item.field: requested]), to: url)
-                let after = try IndependentMP4Probe.read(url)
-                try after.expectValue(requested, at: item.atom)
-                #expect(after.audio == before.audio)
-                #expect(after.items.filter { $0.key != item.atom } == before.items.filter { $0.key != item.atom },
-                        "Unedited native atoms changed for \(item.field)")
+            let initial = item.value(false)
+            let type: String = switch item.kind { case .text: "stringList"; case .integer: "uint"; case .boolean: "bool" }
+            let seed: StructuredMP4Atom
+            switch initial {
+            case .text(let value): seed = .init(key: item.atom, type: type, values: [value], remove: operation == .set)
+            case .integer(let value): seed = .init(key: item.atom, type: type, value: String(value), remove: operation == .set)
+            case .boolean(let value): seed = .init(key: item.atom, type: type, value: value ? "1" : "0", remove: operation == .set)
+            default: throw CocoaError(.coderInvalidValue)
             }
+            // Setup uses the structured/native path. A broken semantic Set
+            // must not prevent Replace and Remove from being exercised.
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(mp4Atoms: [seed]), to: url)
+            let before = try IndependentMP4Probe.read(url)
+            let requested: MetadataPatchValue = switch operation {
+            case .set: item.value(false)
+            case .replace: item.value(true)
+            case .remove: .remove
+            }
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [item.field: requested]), to: url)
+            let after = try IndependentMP4Probe.read(url)
+            try after.expectValue(requested, at: item.atom)
+            #expect(after.audio == before.audio)
+            #expect(after.items.filter { $0.key != item.atom } == before.items.filter { $0.key != item.atom },
+                    "Unedited native atoms changed for \(item.field), \(operation)")
+        }
+    }
+
+    @Test(arguments: cases)
+    func wrongValueKindCannotPartiallyCommitAnotherField(_ item: Case) throws {
+        try HardeningFixture.withCopy("m4a", name: "testAudioFile") { url in
+            let bytes = try Data(contentsOf: url)
+            let invalid: MetadataPatchValue = item.kind == .text ? .boolean(true) : .text("not-a-number")
+            var fields: [MetadataFieldKey: MetadataPatchValue] = [.comment: .text("Must not commit")]
+            fields[item.field] = invalid
+            #expect(throws: MetadataPatchValidationError.self) {
+                try TagLibMetadataManager.applyMetadataPatch(.init(fields: fields), to: url)
+            }
+            #expect(try Data(contentsOf: url) == bytes)
         }
     }
 }
