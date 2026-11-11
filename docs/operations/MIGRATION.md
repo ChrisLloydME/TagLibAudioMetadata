@@ -1,6 +1,6 @@
 # Compatibility and migration
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.2` (2026-11-11) is the current release. Sections are newest first; review the behavioral changes that apply to your starting version.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.2` (2026-11-11) is the latest published tag. The current branch contains unreleased post-`0.7.2` repairs. Sections are newest first; review the behavioral changes that apply to your starting version.
 
 ## Compatibility promises
 
@@ -9,6 +9,27 @@ This guide describes source-compatibility expectations and the changes a consume
 - **Binary compatibility:** the package does not promise a stable Swift ABI or a stable C++ ABI. Rebuild consumers against the package version they use.
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.
+
+## Adopting the unreleased current branch
+
+`codex/metadata-state-coverage-repairs` is based on published `0.7.2` and is not itself a release: it has no version bump, tag, binary rebuild, or automatic user-file migration. Public signatures are unchanged. The behavior changes below matter when an application depends on engine projections or scalar round trips rather than native-owner behavior.
+
+### Current-branch behavior changes
+
+- **Native date owners survive PropertyMap replay.** Unedited MP4 items and ID3 frames for YEAR, DATE, RELEASEDATE, and ORIGINALDATE are restored on raw, semantic-custom and structured writes, including native absence. The engine's `DATE` projection no longer authorizes creating, changing, or removing another native date owner.
+- **Low-level date reads use native owners.** The bridge model resolves YEAR and standalone DATE from MP4/ID3/Xiph/APE-native storage rather than filling one from another engine projection. A file with DATE but no YEAR now returns an absent YEAR. That absence is intentional evidence, not a regression in the model.
+- **MP4 typed comments and lyrics use native atoms.** `.comment` and `.lyrics` patches address `©cmt` and `©lyr`; they no longer enter the generic PropertyMap path that was appropriate for ID3's qualified collections. Structured `comments`/`lyrics` collections remain unsupported on MP4.
+- **ASF semantic custom fields use native attributes.** A set, replace, or remove addresses the native Unicode attribute and reconciles only that field's case aliases. Verification uses the native attribute collection, so a same-named engine projection cannot hide a failed removal.
+- **Untouched MP4 custom fields retain native state.** A changed custom field keeps the existing freeform name spelling and reconciles case aliases; an unchanged scalar projection does not collapse the native value array. A whole-map raw replacement retains arrays whose submitted values exactly equal the current visible array rather than normalizing them.
+- **ARTIST and ARTISTS remain independent.** Generic PropertyMap replay no longer lets ARTISTS satisfy an ARTIST read. An application that relied on that fallback must read or write the field it actually means.
+
+### Migration actions
+
+1. If you compare low-level date values, expect native-owner absence rather than an inferred YEAR from DATE. Read the field whose owner you need.
+2. If you inspect MP4 comments or lyrics outside the package, expect `©cmt`/`©lyr`; do not infer support for structured comment/lyric collections.
+3. On ASF, do not assume a raw PropertyMap operation clears the native custom attribute. Patch the exact custom field and verify its native attribute if the distinction matters.
+4. Do not assume a whole-map `.replace` normalizes an array that is already equal to the current visible value. Edit the array explicitly when normalization is intended.
+5. Keep testing against the tag or exact revision you depend on. The branch's gate evidence does not make it a release.
 
 ## Migrating from 0.7.1 to 0.7.2
 
@@ -183,6 +204,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 ## Migration checklist
 
 - [ ] Resolve the package at a tag or an explicit revision; do not rely on an unnamed branch state.
+- [ ] If evaluating the unreleased branch, pin its exact revision and review the current-branch behavior changes above.
 - [ ] Add the low-level product only if you directly use bridge declarations.
 - [ ] Replace deprecated reads/writes with the named alternatives.
 - [ ] Remove `failurePolicy:` arguments and handle thrown verification failures.
@@ -194,6 +216,8 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - [ ] Move Year edits to `.year`, standalone Date edits to `.standaloneDate`, and MP4 Release Date edits to `.releaseDate`.
 - [ ] Audit code that assumes `BasicMetadata` edits cover every Basic property; use `MetadataPatch` for the MP4-exclusive fields.
 - [ ] Check concrete ID3v2.3 tags with `StructuredMetadata.id3v2MajorVersion` before offering date edits.
+- [ ] Do not infer a YEAR from DATE in low-level reads; check the native owner and absence directly.
+- [ ] If you inspect MP4 comments or lyrics, expect `©cmt`/`©lyr` from typed patches; structured comment/lyric collections are still unsupported on MP4.
 - [ ] Verify the final app embeds and signs the namespaced framework.
 - [ ] Run your own type, integration, and distribution checks; the package's tests do not validate your app.
 
