@@ -217,7 +217,7 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
 
     // Track number
     if (items.contains("trkn")) {
-        TagLib::MP4::Item::IntPair trackPair = items["trkn"].toIntPair();
+        TagLib::MP4::Item::IntPair trackPair = MP4UnsignedPair(items["trkn"]);
         metadata.trackNumber = trackPair.first;
         metadata.totalTracks = trackPair.second;
         metadata.trackNumberText = trackPair.second > 0
@@ -227,7 +227,7 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
 
     // Disc number
     if (items.contains("disk")) {
-        TagLib::MP4::Item::IntPair discPair = items["disk"].toIntPair();
+        TagLib::MP4::Item::IntPair discPair = MP4UnsignedPair(items["disk"]);
         metadata.discNumber = discPair.first;
         metadata.totalDiscs = discPair.second;
         metadata.discNumberText = discPair.second > 0
@@ -444,6 +444,14 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
             SetCustomMetadataField(metadata, description.uppercaseString, itemValueString);
         }
     }
+    // Canonical native owners take precedence over old freeform projections.
+    if (items.contains("\xA9" "mvi")) metadata.movementNumber = items["\xA9" "mvi"].toInt();
+    if (items.contains("\xA9" "mvc")) metadata.movementCount = items["\xA9" "mvc"].toInt();
+    metadata.encodedBy = MP4TextItemValue(items, "\xA9" "enc") ?: MP4TextItemValue(items, "----:com.apple.iTunes:ENCODEDBY");
+    metadata.encoderSettings = MP4TextItemValue(items, "\xA9" "too")
+        ?: MP4TextItemValue(items, "----:com.apple.iTunes:ENCODERSETTINGS")
+        ?: MP4TextItemValue(items, "----:com.apple.iTunes:ENCODING");
+
 }
 
 // Extract Xiph Comment metadata (FLAC, OGG Vorbis, Opus, etc.)
