@@ -87,7 +87,7 @@ for frame in dump.id3v2Frames {
 }
 ```
 
-`RawPropertyEntry.value` is a joined display projection; `values` is authoritative for cardinality. `schema` links a property key to the field registry when known. `shouldDisplayAsMultiValue` is a UI hint based on schema mappings and qualified prefixes. Raw properties are sorted case-insensitively by key.
+`RawPropertyEntry.value` is a joined display projection; `values` is authoritative for cardinality. `schema` links a property key to the field registry when known. `shouldDisplayAsMultiValue` is a UI hint based on schema mappings and qualified prefixes. Raw properties are sorted case-insensitively by key. Treat YEAR and DATE as independent keys: the engine may project DATE from a native YEAR-like owner, so a raw map alone does not prove which native slot stores a value.
 
 `bestEffortRawMetadataText` returns copyable diagnostic text:
 
@@ -120,6 +120,8 @@ for warning in structured.warnings {
 Structured collections are container-specific. A format may populate `properties` only, or may expose frames/atoms/attributes, artwork, lyrics, comments, or warnings. Do not assume every collection is populated for every file.
 
 `id3v2MajorVersion` is optional evidence of the observed primary ID3 tag version; it is `nil` when the file has no ID3v2 tag. It does not convert or upgrade a tag. Use it before offering independent date edits, because an existing ID3v2.3 tag is read-only for those fields even when the extension-level capability reports ID3v2 support. MP4 Basic reads resolve Content Group and Movement Number/Count from their native owners; movement values are not projections of Track/Disc.
+
+Direct `CTagLibBridge` reads follow the same ownership rule for dates: on MP4, ID3, Xiph, and APE they resolve YEAR and standalone DATE from their native owners and leave an owner absent when it is absent. The low-level model is scalar, so it is not a full-fidelity view of multi-value native arrays. Use `readSnapshot`, raw value arrays, or structured collections when cardinality matters. See [Bridge reference](../reference/BRIDGE.md).
 
 For ID3v2 text frames, `values` is the ordered native string list; `value` is a display projection. `TXXX.description` identifies the user-text frame and is not duplicated into `values`. `APIC`, `COMM`, and `USLT` are returned in the dedicated `artwork`, `comments`, and `lyrics` collections rather than `id3v2Frames`.
 

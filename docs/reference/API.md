@@ -96,7 +96,7 @@ func applyMetadataPatch(
 ) throws -> MetadataWriteResult
 ```
 
-Source: [MetadataSnapshotPatch.swift:1027](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L1027)
+Source: [MetadataSnapshotPatch.swift:1045](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L1045)
 
 ## `applyNumberNormalization`
 

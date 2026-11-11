@@ -61,6 +61,8 @@ Rules enforced before staging:
 
 `MetadataPatchValue` has four value forms and one deletion form: `.text`, `.integer`, `.boolean`, `.values`, and `.remove`. `.boolean(false)` writes `"0"`; it is not deletion. The complete per-field kind and range table is generated in the [field reference](../reference/FIELDS.md#typed-patch-value-contract).
 
+Comment and lyric routing depends on the container. Typed `.comment` and `.lyrics` patches own qualified `COMM`/`USLT` collections on ID3-backed formats, but use the ordinary `©cmt`/`©lyr` atoms on MP4. The structured `comments`/`lyrics` collections are a separate surface and remain unsupported on MP4.
+
 ### Omission, removal, and boolean states
 
 ```swift
@@ -247,7 +249,7 @@ try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
 )
 ```
 
-`.replace` removes omitted visible keys from the map it writes. It does not reconstruct native data TagLib does not expose. On WAV, RIFF INFO is a separate surface and is not removed by this call; omitted INFO keys can remain and make verification fail. Use a structured `.id3v2Only` write to remove INFO, or delete both surfaces explicitly. `.merge` preserves omitted visible keys and native structures and treats an empty value as removal:
+`.replace` removes omitted visible keys from the map it writes. It does not reconstruct native data TagLib does not expose. Arrays that exactly match the current visible values are retained literally rather than normalized; new or changed arrays are trimmed. YEAR and DATE remain distinct keys during verification, so replacement cannot silently merge their arrays. On WAV, RIFF INFO is a separate surface and is not removed by this call; omitted INFO keys can remain and make verification fail. Use a structured `.id3v2Only` write to remove INFO, or delete both surfaces explicitly. `.merge` preserves omitted visible keys and native structures and treats an empty value as removal:
 
 ```swift
 try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
@@ -296,7 +298,9 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-Lyrics/comments replace-all is supported on ID3-backed formats and TrueAudio. MP4 ignores structured comments/lyrics; APE-family and FLAC/Ogg reject them. Do not use those collections for MP4 or Xiph/APE files.
+Lyrics/comments replace-all is supported on ID3-backed formats and TrueAudio. MP4 ignores structured comments/lyrics; APE-family and FLAC/Ogg reject them. Do not use those collections for MP4 or Xiph/APE files. For MP4, use the typed `.comment`/`.lyrics` fields, which address `©cmt`/`©lyr`, or a native atom write.
+
+Structured text values are exact payloads rather than display text. ID3 frame arrays and MP4 `stringList` entries retain order, duplicates, and surrounding whitespace. An empty array removes the frame identity or MP4 item where that type supports removal. The trimming performed by typed patch values does not apply to structured values.
 
 ### ID3v2 frames
 
@@ -403,7 +407,9 @@ try TagLibMetadataManager.writeTagMetadata(
 )
 ```
 
-`TagLibAudioMetadata` is a writer model for fields the bridge maps. A sparse instance replaces mapped fields and clears them where the format allows; it is not an omission-safe patch. `writeTagMetadata` with `.none` performs no semantic readback; the transaction validates the original audio before staging and the bridge mutation is called directly. Prefer the facade's verified APIs for normal editing. See [Bridge reference](../reference/BRIDGE.md).
+`TagLibAudioMetadata` is a writer model for fields the bridge maps. A sparse instance replaces mapped fields and clears them where the format allows; it is not an omission-safe patch. On read, the low-level model resolves YEAR and standalone DATE from their native owners on MP4, ID3, Xiph, and APE instead of deriving one from another's engine projection. On write, unchanged scalar projections do not collapse a native MP4 custom-field array or rebuild untouched native date owners. The model is still scalar: it cannot represent every native array or opaque structure, so use selective patches and structured APIs for those edits.
+
+`writeTagMetadata` with `.none` performs no semantic readback; the transaction validates the original audio before staging and the bridge mutation is called directly. Prefer the facade's verified APIs for normal editing. See [Bridge reference](../reference/BRIDGE.md).
 
 ## Verification, warnings, and commit status
 
@@ -418,7 +424,7 @@ The comparison scope differs by API:
 
 | API | Verified scope |
 | --- | --- |
-| `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, artwork, number/advisory expectations, and format-aware storage. |
+| `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, native date/owner absence, ASF native attributes, artwork, number/advisory expectations, and format-aware storage. |
 | `applyRawMetadataPatch` | The complete visible `PropertyMap` after the delta. |
 | `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields, custom values, number/advisory expectations, artwork, and preserved raw values. MP4-exclusive Basic fields are not written or verified. |
 | `writeStructuredMetadataWithVerification` | Requested structured collections and properties, including ordered frame values and artwork semantics. |

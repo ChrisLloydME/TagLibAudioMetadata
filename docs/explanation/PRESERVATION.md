@@ -105,6 +105,8 @@ There is no Year/date reconciliation:
 
 Applied changes use exact native targets: MP4 atoms/freeforms, ID3 text/user-text/versioned frames, or native Xiph/APE text keys. The bridge does not rebuild omitted Swift fields into a replacement map. Number pairs, advisory values, and artwork use container-aware paths.
 
+Comment and lyric routing depends on the container. On ID3-backed formats, typed `.comment`/`.lyrics` edits own the qualified `COMM`/`USLT` collections, including their languages and descriptions. On MP4, typed `.comment`/`.lyrics` edits address the ordinary `©cmt`/`©lyr` atoms instead of entering the PropertyMap path. The structured `comments` and `lyrics` collections are a separate surface; MP4 still does not write them.
+
 ### Number pairs and native bounds
 
 - ID3-backed formats use combined `TRCK`/`TPOS`; movement number/count uses `MVIN`. MP4 uses native `trkn`/`disk`; movement number/count uses independent `©mvi`/`©mvc` atoms. Xiph uses `TRACKNUMBER`/`TRACKTOTAL`; APE uses `TRACK`/`TRACKTOTAL`; ASF uses native text pairs.
@@ -140,7 +142,7 @@ Applied changes use exact native targets: MP4 atoms/freeforms, ID3 text/user-tex
 
 The whole-map compatibility writers have two modes:
 
-- `.replace` replaces the visible `PropertyMap` with the supplied keys. It cannot reconstruct native fields that are not visible through `properties()`. WAV INFO is a separate surface: omitted INFO keys can survive the ID3v2 replacement and cause verification to fail. Use a structured `.id3v2Only` write or an explicit deletion of both surfaces when INFO removal is intended. Use `.replace` only when the caller deliberately owns the complete visible map.
+- `.replace` replaces the visible `PropertyMap` with the supplied keys. It cannot reconstruct native fields that are not visible through `properties()`. WAV INFO is a separate surface: omitted INFO keys can survive the ID3v2 replacement and cause verification to fail. Use a structured `.id3v2Only` write or an explicit deletion of both surfaces when INFO removal is intended. Use `.replace` only when the caller deliberately owns the complete visible map. When a submitted array exactly equals the current visible array, the writer retains its literal elements instead of re-encoding them through the scalar normalizer; new or changed arrays receive normal trimming. YEAR and DATE remain separate verification keys, so a whole-map replacement cannot silently merge their arrays.
 - `.merge` applies a delta, preserves omitted visible keys, hidden MP4 freeform atoms, and WAV INFO, and removes a key when the supplied value or array is empty. Values and elements are trimmed and empty elements are dropped; array boundaries otherwise remain.
 
 Prefer `RawMetadataPatch` for preservation-oriented partial edits. It preserves exact value strings within the limits of the native container and requires explicit removals.
@@ -152,7 +154,7 @@ Prefer `RawMetadataPatch` for preservation-oriented partial edits. It preserves 
 - With `includeProperties == true`, supplied properties are a **delta**. Omitted keys and native structures are preserved. An empty `values` array removes that key.
 - With `includeProperties == false`, a non-empty `properties` array is rejected by the Swift facade.
 - `artwork` uses replace-all semantics when non-empty. Empty arrays are omitted by default; include the collection in `replacingCollections` to remove its final entries.
-- `lyrics` and `comments` use replace-all semantics on ID3-backed formats and TrueAudio. MP4 ignores structured `comments`/`lyrics`; APE-family and FLAC/Ogg reject them. The facade then fails verification if those entries were expected. Use Basic or native atoms for MP4 comments/lyrics and an ID3-capable API for the others.
+- `lyrics` and `comments` use replace-all semantics on ID3-backed formats and TrueAudio. MP4 ignores structured `comments`/`lyrics`; APE-family and FLAC/Ogg reject them. The facade then fails verification if those entries were expected. Use the typed `.comment`/`.lyrics` fields or native atoms for MP4 comments/lyrics, and an ID3-capable API for the others.
 - Opaque ID3 frames returned with `type == "unknown"` are inspection-only. Omit them from writes; omitted frames remain on disk. Supplying one throws `MetadataValidationError.unsupportedID3v2FrameType`.
 - ID3 writable frame types are `text`, `versionedText`, `userText`, `url`, `ufid`, `chapter`, `tableOfContents`, and `podcast`. `versionedText` requires the version-specific `v23ID`/`v24ID` or description fields; `APIC`, `COMM`, and `USLT` belong in the dedicated collections.
 - An ID3 `text` or `userText` entry with both empty `values` and empty `value` removes that frame identity. Verification checks absence and preserves unrelated frames. URL/UFID frames have no individual structured removal operation; empty payloads reject instead of pretending to remove them.
@@ -160,6 +162,7 @@ Prefer `RawMetadataPatch` for preservation-oriented partial edits. It preserves 
 - `StructuredArtwork.container` is informational. The writer selects the destination container from the file format; verification compares payload, MIME type, and applicable picture metadata. Picture type `0` (`Other`) is valid; an omitted type defaults to Front Cover (`3`).
 - APE-family artwork writes support one front image. ID3v2, MP4, ASF, FLAC, and Xiph support the entries those containers can store.
 - MP4 atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other inspected item types are ignored by the writer; omit them.
+- Structured text values are exact payload values, not display text. ID3 frame values and MP4 `stringList` entries retain order, duplicates, and surrounding whitespace; an empty array removes the item or frame identity where the type supports removal. The typed patch layer's trimming rules do not apply to structured values.
 - ASF attributes are upserts. GUID attributes are inspection-only. There is no individual structured deletion operation.
 - DSF/DSDIFF accept native ID3 frame upserts, PropertyMap deltas and artwork through the structured writer. Whole native frame collection replacement and comment/lyric collection replacement remain unsupported. A Basic edit that would require replaying existing DSD comments or lyrics rejects safely rather than normalizing them.
 - Mixed TrueAudio APEv2 metadata rejects before commit because the pinned handler cannot reconcile both surfaces.
@@ -188,6 +191,21 @@ Basic and typed Patch WAV writes target ID3v2 and always leave RIFF INFO untouch
 - ASF `int` projections retain an unambiguous existing WORD/DWORD width. A new attribute uses DWORD. WORD overflow and ambiguous same-identity width updates reject.
 - ASF has no verified total-only number representation; remove both components to clear a pair.
 
+## Native owner preservation across PropertyMap replay
+
+The visible `PropertyMap` is a projection, not an ownership record. An unedited field can appear in the engine map under a key that is also used by an independent native owner. The writer therefore compares edits at the native-owner level and restores untouched owners instead of replaying every projected value.
+
+- On MP4, untouched `©day`, `DATE`, `RELEASEDATE`, and `ORIGINALDATE` items are retained by item identity, including native absence. The engine `DATE` projection does not authorize creating, changing, or removing any of them.
+- On ID3-backed formats, untouched date frames are detached before engine replay and restored afterward, so frame encoding, value arrays, flags, and malformed text can survive. They are not reconstructed from display strings.
+- On Xiph/APE, independent native YEAR, DATE, RELEASEDATE, and ORIGINALDATE keys are read and preserved without falling back to a similarly named engine key. On ASF, YEAR, DATE, and ORIGINALDATE use registered native attributes; ASF RELEASEDATE has no verified native target. Registered aliases such as `ORIGINAL YEAR`/`TORY` remain read compatibility paths.
+- The low-level bridge model resolves YEAR and standalone DATE from their native owners on MP4, ID3, Xiph, and APE. It leaves an owner absent when it is absent rather than populating it from another projection. Its scalar fields still cannot represent every native array or opaque structure; use selective patches and structured APIs for explicit native edits.
+- An unchanged unknown-field scalar projection does not collapse its underlying native value array during low-level read/modify/write. Changed MP4 custom fields retain the existing freeform name spelling and reconcile case aliases.
+- A whole-map raw replacement compares submitted arrays with the current visible arrays. Arrays that exactly match are retained literally; new or changed arrays are normalized. YEAR and DATE remain separate verification keys.
+- ASF native-field verification treats missing attributes as absent even when the engine projects a similarly named value from another owner; Artist does not fall back to ARTISTS. Semantic ASF custom fields address native Unicode attributes and reconcile only the edited field's case aliases.
+- MP4 `.comment`/`.lyrics` use native `©cmt`/`©lyr`; ID3 `.comment`/`.lyrics` use qualified `COMM`/`USLT`. The structured comment/lyric collections remain a separate surface.
+
+These guarantees cover the unchanged projections exercised by the state matrices. They do not turn the scalar low-level model into a native archive, prove retention of arbitrary native arrays, or certify an unexposed structure. [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance) owns the exact case inventory.
+
 ## Verification model
 
 Verified facade APIs read the staged file back before commit and throw `TagLibManagerError.verificationFailed` on a requested-value mismatch. What is compared depends on the API:
@@ -204,6 +222,7 @@ Verified facade APIs read the staged file back before commit and throw `TagLibMa
 
 Additional rules:
 
+- ASF native-field verification treats a missing attribute as absent even when the engine still projects a similarly named value from a different owner. Artist does not fall back to independent ARTISTS. ASF custom fields are verified against the native attribute collection, not only the visible PropertyMap.
 - Verification mismatches always abort the transaction. `VerificationFailurePolicy.warn` is deprecated and has no bypass effect.
 - `MetadataWriteResult.warnings` contains residual container advisories after a successful verification. Mismatch warnings are thrown, not returned. An empty warnings array describes only the checks requested by that API.
 - `.present` artwork verification is presence-only; `expectedArtworkData` and `expectedArtworkMIMEType` add exact checks.
@@ -232,11 +251,13 @@ Preservation and verification happen on a sibling staging copy. The destination 
 - Cross-process exclusion or hardware/power-loss durability.
 - Behavior that the current tests do not exercise merely because the code compiles.
 - That a successful write with warnings is a partial failure; warnings are residual advisories after the requested checks passed.
+- That structured `comments`/`lyrics` collections are writable on MP4, or that the scalar low-level model exposes every native array or owner.
+- That an untouched native array is preserved merely because the scalar projection was unchanged on an untested container path; the state matrices define the covered surfaces.
 - That `replaceBasicMetadata` writes every property present on `BasicMetadata`; the MP4-exclusive fields are read/patch-only at that surface.
 
 ## Related evidence
 
-- [Mapping contract](../reference/MAPPING_SPEC.md) — native target policy and `0.7.2` corrections.
+- [Mapping contract](../reference/MAPPING_SPEC.md) — native target policy, `0.7.2` corrections, and unreleased current-branch repairs.
 - [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent matrices and coverage limits.
 - [Testing](../operations/TESTING.md) — commands, gate policy, and evidence interpretation.
 - [Migration](../operations/MIGRATION.md) — release-specific ownership and bounds changes.

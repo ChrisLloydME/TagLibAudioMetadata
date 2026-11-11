@@ -87,4 +87,18 @@ struct NativeProbeContractTests {
             }
         }
     }
+    @Test func asfContentDescriptionVectorAndMalformedBounds() throws {
+        func container(_ payload: Data) -> Data {
+            let object = IndependentASF.Object(id: IndependentASF.hex("3326b2758e66cf11a6d900aa0062ce6c"), payload: payload).bytes
+            return IndependentASF.header + HardeningFixture.number(UInt64(30 + object.count), bytes: 8, little: true)
+                + Data([1, 0, 0, 0, 1, 2]) + object
+        }
+        // Literal wire vector: five byte lengths then UTF-16LE strings.
+        let payload = Data([4, 0, 2, 0, 2, 0, 4, 0, 2, 0, 84, 0, 0, 0, 0, 0, 0, 0, 67, 0, 0, 0, 0, 0])
+        #expect(try IndependentASF.contentFields(container(payload)) == ["T", "", "", "C", ""])
+        for malformed in [Data(), Data(payload.dropLast()), payload + Data([0]), Data([3]) + payload.dropFirst()] {
+            #expect(throws: HardeningFixture.Invalid.self) { try IndependentASF.contentFields(container(malformed)) }
+        }
+    }
+
 }

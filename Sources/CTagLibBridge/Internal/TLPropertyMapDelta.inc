@@ -152,12 +152,12 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         TagLib::ASF::Tag *tag = asf->tag();
         for (NSString *key in keysToRemove ?: @[]) {
             NSString *trimmed = TrimmedStringOrNil(key);
-            if (trimmed) { tag->removeItem(NSStringToTagString(trimmed)); changed = true; }
+            if (trimmed) { RemoveASFCommonAttributeAlias(tag, trimmed.uppercaseString.UTF8String); changed = true; }
         }
         for (NSString *key in valuesToSet ?: @{}) {
             NSString *trimmed = TrimmedStringOrNil(key);
             if (!trimmed) continue;
-            tag->removeItem(NSStringToTagString(trimmed));
+            RemoveASFCommonAttributeAlias(tag, trimmed.uppercaseString.UTF8String);
             for (NSString *value in valuesToSet[key]) {
                 NSString *trimmedValue = value;
                 if (trimmedValue) {
@@ -251,7 +251,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         }
 
         wav->InfoTag()->setProperties(info);
-        wav->ID3v2Tag()->setProperties(id3);
+        SetID3PropertiesPreservingNativeDates(wav->ID3v2Tag(), id3);
         if (infoChanged &&
             !wav->save(TagLib::RIFF::WAV::File::Info, TagLib::File::StripNone)) {
             if (error) {
@@ -432,7 +432,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         }
         id3.replace(tagKey, values);
     }
-    wav.ID3v2Tag()->setProperties(id3);
+    SetID3PropertiesPreservingNativeDates(wav.ID3v2Tag(), id3);
     if (!wav.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

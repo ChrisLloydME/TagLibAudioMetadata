@@ -2,7 +2,7 @@
 
 `TagLibAudioMetadata` reads, edits, verifies, and erases audio metadata on macOS and iOS. A Swift facade wraps an Objective-C++ bridge to a checksum-pinned TagLib 2.3.1 XCFramework. This guide takes you from package resolution to a first read and a first verified patch.
 
-Version `0.7.2` is the current release. Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` added date/ownership corrections, and `0.7.2` finalizes the audit and native-mapping repairs. Use the [migration guide](../operations/MIGRATION.md) when upgrading from `0.7.1` or earlier.
+Version `0.7.2` is the latest published tag. Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit and native-mapping repairs. The current branch adds unreleased state-preservation repairs after `0.7.2`; those are not part of the published tag. Use the [migration guide](../operations/MIGRATION.md) when upgrading or when evaluating the branch.
 
 ## Requirements
 
@@ -111,6 +111,8 @@ Rules worth knowing before the first write:
 - `.year` is the canonical YEAR field. `.date` is a legacy YEAR spelling that writes the same slot where writable; do not supply both.
 - `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` are independent fields. `BasicMetadata.date` carries the standalone DATE projection, not the typed `.date` legacy YEAR alias.
 - Existing ID3v2.3 tags reject independent date edits. Inspect `StructuredMetadata.id3v2MajorVersion` before enabling those controls.
+- Unrelated edits preserve existing native date owners and their arrays. In particular, do not round-trip a scalar `BasicMetadata` date through an unrelated save and assume that proves the native collection was preserved; the writer retains it, but the scalar model cannot display the full state.
+- On MP4, typed `.comment` and `.lyrics` patches write the native `©cmt`/`©lyr` atoms. The structured `comments`/`lyrics` collections are a different surface and are ignored on MP4.
 
 See [Writing metadata](WRITING.md) for the complete patch, raw, Basic, structured, and erase surface.
 

@@ -498,6 +498,11 @@ extension TagLibMetadataManager {
             if qualifiedPrefixes.contains(where: propertyKey.hasPrefix) {
                 return propertyKey
             }
+            // Raw date keys are distinct owners; the YEAR schema's engine
+            // DATE alias must not fold both arrays into an unordered bucket.
+            if ["YEAR", "DATE", "RELEASEDATE", "ORIGINALDATE"].contains(propertyKey) {
+                return propertyKey
+            }
             return MetadataFieldRegistry.schema(forPropertyMapKey: propertyKey)?
                 .propertyMapKeys.first?.uppercased() ?? propertyKey
         }

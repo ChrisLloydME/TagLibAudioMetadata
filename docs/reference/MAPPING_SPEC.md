@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections, and `0.7.2` finalizes the native read/write/verification consistency repairs; see [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs. The current branch adds unreleased native-owner state preservation without changing the contract ID or registered target layouts; see [Migration](../operations/MIGRATION.md) for the release boundary and current delta.
 
 The package-side source of truth is code:
 
@@ -122,6 +122,10 @@ Raw APIs use prefixless TagLib `PropertyMap` keys. Native MP4 `----:` atom keys 
 
 Custom fields are arbitrary keys, but schema-known names are rejected from `MetadataPatch.customFields` so one semantic field cannot be written through two representations. The current bridge still permits reserved hidden formatting names through low-level custom-field writes; clients must not use them.
 
+On MP4, a custom field that already exists as a freeform atom and whose scalar projection is unchanged retains its original name spelling and native value array. Changed MP4 freeform names reconcile their case aliases. On ASF, a semantic custom field is a native Unicode attribute rather than a PropertyMap-only key; only the edited field's case aliases are reconciled. These rules preserve state that a scalar read/modify/write cannot represent.
+
+Semantic `.comment` and `.lyrics` use their native container owner: qualified ID3 collections on ID3-backed formats and the ordinary MP4 `©cmt`/`©lyr` atoms on MP4. The structured `comments`/`lyrics` collections are a separate API surface and are not a substitute for those typed fields.
+
 ## 8. Format behavior and evidence
 
 The package exposes ID3v2, MP4, Xiph, APE, ASF, RIFF INFO, and fallback PropertyMap surfaces according to the selected format family. Container dispatch and the declared support matrix are in [Formats](FORMATS.md) and [Bridge reference](BRIDGE.md).
@@ -137,14 +141,15 @@ A capability label is not a release verdict. Cross-tool conformance, minimum-OS 
 
 ## 9. Implementation boundaries
 
-Implemented on current `main`:
+Implemented in the current source tree:
 
 - the explicit native target registry and generated field reference;
 - independent YEAR/DATE/RELEASEDATE/ORIGINALDATE targets, with existing ID3v2.3 tags read-only for independent date writes;
 - native number pairs, independent MP4 movement atoms, inventory states, and explicit normalization plans;
 - four-state advisory storage with raw unknown-code preservation;
 - the MP4-exclusive typed fields, with `.rate` read-only;
-- gated Matroska target registrations with no advertised write support.
+- gated Matroska target registrations with no advertised write support;
+- native-owner preservation across PropertyMap replay on MP4 and ID3-backed files, independent low-level YEAR/DATE reads, exact untouched MP4 custom-field spelling/arrays, and native ASF custom attributes (unreleased after `0.7.2`).
 
 Known boundaries:
 
@@ -158,6 +163,20 @@ Known boundaries:
 
 The generated matrix lists every profile and exact target. Any normative change must update the Swift catalog, the bridge codec where applicable, the field reference, the matrix, and the relevant tests together.
 
+## Conformance repairs after 0.7.0
+
+### 0.7.2 release
+
+Version `0.7.2` separates native Xiph/APE YEAR and DATE ownership from engine aliases in reads, semantic writes, raw replacement/delta, and generic map replay. Untouched native date arrays and malformed values are verified without collapsing them. ID3/MP4 date preservation is checked against native frames/atoms; a changed engine DATE projection does not authorize changing an unedited native owner. Encoded By and Encoder Settings are independent, MP4 movement uses `©mvi`/`©mvc`, and MP4 Content Group/Grouping/Work are verified separately. The existing native layouts and contract ID were unchanged.
+
+FLAC scalar comments use the Xiph verification path even when a secondary ID3 surface is supported. Qualified MusicBrainz recording identifiers use the UFID owner codec. Semantic write capability follows the primary write family; secondary readable tags do not authorize semantic writes.
+
+ID3v2.3 date targets are registered read-only until a verified native codec exists. These changes do not establish an ID3v2.3 TDAT/TDRL codec, arbitrary unknown-advisory assignment, MKV writes, or a RATE scale. Unknown advisory preservation and typed known-state edits remain distinct from assigning a new unknown native code.
+
+### Unreleased current-branch repairs
+
+The current branch extends the same contract without new native identifiers. It preserves untouched MP4 item and ID3 frame date owners, including native absence, during raw, semantic-custom and structured PropertyMap replay; reads independent YEAR/DATE values from native owners in the low-level model on MP4, ID3, Xiph and APE; retains unchanged MP4 custom-field name spelling and arrays; routes MP4 `.comment`/`.lyrics` through `©cmt`/`©lyr`; and verifies ASF native absence and custom attributes. None of this makes an existing ID3v2.3 tag writable for independent date edits.
+
 ## Related references
 
 - [Native mapping matrix](MAPPING_MATRIX.md) — generated from `MetadataMappingCatalog.swift`.
@@ -165,12 +184,3 @@ The generated matrix lists every profile and exact target. Any normative change 
 - [Formats](FORMATS.md) — declared capability and container limits.
 - [Write semantics](../explanation/PRESERVATION.md) — preservation and verification.
 - [Migration](../operations/MIGRATION.md) — changes from the tagged releases.
-
-
-## 0.7.2 conformance repairs
-
-Version `0.7.2` separates native Xiph/APE YEAR and DATE ownership from engine aliases in reads, semantic writes, raw replacement/delta, and generic map replay. Untouched native date arrays and malformed values are verified without collapsing them. ID3/MP4 date preservation is checked against native frames/atoms; a changed engine DATE projection does not authorize changing an unedited native owner. Encoded By and Encoder Settings are independent, MP4 movement uses `©mvi`/`©mvc`, and MP4 Content Group/Grouping/Work are verified separately. The existing native layouts and contract ID are unchanged.
-
-FLAC scalar comments use the Xiph verification path even when a secondary ID3 surface is supported. Qualified MusicBrainz recording identifiers use the UFID owner codec. Semantic write capability follows the primary write family; secondary readable tags do not authorize semantic writes.
-
-ID3v2.3 date targets are registered read-only until a verified native codec exists. These changes do not establish an ID3v2.3 TDAT/TDRL codec, arbitrary unknown-advisory assignment, MKV writes, or a RATE scale. Unknown advisory preservation and typed known-state edits remain distinct from assigning a new unknown native code.
