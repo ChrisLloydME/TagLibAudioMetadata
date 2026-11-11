@@ -3,11 +3,6 @@ import Testing
 import TagLibAudioMetadata
 
 struct ReviewNativeContainerTests {
-    private struct Atom {
-        let type: String
-        let payload: Range<Int>
-    }
-
     private func withFixture(_ ext: String, _ body: (URL) throws -> Void) throws {
         let source = try #require(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
@@ -21,45 +16,9 @@ struct ReviewNativeContainerTests {
         try body(url)
     }
 
-    // A bounds-checked ISO BMFF atom walker, independent of TagLib and its projections.
-    private func atoms(in data: Data, range: Range<Int>) throws -> [Atom] {
-        var result: [Atom] = []
-        var offset = range.lowerBound
-        while offset < range.upperBound {
-            try #require(range.upperBound - offset >= 8)
-            let size32 = data[offset..<(offset + 4)].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
-            let type = try #require(String(data: data[(offset + 4)..<(offset + 8)], encoding: .isoLatin1))
-            var headerSize = 8
-            var size = size32
-            if size32 == 1 {
-                try #require(range.upperBound - offset >= 16)
-                size = data[(offset + 8)..<(offset + 16)].reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
-                headerSize = 16
-            } else if size32 == 0 {
-                size = UInt64(range.upperBound - offset)
-            }
-            try #require(size >= headerSize && size <= UInt64(range.upperBound - offset))
-            let end = offset + Int(size)
-            result.append(Atom(type: type, payload: (offset + headerSize)..<end))
-            offset = end
-        }
-        return result
-    }
-
     private func mp4State(at url: URL) throws -> (items: [String: [Data]], audio: [Data]) {
-        let data = try Data(contentsOf: url)
-        let top = try atoms(in: data, range: 0..<data.count)
-        let audio = top.filter { $0.type == "mdat" }.map { Data(data[$0.payload]) }
-        var children = top
-        for component in ["moov", "udta", "meta", "ilst"] {
-            let container = try #require(children.first { $0.type == component })
-            let start = container.payload.lowerBound + (component == "meta" ? 4 : 0)
-            try #require(start <= container.payload.upperBound)
-            children = try atoms(in: data, range: start..<container.payload.upperBound)
-        }
-        var items: [String: [Data]] = [:]
-        for atom in children { items[atom.type, default: []].append(Data(data[atom.payload])) }
-        return (items, audio)
+        let state = try IndependentMP4Probe.read(url)
+        return (state.items, state.audio)
     }
 
     @Test func mp4DeltasPreserveNativeAtomsAndAudioPayload() throws {
@@ -85,7 +44,7 @@ struct ReviewNativeContainerTests {
             #expect(before.items["trkn"]?.count == 1)
             #expect(before.items["disk"]?.count == 1)
             #expect(before.items["covr"]?.first?.range(of: try #require(seed.artworkData)) != nil)
-            #expect(before.items["----"]?.contains {
+            #expect(before.items.filter { $0.key.hasPrefix("----:") }.values.flatMap { $0 }.contains {
                 $0.range(of: Data("TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT".utf8)) != nil
             } != true)
             #expect(!before.audio.isEmpty)

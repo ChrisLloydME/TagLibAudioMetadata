@@ -35,8 +35,10 @@ extension TagLibMetadataManager {
         case .conductor: ["CONDUCTOR"]
         case .work: ["WORK"]
         case .mediaType: ["MEDIATYPE", "MEDIA", "MEDIA TYPE"]
-        case .encodedBy: ["ENCODEDBY", "ENCODING"]
+        case .encodedBy: ["ENCODEDBY"]
         case .encoderSettings: ["ENCODERSETTINGS", "ENCODING"]
+        case .movementNumber: ["MOVEMENTNUMBER"]
+        case .movementCount: ["MOVEMENTCOUNT"]
         case .releaseDate: ["RELEASEDATE"]
         case .originalReleaseDate: ["ORIGINALDATE", "ORIGINAL YEAR"]
         case .standaloneDate: ["DATE"]
@@ -120,6 +122,8 @@ extension TagLibMetadataManager {
             // parallel write targets. YEAR and the independent DATE identity
             // share engine aliases but must never remove each other.
             for description in schema.propertyMapKeys where field != .year && field != .date {
+                // Engine ENCODING projects Encoder Settings, not Encoded By.
+                if field == .encodedBy && description.uppercased() == "ENCODING" { continue }
                 let candidate = "----:com.apple.iTunes:\(description.uppercased())"
                 if candidate != key { aliases.insert(candidate) }
             }
@@ -167,7 +171,7 @@ extension TagLibMetadataManager {
             // stale lower-case aliases.
             let nativeFields: Set<MetadataFieldKey> = [
                 .year, .date, .standaloneDate, .originalReleaseDate,
-                .contentGroup, .artists, .replayGainTrackPeak, .replayGainAlbumPeak,
+                .contentGroup, .artists, .encodedBy, .encoderSettings, .replayGainTrackPeak, .replayGainAlbumPeak,
             ]
             var removals = Set(schema.propertyMapKeys.map { $0.uppercased() })
             if nativeFields.contains(field) {

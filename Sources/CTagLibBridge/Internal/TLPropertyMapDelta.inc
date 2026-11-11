@@ -124,7 +124,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (!trimmed) continue;
             xiph->removeFields(NSStringToTagString(trimmed));
             for (NSString *value in valuesToSet[key]) {
-                NSString *trimmedValue = TrimmedStringOrNil(value);
+                NSString *trimmedValue = value;
                 if (trimmedValue) xiph->addField(NSStringToTagString(trimmed), NSStringToTagString(trimmedValue), false);
             }
             changed = true;
@@ -140,7 +140,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             ape->removeItem(NSStringToTagString(trimmed));
             TagLib::StringList values;
             for (NSString *value in valuesToSet[key]) {
-                NSString *trimmedValue = TrimmedStringOrNil(value);
+                NSString *trimmedValue = value;
                 if (trimmedValue) values.append(NSStringToTagString(trimmedValue));
             }
             if (!values.isEmpty()) {
@@ -159,7 +159,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (!trimmed) continue;
             tag->removeItem(NSStringToTagString(trimmed));
             for (NSString *value in valuesToSet[key]) {
-                NSString *trimmedValue = TrimmedStringOrNil(value);
+                NSString *trimmedValue = value;
                 if (trimmedValue) {
                     tag->addAttribute(
                         NSStringToTagString(trimmed),
@@ -506,6 +506,10 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     NSString *movementText = BuildTRCKString(movementNumber, movementCount, 0);
 
     if (format == TLTagFileFormatMP4) {
+        if (updateMovementPair && (movementNumber > std::numeric_limits<short>::max() || movementCount > std::numeric_limits<short>::max())) {
+            if (error) *error = PropertyMapDeltaError(9260, @"MP4 movement integers must be between 0 and 32767");
+            return NO;
+        }
         TagLib::MP4::File file(filePath);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = PropertyMapDeltaError(9262, @"Unable to open MP4/M4A file for native number-pair mutation");
@@ -525,16 +529,8 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             SetMP4IntPairItem(tag, "disk", discNumber, totalDiscs);
         }
         if (updateMovementPair) {
-            SetMP4FreeformTextItem(
-                tag,
-                @"MOVEMENTNUMBER",
-                movementNumber > 0 ? [NSString stringWithFormat:@"%ld", (long)movementNumber] : nil
-            );
-            SetMP4FreeformTextItem(
-                tag,
-                @"MOVEMENTCOUNT",
-                movementCount > 0 ? [NSString stringWithFormat:@"%ld", (long)movementCount] : nil
-            );
+            SetMP4MovementItem(tag, "\xA9" "mvi", @"MOVEMENTNUMBER", movementNumber);
+            SetMP4MovementItem(tag, "\xA9" "mvc", @"MOVEMENTCOUNT", movementCount);
         }
         if (!file.save()) {
             if (error) *error = PropertyMapDeltaError(9263, @"TagLib could not save native MP4/M4A number pairs");
