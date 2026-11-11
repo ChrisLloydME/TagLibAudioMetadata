@@ -15,7 +15,8 @@ struct ID3SemanticLifecycleTests {
         .init(.releaseDate, "TDRL"), .init(.originalReleaseDate, "TDOR"),
         .init(.grouping, "GRP1"), .init(.contentGroup, "TIT1"), .init(.work, "TXXX:WORK"),
         .init(.subtitle, "TIT3"), .init(.discSubtitle, "TSST"), .init(.conductor, "TPE3"),
-        .init(.remixer, "TPE4"), .init(.publisher, "TPUB"), .init(.copyright, "TCOP"), .init(.isrc, "TSRC")
+        .init(.remixer, "TPE4"), .init(.publisher, "TPUB"), .init(.copyright, "TCOP"), .init(.isrc, "TSRC"),
+        .init(.encodedBy, "TENC"), .init(.encoderSettings, "TSSE")
     ]
 
     @Test(arguments: cases, SemanticLifecycleMatrixTests.Operation.allCases)
