@@ -2,7 +2,7 @@
 
 `TagLibAudioMetadata` reads, edits, verifies, and erases audio metadata on macOS and iOS. A Swift facade wraps an Objective-C++ bridge to a checksum-pinned TagLib 2.3.1 XCFramework. This guide takes you from package resolution to a first read and a first verified patch.
 
-Version `0.7.0` includes mapping contract 2.2 changes. Use the [migration guide](../operations/MIGRATION.md) when upgrading from `0.6.0` or earlier.
+Version `0.7.1` is the latest published tag. Mapping contract 2.2 was introduced in `0.7.0`, and `0.7.1` added date/ownership corrections; current `main` contains unreleased post-0.7.1 repairs. Use the [migration guide](../operations/MIGRATION.md) when upgrading from `0.6.0` or earlier.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ The TagLib binary is a dynamic framework. The final app or archive must embed an
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.7.0"
+        from: "0.7.1"
     )
 ]
 ```
@@ -108,8 +108,9 @@ Rules worth knowing before the first write:
 - `.text("")`, `.values([])`, and empty array elements are validation errors, not deletion aliases.
 - Do not mix typed track/disc fields with `numberText` in one patch.
 - Verification mismatches throw before commit; a successful result carries only residual container advisories.
-- `.year` is the canonical YEAR field. `.date` is a legacy YEAR spelling that writes the same slot; do not supply both.
-- `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` are independent fields.
+- `.year` is the canonical YEAR field. `.date` is a legacy YEAR spelling that writes the same slot where writable; do not supply both.
+- `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` are independent fields. `BasicMetadata.date` carries the standalone DATE projection, not the typed `.date` legacy YEAR alias.
+- Existing ID3v2.3 tags reject independent date edits. Inspect `StructuredMetadata.id3v2MajorVersion` before enabling those controls.
 
 See [Writing metadata](WRITING.md) for the complete patch, raw, Basic, structured, and erase surface.
 

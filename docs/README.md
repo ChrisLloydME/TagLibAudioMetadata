@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe `0.7.0`, including mapping contract 2.2 behavior. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The latest published tag is `0.7.1`; the current pages describe the `main` working tree after `0.7.1`, including the unreleased audit, native-mapping, test-system and MP4 Content Group repairs. Mapping contract 2.2 behavior was introduced in `0.7.0`. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 
@@ -31,9 +31,10 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 1. [Architecture](explanation/ARCHITECTURE.md) — modules, flows, invariants, source and test layout.
 2. [Development](operations/DEVELOPMENT.md) — change workflow, documentation pipeline, release, binary maintenance.
 3. [Testing](operations/TESTING.md) — commands, CI, opt-ins, evidence limits.
-4. [Status](operations/STATUS.md) — latest observed validation state.
-5. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
-6. [Engineering records](records/README.md) — past investigations and open findings.
+4. [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — lifecycle matrices, gate policy, coverage limits.
+5. [Status](operations/STATUS.md) — latest observed validation state.
+6. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
+7. [Engineering records](records/README.md) — past investigations and open findings.
 
 ## Document map
 
@@ -57,7 +58,8 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 | Audio-content continuity | [explanation/AUDIO_CONTENT_CONTINUITY.md](explanation/AUDIO_CONTENT_CONTINUITY.md) | Identity availability, algorithm, guarded rebases, cost, limitations. | General snapshot semantics. |
 | Implementation architecture | [explanation/ARCHITECTURE.md](explanation/ARCHITECTURE.md) | Modules, read/write flows, invariants, source map, test layout. | Consumer recipes. |
 | Installation and distribution | [operations/INSTALLATION.md](operations/INSTALLATION.md) | Products, binary identity, slices, embedding, offline builds, diagnostics. | Format behavior. |
-| Testing | [operations/TESTING.md](operations/TESTING.md) | Test layers, commands, CI jobs, opt-ins, independent oracles, evidence limits. | Current pass/fail claims. |
+| Testing | [operations/TESTING.md](operations/TESTING.md) | Test layers, commands, CI jobs, opt-ins, independent oracles, evidence limits. | Current pass/fail claims or matrix case counts. |
+| Mapping test acceptance | [operations/MAPPING_TEST_STRATEGY.md](operations/MAPPING_TEST_STRATEGY.md) | Required lifecycle matrices, independent oracles, mixed-framework gate, minimum case counts, coverage limits. | General test commands or current status. |
 | Validation status | [operations/STATUS.md](operations/STATUS.md) | Latest observed run, environment, counts, skips, known failures, limitations. | Historical campaigns. |
 | Development | [operations/DEVELOPMENT.md](operations/DEVELOPMENT.md) | Repository layout, source-of-truth rules, documentation pipeline, release, binary maintenance. | Application usage. |
 | Compatibility | [operations/MIGRATION.md](operations/MIGRATION.md) | Source-compatibility promises, deprecation map, behavioral changes, release migration. | Release notes for every version. |

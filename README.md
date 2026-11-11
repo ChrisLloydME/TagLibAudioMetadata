@@ -4,9 +4,9 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **0.7.1 candidate.** This branch contains the coordinated Mapping repair candidate; the maintainer will publish the tag/release manually. The latest published release remains 0.7.0 until that happens.
+> **Release status.** The latest published tag is `0.7.1` (2026-11-10). The current `main` branch contains post-0.7.1 audit, native-mapping, test-system and MP4 Content Group repairs that are not yet tagged; release notes for those changes are under `[Unreleased]` in the changelog. These docs describe the current working tree.
 
-> **Documentation scope.** These docs describe `0.7.0`, including the package-side `AM-TLAM-MAPPING-2.2` implementation. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
+> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections, and post-0.7.1 work is unreleased. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
 
 ## At a glance
 
@@ -104,7 +104,7 @@ for warning in result.warnings {
 
 Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. Do not mix typed track/disc fields with `numberText` in one patch. Verification mismatches throw before commit; a successful result carries only residual container advisories.
 
-Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` is the canonical YEAR field; `.date` is a legacy YEAR spelling that writes the same slot. `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension.
+Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` is the canonical YEAR field; `.date` is a legacy YEAR spelling that writes the same slot where writable. `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension. Existing ID3v2.3 tags are read-only for independent date edits; inspect `StructuredMetadata.id3v2MajorVersion` before offering them.
 
 For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The older `writeMetadata` and `writeMetadataWithVerification` names are deprecated because replacement semantics were easy to mistake for a partial update. The MP4-exclusive Basic properties are read into the model but are not written by `replaceBasicMetadata`; use `MetadataPatch` for them.
 
@@ -191,13 +191,14 @@ Start at the [documentation hub](docs/README.md), which maps tasks to the canoni
 | Audio-content identity | [docs/explanation/AUDIO_CONTENT_CONTINUITY.md](docs/explanation/AUDIO_CONTENT_CONTINUITY.md) |
 | Installation, binary identity, signing | [docs/operations/INSTALLATION.md](docs/operations/INSTALLATION.md) |
 | Testing and evidence limits | [docs/operations/TESTING.md](docs/operations/TESTING.md) |
+| Mapping test acceptance | [docs/operations/MAPPING_TEST_STRATEGY.md](docs/operations/MAPPING_TEST_STRATEGY.md) |
 | Current validation status | [docs/operations/STATUS.md](docs/operations/STATUS.md) |
 | Development and maintenance | [docs/operations/DEVELOPMENT.md](docs/operations/DEVELOPMENT.md) |
 | Compatibility and migration | [docs/operations/MIGRATION.md](docs/operations/MIGRATION.md) |
 | Third-party notices | [docs/operations/THIRD_PARTY_NOTICES.md](docs/operations/THIRD_PARTY_NOTICES.md) |
 | Historical audits and reviews | [docs/records/README.md](docs/records/README.md) |
 
-The documentation pipeline generates the API, model, field, format, and mapping references from source. Run `python3 scripts/check-docs.py` before committing. CI covers documentation checks, strict warnings-as-errors, tests, release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the environment-dependent privilege-bit caveat, is in [Status](docs/operations/STATUS.md).
+The documentation pipeline generates the API, model, field, format, and mapping references from source. Run `python3 scripts/check-docs.py` before committing. CI covers documentation checks, strict warnings-as-errors, the mixed-framework test gate and its policy tests, release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the environment-dependent privilege-bit caveat, is in [Status](docs/operations/STATUS.md).
 
 ## License
 
