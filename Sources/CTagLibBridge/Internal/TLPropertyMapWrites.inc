@@ -691,7 +691,7 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     if (!metadata || properties.isEmpty()) return;
 
     metadata.title = FirstStringFromProperty(properties, {"TITLE"}) ?: metadata.title;
-    metadata.artist = FirstStringFromProperty(properties, {"ARTIST", "ARTISTS"}, true) ?: metadata.artist;
+    metadata.artist = FirstStringFromProperty(properties, {"ARTIST"}, true) ?: metadata.artist;
     metadata.album = FirstStringFromProperty(properties, {"ALBUM"}) ?: metadata.album;
     metadata.comment = FirstStringFromProperty(properties, {"COMMENT"})
         ?: FirstStringFromPropertyWithPrefix(properties, @"COMMENT:")

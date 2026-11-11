@@ -4,6 +4,12 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
     // Prefer ID3v2's basic fields over any generic/ID3v1 fallback values that may
     // have been populated earlier through FileRef.tag() or the file property map.
     ApplyPreferredBasicTagMetadata(tag, metadata);
+    // DATE in the engine map can be TDRC's YEAR projection. Read each
+    // independent native slot, including absence, before exposing the model.
+    metadata.year = nil;
+    metadata.standaloneDate = nil;
+    metadata.releaseDate = nil;
+    metadata.originalReleaseDate = nil;
 
     const TagLib::ID3v2::FrameList& frames = tag->frameList();
 
@@ -24,7 +30,9 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
             NSString *descriptionString = TagStringToNSString(description);
             NSString *userValueString = TagStringToNSString(userValue);
 
-            if (!ApplyKnownCustomMetadataField(descriptionString, userValueString, metadata)) {
+            if ([descriptionString.uppercaseString isEqualToString:@"DATE"]) {
+                metadata.standaloneDate = userValueString;
+            } else if (!ApplyKnownCustomMetadataField(descriptionString, userValueString, metadata)) {
                 SetCustomMetadataField(metadata, descriptionString, userValueString);
             }
         }
@@ -114,7 +122,10 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
                     metadata.year = yearValue;
                 }
             }
-            else if (frameIDStr == "TDOR") {
+            else if (frameIDStr == "TDAT") {
+                metadata.standaloneDate = TagStringToNSString(value);
+            }
+            else if (frameIDStr == "TDOR" || frameIDStr == "TORY") {
                 metadata.originalReleaseDate = TagStringToNSString(value);
             }
             // Personnel
@@ -374,16 +385,23 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
     //       avoiding an out-of-range hex escape like "\xA9d".
     if (items.contains("\xA9" "day")) {
         metadata.year = TagStringToNSString(items["\xA9" "day"].toStringList().toString());
+    } else {
+        // The engine DATE projection may come from independent F(DATE).
+        metadata.year = nil;
     }
     if (items.contains("----:com.apple.iTunes:RELEASEDATE")) {
         metadata.releaseDate = TagStringToNSString(
             items["----:com.apple.iTunes:RELEASEDATE"].toStringList().toString()
         );
+    } else {
+        metadata.releaseDate = nil;
     }
     if (items.contains("----:com.apple.iTunes:DATE")) {
         metadata.standaloneDate = TagStringToNSString(
             items["----:com.apple.iTunes:DATE"].toStringList().toString()
         );
+    } else {
+        metadata.standaloneDate = nil;
     }
 
     // Target ORIGINALDATE; the older ORIGINAL YEAR freeform remains readable.
@@ -391,6 +409,8 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
         metadata.originalReleaseDate = TagStringToNSString(items["----:com.apple.iTunes:ORIGINALDATE"].toStringList().toString());
     } else if (items.contains("----:com.apple.iTunes:ORIGINAL YEAR")) {
         metadata.originalReleaseDate = TagStringToNSString(items["----:com.apple.iTunes:ORIGINAL YEAR"].toStringList().toString());
+    } else {
+        metadata.originalReleaseDate = nil;
     }
 
     // Professional music player fields - freeform atoms

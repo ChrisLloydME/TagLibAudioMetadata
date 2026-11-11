@@ -943,11 +943,18 @@ extension TagLibMetadataManager {
                     let asfValues = afterStructured.asfAttributes
                         .filter { key.caseInsensitiveCompare($0.key) == .orderedSame }
                         .map(\.value)
-                    actual = !asfValues.isEmpty
-                        ? asfValues
-                        : afterRaw.properties.first {
-                            projectionKey.caseInsensitiveCompare($0.key) == .orderedSame
-                        }?.values ?? []
+                    if case .nativeTextKey = storage.mechanism,
+                       capability(forExtension: ext)?.identifier == "asf" {
+                        // Native absence is authoritative. Engine DATE can
+                        // still project WM/Year after independent DATE removal.
+                        actual = asfValues
+                    } else {
+                        actual = !asfValues.isEmpty
+                            ? asfValues
+                            : afterRaw.properties.first {
+                                projectionKey.caseInsensitiveCompare($0.key) == .orderedSame
+                            }?.values ?? []
+                    }
                 }
                 if field != .date,
                    MetadataFieldRegistry.schema(for: field)?.acceptedPatchValueKinds.contains(.text) == true,

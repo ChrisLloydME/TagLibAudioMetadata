@@ -1214,12 +1214,101 @@ static void SetExactNativeDateKeys(TagLib::File *file, const TagLib::PropertyMap
     }
 }
 
+// PropertyMap DATE is a projection of TDRC, not permission to rebuild an
+// untouched frame. Detach originals so encoding, arrays, flags and malformed
+// text survive engine replay without rendering/cloning through another codec.
+static void SetID3PropertiesPreservingNativeDates(TagLib::ID3v2::Tag *tag,
+                                                 const TagLib::PropertyMap &properties)
+{
+    auto before = tag->properties();
+    auto requested = properties;
+    auto changed = [&](std::initializer_list<const char *> keys) {
+        for (const char *key : keys) if (before[key] != requested[key]) return true;
+        return false;
+    };
+    const bool edited[] = {
+        changed({ "YEAR", "DATE" }), changed({ "DATE" }),
+        changed({ "RELEASEDATE" }), changed({ "ORIGINALDATE", "ORIGINALYEAR" })
+    };
+    auto dateOwner = [](TagLib::ID3v2::Frame *frame) -> int {
+        const auto id = frame->frameID();
+        if (id == "TDRC" || id == "TYER") return 0;
+        if (id == "TDAT") return 1;
+        if (id == "TDRL") return 2;
+        if (id == "TDOR" || id == "TORY") return 3;
+        auto *text = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame);
+        if (!text) return -1;
+        const auto description = text->description().upper();
+        if (description == "YEAR") return 0;
+        if (description == "DATE") return 1;
+        if (description == "RELEASEDATE") return 2;
+        if (description == "ORIGINALDATE" || description == "ORIGINALYEAR" || description == "ORIGINAL YEAR") return 3;
+        return -1;
+    };
+    std::vector<std::unique_ptr<TagLib::ID3v2::Frame>> preserved;
+    const std::vector<TagLib::ID3v2::Frame *> original(tag->frameList().begin(), tag->frameList().end());
+    for (auto *frame : original) {
+        const int owner = dateOwner(frame);
+        if (owner >= 0 && !edited[owner]) {
+            tag->removeFrame(frame, false);
+            preserved.emplace_back(frame);
+        }
+    }
+    tag->setProperties(properties);
+    const std::vector<TagLib::ID3v2::Frame *> generated(tag->frameList().begin(), tag->frameList().end());
+    for (auto *frame : generated) {
+        const int owner = dateOwner(frame);
+        if (owner >= 0 && !edited[owner]) tag->removeFrame(frame);
+    }
+    for (auto &frame : preserved) tag->addFrame(frame.release());
+}
+
 static void SetPropertiesPreservingNativeDates(TagLib::File *file, const TagLib::PropertyMap &properties,
                                                bool exactDateReplacement = false)
 {
+    if (auto *mp4 = dynamic_cast<TagLib::MP4::File *>(file)) {
+        auto *tag = mp4->tag();
+        const auto original = tag->itemMap();
+        auto before = file->properties();
+        auto requested = properties;
+        auto changed = [&](std::initializer_list<const char *> keys) {
+            for (const char *key : keys) if (before[key] != requested[key]) return true;
+            return false;
+        };
+        const bool edited[] = {
+            changed({ "YEAR", "DATE" }), changed({ "DATE" }),
+            changed({ "RELEASEDATE" }), changed({ "ORIGINALDATE", "ORIGINAL YEAR", "ORIGINALYEAR" })
+        };
+        auto dateOwner = [&](const TagLib::String &key) -> int {
+            if (key == TagLib::String("\xA9" "day", TagLib::String::Latin1)) return 0;
+            NSString *name = MP4FreeformDescriptionForItemKey(key).uppercaseString;
+            if ([name isEqualToString:@"DATE"]) return 1;
+            if ([name isEqualToString:@"RELEASEDATE"]) return 2;
+            if ([name isEqualToString:@"ORIGINALDATE"] || [name isEqualToString:@"ORIGINAL YEAR"]) return 3;
+            return -1;
+        };
+        file->setProperties(properties);
+        // Engine DATE conflates ©day and F(DATE). If that projection was not
+        // edited, replaying it cannot authorize adding, deleting or rewriting
+        // either native owner. Restore exact items, including native absence.
+        const auto generated = tag->itemMap();
+        for (const auto &[key, item] : generated) {
+            const int owner = dateOwner(key);
+            if (owner >= 0 && !edited[owner]) tag->removeItem(key);
+        }
+        for (const auto &[key, item] : original) {
+            const int owner = dateOwner(key);
+            if (owner >= 0 && !edited[owner]) tag->setItem(key, item);
+        }
+        return;
+    }
     auto *ape = NativeAPETag(file);
     auto *xiph = NativeXiphComment(file);
-    if (!ape && !xiph) { file->setProperties(properties); return; }
+    if (!ape && !xiph) {
+        if (auto *id3 = NativeID3v2TagForWrite(file)) SetID3PropertiesPreservingNativeDates(id3, properties);
+        else file->setProperties(properties);
+        return;
+    }
     const auto apeItems = ape ? ape->itemListMap() : TagLib::APE::ItemListMap();
     const auto xiphFields = xiph ? xiph->fieldListMap() : TagLib::Ogg::FieldListMap();
     auto engineValues = properties;
