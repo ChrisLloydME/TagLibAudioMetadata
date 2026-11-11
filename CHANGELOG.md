@@ -3,6 +3,32 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Preserve unchanged Basic date arrays, malformed existing text, duplicate values, whitespace and absence across MP4, ID3, Xiph and APE-backed formats; bind the preservation read to the transaction version.
+- Separate ID3/ASF Encoded By from Encoder Settings, retire explicitly edited MP4 compatibility aliases in Basic and low-level writes, and retain untouched MP4 owners exactly.
+- Decode MP4 track/disc pair components as unsigned 16-bit values across Basic, structured and number-text reads, including 32768…65535.
+- Verify Basic standalone Date and Content Group, structured ID3 text removals, ASF Content Group projections and APE Album Artist/Remixer engine aliases correctly.
+- Write generic ID3-container Basic dates through native owners instead of creating a spurious `TXXX:YEAR`.
+
+### Tests and capabilities
+
+- Add independent APE, Ogg Vorbis/Opus, ASF and ID3-container lifecycle matrices, Basic native-date preservation matrices, MP4 pair boundary coverage across four writers, and malformed/extended-size MP4 probe vectors.
+- Require named evidence for all audit regressions and added matrices; compile both test configurations with warnings as errors except intentional deprecated-API diagnostics in the test target.
+- Enable native ID3 frame upserts for DSF/DSDIFF; retain explicit rejection of unsupported comment/lyric collection replacement.
+
+### Earlier unreleased fixes
+
+- Preserve independent Content Group, Grouping and Work ownership in ID3 and Xiph/APE reads and semantic verification; do not confuse TIT1's WORK engine projection with TXXX:WORK.
+- Keep Encoded By and Encoder Settings independent in MP4 and native text reads; allow the MP4 ENCODING projection only with exact untouched-native-owner verification.
+- Write MP4 Movement Number/Count to independent integer atoms ©mvi/©mvc in semantic, Basic and number-pair bridge paths; retire only edited legacy aliases and preserve sibling components during mixed patches.
+- Reject unrepresentable MP4 movement values outside 0...32767 before writing rather than truncate or substitute freeforms.
+
+- Permit MP4 Content Group-only set/replace/remove by recognizing the engine's GROUPING projection of ©grp, while verifying untouched native Grouping and Work atoms independently.
+- Keep absent MP4 Content Group empty instead of falling back to an independent Grouping value during reads and removal verification.
+
 ## [0.7.1] - 2026-11-10
 
 ### Added

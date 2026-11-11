@@ -278,6 +278,13 @@ extension TagLibMetadataManager {
         }
     }
 
+    nonisolated static func validateNativeMovement(_ value: Int, field: MetadataFieldKey, for url: URL) throws {
+        guard capability(forExtension: url.pathExtension)?.identifier == "mp4" else { return }
+        guard (0...Int(Int16.max)).contains(value) else {
+            throw MetadataPatchValidationError.integerOutOfRange(field: field, minimum: 0, maximum: Int(Int16.max), actual: value)
+        }
+    }
+
     /// Captures a regular-file version without following a final symbolic link.
     public nonisolated static func fileVersion(at url: URL) throws -> MetadataFileVersion {
         guard url.isFileURL, let identity = regularFileIdentity(at: url) else {
@@ -426,6 +433,11 @@ extension TagLibMetadataManager {
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
         let validatedPatch = try validate(patch)
+        for field in [MetadataFieldKey.movementNumber, .movementCount] {
+            if case .integer(let value) = validatedPatch.fields[field] {
+                try validateNativeMovement(value, field: field, for: url)
+            }
+        }
         let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
         if patch.numberText != nil, !numberPairFields.isDisjoint(with: validatedPatch.fields.keys) {
             throw MetadataPatchValidationError.conflictingNumberRepresentations
@@ -452,9 +464,11 @@ extension TagLibMetadataManager {
             }
         }
 
-        let structuredNumberPairFields: Set<MetadataFieldKey> = [
+        // MP4 movement components have independent integer atoms, unlike
+        // shared ID3 MVIN. Route them through the registry's native planner.
+        let structuredNumberPairFields: Set<MetadataFieldKey> = Set([
             .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
-        ]
+        ]).subtracting(capability(forExtension: ext)?.identifier == "mp4" ? [.movementNumber, .movementCount] : [])
         let fieldStorage = try validatedPatch.fields.reduce(into: [MetadataFieldKey: SemanticPropertyStorage]()) {
             result, entry in
             guard !structuredNumberPairFields.contains(entry.key) else { return }
@@ -528,7 +542,8 @@ extension TagLibMetadataManager {
                     movementCount = patchedInteger(value, current: movementCount)
                 }
 
-                let updatesMovementPair = validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil
+                let updatesMovementPair = structuredNumberPairFields.contains(.movementNumber)
+                    && (validatedPatch.fields[.movementNumber] != nil || validatedPatch.fields[.movementCount] != nil)
                 if updatesTrackPair {
                     try validateNativeNumberPair(number: track, total: trackTotal, field: .track, for: url)
                 }
@@ -769,6 +784,24 @@ extension TagLibMetadataManager {
                 || validatedPatch.fields[.standaloneDate] != nil {
                 intentionallyChangedKeys.insert("DATE")
             }
+            // TagLib projects MP4 ©grp as PropertyMap GROUPING, although
+            // semantic GROUPING belongs to the independent iTunes freeform.
+            // Allow this engine projection only for a Content Group edit;
+            // exact native siblings are still checked below.
+            let isMP4 = capability(forExtension: ext)?.identifier == "mp4"
+            if isMP4, validatedPatch.fields[.contentGroup] != nil {
+                intentionallyChangedKeys.insert("GROUPING")
+            }
+            if (isMP4 || capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true), validatedPatch.fields[.encoderSettings] != nil {
+                intentionallyChangedKeys.insert("ENCODING")
+            }
+            let primaryID3 = ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"]
+                .contains(capability(forExtension: ext)?.identifier ?? "")
+            if (primaryID3 || capability(forExtension: ext)?.identifier == "asf"), validatedPatch.fields[.contentGroup] != nil {
+                // TagLib projects TIT1 and ASF Content Group as WORK.
+                // Exact native siblings are verified separately below.
+                intentionallyChangedKeys.insert("WORK")
+            }
             let beforeValues = exactPropertyValues(before.raw)
             let afterValues = exactPropertyValues(afterRaw)
             for key in Set(beforeValues.keys).union(afterValues.keys) {
@@ -798,7 +831,11 @@ extension TagLibMetadataManager {
             }
             let dateFields: [MetadataFieldKey] = [.year, .standaloneDate, .releaseDate, .originalReleaseDate]
             let identifier = capability(forExtension: ext)?.identifier ?? ""
-            for field in dateFields {
+            let independentNativeFields = dateFields
+                + (identifier == "mp4" || primaryID3 ? [.contentGroup, .grouping, .work] : [])
+                + (identifier == "mp4" || primaryID3 ? [.encodedBy, .encoderSettings] : [])
+                + (identifier == "mp4" ? [.movementNumber, .movementCount] : [])
+            for field in independentNativeFields {
                 guard validatedPatch.fields[field] == nil,
                       !(field == .year && validatedPatch.fields[.date] != nil),
                       let schema = MetadataFieldRegistry.schema(for: field) else { continue }
@@ -806,10 +843,11 @@ extension TagLibMetadataManager {
                     let keys = Set(schema.targets(for: .mp4).map { target in
                         target.storage == .mp4Freeform
                             ? "----:com.apple.iTunes:" + target.nativeIdentity : target.nativeIdentity
-                    })
+                    }).union(mp4ReadAliasDescriptions(for: field).map { "----:com.apple.iTunes:" + $0 })
                     if before.structured.mp4Atoms.filter({ keys.contains($0.key) })
                         != afterStructured.mp4Atoms.filter({ keys.contains($0.key) }) {
-                        warnings.append("Unedited native date field \(field.rawValue) changed during the patch.")
+                        let kind = dateFields.contains(field) ? "date field" : "field"
+                        warnings.append("Unedited native \(kind) \(field.rawValue) changed during the patch.")
                     }
                 } else if !nativeTextDateFamily,
                           capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
@@ -898,13 +936,17 @@ extension TagLibMetadataManager {
                         actual = matching?.values ?? []
                     }
                 case .nativeTextKey(let key), .propertyMap(let key):
+                    // TagLib exposes these exact APE owners under its
+                    // canonical PropertyMap dialect rather than native names.
+                    let isAPE = ["ape", "wavpack", "musepack"].contains(capability(forExtension: ext)?.identifier ?? "")
+                    let projectionKey: String = isAPE ? (["ALBUM ARTIST": "ALBUMARTIST", "MIXARTIST": "REMIXER"][key] ?? key) : key
                     let asfValues = afterStructured.asfAttributes
                         .filter { key.caseInsensitiveCompare($0.key) == .orderedSame }
                         .map(\.value)
                     actual = !asfValues.isEmpty
                         ? asfValues
                         : afterRaw.properties.first {
-                            key.caseInsensitiveCompare($0.key) == .orderedSame
+                            projectionKey.caseInsensitiveCompare($0.key) == .orderedSame
                         }?.values ?? []
                 }
                 if field != .date,

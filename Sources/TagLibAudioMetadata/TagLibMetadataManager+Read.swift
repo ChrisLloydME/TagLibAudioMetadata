@@ -236,6 +236,8 @@ extension TagLibMetadataManager {
         }
         let isMP4 = formatCapability?.metadataFieldFormats.contains(MetadataFieldFormat.mp4) == true
         let isASF = formatCapability?.identifier == "asf"
+        let isNativeText = ["flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex", "ape", "wavpack", "musepack"]
+            .contains(formatCapability?.identifier ?? "")
         func asfText(_ key: String) -> String? {
             structured.asfAttributes.first {
                 $0.key.caseInsensitiveCompare(key) == .orderedSame
@@ -373,14 +375,33 @@ extension TagLibMetadataManager {
         // projection for the fields whose native slots changed in 2.2.
         let conductor = mp4Text("\u{00A9}con") ?? meta.conductor
         let publisher = mp4Text("\u{00A9}pub") ?? meta.label
-        let contentGroup = isASF
-            ? asfText("WM/ContentGroupDescription")
-            : (mp4Text("\u{00A9}grp") ?? meta.grouping)
-        let grouping = mp4Text("----:com.apple.iTunes:GROUPING") ?? (isMP4 || isASF ? nil : meta.grouping)
+        let contentGroup: String?
+        let grouping: String?
+        let work: String?
+        if isMP4 {
+            contentGroup = mp4Text("\u{00A9}grp")
+            grouping = mp4Text("----:com.apple.iTunes:GROUPING")
+            work = mp4Text("\u{00A9}wrk") ?? mp4Text("----:com.apple.iTunes:WORK")
+        } else if isID3 {
+            contentGroup = frameValue("TIT1")
+            grouping = frameValue("GRP1")
+            work = frameValue("TXXX", description: "WORK")
+        } else if isNativeText {
+            contentGroup = firstRawValue(for: ["CONTENTGROUP"])
+            grouping = firstRawValue(for: ["GROUPING"])
+            work = firstRawValue(for: ["WORK"])
+        } else {
+            contentGroup = isASF ? asfText("WM/ContentGroupDescription") : meta.grouping
+            grouping = isASF ? nil : meta.grouping
+            work = isASF ? nil : meta.work
+        }
         let asfArtists = isASF ? asfText("WM/ARTISTS") : nil
-        let work = mp4Text("\u{00A9}wrk") ?? meta.work
-        let encodedBy = mp4Text("\u{00A9}enc") ?? meta.encodedBy
-        let encoderSettings = mp4Text("\u{00A9}too") ?? meta.encoderSettings
+        let encodedBy = isMP4
+            ? (mp4Text("\u{00A9}enc") ?? mp4Text("----:com.apple.iTunes:ENCODEDBY"))
+            : (isID3 ? frameValue("TENC") : (isASF ? asfText("WM/EncodedBy") : (isNativeText ? firstRawValue(for: ["ENCODEDBY"]) : meta.encodedBy)))
+        let encoderSettings = isMP4
+            ? (mp4Text("\u{00A9}too") ?? mp4Text("----:com.apple.iTunes:ENCODERSETTINGS") ?? mp4Text("----:com.apple.iTunes:ENCODING"))
+            : (isID3 ? frameValue("TSSE") : (isASF ? asfText("WM/EncodingSettings") : (isNativeText ? firstRawValue(for: ["ENCODING", "ENCODERSETTINGS"]) : meta.encoderSettings)))
         let mediaType = mp4Text("----:com.apple.iTunes:MEDIA") ?? meta.mediaType
         let itunesAlbumID = mp4Integer("plID").map(String.init) ?? meta.itunesAlbumId
         let itunesArtistID = mp4Integer("atID").map(String.init) ?? meta.itunesArtistId
@@ -557,8 +578,8 @@ extension TagLibMetadataManager {
             originalArtist: meta.originalArtist ?? "",
             discSubtitle: meta.discSubtitle ?? "",
             work: work ?? "",
-            movementNumber: Int(meta.movementNumber),
-            movementCount: Int(meta.movementCount),
+            movementNumber: isMP4 ? (mp4Integer("\u{00A9}mvi") ?? Int(meta.movementNumber)) : Int(meta.movementNumber),
+            movementCount: isMP4 ? (mp4Integer("\u{00A9}mvc") ?? Int(meta.movementCount)) : Int(meta.movementCount),
             bpm: Int(meta.bpm),
             isCompilation: meta.compilation,
             explicitAdvisory: explicitAdvisory,

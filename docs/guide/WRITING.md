@@ -8,7 +8,7 @@ This guide is task-oriented. Signatures are in the [manager API](../reference/AP
 | --- | --- | --- |
 | Change only explicitly named fields | `applyMetadataPatch` | Omission-safe typed delta. Recommended for ordinary edits. |
 | Read, modify a few Basic fields, write back | `updateBasicMetadata` | Captures a version, applies a closure, replaces the Basic projection. |
-| Replace the complete Basic projection | `replaceBasicMetadata` | Empty/default Basic fields clear modeled values. Not a patch. |
+| Replace the complete Basic projection | `replaceBasicMetadata` | Empty/default fields clear modeled values; unchanged scalar date projections preserve exact native arrays. Not a patch. |
 | Edit exact `PropertyMap` keys and arrays | `RawMetadataPatch` / `applyRawMetadataPatch` | Delta over the visible PropertyMap; explicit removals. |
 | Replace or merge the complete visible map | `writeRawMetadataPropertyMap*WithVerification` | Whole-map ownership or explicit merge. |
 | Edit ID3 frames, MP4 atoms, ASF attributes, artwork, comments, lyrics | `writeStructuredMetadataWithVerification` | Container-aware collections. |
@@ -93,6 +93,8 @@ let patch = MetadataPatch(
 `nil` leaves a pair unchanged, a non-empty string sets it, and an empty string removes it. Do not combine `numberText` with typed track/disc fields in the same patch.
 
 Ordinary numeric Basic and patch writes use native numeric storage. On MP4 they do not add private formatting atoms to a standard-only file. Legacy `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed by default write surfaces; they are preserved until an explicit, version-guarded normalization plan retires selected identities.
+
+MP4 track/disc numbers and totals round-trip through 65535 as unsigned 16-bit components. Some external readers interpret the high half as signed; the package preserves the native value. Movement number/count retains its separate maximum of 32767.
 
 A number-only `numberText` value preserves the resolved existing total. Exact MP4 text padding has no portable atom, so the display normalizes to the native pair.
 
@@ -505,3 +507,21 @@ for url in urls {
 - [Transactions](../explanation/TRANSACTIONS.md) — staging, durability, concurrency.
 - [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md) — guarded rebases.
 - [Field reference](../reference/FIELDS.md) — keys, native targets, patch constraints.
+
+## MP4 Content Group independence
+
+`contentGroup` owns `©grp`; `grouping` owns `----:com.apple.iTunes:GROUPING`; `work` owns `©wrk`. Each can be set, replaced or removed without submitting companion fields. TagLib's raw PropertyMap may expose `©grp` as `GROUPING`; that engine spelling is not a second semantic Grouping field. Semantic verification permits this projection change for a Content Group edit and independently verifies untouched native sibling atoms and arrays. Missing `©grp` remains an empty Content Group on read even if independent Grouping is present.
+
+## Native ownership and integer bounds
+
+Content Group, Grouping and Work remain distinct in ID3 (`TIT1`, `GRP1`, `TXXX:WORK`) and Xiph/APE (`CONTENTGROUP`, `GROUPING`, `WORK`). A container engine's PropertyMap projection is not another stored semantic field. Verification checks the exact untouched native owners when allowing a known overlapping projection to change.
+
+MP4 Encoded By owns `©enc`; Encoder Settings owns `©too`. Compatible freeform `ENCODEDBY` and `ENCODING`/`ENCODERSETTINGS` values are read under those respective owners. Editing Encoded By must not remove an independent legacy Encoder Settings value.
+
+MP4 Movement Number and Count use separate integer atoms `©mvi` and `©mvc`, not freeform duplicates. A semantic edit changes only its requested component, including in a patch that also edits Track/Disc. Basic and low-level pair writes intentionally own both movement components. This codec reliably supports nonnegative signed 16-bit values (`0...32767`); the broader global integer schema is not a guarantee for every container. Semantic, Basic and structured facade preflight reject larger values before staging; bridge writers also guard their native range. Typed `.integer(0)` stays present, whereas `.remove` deletes the atom. Basic/low-level zero retains its existing absent/default meaning. Existing legacy freeform components remain readable and are retired only when that component is explicitly owned by the write.
+
+### Structured ID3 text removal
+
+An ID3 `text` or `userText` entry with both empty `values` and empty `value` removes that frame identity. For `userText`, the description identifies the owner. Verification checks absence and preserves unrelated frames. URL/UFID removal has no equivalent empty-payload operation.
+
+DSF/DSDIFF accept ID3 frame upserts, PropertyMap deltas and artwork through the structured writer. Comment/lyric collection replacement remains unsupported; a Basic edit that needs to replay those native collections fails without committing.

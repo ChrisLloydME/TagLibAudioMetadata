@@ -225,11 +225,11 @@ extension TagLibMetadataManager {
         _ preservedValues: [String: [String]],
         for url: URL
     ) -> [String] {
-        guard !preservedValues.isEmpty,
-              let dump = try? rawMetadataResult(from: url) else {
-            return []
+        guard !preservedValues.isEmpty else { return [] }
+        guard let dump = try? rawMetadataResult(from: url) else {
+            return ["Could not verify preserved native metadata after save."]
         }
-        let actual = rawPropertiesLookup(dump)
+        let actual = exactPropertyValues(dump)
         return preservedValues.keys.sorted().compactMap { key in
             let expected = preservedValues[key] ?? []
             let observed = actual[key.uppercased()] ?? []
@@ -722,10 +722,22 @@ extension TagLibMetadataManager {
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
-        try validateBasicMetadataForWrite(meta)
+        // Match the mutation API's typed error before the preservation read.
+        guard url.isFileURL, regularFileIdentity(at: url) != nil else {
+            throw TagLibManagerError.operationFailedWithUnderlying(NSError(
+                domain: "TagLibMetadataManager", code: 1003,
+                userInfo: [NSLocalizedDescriptionKey: "Metadata mutations require an existing regular file and do not follow symbolic links."]
+            ))
+        }
+        let originalSnapshot = try readSnapshot(from: url)
+        var validation = meta
+        if meta.year == originalSnapshot.basic.year { validation.year = "" }
+        try validateBasicMetadataForWrite(validation)
         try validateNativeNumberPair(number: meta.track, total: meta.trackTotal, field: .track, for: url)
         try validateNativeNumberPair(number: meta.disc, total: meta.discTotal, field: .disc, for: url)
 
+        try validateNativeMovement(meta.movementNumber, field: .movementNumber, for: url)
+        try validateNativeMovement(meta.movementCount, field: .movementCount, for: url)
         let m = TagLibAudioMetadata()
 
         func nilIfEmpty(_ s: String) -> String? {
@@ -752,7 +764,7 @@ extension TagLibMetadataManager {
         m.discNumberText = nilIfEmpty(meta.discNumberText)
 
         // Dates
-        m.year = nilIfEmpty(meta.year)
+        m.year = isRepresentableYearText(meta.year) ? nilIfEmpty(meta.year) : nil
         m.standaloneDate = nilIfEmpty(meta.date)
         m.releaseDate = nilIfEmpty(meta.releaseDate)
         m.originalReleaseDate = nilIfEmpty(meta.originalReleaseDate)
@@ -873,6 +885,8 @@ extension TagLibMetadataManager {
                     "comment": meta.comment,
                     "lyrics": meta.lyrics,
                     "year": expectedYear,
+                    "date": meta.date,
+                    "contentGroup": meta.contentGroup,
                     "albumArtist": meta.albumArtist,
                     "releaseDate": meta.releaseDate,
                     "originalReleaseDate": meta.originalReleaseDate,
@@ -941,7 +955,7 @@ extension TagLibMetadataManager {
         verification.expectedArtworkData = meta.artworkData
         verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
         let exactVerification = verification
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion ?? originalSnapshot.fileVersion) { mutationURL in
             let current = try readBasicMetadataRawAndStructured(from: mutationURL)
             if current.structured.id3v2MajorVersion == 3 {
                 let dates: [(MetadataFieldKey, String, String)] = [
@@ -1049,7 +1063,6 @@ extension TagLibMetadataManager {
             // untouched multi-value arrays through exact native collections.
             var preservedID3Frames: [StructuredID3v2Frame] = []
             var preservedNativeTextKeys: [String: [String]] = [:]
-            let preservation = (values: [String: [String]](), aliases: Set<String>())
             let identifier = capability(forExtension: ext)?.identifier ?? ext
             let isXiphOrAPE = ["flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex",
                                "ape", "wavpack", "musepack"].contains(identifier)
@@ -1122,22 +1135,6 @@ extension TagLibMetadataManager {
                 }
             }
             try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
-            if !preservation.values.isEmpty {
-                if ext == "wav" {
-                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
-                        preservation.values,
-                        removingKeys: Array(preservation.aliases),
-                        preserveInfoOnlyValues: true,
-                        to: mutationURL
-                    )
-                } else {
-                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                        preservation.values,
-                        removingKeys: Array(preservation.aliases),
-                        to: mutationURL
-                    )
-                }
-            }
             if !preservedNativeTextKeys.isEmpty {
                 try TagLibMetadataExtractor.applyNativeTextKeyValuesInPlace(
                     preservedNativeTextKeys,
@@ -1183,8 +1180,8 @@ extension TagLibMetadataManager {
                 )
                 try throwOnVerificationFailures(nativeVerification.failures)
             }
-            var warnings = metadataWriteWarnings(for: mutationURL, verification: adjustedVerification)
-            warnings.append(contentsOf: preservedRawValueWarnings(preservation.values, for: mutationURL))
+            try restoreUneditedBasicNativeValues(requested: meta, before: .init(basic: current.metadata, raw: current.raw, structured: current.structured), at: mutationURL)
+            let warnings = metadataWriteWarnings(for: mutationURL, verification: adjustedVerification)
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
