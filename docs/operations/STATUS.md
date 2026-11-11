@@ -6,16 +6,16 @@ This page is a snapshot of the latest known validation state for the current sou
 
 | Item | State |
 | --- | --- |
-| Latest published tag | `0.7.1`, released 2026-11-10 from the merge at `649b7a9` |
-| Current source | `main` after `0.7.1`; includes unreleased audit-integrity, native-mapping follow-up, test-system and MP4 Content Group repairs |
-| Tag after `0.7.1` | None at the time of this update |
-| Documentation scope | Current pages describe the post-0.7.1 `main` working tree; release-specific behavior is called out in [Migration](MIGRATION.md) |
+| Current release | `0.7.2`, declared 2026-11-11 |
+| Source | `0.7.2` release commit |
+| Later tag | None |
+| Documentation scope | Current pages describe `0.7.2`; release-specific behavior is called out in [Migration](MIGRATION.md) |
 
-The `0.7.1` tag includes mapping contract 2.2 and the date/ownership corrections released on 2026-11-10. The post-tag changes are described under `[Unreleased]` in the [changelog](../../CHANGELOG.md). Do not infer a new release from a passing local gate.
+Version `0.7.2` includes mapping contract 2.2, the `0.7.1` date/ownership corrections, and the audit-integrity, native-mapping, package test-system and MP4 Content Group repairs. The release notes are in the [changelog](../../CHANGELOG.md).
 
 ## Latest observed package gate
 
-The recorded repair campaign examined the repaired working tree based on `c3f1481`; those repairs are merged into current post-0.7.1 `main`. The campaign used expanded filesystem access for module caches and the privilege-test prerequisites. Both configurations were accepted:
+The recorded repair campaign examined the repaired working tree based on `c3f1481`; those repairs are included in the `0.7.2` release. The campaign used expanded filesystem access for module caches and the privilege-test prerequisites. Both configurations were accepted:
 
 | Check | Debug | Release |
 | --- | --- | --- |
@@ -34,14 +34,14 @@ Additional recorded checks:
 | Package consumers | Facade-only and low-level executables passed |
 | Documentation | 52 Markdown files and all four generated-reference checks passed at the last documentation pass |
 | AudioMator local override | 62 core and 574 serial app-hosted tests passed; unsigned Release artifact validation passed |
-| Publication after 0.7.1 | Not performed |
-| Hosted CI, sanitizers, minimum-platform runtime for this tree | Not re-run or not claimed for the post-0.7.1 source |
+| Release tag and publication | Maintainer-owned; not created by this documentation pass |
+| Hosted CI, sanitizers, minimum-platform runtime for this tree | Not re-run for the `0.7.2` release commit; no additional validation was performed for release preparation |
 
 Evidence: `.build/test-evidence/debug-20261111-124030-69547/`, `.build/test-evidence/release-20261111-124120-69890/`, the restricted rerun `.build/test-evidence/debug-20261111-132710-75098/`, and the [audit repair record](../records/remediation/REM-2026-11-11-audit-integrity-repairs.md).
 
-No full accepted gate has been rerun on the exact merged `main` commits. A documentation-pass rerun in the restricted tool environment reproduced the same 158 XCTest and 165 Swift Testing counts, but failed only `privilegedFilesRejectBeforeCloneInBothTransactionEngines` because the host strips the privilege bits before the test can observe them. That is an environment-precondition failure, not evidence that the recorded acceptance failed. The full gate remains red in such an environment; use the authoritative gate and its prerequisites when making a release decision.
+No full accepted gate has been rerun on the exact `0.7.2` release commit. An earlier restricted rerun reproduced the same 158 XCTest and 165 Swift Testing counts, but failed only `privilegedFilesRejectBeforeCloneInBothTransactionEngines` because the host strips the privilege bits before the test can observe them. That is an environment-precondition failure, not evidence that the recorded acceptance failed. The full gate remains red in such an environment; use the authoritative gate and its prerequisites when making a release decision.
 
-## What changed since 0.7.1
+## What changed in 0.7.2
 
 - Audit repairs preserve untouched Basic date arrays, malformed text, duplicates, whitespace and absence; separate Encoded By from Encoder Settings; retire only explicitly edited MP4 aliases; normalize MP4 pairs to unsigned 16-bit values; and verify Basic Date, Content Group, structured ID3 text removal, ASF projections and APE engine aliases.
 - Native-mapping follow-up repairs MP4 Content Group, Grouping and Work ownership; MP4 Movement Number/Count atoms; encoder ownership; ID3v2.4 Content Group; and FLAC/Ogg/ID3 container reads.
@@ -61,7 +61,8 @@ No full accepted gate has been rerun on the exact merged `main` commits. A docum
 
 | Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
-| `0.7.1` | Release tag and merge `649b7a9`; date/ownership, comment verification and UFID repairs | Published baseline; does not include the post-tag repairs above |
+| `0.7.2` | Current release, declared 2026-11-11 | Includes the audit, native-mapping, test-system and MP4 Content Group repairs above |
+| `0.7.1` | Release tag and merge `649b7a9`; date/ownership, comment verification and UFID repairs | Previous release; does not include the `0.7.2` repairs |
 | `0.7.0` | Release tag and mapping contract 2.2 | Introduced the field identities and date/number model described by the current mapping contract |
 | `AUD-2026-11-11` | Independent audit on the pre-repair tree | Historical failing evidence; the reproduced blockers were repaired by the audit-integrity campaign |
 | Earlier test-system and native-mapping records | [Records index](../records/README.md) | Historical branch evidence; current source and status supersede their pass/fail claims |

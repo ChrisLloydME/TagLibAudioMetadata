@@ -3,7 +3,7 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.7.2] - 2026-11-11
 
 ### Fixed
 
@@ -12,6 +12,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Decode MP4 track/disc pair components as unsigned 16-bit values across Basic, structured and number-text reads, including 32768…65535.
 - Verify Basic standalone Date and Content Group, structured ID3 text removals, ASF Content Group projections and APE Album Artist/Remixer engine aliases correctly.
 - Write generic ID3-container Basic dates through native owners instead of creating a spurious `TXXX:YEAR`.
+- Preserve independent Content Group, Grouping and Work ownership in ID3 and Xiph/APE reads and semantic verification; do not confuse TIT1's WORK engine projection with TXXX:WORK.
+- Keep Encoded By and Encoder Settings independent in MP4 and native text reads; allow the MP4 ENCODING projection only with exact untouched-native-owner verification.
+- Write MP4 Movement Number/Count to independent integer atoms ©mvi/©mvc in semantic, Basic and number-pair bridge paths; retire only edited legacy aliases and preserve sibling components during mixed patches.
+- Reject unrepresentable MP4 movement values outside 0...32767 before writing rather than truncate or substitute freeforms.
+- Permit MP4 Content Group-only set/replace/remove by recognizing the engine's GROUPING projection of ©grp, while verifying untouched native Grouping and Work atoms independently.
+- Keep absent MP4 Content Group empty instead of falling back to an independent Grouping value during reads and removal verification.
 
 ### Tests and capabilities
 
@@ -21,18 +27,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Documentation
 
-- Refresh the guide/reference set for the `0.7.1` release boundary and post-release repairs, including Basic date preservation, ID3v2.3 date read-only behavior, MP4 movement/pair bounds, encoder and Content Group ownership, and DSD structured frame upserts.
+- Finalize the guide/reference set for the `0.7.2` release boundary, including Basic date preservation, ID3v2.3 date read-only behavior, MP4 movement/pair bounds, encoder and Content Group ownership, and DSD structured frame upserts.
 - Add the mapping test acceptance strategy to the documentation hub and document the full-suite gate, named evidence rules, and current limits.
-
-### Earlier unreleased fixes
-
-- Preserve independent Content Group, Grouping and Work ownership in ID3 and Xiph/APE reads and semantic verification; do not confuse TIT1's WORK engine projection with TXXX:WORK.
-- Keep Encoded By and Encoder Settings independent in MP4 and native text reads; allow the MP4 ENCODING projection only with exact untouched-native-owner verification.
-- Write MP4 Movement Number/Count to independent integer atoms ©mvi/©mvc in semantic, Basic and number-pair bridge paths; retire only edited legacy aliases and preserve sibling components during mixed patches.
-- Reject unrepresentable MP4 movement values outside 0...32767 before writing rather than truncate or substitute freeforms.
-
-- Permit MP4 Content Group-only set/replace/remove by recognizing the engine's GROUPING projection of ©grp, while verifying untouched native Grouping and Work atoms independently.
-- Keep absent MP4 Content Group empty instead of falling back to an independent Grouping value during reads and removal verification.
 
 ## [0.7.1] - 2026-11-10
 

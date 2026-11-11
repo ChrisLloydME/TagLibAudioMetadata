@@ -236,7 +236,7 @@ Preservation and verification happen on a sibling staging copy. The destination 
 
 ## Related evidence
 
-- [Mapping contract](../reference/MAPPING_SPEC.md) — native target policy and post-0.7.1 corrections.
+- [Mapping contract](../reference/MAPPING_SPEC.md) — native target policy and `0.7.2` corrections.
 - [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent matrices and coverage limits.
 - [Testing](../operations/TESTING.md) — commands, gate policy, and evidence interpretation.
 - [Migration](../operations/MIGRATION.md) — release-specific ownership and bounds changes.

@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections, and current `main` includes unreleased post-0.7.1 corrections to native read/write/verification consistency; see [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections, and `0.7.2` finalizes the native read/write/verification consistency repairs; see [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -167,9 +167,9 @@ The generated matrix lists every profile and exact target. Any normative change 
 - [Migration](../operations/MIGRATION.md) — changes from the tagged releases.
 
 
-## Post-0.7.1 conformance repairs
+## 0.7.2 conformance repairs
 
-Current `main` after `0.7.1` separates native Xiph/APE YEAR and DATE ownership from engine aliases in reads, semantic writes, raw replacement/delta, and generic map replay. Untouched native date arrays and malformed values are verified without collapsing them. ID3/MP4 date preservation is checked against native frames/atoms; a changed engine DATE projection does not authorize changing an unedited native owner. Encoded By and Encoder Settings are independent, MP4 movement uses `©mvi`/`©mvc`, and MP4 Content Group/Grouping/Work are verified separately. The existing native layouts and contract ID are unchanged.
+Version `0.7.2` separates native Xiph/APE YEAR and DATE ownership from engine aliases in reads, semantic writes, raw replacement/delta, and generic map replay. Untouched native date arrays and malformed values are verified without collapsing them. ID3/MP4 date preservation is checked against native frames/atoms; a changed engine DATE projection does not authorize changing an unedited native owner. Encoded By and Encoder Settings are independent, MP4 movement uses `©mvi`/`©mvc`, and MP4 Content Group/Grouping/Work are verified separately. The existing native layouts and contract ID are unchanged.
 
 FLAC scalar comments use the Xiph verification path even when a secondary ID3 surface is supported. Qualified MusicBrainz recording identifiers use the UFID owner codec. Semantic write capability follows the primary write family; secondary readable tags do not authorize semantic writes.
 
