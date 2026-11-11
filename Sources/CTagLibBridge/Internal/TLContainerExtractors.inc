@@ -444,6 +444,14 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
             SetCustomMetadataField(metadata, description.uppercaseString, itemValueString);
         }
     }
+    // Canonical native owners take precedence over old freeform projections.
+    if (items.contains("\xA9" "mvi")) metadata.movementNumber = items["\xA9" "mvi"].toInt();
+    if (items.contains("\xA9" "mvc")) metadata.movementCount = items["\xA9" "mvc"].toInt();
+    metadata.encodedBy = MP4TextItemValue(items, "\xA9" "enc") ?: MP4TextItemValue(items, "----:com.apple.iTunes:ENCODEDBY");
+    metadata.encoderSettings = MP4TextItemValue(items, "\xA9" "too")
+        ?: MP4TextItemValue(items, "----:com.apple.iTunes:ENCODERSETTINGS")
+        ?: MP4TextItemValue(items, "----:com.apple.iTunes:ENCODING");
+
 }
 
 // Extract Xiph Comment metadata (FLAC, OGG Vorbis, Opus, etc.)
