@@ -6,11 +6,26 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = (
+    "Test asfPublicWriteSurfacesPreserveSparseDateOwners() with 80 test cases passed after 1 second.\n"
+    "Test asfCustomFieldLifecycleOwnsOnlyItsCaseAliases() with 24 test cases passed after 1 second.\n"
+    "Test asfContentDescriptionVectorAndMalformedBounds() passed after 1 second.\n"
+    "Test allPublicWriteSurfacesRequireContainerStateEvidence() passed after 1 second.\n"
+    "Test publicWriteSurfacesPreserveSparseNativeOwners() with 2080 test cases passed after 1 second.\n"
+    "Test allSixteenDatePresenceMasksAreExplicit() passed after 1 second.\n"
+    "Test textLifecyclePreservesEveryDatePresenceState() with 114 test cases passed after 1 second.\n"
+    "Test unrelatedWriteSurfacesPreserveDateState() with 176 test cases passed after 1 second.\n"
+    "Test interactionManifestIncludesEveryNativeField() passed after 1 second.\n"
+    "Test everyFieldPreservesAllSiblingDateStates() with 4128 test cases passed after 1 second.\n"
+    "Test everyFieldPreservesAllOtherPresentOwners() with 264 test cases passed after 1 second.\n"
+    "Test everyContainerAndDateMaskRequiresTextLifecycleEvidence() passed after 1 second.\n"
+    "Test nativeTextLifecycleAcrossSparseContainerStates() with 1248 test cases passed after 1 second.\n"
+    "Test allAttributeOwnersAcrossDatePresenceStates() with 168 test cases passed after 1 second.\n"
+
     "Test Case '-[TagLibAudioMetadataTests.ExternalCorpusPreservationTests testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]' skipped (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.SnapshotThroughputBenchmarkTests testOptInIndependentFileSnapshotThroughput]' skipped (0.001 seconds).\n"
     "Executed 158 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
-    "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 258 test cases passed after 1 second.\n"
-    "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 86 test cases passed after 1 second.\n"
+    "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.\n"
+    "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.\n"
     "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
     "Test unavailableTypedMP4WritesRejectBeforeMutation(_:) with 5 test cases passed after 1 second.\n"
     "Test independentCommentLifecycle(_:_:) with 90 test cases passed after 1 second.\n"
@@ -63,7 +78,7 @@ PASS = (
     "Suite ID3ContainerLifecycleTests passed.\n"
     "Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.\n"
     "Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.\n"
-    "Test run with 165 tests in 31 suites passed after 8 seconds.\n"
+    "Test run with 179 tests in 41 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -75,6 +90,16 @@ class TestGatePolicy(unittest.TestCase):
             accepted = json.loads((root / 'summary').read_text())['accepted']
             self.assertEqual(run.returncode == 0, accepted)
             return accepted
+
+    def test_state_matrix_evidence_cannot_be_removed_or_shrunk(self):
+        for count in (114, 176, 4128, 1248, 168, 2080, 80, 24):
+            with self.subTest(count=count):
+                self.assertFalse(self.accepted(PASS.replace(f'with {count} test cases', f'with {count - 1} test cases')))
+        self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'everyFieldPreservesAllSiblingDateStates' not in line)))
+
+    def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
+        self.assertFalse(self.accepted(PASS.replace('Executed 158 tests', 'Executed 157 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 179 tests', 'run with 178 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -111,7 +136,7 @@ class TestGatePolicy(unittest.TestCase):
             'Test flacKnownVectorKeepsDuplicateCommentEntriesAndAudio() passed after 1 second.\n', '')))
 
     def test_required_parameterized_case_count_cannot_shrink(self):
-        self.assertFalse(self.accepted(PASS.replace('with 258 test cases', 'with 257 test cases')))
+        self.assertFalse(self.accepted(PASS.replace('with 264 test cases', 'with 263 test cases')))
 
     def test_failed_named_test_cannot_be_hidden_by_passing_summary(self):
         self.assertFalse(self.accepted(

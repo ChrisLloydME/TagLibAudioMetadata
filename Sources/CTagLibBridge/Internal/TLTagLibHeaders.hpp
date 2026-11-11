@@ -1,6 +1,8 @@
 #pragma once
 
 #include <utility>
+#include <memory>
+#include <vector>
 
 // The public package currently consumes the legacy TagLib.framework release,
 // while the next binary revision uses a namespaced framework to avoid host-app

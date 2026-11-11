@@ -28,6 +28,8 @@ struct SemanticLifecycleMatrixTests {
     }
     static let cases: [Case] = [
         .init(.title, "©nam"),
+        .init(.comment, "©cmt"),
+        .init(.lyrics, "©lyr"),
         .init(.album, "©alb"),
         .init(.genre, "©gen"),
         .init(.work, "©wrk"),
@@ -129,8 +131,6 @@ struct SemanticLifecycleMatrixTests {
         .trackTotal: "Shared pair; NumberingRepairRegressionTests",
         .disc: "Shared pair; NumberingRepairRegressionTests",
         .discTotal: "Shared pair; NumberingRepairRegressionTests",
-        .comment: "Qualified comment codec; MappingIndependenceRepairTests",
-        .lyrics: "Qualified lyrics codec; CleanRoomID3Tests"
     ]
 
     @Test func everyFieldRequiresAnExplicitCoverageDecision() {

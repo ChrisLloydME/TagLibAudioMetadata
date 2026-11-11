@@ -26,6 +26,8 @@ Typed writes are withheld for: .rate — no verified native rating type or scale
 
 `BasicMetadata.date` is not the typed `.date` key: it carries the standalone DATE projection (the same slot as `.standaloneDate`), while `BasicMetadata.year` carries YEAR. Use the typed or Basic field whose model you are actually editing.
 
+The `.comment` and `.lyrics` rows list the qualified ID3 frames and the ordinary MP4 atoms they own. On MP4, typed edits use `©cmt`/`©lyr`; the structured `comments`/`lyrics` collections are not interchangeable with those typed fields and are ignored by the MP4 structured writer. On ASF, a semantic custom field is addressed through a native Unicode attribute even though the `customFields` API is keyed like a PropertyMap field.
+
 ## How to query the registry
 
 ```swift
