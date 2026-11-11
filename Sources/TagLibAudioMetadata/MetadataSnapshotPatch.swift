@@ -675,9 +675,13 @@ extension TagLibMetadataManager {
             }
 
             for (key, value) in validatedPatch.customFields {
-                keysToRemove.insert(key)
-                if !value.propertyMapValues.isEmpty {
-                    propertyValues[key] = value.propertyMapValues
+                if capability(forExtension: ext)?.identifier == "asf" {
+                    // ASF PropertyMap cannot represent arbitrary attributes.
+                    nativeTextRemovals.insert(key)
+                    if !value.propertyMapValues.isEmpty { nativeTextValues[key] = value.propertyMapValues }
+                } else {
+                    keysToRemove.insert(key)
+                    if !value.propertyMapValues.isEmpty { propertyValues[key] = value.propertyMapValues }
                 }
             }
 
@@ -984,9 +988,16 @@ extension TagLibMetadataManager {
                 }
             }
             for (key, value) in validatedPatch.customFields {
-                let actual = afterRaw.properties.first {
-                    $0.key.caseInsensitiveCompare(key) == .orderedSame
-                }?.values ?? []
+                let actual: [String]
+                if capability(forExtension: ext)?.identifier == "asf" {
+                    actual = afterStructured.asfAttributes.filter {
+                        $0.key.caseInsensitiveCompare(key) == .orderedSame
+                    }.map(\.value)
+                } else {
+                    actual = afterRaw.properties.first {
+                        $0.key.caseInsensitiveCompare(key) == .orderedSame
+                    }?.values ?? []
+                }
                 if actual != value.propertyMapValues {
                     warnings.append("Patched custom field \(key) differs after save.")
                 }

@@ -305,6 +305,11 @@ static void ApplyCustomFieldsToPropertyMap(TagLib::PropertyMap &properties,
             continue;
         }
 
+        const auto nativeKey = NSStringToTagString(key).upper();
+        if (properties.contains(nativeKey)) {
+            NSString *projection = TrimmedStringOrNil(TagStringToNSString(properties[nativeKey].toString("; ")));
+            if ([projection ?: @"" isEqualToString:TrimmedStringOrNil(customFields[key]) ?: @""]) continue;
+        }
         SetPropertyMapDynamicString(properties, key, customFields[key]);
     }
 }
@@ -1487,7 +1492,8 @@ static TagLib::PropertyMap BuildRawPropertyMap(NSDictionary<NSString *, NSString
     return propertyMap;
 }
 
-static TagLib::PropertyMap BuildRawPropertyMapValues(NSDictionary<NSString *, NSArray<NSString *> *> *properties)
+static TagLib::PropertyMap BuildRawPropertyMapValues(NSDictionary<NSString *, NSArray<NSString *> *> *properties,
+                                                       const TagLib::PropertyMap *existing = nullptr)
 {
     TagLib::PropertyMap propertyMap;
 
@@ -1501,6 +1507,15 @@ static TagLib::PropertyMap BuildRawPropertyMapValues(NSDictionary<NSString *, NS
             continue;
         }
 
+        TagLib::StringList exact;
+        for (NSString *value in properties[key] ?: @[]) exact.append(NSStringToTagString(value));
+        const auto nativeKey = NSStringToTagString(trimmedKey).upper();
+        if (existing && existing->contains(nativeKey) && (*existing)[nativeKey] == exact) {
+            // A whole-map read/modify/write must not normalize an unchanged
+            // array merely because the scalar legacy encoder trims new input.
+            propertyMap.replace(nativeKey, exact);
+            continue;
+        }
         TagLib::StringList values;
         for (NSString *value in properties[key] ?: @[]) {
             NSString *trimmedValue = TrimmedStringOrNil(value);

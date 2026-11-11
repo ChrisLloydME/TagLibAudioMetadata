@@ -52,7 +52,8 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
         return NO;
     }
 
-    SetPropertiesPreservingNativeDates(&file, BuildRawPropertyMapValues(properties), true);
+    const auto existing = VisibleMetadataProperties(&file);
+    SetPropertiesPreservingNativeDates(&file, BuildRawPropertyMapValues(properties, &existing), true);
 
     if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
@@ -630,7 +631,21 @@ static void ApplyCustomFieldsToMP4Tag(TagLib::MP4::Tag *tag,
             continue;
         }
 
-        SetMP4FreeformTextItem(tag, key, customFields[key]);
+        bool unchangedProjection = false;
+        NSString *writeName = key;
+        bool foundName = false;
+        for (const auto &[nativeKey, item] : tag->itemMap()) {
+            NSString *name = MP4FreeformDescriptionForItemKey(nativeKey);
+            if (!name || [name caseInsensitiveCompare:key] != NSOrderedSame) continue;
+            if (!foundName) { writeName = name; foundName = true; }
+            NSString *projection = TrimmedStringOrNil(TagStringToNSString(item.toStringList().toString(", ")));
+            if ([projection ?: @"" isEqualToString:TrimmedStringOrNil(customFields[key]) ?: @""]) unchangedProjection = true;
+        }
+        // A scalar read/modify/write cannot express an intentional collapse
+        // of an unchanged native array. Preserve its value boundaries.
+        if (unchangedProjection) continue;
+        RemoveMP4OwnedAliases(tag, @[ key ]);
+        SetMP4FreeformTextItem(tag, writeName, customFields[key]);
     }
 }
 
