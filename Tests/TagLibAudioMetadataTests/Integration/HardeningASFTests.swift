@@ -69,6 +69,19 @@ enum IndependentASF {
         return (children, try c.take(bytes.count - c.offset))
     }
 
+    /// Content Description's five length-prefixed UTF-16LE strings.
+    static func contentFields(_ bytes: Data) throws -> [String] {
+        let id = hex("3326b2758e66cf11a6d900aa0062ce6c")
+        let matches = try headerState(bytes).children.filter { $0.id == id }
+        guard matches.count <= 1 else { throw HardeningFixture.Invalid.container }
+        guard let object = matches.first else { return Array(repeating: "", count: 5) }
+        var cursor = Cursor(data: object.payload)
+        let lengths = try (0..<5).map { _ in try cursor.int(2) }
+        let fields = try lengths.map { try cursor.text($0) }
+        guard cursor.offset == object.payload.count else { throw HardeningFixture.Invalid.container }
+        return fields
+    }
+
     static func attributes(_ bytes: Data) throws -> [Attribute] {
         let state = try headerState(bytes)
         var result: [Attribute] = []
