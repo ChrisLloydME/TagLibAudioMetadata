@@ -50,6 +50,7 @@ CURRENT_DOCUMENTS = (
     "explanation/AUDIO_CONTENT_CONTINUITY.md",
     "operations/INSTALLATION.md",
     "operations/TESTING.md",
+    "operations/MAPPING_TEST_STRATEGY.md",
     "operations/STATUS.md",
     "operations/DEVELOPMENT.md",
     "operations/MIGRATION.md",
