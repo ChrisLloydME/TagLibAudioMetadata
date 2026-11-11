@@ -5,14 +5,24 @@ import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
-PASS = ('Test Case \'-[Corpus testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]\' skipped (0.001 seconds).\n'
-        'Test Case \'-[Benchmark testOptInIndependentFileSnapshotThroughput]\' skipped (0.001 seconds).\n'
-        'Executed 158 tests, with 2 tests skipped and 0 failures (0 unexpected)\n'
-        'Suite SemanticLifecycleMatrixTests passed.\n'
-        'Suite FLACSemanticLifecycleTests passed.\n'
-        'Suite ID3SemanticLifecycleTests passed.\n'
-        'Suite NativeProbeContractTests passed.\n'
-        'Test run with 116 tests in 27 suites passed after 8 seconds.\n')
+PASS = (
+    "Test Case '-[TagLibAudioMetadataTests.ExternalCorpusPreservationTests testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]' skipped (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.SnapshotThroughputBenchmarkTests testOptInIndependentFileSnapshotThroughput]' skipped (0.001 seconds).\n"
+    "Executed 158 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
+    "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 258 test cases passed after 1 second.\n"
+    "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 86 test cases passed after 1 second.\n"
+    "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
+    "Test unavailableTypedMP4WritesRejectBeforeMutation(_:) with 5 test cases passed after 1 second.\n"
+    "Test independentCommentLifecycle(_:_:) with 90 test cases passed after 1 second.\n"
+    "Test nativeFrameLifecyclePreservesOtherFramesAndAudio(_:_:) with 60 test cases passed after 1 second.\n"
+    "Test flacKnownVectorKeepsDuplicateCommentEntriesAndAudio() passed after 1 second.\n"
+    "Test id3KnownVectorAndUnsupportedHeaderBounds() passed after 1 second.\n"
+    "Suite SemanticLifecycleMatrixTests passed.\n"
+    "Suite FLACSemanticLifecycleTests passed.\n"
+    "Suite ID3SemanticLifecycleTests passed.\n"
+    "Suite NativeProbeContractTests passed.\n"
+    "Test run with 128 tests in 31 suites passed after 8 seconds.\n"
+)
 
 class TestGatePolicy(unittest.TestCase):
     def accepted(self, log, status=0):
@@ -50,14 +60,39 @@ class TestGatePolicy(unittest.TestCase):
     def test_mandatory_matrix_suites_cannot_be_filtered_out(self):
         self.assertFalse(self.accepted(PASS.replace('Suite FLACSemanticLifecycleTests passed.\n', '')))
 
+    def test_missing_required_matrix_test_function_is_rejected_even_if_suite_still_passes(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            'Test independentCommentLifecycle(_:_:) with 90 test cases passed after 1 second.\n', '')))
+
+    def test_missing_required_oracle_test_is_rejected(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            'Test flacKnownVectorKeepsDuplicateCommentEntriesAndAudio() passed after 1 second.\n', '')))
+
+    def test_required_parameterized_case_count_cannot_shrink(self):
+        self.assertFalse(self.accepted(PASS.replace('with 258 test cases', 'with 257 test cases')))
+
+    def test_failed_named_test_cannot_be_hidden_by_passing_summary(self):
+        self.assertFalse(self.accepted(
+            'Test independentCommentLifecycle(_:_:) failed after 1 second.\n' + PASS))
+
+    def test_failed_xctest_name_cannot_be_hidden_by_zero_failure_summary(self):
+        self.assertFalse(self.accepted(
+            "Test Case '-[TagLibAudioMetadataTests.InjectedTests testInjected]' failed (0.001 seconds).\n" + PASS))
+
     def test_swift_testing_skip_is_not_hidden_by_pass_summary(self):
         self.assertFalse(self.accepted('Test mandatoryNativeWrite() skipped.\n' + PASS))
 
     def test_allowlisted_skip_name_must_match_exactly(self):
         self.assertFalse(self.accepted(PASS.replace('testOptInIndependentFileSnapshotThroughput', 'testOptInIndependentFileSnapshotThroughputSuffix')))
 
+    def test_allowlisted_skip_method_in_another_class_is_rejected(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            'TagLibAudioMetadataTests.ExternalCorpusPreservationTests',
+            'TagLibAudioMetadataTests.InjectedCorpusTests')))
+
     def test_real_xctest_optional_skip_diagnostic_is_not_a_swift_testing_skip(self):
-        diagnostic = ('/test/Corpus.swift:8: -[Corpus testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]'
+        diagnostic = ('/test/Corpus.swift:8: -[TagLibAudioMetadataTests.ExternalCorpusPreservationTests '
+                      'testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]'
                       ' : Test skipped - External corpus is opt-in.\n')
         self.assertTrue(self.accepted(diagnostic + PASS))
 
