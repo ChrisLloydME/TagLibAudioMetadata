@@ -19,6 +19,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Require named evidence for all audit regressions and added matrices; compile both test configurations with warnings as errors except intentional deprecated-API diagnostics in the test target.
 - Enable native ID3 frame upserts for DSF/DSDIFF; retain explicit rejection of unsupported comment/lyric collection replacement.
 
+### Documentation
+
+- Refresh the guide/reference set for the `0.7.1` release boundary and post-release repairs, including Basic date preservation, ID3v2.3 date read-only behavior, MP4 movement/pair bounds, encoder and Content Group ownership, and DSD structured frame upserts.
+- Add the mapping test acceptance strategy to the documentation hub and document the full-suite gate, named evidence rules, and current limits.
+
 ### Earlier unreleased fixes
 
 - Preserve independent Content Group, Grouping and Work ownership in ID3 and Xiph/APE reads and semantic verification; do not confuse TIT1's WORK engine projection with TXXX:WORK.
