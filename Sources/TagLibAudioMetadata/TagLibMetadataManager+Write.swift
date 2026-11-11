@@ -726,6 +726,8 @@ extension TagLibMetadataManager {
         try validateNativeNumberPair(number: meta.track, total: meta.trackTotal, field: .track, for: url)
         try validateNativeNumberPair(number: meta.disc, total: meta.discTotal, field: .disc, for: url)
 
+        try validateNativeMovement(meta.movementNumber, field: .movementNumber, for: url)
+        try validateNativeMovement(meta.movementCount, field: .movementCount, for: url)
         let m = TagLibAudioMetadata()
 
         func nilIfEmpty(_ s: String) -> String? {

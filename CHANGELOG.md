@@ -7,6 +7,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Preserve independent Content Group, Grouping and Work ownership in ID3 and Xiph/APE reads and semantic verification; do not confuse TIT1's WORK engine projection with TXXX:WORK.
+- Keep Encoded By and Encoder Settings independent in MP4 and native text reads; allow the MP4 ENCODING projection only with exact untouched-native-owner verification.
+- Write MP4 Movement Number/Count to independent integer atoms ©mvi/©mvc in semantic, Basic and number-pair bridge paths; retire only edited legacy aliases and preserve sibling components during mixed patches.
+- Reject unrepresentable MP4 movement values outside 0...32767 before writing rather than truncate or substitute freeforms.
+
 - Permit MP4 Content Group-only set/replace/remove by recognizing the engine's GROUPING projection of ©grp, while verifying untouched native Grouping and Work atoms independently.
 - Keep absent MP4 Content Group empty instead of falling back to an independent Grouping value during reads and removal verification.
 

@@ -14,6 +14,12 @@
     if (!ValidateWritableMetadataStrings(metadata, error) || !ValidateBasicMetadataNumbers(metadata, error)) {
         return NO;
     }
+    if (fileURL.isFileURL && DetectTagFileFormat(fileURL) == TLTagFileFormatMP4 &&
+        (metadata.movementNumber > std::numeric_limits<short>::max() || metadata.movementCount > std::numeric_limits<short>::max())) {
+        if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:9260
+            userInfo:@{NSLocalizedDescriptionKey: @"MP4 movement integers must be between 0 and 32767"}];
+        return NO;
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeMetadata:metadata toURL:temporaryURL error:mutationError];

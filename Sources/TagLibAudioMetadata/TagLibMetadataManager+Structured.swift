@@ -599,6 +599,11 @@ extension TagLibMetadataManager {
         }
 
         try validateStructuredMetadataForWrite(metadata, includeProperties: includeProperties)
+        for atom in metadata.mp4Atoms where !atom.remove {
+            if let value = Int(atom.value), atom.key == "©mvi" || atom.key == "©mvc" {
+                try validateNativeMovement(value, field: atom.key == "©mvi" ? .movementNumber : .movementCount, for: url)
+            }
+        }
 
         return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             var warnings: [String] = []

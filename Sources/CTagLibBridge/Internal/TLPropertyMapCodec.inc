@@ -79,6 +79,18 @@ static void SetMP4FreeformTextItem(TagLib::MP4::Tag *tag,
     SetMP4TextItem(tag, target.to8Bit(true).c_str(), value);
 }
 
+// Movement components are independent native integers in MP4, not a pair
+// and not text/freeform provenance. Basic/low-level zero means removal.
+static void SetMP4MovementItem(TagLib::MP4::Tag *tag, const char *key,
+                               NSString *legacyDescription, NSInteger value)
+{
+    if (!tag) return;
+    SetMP4FreeformTextItem(tag, legacyDescription, nil);
+    const TagLib::String nativeKey(key, TagLib::String::Latin1);
+    if (value > 0) tag->setItem(nativeKey, TagLib::MP4::Item(static_cast<int>(value)));
+    else tag->removeItem(nativeKey);
+}
+
 static bool MP4ItemMatchesField(const TagLib::String &key, const TLMetadataFieldMapping &mapping)
 {
     if (mapping.mp4Atom && key == TagLib::String(mapping.mp4Atom, TagLib::String::Latin1)) return true;

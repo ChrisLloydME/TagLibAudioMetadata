@@ -410,8 +410,8 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { "TMED", nullptr, nullptr, "MEDIA", GetMediaType },
     { "MVNM", nullptr, nullptr, "MOVEMENT", GetMovement },
     { "MVIN", nullptr, nullptr, nullptr, GetMovementNumberPair },
-    { nullptr, nullptr, nullptr, "MOVEMENTNUMBER", GetMovementNumber },
-    { nullptr, nullptr, nullptr, "MOVEMENTCOUNT", GetMovementCount },
+    { nullptr, nullptr, "\xA9" "mvi", nullptr, GetMovementNumber },
+    { nullptr, nullptr, "\xA9" "mvc", nullptr, GetMovementCount },
     { "TCMP", nullptr, nullptr, nullptr, GetCompilation },
     { "TDRL", nullptr, nullptr, "RELEASEDATE", GetReleaseDate },
     { "TDRC", nullptr, nullptr, nullptr, GetDate },
@@ -554,7 +554,11 @@ static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,
     for (const auto &mapping : kWritableTextMappings) {
         NSString *value = mapping.getter ? mapping.getter(metadata) : nil;
         if (mapping.mp4Atom) {
-            SetMP4TextItem(tag, mapping.mp4Atom, value);
+            if (std::strcmp(mapping.mp4Atom, "\xA9" "mvi") == 0)
+                SetMP4MovementItem(tag, mapping.mp4Atom, @"MOVEMENTNUMBER", metadata.movementNumber);
+            else if (std::strcmp(mapping.mp4Atom, "\xA9" "mvc") == 0)
+                SetMP4MovementItem(tag, mapping.mp4Atom, @"MOVEMENTCOUNT", metadata.movementCount);
+            else SetMP4TextItem(tag, mapping.mp4Atom, value);
         }
         if (mapping.mp4FreeformDescription) {
             const TLMetadataFieldMapping *field = nullptr;

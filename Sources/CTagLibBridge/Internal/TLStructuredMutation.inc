@@ -297,6 +297,12 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             (entry[@"remove"] && !StructuredOptionalValueIsBooleanLike(entry, @"remove"))) {
             return SetStructuredPayloadValidationError(error, @"MP4 atom fields have invalid value types");
         }
+        if (([entry[@"key"] isEqualToString:@"©mvi"] || [entry[@"key"] isEqualToString:@"©mvc"]) && ![entry[@"remove"] boolValue]) {
+            const bool numeric = [type isEqualToString:@"int"] || [type isEqualToString:@"uint"] || [type isEqualToString:@"longLong"];
+            const long long value = [entry[@"value"] longLongValue];
+            if (!numeric || !entry[@"value"] || value < 0 || value > std::numeric_limits<short>::max())
+                return SetStructuredPayloadValidationError(error, @"MP4 movement integers must be between 0 and 32767");
+        }
         if (([type isEqualToString:@"int"] && !StructuredOptionalValueFitsInt(entry, @"value")) ||
             ([type isEqualToString:@"uint"] && !StructuredOptionalValueFitsUInt32(entry, @"value")) ||
             ([type isEqualToString:@"byte"] && !StructuredOptionalValueFitsUInt8(entry, @"value")) ||
