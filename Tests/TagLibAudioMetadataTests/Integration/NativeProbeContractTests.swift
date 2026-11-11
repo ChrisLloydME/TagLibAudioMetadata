@@ -9,6 +9,43 @@ struct NativeProbeContractTests {
         try check(url)
     }
 
+    private func atom(_ type: String, _ payload: Data, extended: Bool = false, toEnd: Bool = false) -> Data {
+        let header = extended
+            ? HardeningFixture.number(1, bytes: 4) + Data(type.utf8) + HardeningFixture.number(UInt64(payload.count + 16), bytes: 8)
+            : HardeningFixture.number(toEnd ? 0 : UInt64(payload.count + 8), bytes: 4) + Data(type.utf8)
+        return header + payload
+    }
+
+    @Test func mp4ExtendedAndZeroSizeAtomsKeepValuesAndAudio() throws {
+        let audio = Data([0x11, 0x22, 0x33, 0x44])
+        let value = atom("data", Data(repeating: 0, count: 8) + Data("Hello".utf8), extended: true)
+        let mean = atom("mean", Data(repeating: 0, count: 4) + Data("com.apple.iTunes".utf8))
+        let name = atom("name", Data(repeating: 0, count: 4) + Data("DATE".utf8))
+        let item = atom("----", mean + name + value)
+        let metadata = atom("moov", atom("udta", atom("meta", Data(repeating: 0, count: 4) + atom("ilst", item))), extended: true)
+        try withBytes(metadata + atom("mdat", audio, toEnd: true)) { url in
+            let parsed = try IndependentMP4Probe.read(url)
+            #expect(parsed.values["----:com.apple.iTunes:DATE"] == [Data("Hello".utf8)])
+            #expect(parsed.audio == [audio])
+        }
+    }
+
+    @Test func malformedMP4LengthsAndFreeformsThrowRatherThanGuess() throws {
+        let audio = atom("mdat", Data([1]))
+        let malformed = [Data(), Data([0, 0, 0]),
+            HardeningFixture.number(4, bytes: 4) + Data("moov".utf8),
+            HardeningFixture.number(1, bytes: 4) + Data("moov".utf8),
+            HardeningFixture.number(1, bytes: 4) + Data("moov".utf8) + Data(repeating: 0xff, count: 8),
+            atom("moov", atom("udta", atom("meta", Data([0])))),
+            atom("moov", atom("udta", atom("meta", Data(repeating: 0, count: 4) + atom("ilst", atom("----", Data())))))
+        ]
+        for bytes in malformed {
+            try withBytes(audio + bytes) { url in
+                #expect(throws: IndependentMP4Probe.Invalid.self) { try IndependentMP4Probe.read(url) }
+            }
+        }
+    }
+
     @Test func flacKnownVectorKeepsDuplicateCommentEntriesAndAudio() throws {
         var comments = Data([0, 0, 0, 0, 3, 0, 0, 0]) // Empty vendor, three entries.
         for text in ["TITLE=Hello", "X-KEEP=A", "X-KEEP=A"] {

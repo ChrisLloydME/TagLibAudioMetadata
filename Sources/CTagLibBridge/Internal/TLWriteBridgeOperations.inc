@@ -208,10 +208,10 @@
         }
 
         const TagLib::MP4::Item::IntPair originalTrackPair = tag->itemMap().contains("trkn")
-            ? tag->itemMap()["trkn"].toIntPair()
+            ? MP4UnsignedPair(tag->itemMap()["trkn"])
             : TagLib::MP4::Item::IntPair(0, 0);
         const TagLib::MP4::Item::IntPair originalDiscPair = tag->itemMap().contains("disk")
-            ? tag->itemMap()["disk"].toIntPair()
+            ? MP4UnsignedPair(tag->itemMap()["disk"])
             : TagLib::MP4::Item::IntPair(0, 0);
         const bool trackPairChanged = originalTrackPair.first != metadata.trackNumber ||
             originalTrackPair.second != metadata.totalTracks;
@@ -243,6 +243,7 @@
         SetMP4TextItem(tag, "----:com.apple.iTunes:DATE", metadata.standaloneDate);
         SetMP4TextItem(tag, "----:com.apple.iTunes:RELEASEDATE", metadata.releaseDate);
         SetMP4TextItem(tag, "----:com.apple.iTunes:ORIGINALDATE", metadata.originalReleaseDate);
+        RemoveMP4OwnedAliases(tag, @[@"ITUNESALBUMID", @"ITUNESARTISTID", @"ITUNESCATALOGID", @"ITUNESGENREID", @"ITUNESMEDIATYPE", @"ITUNESPURCHASEDATE"]);
         SetMP4UnsignedDecimalItem(tag, "plID", metadata.itunesAlbumId);
         SetMP4UnsignedDecimalItem(tag, "atID", metadata.itunesArtistId);
         SetMP4UnsignedDecimalItem(tag, "cnID", metadata.itunesCatalogId);
@@ -585,7 +586,13 @@
 
         TagLib::ID3v2::Tag *wavID3v2Tag = wavFile.ID3v2Tag();
         TagLib::PropertyMap wavExistingID3 = wavID3v2Tag->properties();
-        wavID3v2Tag->setProperties(BuildGenericPropertyMap(metadata, &wavExistingID3));
+        auto wavProperties = BuildGenericPropertyMap(metadata, &wavExistingID3);
+        for (const char *key : { "YEAR", "DATE", "RELEASEDATE", "ORIGINALDATE" }) wavProperties.erase(key);
+        wavID3v2Tag->setProperties(wavProperties);
+        SetVersionedID3v2TextFrames(wavID3v2Tag, metadata.year, @"TYER", @"TDRC");
+        SetVersionedID3v2TextFrames(wavID3v2Tag, metadata.standaloneDate, @"TDAT", nil, @"DATE");
+        SetVersionedID3v2TextFrames(wavID3v2Tag, metadata.originalReleaseDate, @"TORY", @"TDOR");
+        SetVersionedID3v2TextFrames(wavID3v2Tag, metadata.releaseDate, @"TDRL", @"TDRL");
         SetNativeID3NumberPair(wavID3v2Tag, "TRCK", BuildNumberTextPreservingFormatting(metadata.trackNumberText, metadata.trackNumber, metadata.totalTracks), @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
         SetNativeID3NumberPair(wavID3v2Tag, "TPOS", BuildNumberTextPreservingFormatting(metadata.discNumberText, metadata.discNumber, metadata.totalDiscs), @[ @"DISCTOTAL", @"TOTALDISCS" ]);
         SetNativeID3NumberPair(wavID3v2Tag, "MVIN", BuildTRCKString(metadata.movementNumber, metadata.movementCount, 0), @[ @"MOVEMENTNUMBER", @"MOVEMENTCOUNT" ]);

@@ -976,6 +976,27 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         return YES;
     }
 
+    if (format == TLTagFileFormatDSF || format == TLTagFileFormatDSDIFF) {
+        // DSD tags expose native ID3 frames. Keep collection replacement for
+        // comments/lyrics unsupported, but permit exact text-frame replay.
+        if (mp4Atoms || asfAttributes || lyrics || comments) {
+            return SetStructuredPayloadValidationError(error, @"DSD supports ID3 frames, PropertyMap values and artwork only");
+        }
+        TagLib::FileRef reference(filePath, true, TagLib::AudioProperties::Fast);
+        auto *file = reference.file();
+        if (!file || !file->isValid()) {
+            return SetStructuredPayloadValidationError(error, @"Unable to open DSD file for structured metadata editing");
+        }
+        if (propertyValues) file->setProperties(MergedRawPropertyMapValues(file->properties(), propertyValues));
+        auto *tag = NativeID3v2TagForWrite(file);
+        UpsertID3v2StructuredFrames(tag, frames);
+        ReplaceID3v2Artwork(tag, artwork);
+        if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
+            return SetStructuredPayloadValidationError(error, @"TagLib failed to save structured DSD metadata");
+        }
+        return YES;
+    }
+
     if (format == TLTagFileFormatAPE ||
         format == TLTagFileFormatWavPack ||
         format == TLTagFileFormatMPC) {

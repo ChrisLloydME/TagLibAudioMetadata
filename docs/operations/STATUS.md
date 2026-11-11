@@ -1,37 +1,26 @@
 # Current validation status
 
-## Independent audit — 2026-11-11 (current augmented working tree)
+## Audit integrity repairs — 2026-11-11
 
-**NOT READY TO MERGE OR RELEASE.** The independent audit at `26fc76f` plus its
-uncommitted regression tests found two reproduced P0 data-integrity defects and
-three P1 defects. See [AUD-2026-11-11-package-audit](../records/audits/AUD-2026-11-11-package-audit.md).
+**Local package gates pass.** The repaired working tree on `codex/audit-integrity-repairs`, based on `c3f1481`, resolves the reproduced blockers from the independent audit. See [the repair record](../records/remediation/REM-2026-11-11-audit-integrity-repairs.md). The original audit remains historical evidence of the defects before repair.
 
 | Check | Result |
 | --- | --- |
-| Environment | macOS 27.2 (26B123), Xcode 27.2 (27B52), Apple Swift 6.4.2; host manifest sandbox unavailable |
-| Debug gate (`TAGLIB_DISABLE_MANIFEST_SANDBOX=1`) | **fail closed** (`accepted: false`) |
-| Release gate | **fail closed** (`accepted: false`) |
-| XCTest | 158 executed: 156 passed, 2 existing opt-in skips, 0 failures |
-| Swift Testing | 152 declarations in 32 suites: 33 issues; 16 audit regressions failed |
-| Environment failure | `CleanRoomPrivilegeTests` fails its own setuid/setgid precondition because this host strips the bits (`0o644` observed, `0o4644` requested); not a production defect |
-| Strict build | `-Xswiftc -warnings-as-errors -Xcc -Werror` passed with `--disable-sandbox` (manifest sandbox unavailable) |
-| Consumers | Both facade and low-level consumers passed |
-| Documentation check | Passed after the audit record/index update |
-| Sanitizers / minimum platforms / hosted CI | Not run in this audit |
+| Environment | macOS 27.2 (26B123), Xcode 27.2 (27B52), Apple Swift 6.4.2, TagLib 2.3.1-r2 |
+| Debug and Release gates | Both `accepted: true`; strict test compilation |
+| XCTest, each configuration | 158 executed: 156 passed, 2 existing opt-in skips, zero failures |
+| Swift Testing, each configuration | 165 declarations in 36 suites passed; original 24 audit probes included |
+| Privilege rejection | Passed unchanged with expanded filesystem access |
+| Strict production build | Passed; no deprecated-diagnostic exception in production |
+| Gate policy | 22 Python tests passed |
+| Consumers | Facade and low-level executables passed |
+| Documentation | 52 Markdown files and all four generated-reference checks passed |
+| AudioMator override | 62 core and 574 serial app-hosted tests passed; unsigned Release build/artifact validation passed |
+| Publication / hosted CI / sanitizers | Not performed for this tree |
 
-Reproduced blockers: persistent Basic edits collapse unedited multi-value date
-slots (P0); ASF Encoder Settings is dropped and rewritten as Encoded By while
-ID3 TSSE pollutes Encoded By (P0); MP4 Basic/low-level alias cleanup is
-incomplete (P1); MP4 track/disc 32768…65535 is misread (P1); the mixed-framework
-gate accepted incomplete evidence before this audit repaired it (P1, testing
-infrastructure). The final gate logs are
-`.build/test-evidence/debug-20261111-105705-62009/` and
-`.build/test-evidence/release-20261111-105805-62136/`.
+The fixes cover untouched Basic dates, encoder ownership, MP4 alias retirement, unsigned MP4 pairs, Basic verification and additional projection/removal defects exposed by new matrices. There is no automatic YEAR/DATE reconciliation. Independent lifecycle cases now cover MP4, FLAC, APE-family, Vorbis/Opus, ASF and all seven tested ID3-backed containers, with explicit per-format field subsets. See [test acceptance](MAPPING_TEST_STRATEGY.md) for counts and limits.
 
-The new `AuditProbeTests` are intentionally failing regression candidates. They
-must be repaired in production, not deleted, skipped, or added to an expected
-failure list. The earlier local repair paragraph below is retained as history;
-it is not a current acceptance verdict for this augmented tree.
+Evidence: `.build/test-evidence/debug-20261111-124030-69547/` and `.build/test-evidence/release-20261111-124120-69890/`. Local acceptance does not imply remote tag resolution, signing, notarization or interactive UI acceptance.
 
 ## Native mapping follow-up — 2026-11-11 (pre-audit local claim)
 

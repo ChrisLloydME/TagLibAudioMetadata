@@ -41,7 +41,7 @@ swift_skips = [line for line in log.splitlines()
                if re.search(r'\b(?:Test|Suite)\s+(?!skipped\b).+?\s+skipped\b', line) and 'Test Case ' not in line]
 failed_named_tests = sorted(set(re.findall(r'\bTest ([A-Za-z_]\w*)\([^)]*\) failed\b', log)))
 failed_xctest = sorted(set(re.findall(r"Test Case '(-\[[^']+\])' failed", log)))
-required_suites = ('SemanticLifecycleMatrixTests', 'FLACSemanticLifecycleTests', 'ID3SemanticLifecycleTests', 'NativeProbeContractTests')
+required_suites = ('SemanticLifecycleMatrixTests', 'FLACSemanticLifecycleTests', 'ID3SemanticLifecycleTests', 'NativeProbeContractTests', 'BasicIntegrityMatrixTests', 'AdditionalContainerLifecycleTests', 'ASFNativeLifecycleTests', 'AuditProbeTests', 'ID3ContainerLifecycleTests')
 completed_suites = dict(re.findall(r'Suite (\w+) (passed|failed)', log))
 missing_suites = [suite for suite in required_suites if suite not in completed_suites]
 # Required executable evidence, with the minimum number of parameterized cases
@@ -53,9 +53,47 @@ required_tests = {
     'everyFieldRequiresAnExplicitCoverageDecision': 1,
     'unavailableTypedMP4WritesRejectBeforeMutation': 5,
     'independentCommentLifecycle': 90,
-    'nativeFrameLifecyclePreservesOtherFramesAndAudio': 60,
+    'nativeFrameLifecyclePreservesOtherFramesAndAudio': 66,
+    'apeNativeItemLifecycle': 270,
+    'nativeContainerFrameLifecycle': 396,
+    'unsignedMP4PairsAcrossWriteSurfaces': 12,
+    'oggNativeCommentLifecycle': 180,
+    'nativeAttributeLifecycle': 21,
+    'basicID3DatesPreserveNativeArrays': 14,
+    'basicAPEDatesPreserveExactBytesAndAudio': 6,
+    'basicFLACDatesKeepDuplicatesAndWhitespace': 2,
+    'basicOggDatesPreserveArraysAndAudio': 4,
+    'basicVerificationRejectsIncorrectDateAndContentGroup': 2,
+    'unrelatedMP4BasicEditKeepsLegacyOwnersAndArrays': 1,
+    'mp4ExtendedAndZeroSizeAtomsKeepValuesAndAudio': 1,
+    'malformedMP4LengthsAndFreeformsThrowRatherThanGuess': 1,
     'flacKnownVectorKeepsDuplicateCommentEntriesAndAudio': 1,
     'id3KnownVectorAndUnsupportedHeaderBounds': 1,
+    # Permanent independently reproduced audit regressions and controls.
+    'basicClearOfLegacyBackedMP4FieldsMustCommit': 1,
+    'lowLevelClearMustNotResurrectOldMP4Values': 1,
+    'basicSetMustRetireEditedMP4CompatibilityAliases': 1,
+    'basicWorkMustKeepCanonicalOwnerAndRetireLegacyFreeform': 1,
+    'basicUnrelatedEditMustPreserveMultivalueDatesOnFLAC': 1,
+    'basicUnrelatedEditMustPreserveMultivalueDatesOnAPE': 1,
+    'basicUnrelatedEditMustPreserveMultivalueYearOnID3': 1,
+    'basicUnrelatedEditMustPreserveMP4DateFreeformArrays': 1,
+    'basicUnrelatedEditMustAcceptValidMultivalueMP4Year': 1,
+    'semanticEncoderRemovalRetiresOnlyOwnedCompatibilityAlias': 1,
+    'basicUnrelatedEditPreservesUnknownAdvisoryOnMP4': 1,
+    'mp4MovementUpperBoundWorksAcrossFacadeEntryPoints': 1,
+    'mp4MovementOverflowRejectsAcrossFacadeEntryPointsWithoutMutation': 1,
+    'mp4PairUpperBound65535RoundTrips': 1,
+    'id3EncodedByEditPreservesEncoderSettings': 1,
+    'id3EncoderSettingsEditMustSucceedAndPreserveEncodedBy': 1,
+    'id3EncoderSettingsMustNotPopulateEncodedBy': 1,
+    'id3EncodedByRemovalWithEncoderSettingsMustSucceed': 1,
+    'asfEncoderOwnersRemainIndependent': 1,
+    'legacyDateAliasWritesOnlyTheYearSlot': 1,
+    'basicContentGroupGroupingAndWorkStayIndependent': 1,
+    'asfUnrelatedBasicEditPreservesNativeEncodingSettings': 1,
+    'asfUnrelatedSemanticPatchPreservesNativeEncodingSettings': 1,
+    'id3v23DateWritesRejectBeforeMutation': 1,
 }
 
 # "Test <name>(<arguments>) with <n> test cases passed ..." for parameterized

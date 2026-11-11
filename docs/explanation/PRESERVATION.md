@@ -76,9 +76,9 @@ There is no Year/date reconciliation:
 - `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid simultaneously;
 - complete YEAR text such as `2021-07-15` round-trips without truncation.
 
-`replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with `isRepresentableYearText` and throw `MetadataValidationError.invalidYearText` for non-date text such as `"Spring 2021"`. The typed `applyMetadataPatch(.year:)` path does not run that Basic-specific validator; container/bridge validation still applies.
+`replaceBasicMetadata` and `updateBasicMetadata` validate an explicitly changed YEAR with `isRepresentableYearText` and throw `MetadataValidationError.invalidYearText` for new non-date text such as `"Spring 2021"`. An unchanged existing YEAR, including malformed text or a multi-value projection, is preserved without revalidation. All four untouched date owners retain native arrays, duplicates, whitespace and absence; no scalar Basic projection authorizes collapsing them. Native readback verifies this preservation before commit. The typed `applyMetadataPatch(.year:)` path does not run that Basic-specific validator; container/bridge validation still applies.
 
-`updateBasicMetadata` captures a version and performs no cross-field intent resolution. The legacy `MetadataValidationError.conflictingMP4Date` case is retained for source compatibility but is not produced.
+`replaceBasicMetadata` binds its preservation read to a file version even when the caller supplies no version. `updateBasicMetadata` additionally retains the caller-edit snapshot version. Neither performs cross-field intent resolution. On MP4, unchanged modeled native atoms and their compatibility aliases are replayed exactly; only explicitly edited owners retire their own aliases. Track/disc pairs retain their documented numeric normalization semantics. The legacy `MetadataValidationError.conflictingMP4Date` case is retained for source compatibility but is not produced.
 
 ## Typed patch rules
 
@@ -220,3 +220,9 @@ Preservation and verification happen on a sibling staging copy. The destination 
 ## Independent date preservation corrections
 
 The working tree verifies unchanged date owners separately from engine aliases. Xiph/APE expose exact native YEAR/DATE, including absence; generic PropertyMap replay preserves their spelling, arrays and native types. Raw deltas change only the requested native date keys, while full raw replacement intentionally replaces the visible map. ID3/MP4 verification compares untouched date frames/atoms and permits only value-preserving legacy YEAR promotion when creating the first rich tag. See [the mapping contract](../reference/MAPPING_SPEC.md#working-tree-conformance-repairs).
+
+### Encoder ownership and MP4 pair decoding
+
+Encoded By and Encoder Settings are independent. `ENCODEDBY` maps to ID3 `TENC`, MP4 `©enc` and ASF `WM/EncodedBy`; `ENCODING` (with the `ENCODERSETTINGS` read alias) maps to `TSSE`, `©too` and `WM/EncodingSettings`. Neither is a fallback for the other.
+
+MP4 `trkn`/`disk` components use unsigned 16-bit storage, including 32768…65535. Bridge Basic, number-text, structured and retention reads normalize the pinned engine's signed `IntPair` projection to the stored unsigned value. This does not change other tools' signed decoding behavior; movement integers still have their separate 0…32767 bound.

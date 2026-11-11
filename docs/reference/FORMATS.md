@@ -69,8 +69,8 @@ The registry contains 22 families and 37 extensions. R/W means a declared save p
 | AIFF (`aiff`) | `aiff`, `aif`, `aifc`, `afc` | R/W | tag, propertyMap, id3v2, riffInfo | container / container | upstreamSupported | R/W | Structured writes use ID3v2. |
 | TrueAudio (`trueaudio`) | `tta` | R/W | tag, propertyMap, id3v1, id3v2 | container / container | fixtureCovered | R/W | Structured reads and writes support ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas. |
 | ASF / WMA (`asf`) | `wma`, `asf` | R/W | tag, propertyMap, asf | container / container | fixtureCovered | R/W | ASF attributes are exposed for structured editing. |
-| DSF (`dsf`) | `dsf` | R/W | tag, propertyMap, id3v2 | container / propertyMap | fixtureCovered | R/W | DSF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork. |
-| DSDIFF (`dsdiff`) | `dff`, `dsdiff` | R/W | tag, propertyMap, id3v2 | container / propertyMap | fixtureCovered | R/W | DSDIFF uses ID3v2 tags internally; structured editing is limited to PropertyMap deltas and artwork. |
+| DSF (`dsf`) | `dsf` | R/W | tag, propertyMap, id3v2 | container / container | fixtureCovered | R/W | DSF uses ID3v2 tags internally; structured editing supports ID3 frame upserts, PropertyMap deltas and artwork; comment/lyric collection replacement is unsupported. |
+| DSDIFF (`dsdiff`) | `dff`, `dsdiff` | R/W | tag, propertyMap, id3v2 | container / container | fixtureCovered | R/W | DSDIFF uses ID3v2 tags internally; structured editing supports ID3 frame upserts, PropertyMap deltas and artwork; comment/lyric collection replacement is unsupported. |
 | Shorten (`shorten`) | `shn` | read-only | tag, propertyMap | propertyMap / none | readOnly | — | Read-only format. |
 | MOD Tracker Module (`mod`) | `mod`, `module`, `nst`, `wow` | read-only | tag, propertyMap | propertyMap / none | readOnly | — | Read allowlist: title, comment, trackerName. MOD metadata is limited to title, comment, and a format-derived tracker name. |
 | Scream Tracker 3 Module (`s3m`) | `s3m` | R/W | tag, propertyMap | propertyMap / propertyMap | experimental | — | Read allowlist: title, comment, trackerName. Write allowlist: title, comment. Writes are limited to title and comment; fixed-width tracker storage may normalize text. |
@@ -131,10 +131,10 @@ The capability level is not enough to know which structured collections a format
 | ASF/WMA | Yes | — | — | Yes | — | Yes |
 | FLAC, Ogg Vorbis/Opus/FLAC/Speex | Yes | — | — | — | Structured `comments`/`lyrics` are rejected | Yes (complex pictures) |
 | APE, WavPack, Musepack | Yes | — | — | — | Structured `comments`/`lyrics` are rejected | One front image |
-| DSF, DSDIFF | Yes | — | — | — | — | Yes (ID3 picture path) |
+| DSF, DSDIFF | Yes | Yes (upserts) | — | — | Rejected | Yes (ID3 picture path) |
 | Shorten, MOD, S3M, IT, XM | Read-only or PropertyMap-only; no structured collections beyond the fallback delta | — | — | — | — | — |
 
-For DSD, the descriptor says `propertyMap` structured write support even though artwork is written through the native ID3 picture path. "Properties" means the visible `PropertyMap` delta; native ID3 frames/comments/lyrics are inspection-only through the structured writer. On MP4, a non-empty structured `comments` or `lyrics` array is not written; verification then fails if the caller expected those entries to persist.
+For DSD, the descriptor reports `container` structured write support: native ID3 frame upserts, PropertyMap deltas and artwork are supported. Comment/lyric collection replacement remains unsupported. On MP4, a non-empty structured `comments` or `lyrics` array is not written; verification then fails if the caller expected those entries to persist.
 
 ## Format-specific limitations
 
@@ -185,7 +185,7 @@ For DSD, the descriptor says `propertyMap` structured write support even though 
 ### DSD (DSF, DSDIFF)
 
 - Structured reads expose native ID3v2 frames, comments, lyrics, artwork, and opaque frames.
-- Structured writes are PropertyMap deltas and artwork. Replacing native ID3 frame/comment/lyric collections through the structured writer is unsupported.
+- Structured writes accept native ID3 frame upserts, PropertyMap deltas and artwork. Whole native frame collection replacement and comment/lyric collection replacement are unsupported.
 - A Basic edit that would require replaying existing DSD comments or lyrics rejects safely rather than normalizing them. Use a raw delta for an unrelated field.
 - DSDIFF tests cover uncompressed DSD; DST-compressed DSDIFF is not verified.
 

@@ -93,7 +93,7 @@ static NSString *MP4ItemToDisplayString(const TagLib::MP4::Item &item) {
     }
 
     @try {
-        TagLib::MP4::Item::IntPair p = item.toIntPair();
+        TagLib::MP4::Item::IntPair p = MP4UnsignedPair(item);
         return [NSString stringWithFormat:@"%d/%d", p.first, p.second];
     } @catch (...) {
         // ignore
@@ -569,7 +569,7 @@ static void AppendStructuredMP4(TagLib::MP4::Tag *tag,
                 out[@"value"] = @(item.toLongLong());
                 break;
             case TagLib::MP4::Item::Type::IntPair: {
-                TagLib::MP4::Item::IntPair pair = item.toIntPair();
+                TagLib::MP4::Item::IntPair pair = MP4UnsignedPair(item);
                 out[@"first"] = @(pair.first);
                 out[@"second"] = @(pair.second);
                 out[@"value"] = [NSString stringWithFormat:@"%d/%d", pair.first, pair.second];
