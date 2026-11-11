@@ -61,7 +61,7 @@ print(capability.writeSupport(for: .artwork))
 | `unsupported` | No parser or field mapping. |
 | `verified` | Deprecated spelling; never returned. Use `fixtureCovered` or a concrete probe. |
 
-A configured label is not a release verdict. See [Testing](../operations/TESTING.md) and [Status](../operations/STATUS.md).
+A configured label is not a release verdict. The lifecycle matrices and gate evidence are described in [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md); the latest observed state is in [Status](../operations/STATUS.md).
 
 ## Field-level queries
 
@@ -77,7 +77,7 @@ print(capability.writeSupport(for: .artwork))
 
 - `.rate` has a readable MP4 mapping but no preferred write target; `writeSupport(for: .rate)` returns `.unsupported`, and the typed patch rejects it without mutation.
 - RIFF INFO is not in `metadataFieldFormats`, so a field that exists only as RIFF INFO needs the raw/structured path.
-- Native width, tag version, container state, and preservation conflicts can still reject a specific file.
+- Native width, tag version, container state, and preservation conflicts can still reject a specific file. For example, an ID3v2 capability may reflect the verified v2.4 codec while a concrete ID3v2.3 tag is read-only for independent dates; inspect `StructuredMetadata.id3v2MajorVersion` before offering that edit.
 
 For a precise answer, inspect the schema:
 

@@ -35,6 +35,7 @@ TagLib FileRef (serialized)
         ├── visible PropertyMap (WAVE merges INFO + ID3v2)
         ├── raw ID3v2 frame summaries (formats that expose them)
         └── structured frames/atoms/attributes/artwork/lyrics/comments
+            + observed primary ID3 major version
         │
         ▼
 Swift value models (copies of strings, arrays, data)
@@ -59,7 +60,7 @@ The bridge supports five option bits: `basic`, `raw`, `structured`, `propertyMap
 | `rawMetadataResult(from:)` | `.raw` | Visible `PropertyMap` and raw frame summaries where exposed. |
 | `readStructuredMetadataResult(from:)` | `.structured` | Structured collections only. |
 
-`readMetadataResult` and `readBasicSnapshot` are lighter in returned model construction and public API surface, not in native extraction work: Basic metadata needs the structured projection to resolve exact MP4 and ID3 date/number identities. They do not return `StructuredMetadata`.
+`readMetadataResult` and `readBasicSnapshot` are lighter in returned model construction and public API surface, not in native extraction work: Basic metadata needs the structured projection to resolve exact MP4 and ID3 date/number identities. They do not return `StructuredMetadata`. Basic reads resolve MP4 Content Group, Movement Number/Count and unsigned pair components from their exact native owners rather than ambiguous engine projections.
 
 The unified bridge still constructs its internal Basic carrier during a structured-only traversal; removing that allocation requires a wider format-extractor split. This is an implementation detail, not a public contract.
 
@@ -79,11 +80,12 @@ The facade transaction coordinator performs:
 2. destination validation and optional `expectedVersion` check;
 3. one sibling copy (`copyfile` with clone request and ACL preservation);
 4. in-place bridge mutation on the copy;
-5. semantic verification for the verified facade APIs;
-6. `F_FULLFSYNC`/`fsync` of the copy;
-7. final destination identity check;
-8. atomic rename;
-9. parent-directory sync.
+5. format-specific preservation of unedited native owners, including `restoreUneditedBasicNativeValues` for Basic replacement;
+6. semantic verification for the verified facade APIs;
+7. `F_FULLFSYNC`/`fsync` of the copy;
+8. final destination identity check;
+9. atomic rename;
+10. parent-directory sync.
 
 Public bridge mutators use the same transaction principles when called directly, but perform only staged-file readability checks after mutation; they do not inherit the facade's semantic verification. See [Transactions](TRANSACTIONS.md).
 
@@ -93,7 +95,9 @@ A complex `MetadataPatch` can open and save the staged file separately for numbe
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged, `.remove` clears a property, `explicitAdvisory` retains all four advisory states, and artwork distinguishes unchanged, replacement, and removal. Typed fields are validated for kind and numeric range against `MetadataFieldRegistry` before staging. Schema-known keys are rejected from `customFields`, including aliases and case variants. Role-qualified fields such as `.performer` are rejected by the typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are part of the key.
 
-Most property changes are applied as a bridge delta to the current `PropertyMap`; MP4 track/disc pairs and advisory data use native `trkn`, `disk`, and `rtng` mutation, while ID3 advisory uses the supported `TXXX` representation. TagLib still saves the affected native tag, so the guarantee is semantic omission rather than byte-for-byte container preservation.
+Most property changes are applied as a bridge delta to the current `PropertyMap`; MP4 track/disc pairs, movement, and advisory data use native `trkn`, `disk`, `©mvi`/`©mvc`, and `rtng` mutation, while ID3 advisory uses the supported `TXXX` representation. Track/disc components are normalized from the engine's signed projection to their unsigned 16-bit storage; movement remains bounded to `0...32767`. TagLib still saves the affected native tag, so the guarantee is semantic omission rather than byte-for-byte container preservation.
+
+Basic replacement restores unchanged native date owners and, on MP4, unchanged modeled atoms and compatibility aliases before verification. Existing ID3v2.3 tags reject independent date changes, while an unrelated Basic edit preserves their dates. Encoded By and Encoder Settings, and Content Group, Grouping and Work, are verified through independent native owners rather than fallback projections.
 
 Format field allowlists, when present in `FormatCapability`, are checked before staging for the typed Patch surface. Raw APIs remain container-permissive.
 
@@ -102,7 +106,7 @@ Patch text and value arrays are normalized once before mutation. Leading and tra
 Number pairs use container-aware paths:
 
 - ID3-backed formats use combined `TRCK`/`TPOS` and `MVIN`;
-- MP4 uses native `trkn`/`disk`;
+- MP4 uses native `trkn`/`disk` and independent `©mvi`/`©mvc` movement atoms;
 - generic/Xiph formats use separate number/total keys;
 - ASF combines totals into native text attributes.
 
@@ -112,7 +116,7 @@ Track/disc integers begin at one; movement and BPM begin at zero. Native `trkn`/
 
 The MP4-exclusive Basic properties (`director`, store IDs, TV fields, and related Booleans) are readable through `BasicMetadata` but are not written by `replaceBasicMetadata`: the bridge writer model has no corresponding properties. Use `MetadataPatch` or structured writes for those fields; see [Write semantics](PRESERVATION.md#basic-preservation-rules).
 
-Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered value cardinality. `TXXX` descriptions identify frames and are kept separate from their payload arrays. Structured verification compares those arrays element by element. `StructuredID3v2Frame.fields` is merged into the bridge payload dictionary; it is reserved for future frame-specific fields and can collide with `id`, `type`, `value`, or `values`, so callers should leave it empty.
+Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered value cardinality. `TXXX` descriptions identify frames and are kept separate from their payload arrays. Structured verification compares those arrays element by element; an empty text/user-text payload is a removal request and is verified as absence. DSF/DSDIFF route native ID3 frame upserts through the structured writer while rejecting comment/lyric collection replacement. `StructuredID3v2Frame.fields` is merged into the bridge payload dictionary; it is reserved for future frame-specific fields and can collide with `id`, `type`, `value`, or `values`, so callers should leave it empty.
 
 Structured artwork writes use dedicated ID3v2, MP4, ASF, FLAC/Xiph, and APE-family paths; the caller's `container` value is informational because the destination follows the file format. `structuredWriteSupport` describes non-artwork structured data, so a PropertyMap-level format can still support artwork when `canWriteArtwork` is true. Structured PropertyMap values are applied as a delta: omitted keys remain, empty value arrays remove one key, and non-empty properties with `includeProperties == false` are rejected.
 
@@ -133,7 +137,7 @@ Adding a production schema requires updating the semantic registry and, where th
 - `scripts/generate-format-matrix.py` renders the capability registry;
 - `scripts/generate-mapping-matrix.py` renders `MetadataMappingCatalog`.
 
-`FormatCapability` separates read/write mechanics from evidence through `FormatSupportLevel`. UI code should query the extension and field being edited because aliases and container fields can have different evidence levels. The complete matrix and its limits are in [Formats](../reference/FORMATS.md).
+`FormatCapability` separates read/write mechanics from evidence through `FormatSupportLevel`. UI code should query the extension and field being edited because aliases and container fields can have different evidence levels. `writeSupport(for:)` requires a writable target in the primary write family, so a secondary readable tag surface cannot authorize a semantic write; concrete tag version and native width can still reject. The complete matrix and its limits are in [Formats](../reference/FORMATS.md).
 
 ## Performance and concurrency
 
@@ -153,6 +157,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `.../TagLibMetadataManager+Write.swift` | Basic replacement/update, bridge-model write, raw whole-map writes, erase, number text. |
 | `.../TagLibMetadataManager+Structured.swift` | Structured conversion, validation, write, verification. |
 | `.../TagLibMetadataManager+Verification.swift` | Verification helpers, warning construction, raw normalization, explicit provenance. |
+| `.../BasicNativePreservation.swift` | Restores untouched Basic native dates, MP4 owners/aliases, and absence before verification. |
 | `.../TagLibMetadataManager+Compatibility.swift` | Deprecated-signature and pre-`expectedVersion` forwarding overloads. |
 | `.../MetadataSnapshotPatch.swift` | Snapshot/version models, `MetadataPatch`, typed patch validation and application. |
 | `.../RawMetadataPatch.swift` | Exact raw delta validation, application, and verification. |
@@ -173,7 +178,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `Sources/CTagLibBridgeInternalAPI/` | Non-product in-place mutation and coordination declarations used by the facade/tests. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |
 | `IntegrationTests/Consumer/` | Facade-only and low-level consumer packages. |
-| `scripts/` | Binary build, preservation-corpus generation, reference generators, documentation checks. |
+| `scripts/` | Binary build, preservation-corpus generation, reference generators, documentation checks, full-suite gate and test evidence summarizer. |
 | `docs/` | Current documentation; historical records under `docs/records/`. |
 
 Public headers do not expose internal C++ declarations.
@@ -190,4 +195,4 @@ The single SwiftPM test target is organized physically by layer:
 - `Performance/` contains opt-in, non-gating throughput experiments.
 - Root-level tests cover public Objective-C selectors, Swift nested types, deprecated function references, and console-diagnostics hygiene.
 
-This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](../operations/TESTING.md) for commands and evidence limits.
+`scripts/validate-tests.sh` runs the complete Debug or Release suite with strict warnings and writes evidence under `.build/test-evidence/`; `scripts/summarize-test-run.py` fails closed on missing framework summaries, unexpected skips, missing named matrices/oracles, case-count shrinkage, or named failures. `scripts/tests/` holds the gate-policy regressions. This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](../operations/TESTING.md) and [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md).

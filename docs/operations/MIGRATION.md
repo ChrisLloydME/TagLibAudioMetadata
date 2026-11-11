@@ -1,6 +1,6 @@
 # Compatibility and migration
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.0` introduces mapping contract 2.2; review the behavioral changes below before upgrading.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. The latest published tag is `0.7.1` (2026-11-10). Current `main` contains post-0.7.1 repairs that are not yet tagged. Sections are newest first; review the behavioral changes that apply to your starting version.
 
 ## Compatibility promises
 
@@ -10,6 +10,43 @@ This guide describes source-compatibility expectations and the changes a consume
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.
 
+## Current main after 0.7.1 (unreleased)
+
+Current `main` contains audit-integrity, native-mapping follow-up, package test-system and MP4 Content Group repairs. There is no release tag after `0.7.1` and no automatic user-file migration. These changes are source-compatible unless an application depended on the old ownership or range behavior described below.
+
+### Ownership and preservation corrections
+
+- **Encoder fields are independent.** `encodedBy` owns ID3 `TENC`, MP4 `©enc` and ASF `WM/EncodedBy`; `encoderSettings` owns ID3 `TSSE`, MP4 `©too` and ASF `WM/EncodingSettings`. `ENCODEDBY`, `ENCODING` and `ENCODERSETTINGS` are read through their respective owners, not as fallbacks for one another. An application that previously relied on `ENCODING` to populate Encoded By must use `.encodedBy`.
+- **MP4 movement is atomic.** Movement Number and Count use independent integer atoms `©mvi` and `©mvc`. A semantic edit changes only the requested component, including in a patch that also edits Track/Disc. Basic and low-level pair writes intentionally own both movement components. MP4 movement accepts `0...32767`; semantic, Basic and structured facade preflight reject larger values before staging.
+- **MP4 track/disc pairs are unsigned.** Native `trkn`/`disk` components round-trip through `32768...65535`. The bridge normalizes the pinned engine's signed `IntPair` projection for Basic, number-text, structured and retention reads; external tools that decode the high half as signed may still display a different number.
+- **Content Group, Grouping and Work are independent.** MP4 uses `©grp`, `----:com.apple.iTunes:GROUPING` and `©wrk`; ID3 uses `TIT1`, `GRP1` and `TXXX:WORK`; Xiph/APE use `CONTENTGROUP`, `GROUPING` and `WORK`. A missing MP4 Content Group no longer falls back to independent Grouping. Semantic verification permits the engine's overlapping PropertyMap projection for the edited owner while checking untouched native siblings.
+- **Untouched Basic dates are preserved natively.** An unrelated Basic edit keeps existing date arrays, malformed text, duplicate values, whitespace and absence across MP4, ID3, Xiph and APE-backed formats. The preservation read is bound to the transaction version. Changing a date on an existing ID3v2.3 tag rejects before mutation; unchanged ID3v2.3 dates are preserved.
+- **DSD structured writes accept ID3 frame upserts.** DSF and DSDIFF structured writes now support native ID3 text/user-text/URL/UFID/chapter frame upserts, PropertyMap deltas and artwork. Comment/lyric collection replacement remains unsupported and rejects without committing.
+- **Structured ID3 text removal is verified as absence.** An ID3 `text` or `userText` entry with empty `values` and empty `value` removes that frame identity. Verification checks absence and preserves unrelated frames. URL/UFID removal has no empty-payload equivalent.
+
+### Capability and test-operation changes
+
+- `writeSupport(for:)` now requires a writable target in the primary write family. Secondary readable tags such as ID3 on FLAC or APE on MPEG do not authorize a semantic write. Formats with only a PropertyMap surface retain mapping and allowlist checks.
+- `StructuredMetadata.id3v2MajorVersion` is optional read evidence. It does not convert a tag or make ID3v2.3 dates writable.
+- Package acceptance uses `bash scripts/validate-tests.sh debug|release` and the gate-policy tests, not a bare aggregate `swift test` count. The test target demotes only `DeprecatedDeclaration` under strict compilation because compatibility tests deliberately reference obsolete API; production has no exception.
+
+### Migration actions
+
+1. Stop using Encoded By and Encoder Settings as interchangeable keys; patch the semantic field you intend to edit.
+2. If you inspect movement fields on MP4, expect `©mvi`/`©mvc` and validate the `0...32767` bound before offering an edit.
+3. If you decode MP4 track/disc pairs outside the package, handle the stored unsigned 16-bit value rather than assuming a signed high half.
+4. Read `StructuredMetadata.id3v2MajorVersion` before offering date edits on a concrete ID3 file. Do not convert ID3v2.3 tags automatically to make dates writable.
+5. Do not rely on Basic replacement to normalize or collapse untouched native date arrays. Use a patch and verify the fields you intentionally change.
+
+## Migrating from 0.7.0 to 0.7.1
+
+The `0.7.1` release corrects Xiph/APE YEAR/DATE ownership in both native and visible-map paths, verifies date siblings natively, and fixes active-family comment verification and qualified UFID writes. No date companions or automatic user-file migration are required.
+
+- `StructuredMetadata.id3v2MajorVersion` is optional read evidence. The existing initializer signature remains available, so existing source continues to compile.
+- Date writes to concrete ID3v2.3 tags are explicitly read-only until a verified independent codec exists. Typed date patches and Basic date changes reject safely; unchanged dates are preserved.
+- Semantic write capability follows the primary write family. A secondary readable tag surface does not authorize a write there.
+- Do not convert tags automatically or claim ID3v2.3 date support from an extension-wide ID3v2.4 capability result.
+
 ## Migrating from 0.6.0 to 0.7.0
 
 These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described in the [mapping contract](../reference/MAPPING_SPEC.md). They are source-compatible unless noted; behavioral changes are intentional and require application review. The changes are introduced in `0.7.0` and are not part of `0.6.0`.
@@ -17,7 +54,7 @@ These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described 
 ### New field identities
 
 - `MetadataFieldKey.year` is the canonical YEAR identity. `date` remains a legacy YEAR-slot spelling for source compatibility. Supplying both in one patch throws `MetadataPatchValidationError.conflictingYearRepresentations`.
-- `MetadataFieldKey.standaloneDate` is the independent DATE identity. It is not a YEAR projection.
+- `MetadataFieldKey.standaloneDate` is the independent DATE identity. It is not a YEAR projection. `BasicMetadata.date` carries this standalone DATE value; it is not the typed `.date` legacy YEAR alias.
 - `contentGroup`, `artists`, `replayGainTrackPeak`, and `replayGainAlbumPeak` are new semantic fields.
 - `director`, `itunesAccount`, `itunesComposerID`, `itunesCountryID`, `itunesGapless`, `itunesHDVideo`, `itunesOwner`, `rate`, `showMovement`, `storeDescription`, `tvEpisode`, `tvEpisodeID`, `tvNetwork`, `tvSeason`, `tvShow`, and `tvShowSort` register the MP4-exclusive identities. `rate` is read-only for typed writes; the media-kind label vocabulary is not bound to numeric codes.
 - The MP4-exclusive properties are readable through `BasicMetadata`, but `replaceBasicMetadata`/`updateBasicMetadata` do not write them. Use `MetadataPatch` or structured writes.
@@ -27,7 +64,7 @@ These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described 
 - `BasicMetadata.year` returns the complete stored YEAR text. It is never truncated to four characters and never derived from `releaseDate` or MP4 `©day`-as-release-date logic.
 - YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent. Changing or clearing one no longer rewrites another. `updateBasicMetadata` no longer reconciles MP4 dates, and `MetadataValidationError.conflictingMP4Date` is retained only for source compatibility.
 - MP4 `©day` is the YEAR slot. RELEASEDATE is the `RELEASEDATE` freeform; DATE is the `DATE` freeform. Applications that previously wrote full release dates to `©day` must migrate to `.releaseDate`.
-- `.date` is a legacy YEAR spelling and writes the same YEAR target as `.year`, including MP4 `©day`. It is not marked `@available(*, deprecated)` in the enum; treat it as legacy in new code.
+- `.date` is a legacy YEAR spelling and writes the same YEAR target as `.year` where that target is writable. It is not marked `@available(*, deprecated)` in the enum; treat it as legacy in new code.
 - `publisher` writes MP4 `©pub`, `conductor` writes `©con`, `work` writes `©wrk`, `contentGroup` writes `©grp`, `grouping` writes `GROUPING`, `encodedBy` writes `©enc`, `encoderSettings` writes `©too`, and `mediaType` writes the `MEDIA` freeform.
 - Both `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` MP4 namespaces are legacy provenance. No default write surface, including formatted-number APIs, creates or renames them. They remain readable and are preserved until an explicit normalization plan retires them.
 - Formatted MP4 number text no longer persists padding. It writes the native pair and displays the normalized pair. A number-only formatted value preserves the resolved existing total.
@@ -60,7 +97,7 @@ These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described 
 
 ## Migrating from 0.5.3 to 0.6.0
 
-The `0.6.0` release added audio-content continuity, validated public API additions, and raised the minimum Swift tools to 6.4. These changes are historical for the tagged release; `0.7.0` adds contract 2.2 behavior on top.
+The `0.6.0` release added audio-content continuity, validated public API additions, and raised the minimum Swift tools to 6.4. These changes are historical for the tagged release; `0.7.x` adds contract 2.2 behavior and the date/ownership corrections on top.
 
 ### Minimum Swift tools
 
@@ -105,12 +142,12 @@ Deprecated declarations remain callable where source compatibility is practical.
 2. **Verification always throws.** A mismatch aborts before commit. `warnings` on a successful result are residual container advisories.
 3. **Low-level product.** Starting in 0.5, the facade does not re-export `CTagLibBridge`. Add `.product(name: "TagLibAudioMetadataLowLevel", ...)` and `import CTagLibBridge` if you name bridge types.
 4. **Raw native keys.** Raw APIs accept prefixless TagLib `PropertyMap` keys. `----:` native MP4 atom keys reject; use `StructuredMetadata.mp4Atoms`.
-5. **MP4 dates.** In `0.7.0`, MP4 YEAR is `©day`; `.date` is a legacy YEAR alias and `.standaloneDate`/`.releaseDate` use freeforms. The older 0.6.0 behavior treated `.releaseDate` as `©day`; that is historical, not current.
+5. **MP4 dates.** In `0.7.x`, MP4 YEAR is `©day`; `.date` is a legacy YEAR alias and `.standaloneDate`/`.releaseDate` use freeforms. The older 0.6.0 behavior treated `.releaseDate` as `©day`; that is historical, not current.
 6. **Number pairs.** Native ID3 families write combined `TRCK`/`TPOS`; MP4 uses `trkn`/`disk`; generic/Xiph uses separate total keys; ASF uses native text pairs. Partial removal with a retained total is supported on MP4/ID3/Xiph/APE and rejected on ASF.
 7. **Privilege-bearing files.** setuid/setgid files reject before staging. Clear the bits explicitly if editing is intended.
 8. **TrueAudio mixed surfaces.** Files with unmodeled APEv2 fields reject rather than silently leaving a conflicting secondary tag.
 9. **Durability status.** High-level writes return `commitStatus`. `.durabilityUncertain` means the rename already committed. Do not retry blindly.
-10. **ASF and structured removal.** ASF attributes are upserts. ID3 URL/UFID frames have no individual structured removal; empty payloads reject.
+10. **ASF and structured removal.** ASF attributes are upserts. ID3 URL/UFID frames have no individual structured removal; empty payloads reject. (Structured ID3 *text* removal uses empty values and is supported.)
 11. **Structured writes are collection-scoped.** Omitted collections are preserved; non-empty artwork/lyrics/comments replace their collection where supported. Empty collections require `replacingCollections` to remove the final entries.
 12. **`writeTagMetadata` is not a patch.** It writes the bridge model's mapped fields. Read current values first if you intend a partial edit, and supply a verification context if you need readback. It cannot write the MP4-exclusive facade fields.
 13. **RIFF policy scope.** `RIFFMetadataWritePolicy` is meaningful only for structured WAV and AIFF/AIFF-C writes. `.syncBasicFieldsToInfo` rejects for those extensions; other formats ignore the policy value.
@@ -156,6 +193,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - [ ] Check `RIFFMetadataWritePolicy` scope if you write structured metadata to non-RIFF formats.
 - [ ] Move Year edits to `.year`, standalone Date edits to `.standaloneDate`, and MP4 Release Date edits to `.releaseDate`.
 - [ ] Audit code that assumes `BasicMetadata` edits cover every Basic property; use `MetadataPatch` for the MP4-exclusive fields.
+- [ ] Check concrete ID3v2.3 tags with `StructuredMetadata.id3v2MajorVersion` before offering date edits.
 - [ ] Verify the final app embeds and signs the namespaced framework.
 - [ ] Run your own type, integration, and distribution checks; the package's tests do not validate your app.
 
@@ -167,10 +205,3 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - That a package update changes an application's conflict policy automatically.
 - That an untagged `main` state is a release.
 - That `replaceBasicMetadata` writes every property present on `BasicMetadata`.
-
-
-## Migrating from 0.7.0 to the 0.7.1 candidate
-
-The repair branch corrects Xiph/APE YEAR/DATE ownership in both native and visible-map paths, verifies date siblings natively, and fixes active-family comment verification and qualified UFID writes. No date companions or automatic user-file migration are required.
-
-`StructuredMetadata.id3v2MajorVersion` is optional read evidence. The existing initializer signature remains available. Date writes to concrete ID3v2.3 tags are now explicitly read-only until a verified independent codec exists; both typed and Basic date edits reject safely. Inspect this version before presenting concrete-file date editability. Do not convert tags automatically or claim v2.3 date support from an extension-wide ID3v2.4 capability result.

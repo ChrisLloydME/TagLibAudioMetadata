@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`, with working-tree corrections to native read/write/verification consistency; see [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections, and current `main` includes unreleased post-0.7.1 corrections to native read/write/verification consistency; see [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -52,7 +52,7 @@ YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent stored fields and inde
 
 - `.year` is the canonical YEAR identity.
 - `.date` is a legacy YEAR-slot spelling retained for source compatibility. It writes the same native target as `.year`; supplying both in one `MetadataPatch` throws `MetadataPatchValidationError.conflictingYearRepresentations`.
-- `.standaloneDate` is the independent DATE identity.
+- `.standaloneDate` is the independent DATE identity. `BasicMetadata.date` carries this standalone DATE projection; it is not the typed `.date` legacy YEAR alias.
 - `.releaseDate` is RELEASEDATE.
 - `.originalReleaseDate` is ORIGINALDATE.
 
@@ -69,13 +69,13 @@ Native pairs are authoritative:
 | Family | Number/total representation |
 | --- | --- |
 | ID3v2.3/2.4 | Combined `TRCK` / `TPOS`; movement uses `MVIN`. |
-| MP4 | Native `trkn` / `disk` integer pairs. |
+| MP4 | Native `trkn` / `disk` integer pairs; movement number/count use independent `©mvi` / `©mvc` integer atoms. |
 | Xiph | Separate `TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`. |
 | APE-family | Separate `TRACK`/`TRACKTOTAL` and `DISC`/`DISCTOTAL`. |
 | ASF | `WM/TrackNumber` and `WM/PartOfSet` text pairs. |
 | RIFF INFO | `ITRK`; no typed total target in this profile. |
 
-Track and disc components begin at one; BPM and movement numbering begin at zero. Removing a first component while retaining a total is supported on MP4 (`0/total` sentinel), ID3-backed formats (`/total` text), and separate-key Xiph/APE layouts. ASF rejects a number-zero-plus-total pair; remove both components instead.
+Track and disc components begin at one; BPM and movement numbering begin at zero. MP4 track/disc components accept unsigned 16-bit values through `65535`; MP4 movement atoms accept `0...32767` and reject larger values before staging. Removing a first component while retaining a total is supported on MP4 (`0/total` sentinel), ID3-backed formats (`/total` text), and separate-key Xiph/APE layouts. ASF rejects a number-zero-plus-total pair; remove both components instead.
 
 `numberingInventory(at:)` reports native components, legacy standalone aliases, and both private MP4 formatting namespaces with exact values and identities. States:
 
@@ -108,6 +108,8 @@ The Boolean `explicitContent` / `isExplicit` projection is lossy. `isExplicit = 
 
 The registry includes the MP4-exclusive identities for director, account, composer/country IDs, gapless, HD video, owner, rating, show movement, store description, TV episode/network/season/show/sort, and media kind. Store IDs, TV numbers, and Boolean atoms are exact native values; unknown media-kind codes round-trip.
 
+Movement Number and Count use independent `©mvi` and `©mvc` integer atoms; they are not components of a shared track/disc pair. The native range is `0...32767`, while MP4 track/disc components retain the unsigned 16-bit range through 65535. Content Group, Grouping and Work are independent native owners, and Encoded By and Encoder Settings are independent native owners; verification checks the exact untouched sibling rather than a fallback projection.
+
 `.rate` is registered read-only for typed writes: the atom is readable and preserved, but no verified native rating type or scale is available. `.itunesMediaType` (`stik`) round-trips as an integer; the package does not bind a label vocabulary to numeric codes.
 
 Two Matroska registrations exist for `tvEpisode` and `tvSeason` (`PART_NUMBER@TargetTypeValue=50/60`). They report `.unsupported` and have no preferred write target until a verified native codec and fixture coverage exist. They are target registrations, not advertised MKV support.
@@ -131,15 +133,15 @@ Evidence is layered:
 - **upstreamSupported** — TagLib exposes the format; this package has no round-trip fixture.
 - **readOnly** — no save path.
 
-A capability label is not a release verdict. Cross-tool conformance, minimum-OS runtime, device runtime, sanitizers, and application adoption are separate evidence. See [Testing](../operations/TESTING.md) and [Status](../operations/STATUS.md).
+A capability label is not a release verdict. Cross-tool conformance, minimum-OS runtime, device runtime, sanitizers, and application adoption are separate evidence. See [Testing](../operations/TESTING.md), [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md), and [Status](../operations/STATUS.md).
 
 ## 9. Implementation boundaries
 
-Implemented in the current working tree:
+Implemented on current `main`:
 
 - the explicit native target registry and generated field reference;
-- independent YEAR/DATE/RELEASEDATE/ORIGINALDATE targets;
-- native number pairs, inventory states, and explicit normalization plans;
+- independent YEAR/DATE/RELEASEDATE/ORIGINALDATE targets, with existing ID3v2.3 tags read-only for independent date writes;
+- native number pairs, independent MP4 movement atoms, inventory states, and explicit normalization plans;
 - four-state advisory storage with raw unknown-code preservation;
 - the MP4-exclusive typed fields, with `.rate` read-only;
 - gated Matroska target registrations with no advertised write support.
@@ -150,8 +152,9 @@ Known boundaries:
 - Matroska `tvEpisode`/`tvSeason` writes are not implemented.
 - The bridge and Swift catalog are separate representations; parity tests guard them.
 - `replaceBasicMetadata` does not write the MP4-exclusive Basic properties; use `MetadataPatch` for those fields.
+- Extension-level capability cannot identify a concrete tag version; inspect `StructuredMetadata.id3v2MajorVersion` before offering ID3 date edits.
 - ASF has no verified total-only number representation.
-- Cross-tool fixtures for YEAR/DATE/RELEASEDATE independence are limited to the formats listed in the status page.
+- Cross-tool fixtures for YEAR/DATE/RELEASEDATE independence are limited to the formats covered by [mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md).
 
 The generated matrix lists every profile and exact target. Any normative change must update the Swift catalog, the bridge codec where applicable, the field reference, the matrix, and the relevant tests together.
 
@@ -164,9 +167,9 @@ The generated matrix lists every profile and exact target. Any normative change 
 - [Migration](../operations/MIGRATION.md) — changes from the tagged releases.
 
 
-## Working-tree conformance repairs
+## Post-0.7.1 conformance repairs
 
-The unreleased repair branch separates native Xiph/APE YEAR and DATE ownership from engine aliases in reads, semantic writes, raw replacement/delta, and generic map replay. Untouched native date arrays and malformed values are verified without collapsing them. ID3/MP4 date preservation is checked against native frames/atoms; a changed engine DATE projection does not authorize changing an unedited native owner. The existing native layouts and contract ID are unchanged.
+Current `main` after `0.7.1` separates native Xiph/APE YEAR and DATE ownership from engine aliases in reads, semantic writes, raw replacement/delta, and generic map replay. Untouched native date arrays and malformed values are verified without collapsing them. ID3/MP4 date preservation is checked against native frames/atoms; a changed engine DATE projection does not authorize changing an unedited native owner. Encoded By and Encoder Settings are independent, MP4 movement uses `©mvi`/`©mvc`, and MP4 Content Group/Grouping/Work are verified separately. The existing native layouts and contract ID are unchanged.
 
 FLAC scalar comments use the Xiph verification path even when a secondary ID3 surface is supported. Qualified MusicBrainz recording identifiers use the UFID owner codec. Semantic write capability follows the primary write family; secondary readable tags do not authorize semantic writes.
 

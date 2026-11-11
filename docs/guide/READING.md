@@ -68,6 +68,7 @@ print(snapshot.basic.title)
 print(snapshot.raw.properties)
 print(snapshot.structured.artwork)
 print(snapshot.structured.id3v2Frames)
+print(snapshot.structured.id3v2MajorVersion as Any)
 ```
 
 `readSnapshot` obtains Basic, raw, and structured projections in one extraction call and rejects a file that changes during extraction. The file version is non-optional in a snapshot returned by this API. It is a semantic snapshot, not a byte-exact native archive. Unknown or opaque native records may be summarized, and leaving them out of a patch does not necessarily reconstruct their bytes.
@@ -117,6 +118,8 @@ for warning in structured.warnings {
 ```
 
 Structured collections are container-specific. A format may populate `properties` only, or may expose frames/atoms/attributes, artwork, lyrics, comments, or warnings. Do not assume every collection is populated for every file.
+
+`id3v2MajorVersion` is optional evidence of the observed primary ID3 tag version; it is `nil` when the file has no ID3v2 tag. It does not convert or upgrade a tag. Use it before offering independent date edits, because an existing ID3v2.3 tag is read-only for those fields even when the extension-level capability reports ID3v2 support. MP4 Basic reads resolve Content Group and Movement Number/Count from their native owners; movement values are not projections of Track/Disc.
 
 For ID3v2 text frames, `values` is the ordered native string list; `value` is a display projection. `TXXX.description` identifies the user-text frame and is not duplicated into `values`. `APIC`, `COMM`, and `USLT` are returned in the dedicated `artwork`, `comments`, and `lyrics` collections rather than `id3v2Frames`.
 
@@ -177,3 +180,4 @@ A nil identity never establishes continuity. Availability is limited to native F
 - [Capabilities](CAPABILITIES.md) — declared format and field support.
 - [Manager API](../reference/API.md) and [model reference](../reference/MODELS.md) — exact declarations.
 - [Transactions](../explanation/TRANSACTIONS.md) — version, staging, and concurrency semantics.
+- [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent readback matrices and coverage limits.
