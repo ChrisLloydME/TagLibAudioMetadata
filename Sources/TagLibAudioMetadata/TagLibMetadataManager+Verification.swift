@@ -156,7 +156,7 @@ extension TagLibMetadataManager {
             return true
         }
 
-        if verification.expectedExplicitContent != nil || verification.expectedExplicitAdvisory != nil {
+        if verification.expectedExplicitAdvisory != nil {
             return true
         }
 
@@ -165,7 +165,7 @@ extension TagLibMetadataManager {
         }
 
         switch verification.artworkExpectation {
-        case .skip, .unchanged:
+        case .skip:
             break
         case .present, .absent:
             return true
@@ -277,12 +277,6 @@ extension TagLibMetadataManager {
                     "Explicit advisory differs after save (expected \(expectedAdvisory.rawValue), got \(afterWrite.explicitAdvisory.rawValue))."
                 )
             }
-        } else if let expectedExplicit = verification.expectedExplicitContent, let afterWrite {
-            if expectedExplicit != afterWrite.isExplicit {
-                warnings.append(
-                    "Explicit flag differs after save (expected \(expectedExplicit ? "explicit" : "clean"), got \(afterWrite.isExplicit ? "explicit" : "clean"))."
-                )
-            }
         }
 
         if let afterWrite {
@@ -295,7 +289,7 @@ extension TagLibMetadataManager {
                 warnings.append("Artwork MIME type differs after save.")
             }
             switch verification.artworkExpectation {
-            case .skip, .unchanged:
+            case .skip:
                 break
             case .present:
                 if afterWrite.artworkData == nil {

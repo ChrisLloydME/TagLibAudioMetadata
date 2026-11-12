@@ -125,7 +125,7 @@ try TagLibMetadataManager.applyNumberNormalization(plan, to: url)
 
 ### Year, date, and release date
 
-`year` (or its legacy `date` spelling), `standaloneDate`, `releaseDate`, and `originalReleaseDate` are independent. `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid together.
+`year`, `standaloneDate`, `releaseDate`, and `originalReleaseDate` are independent. `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid together.
 
 ```swift
 try TagLibMetadataManager.applyMetadataPatch(
@@ -143,9 +143,9 @@ MP4 YEAR is `©day`. RELEASEDATE and DATE are explicit freeform extensions; noth
 
 An existing ID3v2.3 tag cannot accept independent date edits. Typed date patches reject before mutation; a Basic replacement rejects only when one of the four date values changes, so an unrelated edit still preserves the native dates. Read `StructuredMetadata.id3v2MajorVersion` for a concrete file. An extension-level `writeSupport` result may describe the verified ID3v2.4 codec and does not override concrete v2.3 read-only behavior.
 
-`.date` is a legacy YEAR-slot spelling: it writes the same native target as `.year` where writable, including MP4 `©day`. It is not a standalone DATE and is not marked `@available(*, deprecated)` in the enum. Supplying `.date` and `.year` together throws `MetadataPatchValidationError.conflictingYearRepresentations`.
+The typed `.date` YEAR alias has been removed. Use `.year` for YEAR and `.standaloneDate` for independent DATE. The old serialized field-key token `date` is rejected rather than redirected.
 
-`BasicMetadata.date` is a different API: it carries the independent standalone DATE projection, equivalent to the typed `.standaloneDate`, while `BasicMetadata.year` carries the YEAR slot. Do not use the name `date` to infer that a Basic field and the typed `.date` key are interchangeable.
+`BasicMetadata.date` carries the independent standalone DATE projection, equivalent to typed `.standaloneDate`; `BasicMetadata.year` carries YEAR.
 
 `replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with `isRepresentableYearText`; non-date text such as `"Spring 2021"` throws `MetadataValidationError.invalidYearText`. The typed patch path does not run that Basic-specific validator.
 

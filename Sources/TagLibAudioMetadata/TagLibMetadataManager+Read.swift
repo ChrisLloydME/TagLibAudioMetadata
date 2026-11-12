@@ -172,46 +172,11 @@ extension TagLibMetadataManager {
         return RawMetadataDump(properties: properties, id3v2Frames: id3v2Frames)
     }
 
-    /// Return a single plain-text dump of metadata as TagLib sees it.
-    ///
-    /// Preferred path: call the ObjC++ bridge API directly (Swift `throws`).
-    /// Fallback path: attempt older single-argument selector names via `perform` for compatibility.
+    /// The facade and bundled bridge use one compile-time API contract.
     nonisolated static func bridgeTextDumpIfAvailable(for url: URL) -> String? {
-        // Newer bridge (preferred): `dumpMetadataText(from:)` is exposed as a Swift-throwing method.
-        if let text = try? TagLibMetadataExtractor.dumpMetadataText(from: url) {
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty { return trimmed }
-        }
-
-        // Older bridge variants: try a small set of single-argument selector names at runtime.
-        let candidates = [
-            "rawMetadataTextFor:",
-            "rawMetadataTextForURL:",
-            "dumpMetadataTextFor:",
-            "dumpMetadataTextFrom:",
-            "dumpMetadataTextFromURL:",
-            "dumpMetadataTextForURL:"
-        ]
-
-        for name in candidates {
-            let sel = NSSelectorFromString(name)
-            guard TagLibMetadataExtractor.responds(to: sel) else { continue }
-
-            // perform(_:with:) only supports single-argument selectors.
-            if let unmanaged = TagLibMetadataExtractor.perform(sel, with: url) {
-                let any = unmanaged.takeUnretainedValue()
-                if let s = any as? String {
-                    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty { return trimmed }
-                }
-                if let s = any as? NSString {
-                    let trimmed = (s as String).trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty { return trimmed }
-                }
-            }
-        }
-
-        return nil
+        guard let text = try? TagLibMetadataExtractor.dumpMetadataText(from: url) else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     nonisolated static func basicMetadata(
@@ -719,21 +684,11 @@ extension TagLibMetadataManager {
         try? readMetadataResult(from: url)
     }
 
-    @available(*, deprecated, renamed: "bestEffortMetadata(from:)")
-    public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
-        bestEffortMetadata(from: url)
-    }
-
     // MARK: - Write / Erase
 
     @discardableResult
     public nonisolated static func bestEffortRawMetadata(from url: URL) -> RawMetadataDump? {
         try? rawMetadataResult(from: url)
-    }
-
-    @available(*, deprecated, renamed: "bestEffortRawMetadata(from:)")
-    public nonisolated static func rawMetadata(from url: URL) -> RawMetadataDump? {
-        bestEffortRawMetadata(from: url)
     }
 
     public nonisolated static func rawMetadataResult(from url: URL) throws -> RawMetadataDump {
@@ -823,8 +778,5 @@ extension TagLibMetadataManager {
         return lines.joined(separator: "\n")
     }
 
-    @available(*, deprecated, renamed: "bestEffortRawMetadataText(from:)")
-    public nonisolated static func rawMetadataText(from url: URL) -> String? {
-        bestEffortRawMetadataText(from: url)
-    }
+
 }

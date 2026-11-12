@@ -72,7 +72,7 @@ extension TagLibMetadataManager {
         case .artist: metadata.artist
         case .album: metadata.album
         case .albumArtist: metadata.albumArtist
-        case .date, .year: metadata.year
+        case .year: metadata.year
         case .standaloneDate: metadata.date
         case .releaseDate: metadata.releaseDate
         case .originalReleaseDate: metadata.originalReleaseDate
@@ -195,7 +195,7 @@ extension TagLibMetadataManager {
                 shouldPreserve = true
             } else if fieldsHandledByTypedWriters.contains(schema.key) {
                 shouldPreserve = false
-            } else if schema.key == .date || schema.key == .year {
+            } else if schema.key == .year {
                 // YEAR and DATE are independent and are written through their
                 // exact native slots; replaying the engine DATE projection here
                 // would synthesize YEAR from a standalone DATE.
@@ -260,22 +260,6 @@ extension TagLibMetadataManager {
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
-    }
-
-    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
-    public nonisolated static func writeTagMetadata(
-        _ metadata: TagLibAudioMetadata,
-        to url: URL,
-        verification: MetadataWriteVerificationContext = .none,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy
-    ) throws -> MetadataWriteResult {
-        try writeTagMetadata(
-            metadata,
-            to: url,
-            verification: verification,
-            expectedVersion: expectedVersion
-        )
     }
 
     /// Intentionally writes formatted track/disc number text. Unlike an ordinary
@@ -345,7 +329,6 @@ extension TagLibMetadataManager {
                     expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
                     expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
                     expectedDiscNumberText: verifiesExactDiscText ? discNumberText : nil,
-                    expectedExplicitContent: nil,
                     artworkExpectation: .skip,
                     customFieldKeys: []
                 )
@@ -353,25 +336,6 @@ extension TagLibMetadataManager {
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }
-    }
-
-    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
-    @discardableResult
-    public nonisolated static func writeTrackNumberText(
-        _ trackNumberText: String,
-        discNumberText: String?,
-        to url: URL,
-        verifyAfterWrite: Bool = true,
-        failurePolicy: VerificationFailurePolicy,
-        expectedVersion: MetadataFileVersion? = nil
-    ) throws -> MetadataWriteResult {
-        try writeTrackNumberText(
-            trackNumberText,
-            discNumberText: discNumberText,
-            to: url,
-            verifyAfterWrite: verifyAfterWrite,
-            expectedVersion: expectedVersion
-        )
     }
 
     @discardableResult
@@ -432,25 +396,6 @@ extension TagLibMetadataManager {
                 return MetadataWriteResult(warnings: [])
             }
         }
-    }
-
-    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
-    @discardableResult
-    public nonisolated static func writeRawMetadataPropertyMapWithVerification(
-        _ properties: [String: String],
-        to url: URL,
-        mode: RawPropertyMapWriteMode = .replace,
-        verifyAfterWrite: Bool = true,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy
-    ) throws -> MetadataWriteResult {
-        try writeRawMetadataPropertyMapWithVerification(
-            properties,
-            to: url,
-            mode: mode,
-            verifyAfterWrite: verifyAfterWrite,
-            expectedVersion: expectedVersion
-        )
     }
 
     @discardableResult
@@ -516,25 +461,6 @@ extension TagLibMetadataManager {
                 return MetadataWriteResult(warnings: [])
             }
         }
-    }
-
-    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
-    @discardableResult
-    public nonisolated static func writeRawMetadataPropertyMapValuesWithVerification(
-        _ properties: [String: [String]],
-        to url: URL,
-        mode: RawPropertyMapWriteMode = .replace,
-        verifyAfterWrite: Bool = true,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy
-    ) throws -> MetadataWriteResult {
-        try writeRawMetadataPropertyMapValuesWithVerification(
-            properties,
-            to: url,
-            mode: mode,
-            verifyAfterWrite: verifyAfterWrite,
-            expectedVersion: expectedVersion
-        )
     }
 
     nonisolated private static func residualWarningsAfterErase(for url: URL) -> [String] {
@@ -603,16 +529,6 @@ extension TagLibMetadataManager {
         }
     }
 
-    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
-    @discardableResult
-    public nonisolated static func eraseAllMetadataWithVerification(
-        from url: URL,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy
-    ) throws -> MetadataWriteResult {
-        try eraseAllMetadataWithVerification(from: url, expectedVersion: expectedVersion)
-    }
-
     nonisolated private static func eraseAllMetadataInPlaceWithVerification(
         from url: URL
     ) throws -> MetadataWriteResult {
@@ -664,7 +580,7 @@ extension TagLibMetadataManager {
         meta.totalDiscs = 0
         meta.trackNumberText = nil
         meta.discNumberText = nil
-        meta.explicitContent = false
+        meta.explicitAdvisory = .unspecified
         meta.removeArtwork = true
         meta.customFields = nil
 
@@ -680,7 +596,6 @@ extension TagLibMetadataManager {
                     expectedDiscNumber: nil,
                     expectedDiscTotal: nil,
                     expectedDiscNumberText: nil,
-                    expectedExplicitContent: false,
                     artworkExpectation: .absent,
                     customFieldKeys: []
                 )
@@ -873,7 +788,6 @@ extension TagLibMetadataManager {
                 expectedDiscNumber: meta.disc,
                 expectedDiscTotal: meta.discTotal,
                 expectedDiscNumberText: expectedDiscNumberText,
-                expectedExplicitContent: meta.explicitAdvisory == .unspecified ? nil : meta.isExplicit,
                 artworkExpectation: meta.artworkData == nil ? .skip : .present,
                 customFieldKeys: Array(meta.customFields.keys),
                 expectedTextFields: [
@@ -1082,7 +996,7 @@ extension TagLibMetadataManager {
                     continue
                 }
                 guard schema.key != .artwork,
-                      schema.key != .year, schema.key != .date,
+                      schema.key != .year,
                       schema.key != .standaloneDate else { continue }
                 if BasicMetadata.editableFieldKeys.contains(schema.key) {
                     guard let desired = basicProjectionValue(for: schema.key, metadata: meta),
@@ -1112,7 +1026,7 @@ extension TagLibMetadataManager {
                 guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key),
                       BasicMetadata.editableFieldKeys.contains(schema.key),
                       !numericFields.contains(schema.key) else { return nil }
-                let field: MetadataFieldKey = isMP4Family && schema.key == .date ? .releaseDate : schema.key
+                let field = schema.key
                 guard let desired = basicProjectionValue(for: field, metadata: meta),
                       let original = basicProjectionValue(for: field, metadata: current.metadata),
                       desired != original else { return nil }
@@ -1202,33 +1116,6 @@ extension TagLibMetadataManager {
             to: url,
             expectedVersion: snapshot.fileVersion
         )
-    }
-
-    @available(*, deprecated, renamed: "replaceBasicMetadata(_:to:expectedVersion:)")
-    @discardableResult
-    public nonisolated static func writeMetadataWithVerification(
-        _ meta: BasicMetadata,
-        to url: URL,
-        failurePolicy: VerificationFailurePolicy = .throw
-    ) throws -> MetadataWriteResult {
-        try replaceBasicMetadata(meta, to: url)
-    }
-
-    /// Write `BasicMetadata` back to the file using TagLib.
-    ///
-    /// Notes:
-    /// - This is intended for formats supported by our TagLib bridge's write paths.
-    /// - Fields that are empty strings are written as `nil` (i.e. removed/cleared).
-    /// - `publisher` is mapped to TagLib's `label` field.
-    @discardableResult
-    @available(*, deprecated, message: "This replaces the complete Basic projection. Use replaceBasicMetadata(_:to:expectedVersion:) or updateBasicMetadata(at:_:).")
-    public nonisolated static func writeMetadata(
-        _ meta: BasicMetadata,
-        to url: URL,
-        expectedVersion: MetadataFileVersion? = nil
-    ) throws -> Bool {
-        _ = try replaceBasicMetadata(meta, to: url, expectedVersion: expectedVersion)
-        return true
     }
 
     @discardableResult

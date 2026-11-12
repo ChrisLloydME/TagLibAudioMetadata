@@ -208,10 +208,8 @@ var tvSeason: Int
 var tvShow: String
 var tvShowSort: String
 
-/// Lossy compatibility convenience. Setting `false` records a clean advisory;
-/// use `explicitAdvisory` to distinguish absence, not-explicit, and clean.
+/// Read-only projection. Mutations use the four-state explicitAdvisory.
 var isExplicit: Bool
-
 var duration: Double
 var bitrate: Int
 var sampleRate: Double
@@ -308,7 +306,7 @@ case explicit
 
 ## `FormatCapability`
 
-Source: [FormatCapability.swift:32](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L32)
+Source: [FormatCapability.swift:30](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L30)
 
 ```swift
 struct FormatCapability: Hashable, Sendable, Identifiable
@@ -380,7 +378,7 @@ func supportLevel(
 ) -> FormatSupportLevel
 ```
 
-Source: [FormatCapability.swift:71](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L71)
+Source: [FormatCapability.swift:69](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L69)
 
 #### `readSupport(for:)`
 
@@ -390,7 +388,7 @@ func readSupport(
 ) -> FormatSupportLevel
 ```
 
-Source: [FormatCapability.swift:75](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L75)
+Source: [FormatCapability.swift:73](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L73)
 
 #### `writeSupport(for:)`
 
@@ -400,7 +398,7 @@ func writeSupport(
 ) -> FormatSupportLevel
 ```
 
-Source: [FormatCapability.swift:85](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L85)
+Source: [FormatCapability.swift:83](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L83)
 
 ## `FormatSupportLevel`
 
@@ -418,8 +416,6 @@ enum FormatSupportLevel: String, Hashable, Sendable
 /// The repository includes a fixture and regression tests for this extension.
 /// This does not assert that all metadata surfaces or files are verified.
 case fixtureCovered
-@available(*, deprecated, message: "Use fixtureCovered. A configured support label is not empirical verification.")
-case verified
 /// Available for evaluation, but container-specific field behavior is incomplete.
 case experimental
 /// TagLib exposes the operation, but this package has no round-trip fixture for it.
@@ -432,7 +428,7 @@ case unsupported
 
 ## `MetadataArtworkPatch`
 
-Source: [MetadataSnapshotPatch.swift:216](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L216)
+Source: [MetadataSnapshotPatch.swift:213](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L213)
 
 ```swift
 enum MetadataArtworkPatch: Hashable, Sendable
@@ -582,7 +578,6 @@ case title
 case artist
 case album
 case albumArtist
-case date
 case year
 case standaloneDate
 case releaseDate
@@ -713,7 +708,7 @@ init(
 
 ## `MetadataFieldRegistry`
 
-Source: [MetadataFieldSchema.swift:408](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L408)
+Source: [MetadataFieldSchema.swift:402](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L402)
 
 ```swift
 enum MetadataFieldRegistry
@@ -726,8 +721,7 @@ static let allSchemas: [MetadataFieldSchema]
 
 static let schemasByKey: [MetadataFieldKey: MetadataFieldSchema]
 
-/// One preferred semantic owner for each semantic key. Legacy API aliases
-/// such as `.date` remain addressable but are excluded here.
+/// One semantic owner for each semantic key; there are no YEAR aliases.
 static let canonicalSchemas: [MetadataFieldSchema]
 
 static let schemasBySemanticKey: [String: MetadataFieldSchema]
@@ -738,12 +732,10 @@ static let multiValuePropertyMapKeys: Set<String>
 
 static let peoplePropertyMapKeys: Set<String>
 
-/// Property-map keys with intentionally composite semantic ownership.
-/// YEAR/DATE are owned by both the canonical `.year` identity and the
-/// legacy `.date` spelling; `.year` is the explicit preferred owner.
+/// No public semantic fields currently share a PropertyMap key.
+/// Engine DATE projects YEAR; independent DATE uses STANDALONEDATE.
 static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>]
 
-/// The explicit owner used by scalar lookup when a storage key is shared.
 static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey]
 
 static let propertyMapKeyOwners: [String: Set<MetadataFieldKey>]
@@ -762,7 +754,7 @@ func schema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:574](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L574)
+Source: [MetadataFieldSchema.swift:557](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L557)
 
 #### `canonicalSchema(forSemanticKey:)`
 
@@ -772,7 +764,7 @@ func canonicalSchema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:578](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L578)
+Source: [MetadataFieldSchema.swift:561](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L561)
 
 #### `schema(forPropertyMapKey:)`
 
@@ -782,7 +774,7 @@ func schema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:582](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L582)
+Source: [MetadataFieldSchema.swift:565](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L565)
 
 #### `schemas(withMappingsFor:)`
 
@@ -792,7 +784,7 @@ func schemas(
 ) -> [MetadataFieldSchema]
 ```
 
-Source: [MetadataFieldSchema.swift:608](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L608)
+Source: [MetadataFieldSchema.swift:591](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L591)
 
 #### `schemas(storableIn:)`
 
@@ -802,7 +794,7 @@ func schemas(
 ) -> [MetadataFieldSchema]
 ```
 
-Source: [MetadataFieldSchema.swift:614](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L614)
+Source: [MetadataFieldSchema.swift:597](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L597)
 
 #### `schema(_:hasMappingFor:)`
 
@@ -813,7 +805,7 @@ func schema(
 ) -> Bool
 ```
 
-Source: [MetadataFieldSchema.swift:629](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L629)
+Source: [MetadataFieldSchema.swift:612](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L612)
 
 #### `shouldDisplayRawPropertyAsMultiValue(_:)`
 
@@ -823,7 +815,7 @@ func shouldDisplayRawPropertyAsMultiValue(
 ) -> Bool
 ```
 
-Source: [MetadataFieldSchema.swift:634](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L634)
+Source: [MetadataFieldSchema.swift:617](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L617)
 
 #### `normalizePropertyMapKey(_:)`
 
@@ -833,11 +825,11 @@ func normalizePropertyMapKey(
 ) -> String
 ```
 
-Source: [MetadataFieldSchema.swift:643](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L643)
+Source: [MetadataFieldSchema.swift:626](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L626)
 
 ## `MetadataFieldSchema`
 
-Source: [MetadataFieldSchema.swift:195](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L195)
+Source: [MetadataFieldSchema.swift:194](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L194)
 
 ```swift
 struct MetadataFieldSchema: Identifiable, Hashable, Sendable
@@ -864,10 +856,6 @@ var nativeTargets: [MetadataNativeTarget]
 
 /// Exactly one schema owns a semantic key for canonical enumeration.
 var isCanonicalSemanticOwner: Bool
-
-/// The legacy `.date` spelling addresses the YEAR slot; it is not a
-/// standalone DATE identity.
-var isLegacyYearAlias: Bool
 var isMultiValue: Bool
 var isPeopleField: Bool
 var isRoleQualified: Bool
@@ -904,7 +892,6 @@ init(
     propertyMapKeys: [String],
     nativeTargets: [MetadataNativeTarget] = [],
     isCanonicalSemanticOwner: Bool = true,
-    isLegacyYearAlias: Bool = false,
     isMultiValue: Bool = false,
     isPeopleField: Bool = false,
     isRoleQualified: Bool = false,
@@ -922,7 +909,7 @@ func targets(
 ) -> [MetadataNativeTarget]
 ```
 
-Source: [MetadataFieldSchema.swift:303](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L303)
+Source: [MetadataFieldSchema.swift:297](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L297)
 
 #### `writeTarget(for:)`
 
@@ -936,7 +923,7 @@ func writeTarget(
 > numeric pair intentionally share a native slot; their semantic keys
 > differ and the patch planner resolves both together.
 
-Source: [MetadataFieldSchema.swift:310](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L310)
+Source: [MetadataFieldSchema.swift:304](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L304)
 
 #### `capability(for:)`
 
@@ -946,7 +933,7 @@ func capability(
 ) -> MetadataMappingCapability
 ```
 
-Source: [MetadataFieldSchema.swift:314](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L314)
+Source: [MetadataFieldSchema.swift:308](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L308)
 
 #### `capability(for:)`
 
@@ -956,7 +943,7 @@ func capability(
 ) -> MetadataMappingCapability
 ```
 
-Source: [MetadataFieldSchema.swift:323](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L323)
+Source: [MetadataFieldSchema.swift:317](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L317)
 
 ## `MetadataFieldStorageKind`
 
@@ -1448,7 +1435,7 @@ case replace(number: Int?, total: Int?)
 
 ## `MetadataNumberTextPatch`
 
-Source: [MetadataSnapshotPatch.swift:225](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L225)
+Source: [MetadataSnapshotPatch.swift:222](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L222)
 
 ```swift
 struct MetadataNumberTextPatch: Hashable, Sendable
@@ -1506,7 +1493,7 @@ init(
 
 ## `MetadataPatch`
 
-Source: [MetadataSnapshotPatch.swift:241](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L241)
+Source: [MetadataSnapshotPatch.swift:238](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L238)
 
 ```swift
 struct MetadataPatch: Hashable, Sendable
@@ -1565,7 +1552,6 @@ case conflictingNumberRepresentations
 case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
 case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
 case ambiguousNumberRecovery(field: String, identities: [String])
-case conflictingYearRepresentations
 ```
 
 ### Properties
@@ -1773,7 +1759,7 @@ Source: [MetadataMapping.swift:140](../../Sources/TagLibAudioMetadata/MetadataMa
 
 ## `MetadataValidationError`
 
-Source: [TagLibMetadataModels.swift:431](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L431)
+Source: [TagLibMetadataModels.swift:426](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L426)
 
 ```swift
 enum MetadataValidationError: Error, Equatable, Sendable, LocalizedError
@@ -1845,7 +1831,7 @@ case none
 
 ## `RIFFMetadataWritePolicy`
 
-Source: [TagLibMetadataModels.swift:424](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L424)
+Source: [TagLibMetadataModels.swift:419](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L419)
 
 ```swift
 enum RIFFMetadataWritePolicy: String, Hashable, Sendable
@@ -1861,7 +1847,7 @@ case syncBasicFieldsToInfo
 
 ## `RawID3v2FrameEntry`
 
-Source: [TagLibMetadataModels.swift:407](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L407)
+Source: [TagLibMetadataModels.swift:402](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L402)
 
 ```swift
 struct RawID3v2FrameEntry: Identifiable, Hashable, Sendable
@@ -1891,7 +1877,7 @@ init(
 
 ## `RawMetadataDump`
 
-Source: [TagLibMetadataModels.swift:371](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L371)
+Source: [TagLibMetadataModels.swift:366](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L366)
 
 ```swift
 struct RawMetadataDump: Hashable, Sendable
@@ -1970,7 +1956,7 @@ var errorDescription: String?
 
 ## `RawPropertyEntry`
 
-Source: [TagLibMetadataModels.swift:383](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L383)
+Source: [TagLibMetadataModels.swift:378](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L378)
 
 ```swift
 struct RawPropertyEntry: Identifiable, Hashable, Sendable
@@ -2051,7 +2037,7 @@ Source: [TagLibMetadataModels.swift:18](../../Sources/TagLibAudioMetadata/TagLib
 
 ## `StructuredASFAttribute`
 
-Source: [TagLibMetadataModels.swift:598](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L598)
+Source: [TagLibMetadataModels.swift:593](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L593)
 
 ```swift
 struct StructuredASFAttribute: Identifiable, Hashable, Sendable
@@ -2091,7 +2077,7 @@ init(
 
 ## `StructuredArtwork`
 
-Source: [TagLibMetadataModels.swift:623](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L623)
+Source: [TagLibMetadataModels.swift:618](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L618)
 
 ```swift
 struct StructuredArtwork: Identifiable, Hashable, Sendable
@@ -2125,7 +2111,7 @@ init(
 
 ## `StructuredComment`
 
-Source: [TagLibMetadataModels.swift:655](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L655)
+Source: [TagLibMetadataModels.swift:650](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L650)
 
 ```swift
 struct StructuredComment: Identifiable, Hashable, Sendable
@@ -2153,7 +2139,7 @@ init(
 
 ## `StructuredID3v2Frame`
 
-Source: [TagLibMetadataModels.swift:482](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L482)
+Source: [TagLibMetadataModels.swift:477](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L477)
 
 ```swift
 struct StructuredID3v2Frame: Identifiable, Hashable, Sendable
@@ -2228,7 +2214,7 @@ init(
 
 ## `StructuredLyrics`
 
-Source: [TagLibMetadataModels.swift:642](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L642)
+Source: [TagLibMetadataModels.swift:637](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L637)
 
 ```swift
 struct StructuredLyrics: Identifiable, Hashable, Sendable
@@ -2256,7 +2242,7 @@ init(
 
 ## `StructuredMP4Atom`
 
-Source: [TagLibMetadataModels.swift:564](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L564)
+Source: [TagLibMetadataModels.swift:559](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L559)
 
 ```swift
 struct StructuredMP4Atom: Identifiable, Hashable, Sendable
@@ -2297,7 +2283,7 @@ init(
 
 ## `StructuredMetadata`
 
-Source: [TagLibMetadataModels.swift:668](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L668)
+Source: [TagLibMetadataModels.swift:663](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L663)
 
 ```swift
 struct StructuredMetadata: Hashable, Sendable
@@ -2349,7 +2335,7 @@ init(
 
 ## `StructuredMetadataReplaceableCollection`
 
-Source: [TagLibMetadataModels.swift:465](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L465)
+Source: [TagLibMetadataModels.swift:460](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L460)
 
 ```swift
 enum StructuredMetadataReplaceableCollection: String, Hashable, Sendable
@@ -2384,7 +2370,7 @@ case container
 
 ## `StructuredPropertyEntry`
 
-Source: [TagLibMetadataModels.swift:471](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L471)
+Source: [TagLibMetadataModels.swift:466](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L466)
 
 ```swift
 struct StructuredPropertyEntry: Identifiable, Hashable, Sendable
@@ -2410,7 +2396,7 @@ init(
 
 ## `TagLibManagerError`
 
-Source: [TagLibMetadataModels.swift:718](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L718)
+Source: [TagLibMetadataModels.swift:713](../../Sources/TagLibAudioMetadata/TagLibMetadataModels.swift#L713)
 
 ```swift
 enum TagLibManagerError: Error, Sendable, LocalizedError
@@ -2424,8 +2410,6 @@ case fileChanged
 case hardLinkedFile
 case unsupportedFormat
 case unsupportedWritePolicy(String)
-@available(*, deprecated, message: "Use failedToReadWithUnderlying(_:) for throwing read failures.")
-case failedToRead
 case failedToReadWithUnderlying(String)
 case verificationFailed([String])
 /// Compatibility case for callers constructing a message-only failure.

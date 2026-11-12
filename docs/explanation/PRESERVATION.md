@@ -56,7 +56,7 @@ A Basic read retains raw cardinality and provenance for fields that Basic cannot
 
 The replacement path calls `restoreUneditedBasicNativeValues` before verification. It does not replay a whole engine `PropertyMap`; that projection merges independent YEAR/DATE owners. The helper handles the fields whose scalar Basic projection is unchanged:
 
-- **MP4:** all editable Basic fields except the legacy `.date` spelling and track/disc pairs. It restores the exact canonical atom, compatibility aliases, and any original owner spelling; an alias absent from the original is explicitly removed instead of being created by the edit.
+- **MP4:** all editable Basic fields except track/disc pairs. It restores the exact canonical atom, compatibility aliases, and any original owner spelling; an alias absent from the original is explicitly removed instead of being created by the edit.
 - **Xiph/APE:** the four independent date fields, using the target native key and the `ORIGINAL YEAR` alias where present. Existing arrays, malformed text, duplicates, whitespace, and absence are retained; no present scalar projection causes a missing owner to be synthesized.
 - **ID3-backed formats:** the four independent date fields, restoring existing frames and explicitly checking that targets absent before the edit stay absent.
 
@@ -76,7 +76,7 @@ There is no Year/date reconciliation:
 - changing `BasicMetadata.date` writes only the independent standalone DATE slot;
 - changing `BasicMetadata.releaseDate` writes only RELEASEDATE;
 - changing `BasicMetadata.originalReleaseDate` writes only ORIGINALDATE;
-- the typed `MetadataFieldKey.date` spelling is a separate legacy YEAR alias; it is not the same edit intent as `BasicMetadata.date`;
+- typed `.year` and `.standaloneDate` are distinct; the ambiguous typed `.date` YEAR alias has been removed;
 - clearing one field never clears another;
 - `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid simultaneously;
 - complete YEAR text such as `2021-07-15` round-trips without truncation.
@@ -98,7 +98,7 @@ There is no Year/date reconciliation:
 - `.artwork`, `.custom`, and `.explicitContent` must use their dedicated patch properties.
 - Role-qualified fields such as `.performer`, `.involvedPeople`, and `.musicianCredits` are rejected; use `RawMetadataPatch` or `StructuredMetadata`.
 - Known keys, aliases, case variants, and typed/custom collisions are rejected in `customFields`.
-- A patch cannot mix typed track/disc fields with `numberText`; `.date` and `.year` cannot both be supplied.
+- A patch cannot mix typed track/disc fields with `numberText`.
 - Empty text and value arrays are rejected after trimming.
 - A capability with an explicit writable-field allowlist is checked before staging. Raw APIs are not restricted by that high-level preflight.
 - Concrete ID3v2.3 date fields are rejected before staging, regardless of the requested value.
@@ -121,7 +121,7 @@ Comment and lyric routing depends on the container. On ID3-backed formats, typed
 
 ### Dates
 
-- `.year` (canonical) and `.date` (legacy spelling, mutually exclusive) own the YEAR slot.
+- `.year` owns the YEAR slot.
 - `.standaloneDate` owns the independent DATE slot.
 - `.releaseDate` owns RELEASEDATE.
 - `.originalReleaseDate` owns ORIGINALDATE.
@@ -223,7 +223,7 @@ Verified facade APIs read the staged file back before commit and throw `TagLibMa
 Additional rules:
 
 - ASF native-field verification treats a missing attribute as absent even when the engine still projects a similarly named value from a different owner. Artist does not fall back to independent ARTISTS. ASF custom fields are verified against the native attribute collection, not only the visible PropertyMap.
-- Verification mismatches always abort the transaction. `VerificationFailurePolicy.warn` is deprecated and has no bypass effect.
+- Verification mismatches always abort the transaction. The obsolete `VerificationFailurePolicy` API has been removed.
 - `MetadataWriteResult.warnings` contains residual container advisories after a successful verification. Mismatch warnings are thrown, not returned. An empty warnings array describes only the checks requested by that API.
 - `.present` artwork verification is presence-only; `expectedArtworkData` and `expectedArtworkMIMEType` add exact checks.
 - Basic and typed number checks accept numeric-equivalent formatting. Exact raw map verification compares strings and can reject normalized padding.

@@ -119,7 +119,6 @@ struct SemanticLifecycleMatrixTests {
     // Specialized API/codec decisions are explicit, not silently omitted.
     static let specialized: [MetadataFieldKey: String] = [
         .trackerName: "No MP4 target; format-specific tracker metadata remains outside MP4 lifecycle",
-        .date: "Deprecated YEAR alias; MappingContractCoverageTests checks alias collision",
         .artwork: "Separate artwork patch; CleanRoomArtworkTests",
         .custom: "Separate customFields patch; RawMetadataPatchTests",
         .performer: "Role-qualified typed rejection; raw/structured API required",

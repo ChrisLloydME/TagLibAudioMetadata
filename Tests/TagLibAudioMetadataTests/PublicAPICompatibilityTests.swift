@@ -5,6 +5,7 @@ import CTagLibBridge
 
 final class PublicAPICompatibilityTests: XCTestCase {
     func testObjectiveCBridgeClassSelectorsRemainAvailable() {
+        XCTAssertFalse(TagLibAudioMetadata().responds(to: NSSelectorFromString("setExplicitContent:")))
         let selectors = [
             "extractMetadataFromURL:error:",
             "metadataProjectionsForURL:error:",
@@ -40,12 +41,12 @@ final class PublicAPICompatibilityTests: XCTestCase {
         let verification: TagLibMetadataManager.MetadataWriteVerificationContext = .none
         let result = TagLibMetadataManager.MetadataWriteResult(warnings: [])
         let mode: TagLibMetadataManager.RawPropertyMapWriteMode = .merge
-        let artwork: TagLibMetadataManager.ArtworkVerificationExpectation = .unchanged
+        let artwork: TagLibMetadataManager.ArtworkVerificationExpectation = .skip
 
         XCTAssertEqual(verification, .none)
         XCTAssertTrue(result.warnings.isEmpty)
         if case .merge = mode {} else { XCTFail("Expected merge mode") }
-        if case .unchanged = artwork {} else { XCTFail("Expected unchanged artwork expectation") }
+        if case .skip = artwork {} else { XCTFail("Expected unchanged artwork expectation") }
     }
 
     func testBestEffortReadNamesExplicitlyCollapseFailures() throws {

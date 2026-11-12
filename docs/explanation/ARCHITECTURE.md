@@ -197,6 +197,6 @@ The single SwiftPM test target is organized physically by layer:
 - `Concurrency/` contains cross-format and M4A stress coverage.
 - `ModelSemantics/` covers pure value-model contracts.
 - `Performance/` contains opt-in, non-gating throughput experiments.
-- Root-level tests cover public Objective-C selectors, Swift nested types, deprecated function references, and console-diagnostics hygiene.
+- Root-level tests cover public Objective-C selectors, Swift nested types, current version-aware function references, and console-diagnostics hygiene.
 
 `scripts/validate-tests.sh` runs the complete Debug or Release suite with strict warnings and writes evidence under `.build/test-evidence/`; `scripts/summarize-test-run.py` fails closed on missing framework summaries, unexpected skips, missing named matrices/oracles, case-count shrinkage, or named failures. `scripts/tests/` holds the gate-policy regressions. This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](../operations/TESTING.md) and [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md).

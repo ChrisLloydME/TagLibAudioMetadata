@@ -66,7 +66,7 @@ PASS = (
     'Test id3EncoderSettingsMustNotPopulateEncodedBy() passed after 1 second.\n'
     'Test id3EncodedByRemovalWithEncoderSettingsMustSucceed() passed after 1 second.\n'
     'Test asfEncoderOwnersRemainIndependent() passed after 1 second.\n'
-    'Test legacyDateAliasWritesOnlyTheYearSlot() passed after 1 second.\n'
+    'Test explicitYearWritesOnlyTheYearSlot() passed after 1 second.\n'
     'Test basicContentGroupGroupingAndWorkStayIndependent() passed after 1 second.\n'
     'Test asfUnrelatedBasicEditPreservesNativeEncodingSettings() passed after 1 second.\n'
     'Test asfUnrelatedSemanticPatchPreservesNativeEncodingSettings() passed after 1 second.\n'

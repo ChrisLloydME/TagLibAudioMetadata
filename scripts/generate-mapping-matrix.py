@@ -207,9 +207,9 @@ def render() -> str:
     lines.extend(
         [
             "",
-            "`.date` is a legacy spelling of the `YEAR` profile and `.year` is the ",
-            "canonical YEAR identity; both map to the same native targets. The ",
-            "catalog itself stores one `YEAR` profile.",
+            "`.year` is the sole typed YEAR identity; `.standaloneDate` is independent DATE.",
+            "The ambiguous typed `.date` YEAR alias has been removed. The catalog",
+            "stores one profile per canonical semantic owner.",
             "",
             render_matrix(profiles),
             "",

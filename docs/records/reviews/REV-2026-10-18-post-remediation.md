@@ -28,7 +28,7 @@ Source references:
 - **C**: [capability API](../../../Sources/TagLibAudioMetadata/FormatCapability.swift), [native registry](../../../Sources/CTagLibBridge/TLFormatRegistry.mm), and [schema](../../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift).
 - **I**: [ReviewMetadataIntegrityTests](../../../Tests/TagLibAudioMetadataTests/Integration/ReviewMetadataIntegrityTests.swift), 15 new tests.
 - **J**: [ReviewNativeContainerTests](../../../Tests/TagLibAudioMetadataTests/Integration/ReviewNativeContainerTests.swift), 4 new tests.
-- **K**: [ReviewSourceCompatibilityTests](../../../Tests/TagLibAudioMetadataTests/ReviewSourceCompatibilityTests.swift), 1 new compile test covering 10 function references.
+- **K**: [ReviewSourceCompatibilityTests](https://github.com/ChrisLloydME/TagLibAudioMetadata/blob/0.7.3/Tests/TagLibAudioMetadataTests/ReviewSourceCompatibilityTests.swift), 1 new compile test covering 10 function references.
 - **R**: [AuditRemediationRegressionTests](../../../Tests/TagLibAudioMetadataTests/Integration/AuditRemediationRegressionTests.swift), the previous agent’s 16 tests, inspected and strengthened.
 - **F**: [FixtureMetadataRoundTripTests](../../../Tests/TagLibAudioMetadataTests/Integration/FixtureMetadataRoundTripTests.swift), including the corrected legacy-warning test.
 - **Q**: [WAVInfoProjectionTests](../../../Tests/TagLibAudioMetadataTests/Integration/WAVInfoProjectionTests.swift), including independently seeded INAM/INFO preservation checks.
@@ -167,7 +167,7 @@ Severity reflects the observed failure before the review repair. Confidence is c
 
 ### IV-11 — Defaulted version parameters break function references (Medium; confirmed; regression)
 
-**Location/API:** new version-aware facade overloads. Default arguments preserve many calls but do not preserve function types. Ten representative old method references failed to compile. **Repair:** add exact-arity forwarding overloads in [TagLibMetadataManager+Compatibility.swift](../../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Compatibility.swift), forwarding to version-aware methods with nil tokens. **Evidence:** K compiles all ten old references plus deprecated warn/unchanged; version-aware tests still pass. **Status:** repaired in `d373341`. This preserves representative source use, not ABI compatibility across separately compiled modules.
+**Location/API:** new version-aware facade overloads. Default arguments preserve many calls but do not preserve function types. Ten representative old method references failed to compile. **Repair:** add exact-arity forwarding overloads in [TagLibMetadataManager+Compatibility.swift](https://github.com/ChrisLloydME/TagLibAudioMetadata/blob/0.7.3/Sources/TagLibAudioMetadata/TagLibMetadataManager%2BCompatibility.swift), forwarding to version-aware methods with nil tokens. **Evidence:** K compiles all ten old references plus deprecated warn/unchanged; version-aware tests still pass. **Status:** repaired in `d373341`. This preserves representative source use, not ABI compatibility across separately compiled modules.
 
 ### IV-12 — Intentional replacement leaves stale aliases (High; confirmed; incomplete alias repair)
 

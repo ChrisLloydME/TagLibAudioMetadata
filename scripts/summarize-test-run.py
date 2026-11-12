@@ -104,7 +104,7 @@ required_tests = {
     'id3EncoderSettingsMustNotPopulateEncodedBy': 1,
     'id3EncodedByRemovalWithEncoderSettingsMustSucceed': 1,
     'asfEncoderOwnersRemainIndependent': 1,
-    'legacyDateAliasWritesOnlyTheYearSlot': 1,
+    'explicitYearWritesOnlyTheYearSlot': 1,
     'basicContentGroupGroupingAndWorkStayIndependent': 1,
     'asfUnrelatedBasicEditPreservesNativeEncodingSettings': 1,
     'asfUnrelatedSemanticPatchPreservesNativeEncodingSettings': 1,

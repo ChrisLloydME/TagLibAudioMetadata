@@ -90,7 +90,6 @@ public enum MetadataFieldKey: String, CaseIterable, Hashable, Sendable {
     case artist
     case album
     case albumArtist
-    case date
     case year
     case standaloneDate
     case releaseDate
@@ -207,9 +206,6 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     public var nativeTargets: [MetadataNativeTarget]
     /// Exactly one schema owns a semantic key for canonical enumeration.
     public var isCanonicalSemanticOwner: Bool
-    /// The legacy `.date` spelling addresses the YEAR slot; it is not a
-    /// standalone DATE identity.
-    public var isLegacyYearAlias: Bool
     public var isMultiValue: Bool
     public var isPeopleField: Bool
     public var isRoleQualified: Bool
@@ -276,7 +272,6 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         propertyMapKeys: [String],
         nativeTargets: [MetadataNativeTarget] = [],
         isCanonicalSemanticOwner: Bool = true,
-        isLegacyYearAlias: Bool = false,
         isMultiValue: Bool = false,
         isPeopleField: Bool = false,
         isRoleQualified: Bool = false,
@@ -291,7 +286,6 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         self.propertyMapKeys = propertyMapKeys
         self.nativeTargets = nativeTargets
         self.isCanonicalSemanticOwner = isCanonicalSemanticOwner
-        self.isLegacyYearAlias = isLegacyYearAlias
         self.isMultiValue = isMultiValue
         self.isPeopleField = isPeopleField
         self.isRoleQualified = isRoleQualified
@@ -407,20 +401,18 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
 
 public enum MetadataFieldRegistry {
     public nonisolated static let allSchemas: [MetadataFieldSchema] = [
-        schema(.title, "Title", .basic, ["TITLE"], id3: ["TIT2"], mp4: ["\u{00A9}nam"]),
-        schema(.artist, "Artist", .people, ["ARTIST"], id3: ["TPE1"], mp4: ["\u{00A9}ART"], multi: true, people: true),
-        schema(.album, "Album", .basic, ["ALBUM"], id3: ["TALB"], mp4: ["\u{00A9}alb"]),
-        schema(.albumArtist, "Album Artist", .people, ["ALBUMARTIST", "ALBUM ARTIST"], id3: ["TPE2"], mp4: ["aART"], multi: true, people: true),
-        schema(.date, "Recording Date (legacy YEAR spelling)", .dates, ["DATE", "YEAR"], semantic: "YEAR",
-               id3: ["TDRC", "TYER"], legacyYearAlias: true),
+        schema(.title, "Title", .basic, ["TITLE"]),
+        schema(.artist, "Artist", .people, ["ARTIST"], multi: true, people: true),
+        schema(.album, "Album", .basic, ["ALBUM"]),
+        schema(.albumArtist, "Album Artist", .people, ["ALBUMARTIST", "ALBUM ARTIST"], multi: true, people: true),
         schema(.year, "Year", .dates, ["YEAR", "DATE"], semantic: "YEAR"),
         schema(.standaloneDate, "Date", .dates, ["STANDALONEDATE"], semantic: "DATE"),
-        schema(.releaseDate, "Release Date", .dates, ["RELEASEDATE"], id3: ["TDRL"], mp4: ["\u{00A9}day"]),
-        schema(.originalReleaseDate, "Original Release Date", .dates, ["ORIGINALDATE", "ORIGINAL YEAR"], id3: ["TDOR"], mp4Freeform: ["ORIGINAL YEAR"]),
-        schema(.track, "Track Number", .numbering, ["TRACKNUMBER", "TRACK"], id3: ["TRCK"], mp4: ["trkn"]),
-        schema(.trackTotal, "Track Total", .numbering, ["TRACKTOTAL", "TOTALTRACKS"], id3: ["TRCK"], mp4: ["trkn"]),
-        schema(.disc, "Disc Number", .numbering, ["DISCNUMBER", "DISC"], id3: ["TPOS"], mp4: ["disk"]),
-        schema(.discTotal, "Disc Total", .numbering, ["DISCTOTAL", "TOTALDISCS"], id3: ["TPOS"], mp4: ["disk"]),
+        schema(.releaseDate, "Release Date", .dates, ["RELEASEDATE"]),
+        schema(.originalReleaseDate, "Original Release Date", .dates, ["ORIGINALDATE", "ORIGINAL YEAR"]),
+        schema(.track, "Track Number", .numbering, ["TRACKNUMBER", "TRACK"]),
+        schema(.trackTotal, "Track Total", .numbering, ["TRACKTOTAL", "TOTALTRACKS"]),
+        schema(.disc, "Disc Number", .numbering, ["DISCNUMBER", "DISC"]),
+        schema(.discTotal, "Disc Total", .numbering, ["DISCTOTAL", "TOTALDISCS"]),
         MetadataFieldSchema(
             key: .artwork,
             displayName: "Artwork",
@@ -430,75 +422,75 @@ public enum MetadataFieldRegistry {
             nativeTargets: MetadataMappingCatalog.profile(forSemanticKey: "PICTURE")?.targets ?? [],
             isArtworkField: true
         ),
-        schema(.lyrics, "Lyrics", .lyricsAndComments, ["LYRICS"], id3: ["USLT"], mp4: ["\u{00A9}lyr"]),
-        schema(.comment, "Comment", .lyricsAndComments, ["COMMENT"], id3: ["COMM"], mp4: ["\u{00A9}cmt"]),
-        schema(.genre, "Genre", .basic, ["GENRE"], id3: ["TCON"], mp4: ["\u{00A9}gen", "gnre"], multi: true),
-        schema(.composer, "Composer", .people, ["COMPOSER"], id3: ["TCOM"], mp4: ["\u{00A9}wrt"], multi: true, people: true),
-        schema(.conductor, "Conductor", .people, ["CONDUCTOR"], id3: ["TPE3"], mp4Freeform: ["CONDUCTOR"], multi: true, people: true),
-        schema(.remixer, "Remixer", .people, ["REMIXER"], id3: ["TPE4"], mp4Freeform: ["REMIXER"], multi: true, people: true),
-        schema(.performer, "Performer", .peopleRoles, ["PERFORMER"], id3: ["TMCL"], mp4Freeform: ["PERFORMER"], multi: true, people: true, role: true),
-        schema(.producer, "Producer", .people, ["PRODUCER"], id3User: ["PRODUCER"], mp4Freeform: ["PRODUCER"], multi: true, people: true),
-        schema(.engineer, "Engineer", .people, ["ENGINEER"], id3User: ["ENGINEER"], mp4Freeform: ["ENGINEER"], multi: true, people: true),
-        schema(.lyricist, "Lyricist", .people, ["LYRICIST"], id3: ["TEXT"], mp4Freeform: ["LYRICIST"], multi: true, people: true),
-        schema(.involvedPeople, "Involved People", .peopleRoles, ["INVOLVEDPEOPLE"], id3: ["TIPL"], mp4Freeform: ["INVOLVEDPEOPLE"], multi: true, people: true, role: true),
-        schema(.musicianCredits, "Musician Credits", .peopleRoles, ["MUSICIANCREDITS"], id3: ["TMCL"], mp4Freeform: ["MUSICIANCREDITS"], multi: true, people: true, role: true),
-        schema(.publisher, "Publisher", .release, ["LABEL", "PUBLISHER"], id3: ["TPUB"], mp4Freeform: ["LABEL"]),
-        schema(.copyright, "Copyright", .release, ["COPYRIGHT"], id3: ["TCOP"], mp4: ["cprt"]),
-        schema(.encodedBy, "Encoded By", .technical, ["ENCODEDBY"], id3: ["TENC"], mp4: ["\u{00A9}enc"]),
-        schema(.encoderSettings, "Encoder Settings", .technical, ["ENCODING", "ENCODERSETTINGS"], id3: ["TSSE"], mp4: ["\u{00A9}too"]),
-        schema(.isrc, "ISRC", .identifiers, ["ISRC"], id3: ["TSRC"], mp4Freeform: ["ISRC"]),
-        schema(.barcode, "Barcode", .identifiers, ["BARCODE", "UPC", "EAN"], id3User: ["BARCODE"], mp4Freeform: ["BARCODE"]),
-        schema(.catalogNumber, "Catalog Number", .release, ["CATALOGNUMBER", "CATALOG NUMBER", "CATALOG"], id3User: ["CATALOGNUMBER"], mp4Freeform: ["CATALOGNUMBER"]),
-        schema(.asin, "ASIN", .identifiers, ["ASIN"], id3User: ["ASIN"], mp4Freeform: ["ASIN"]),
-        schema(.releaseType, "Release Type", .release, ["RELEASETYPE", "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ ALBUM TYPE"], id3User: ["RELEASETYPE"], mp4Freeform: ["RELEASETYPE", "MusicBrainz Album Type"]),
-        schema(.releaseStatus, "Release Status", .release, ["RELEASESTATUS", "MUSICBRAINZ_ALBUMSTATUS", "MUSICBRAINZ ALBUM STATUS"], id3User: ["RELEASESTATUS"], mp4Freeform: ["RELEASESTATUS", "MusicBrainz Album Status"]),
-        schema(.releaseCountry, "Release Country", .release, ["RELEASECOUNTRY", "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "MUSICBRAINZ ALBUM RELEASE COUNTRY"], id3User: ["RELEASECOUNTRY"], mp4Freeform: ["MusicBrainz Album Release Country"]),
-        schema(.mediaType, "Media Type", .release, ["MEDIATYPE", "MEDIA", "MEDIA TYPE"], id3: ["TMED"], mp4Freeform: ["MEDIATYPE"]),
-        schema(.work, "Work", .basic, ["WORK"], id3User: ["WORK"], mp4Freeform: ["WORK"]),
-        schema(.movement, "Movement", .basic, ["MOVEMENT", "MOVEMENTNAME"], id3: ["MVNM"], mp4Freeform: ["MOVEMENT"]),
-        schema(.movementNumber, "Movement Number", .numbering, ["MOVEMENTNUMBER"], id3: ["MVIN"], mp4Freeform: ["MOVEMENTNUMBER"]),
-        schema(.movementCount, "Movement Count", .numbering, ["MOVEMENTCOUNT"], id3: ["MVIN"], mp4Freeform: ["MOVEMENTCOUNT"]),
-        schema(.discSubtitle, "Disc Subtitle", .basic, ["DISCSUBTITLE"], id3: ["TSST"], mp4Freeform: ["DISCSUBTITLE"]),
-        schema(.subtitle, "Subtitle", .basic, ["SUBTITLE"], id3: ["TIT3"], mp4Freeform: ["SUBTITLE"]),
+        schema(.lyrics, "Lyrics", .lyricsAndComments, ["LYRICS"]),
+        schema(.comment, "Comment", .lyricsAndComments, ["COMMENT"]),
+        schema(.genre, "Genre", .basic, ["GENRE"], multi: true),
+        schema(.composer, "Composer", .people, ["COMPOSER"], multi: true, people: true),
+        schema(.conductor, "Conductor", .people, ["CONDUCTOR"], multi: true, people: true),
+        schema(.remixer, "Remixer", .people, ["REMIXER"], multi: true, people: true),
+        schema(.performer, "Performer", .peopleRoles, ["PERFORMER"], multi: true, people: true, role: true),
+        schema(.producer, "Producer", .people, ["PRODUCER"], multi: true, people: true),
+        schema(.engineer, "Engineer", .people, ["ENGINEER"], multi: true, people: true),
+        schema(.lyricist, "Lyricist", .people, ["LYRICIST"], multi: true, people: true),
+        schema(.involvedPeople, "Involved People", .peopleRoles, ["INVOLVEDPEOPLE"], multi: true, people: true, role: true),
+        schema(.musicianCredits, "Musician Credits", .peopleRoles, ["MUSICIANCREDITS"], multi: true, people: true, role: true),
+        schema(.publisher, "Publisher", .release, ["LABEL", "PUBLISHER"]),
+        schema(.copyright, "Copyright", .release, ["COPYRIGHT"]),
+        schema(.encodedBy, "Encoded By", .technical, ["ENCODEDBY"]),
+        schema(.encoderSettings, "Encoder Settings", .technical, ["ENCODING", "ENCODERSETTINGS"]),
+        schema(.isrc, "ISRC", .identifiers, ["ISRC"]),
+        schema(.barcode, "Barcode", .identifiers, ["BARCODE", "UPC", "EAN"]),
+        schema(.catalogNumber, "Catalog Number", .release, ["CATALOGNUMBER", "CATALOG NUMBER", "CATALOG"]),
+        schema(.asin, "ASIN", .identifiers, ["ASIN"]),
+        schema(.releaseType, "Release Type", .release, ["RELEASETYPE", "MUSICBRAINZ_ALBUMTYPE", "MUSICBRAINZ ALBUM TYPE"]),
+        schema(.releaseStatus, "Release Status", .release, ["RELEASESTATUS", "MUSICBRAINZ_ALBUMSTATUS", "MUSICBRAINZ ALBUM STATUS"]),
+        schema(.releaseCountry, "Release Country", .release, ["RELEASECOUNTRY", "MUSICBRAINZ_ALBUMRELEASECOUNTRY", "MUSICBRAINZ ALBUM RELEASE COUNTRY"]),
+        schema(.mediaType, "Media Type", .release, ["MEDIATYPE", "MEDIA", "MEDIA TYPE"]),
+        schema(.work, "Work", .basic, ["WORK"]),
+        schema(.movement, "Movement", .basic, ["MOVEMENT", "MOVEMENTNAME"]),
+        schema(.movementNumber, "Movement Number", .numbering, ["MOVEMENTNUMBER"]),
+        schema(.movementCount, "Movement Count", .numbering, ["MOVEMENTCOUNT"]),
+        schema(.discSubtitle, "Disc Subtitle", .basic, ["DISCSUBTITLE"]),
+        schema(.subtitle, "Subtitle", .basic, ["SUBTITLE"]),
         schema(.grouping, "Grouping", .basic, ["GROUPING"], multi: true),
         schema(.contentGroup, "Content Group", .basic, ["CONTENTGROUP"]),
         schema(.artists, "Artists", .people, ["ARTISTS"], multi: true, people: true),
-        schema(.mood, "Mood", .basic, ["MOOD"], id3: ["TMOO"], mp4Freeform: ["MOOD"], multi: true),
-        schema(.language, "Language", .basic, ["LANGUAGE"], id3: ["TLAN"], mp4Freeform: ["LANGUAGE"], multi: true),
-        schema(.musicalKey, "Musical Key", .basic, ["INITIALKEY", "KEY"], id3: ["TKEY"], mp4Freeform: ["INITIALKEY"]),
-        schema(.bpm, "BPM", .technical, ["BPM"], id3: ["TBPM"], mp4: ["tmpo"]),
-        schema(.compilation, "Compilation", .release, ["COMPILATION"], id3: ["TCMP"], mp4: ["cpil"]),
-        schema(.explicitContent, "Explicit Content", .itunes, ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"], id3User: ["ITUNESADVISORY"], mp4: ["rtng"], mp4Freeform: ["ITUNESADVISORY"]),
-        schema(.sortTitle, "Sort Title", .sorting, ["TITLESORT"], id3: ["TSOT"], mp4: ["sonm"]),
-        schema(.sortArtist, "Sort Artist", .sorting, ["ARTISTSORT"], id3: ["TSOP"], mp4: ["soar"]),
-        schema(.sortAlbum, "Sort Album", .sorting, ["ALBUMSORT"], id3: ["TSOA"], mp4: ["soal"]),
-        schema(.sortAlbumArtist, "Sort Album Artist", .sorting, ["ALBUMARTISTSORT"], id3: ["TSO2"], mp4: ["soaa"]),
-        schema(.sortComposer, "Sort Composer", .sorting, ["COMPOSERSORT"], id3: ["TSOC"], mp4: ["soco"]),
-        schema(.musicBrainzArtistID, "MusicBrainz Artist ID", .identifiers, ["MUSICBRAINZ_ARTISTID", "MUSICBRAINZ ARTISTID", "MUSICBRAINZ ARTIST ID"], id3User: ["MusicBrainz Artist Id"], mp4Freeform: ["MusicBrainz Artist Id"]),
-        schema(.musicBrainzAlbumID, "MusicBrainz Album ID", .identifiers, ["MUSICBRAINZ_ALBUMID", "MUSICBRAINZ ALBUMID", "MUSICBRAINZ ALBUM ID"], id3User: ["MusicBrainz Album Id"], mp4Freeform: ["MusicBrainz Album Id"]),
-        schema(.musicBrainzAlbumArtistID, "MusicBrainz Album Artist ID", .identifiers, ["MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ ALBUMARTISTID", "MUSICBRAINZ ALBUM ARTIST ID"], id3User: ["MusicBrainz Album Artist Id"], mp4Freeform: ["MusicBrainz Album Artist Id"]),
-        schema(.musicBrainzTrackID, "MusicBrainz Track ID", .identifiers, ["MUSICBRAINZ_TRACKID", "MUSICBRAINZ TRACKID", "MUSICBRAINZ TRACK ID"], id3User: ["MusicBrainz Track Id"], mp4Freeform: ["MusicBrainz Track Id"]),
-        schema(.musicBrainzReleaseGroupID, "MusicBrainz Release Group ID", .identifiers, ["MUSICBRAINZ_RELEASEGROUPID", "MUSICBRAINZ RELEASEGROUPID", "MUSICBRAINZ RELEASE GROUP ID"], id3User: ["MusicBrainz Release Group Id"], mp4Freeform: ["MusicBrainz Release Group Id"]),
-        schema(.musicBrainzReleaseTrackID, "MusicBrainz Release Track ID", .identifiers, ["MUSICBRAINZ_RELEASETRACKID", "MUSICBRAINZ RELEASETRACKID", "MUSICBRAINZ RELEASE TRACK ID"], id3User: ["MusicBrainz Release Track Id"], mp4Freeform: ["MusicBrainz Release Track Id"]),
-        schema(.musicBrainzWorkID, "MusicBrainz Work ID", .identifiers, ["MUSICBRAINZ_WORKID", "MUSICBRAINZ WORKID", "MUSICBRAINZ WORK ID"], id3User: ["MusicBrainz Work Id"], mp4Freeform: ["MusicBrainz Work Id"]),
-        schema(.acoustID, "AcoustID", .identifiers, ["ACOUSTID_ID", "ACOUSTID ID"], id3User: ["Acoustid Id"], mp4Freeform: ["Acoustid Id"]),
-        schema(.acoustIDFingerprint, "AcoustID Fingerprint", .identifiers, ["ACOUSTID_FINGERPRINT", "ACOUSTID FINGERPRINT"], id3User: ["Acoustid Fingerprint"], mp4Freeform: ["Acoustid Fingerprint"]),
-        schema(.musicIPPUID, "MusicIP PUID", .identifiers, ["MUSICIP_PUID", "MUSICIP PUID"], id3User: ["MusicIP PUID"], mp4Freeform: ["MusicIP PUID"]),
-        schema(.replayGainTrackGain, "ReplayGain Track Gain", .replayGain, ["REPLAYGAIN_TRACK_GAIN"], id3User: ["REPLAYGAIN_TRACK_GAIN"], mp4Freeform: ["REPLAYGAIN_TRACK_GAIN"]),
-        schema(.replayGainAlbumGain, "ReplayGain Album Gain", .replayGain, ["REPLAYGAIN_ALBUM_GAIN"], id3User: ["REPLAYGAIN_ALBUM_GAIN"], mp4Freeform: ["REPLAYGAIN_ALBUM_GAIN"]),
-        schema(.replayGainTrackPeak, "ReplayGain Track Peak", .replayGain, ["REPLAYGAIN_TRACK_PEAK"], id3User: ["REPLAYGAIN_TRACK_PEAK"], mp4Freeform: ["REPLAYGAIN_TRACK_PEAK"]),
-        schema(.replayGainAlbumPeak, "ReplayGain Album Peak", .replayGain, ["REPLAYGAIN_ALBUM_PEAK"], id3User: ["REPLAYGAIN_ALBUM_PEAK"], mp4Freeform: ["REPLAYGAIN_ALBUM_PEAK"]),
-        schema(.itunesAlbumID, "iTunes Album ID", .itunes, ["ITUNESALBUMID"], id3User: ["ITUNESALBUMID"], mp4Freeform: ["ITUNESALBUMID"]),
-        schema(.itunesArtistID, "iTunes Artist ID", .itunes, ["ITUNESARTISTID"], id3User: ["ITUNESARTISTID"], mp4Freeform: ["ITUNESARTISTID"]),
-        schema(.itunesCatalogID, "iTunes Catalog ID", .itunes, ["ITUNESCATALOGID"], id3User: ["ITUNESCATALOGID"], mp4Freeform: ["ITUNESCATALOGID"]),
-        schema(.itunesGenreID, "iTunes Genre ID", .itunes, ["ITUNESGENREID"], id3User: ["ITUNESGENREID"], mp4Freeform: ["ITUNESGENREID"]),
-        schema(.itunesMediaType, "iTunes Media Type", .itunes, ["ITUNESMEDIATYPE"], id3User: ["ITUNESMEDIATYPE"], mp4Freeform: ["ITUNESMEDIATYPE"]),
-        schema(.itunesPurchaseDate, "iTunes Purchase Date", .itunes, ["ITUNESPURCHASEDATE"], id3User: ["ITUNESPURCHASEDATE"], mp4Freeform: ["ITUNESPURCHASEDATE"]),
-        schema(.itunesNorm, "iTunNORM", .itunes, ["ITUNNORM"], id3User: ["ITUNNORM"], mp4Freeform: ["ITUNNORM"]),
-        schema(.itunesSMPB, "iTunSMPB", .itunes, ["ITUNSMPB"], id3User: ["ITUNSMPB"], mp4Freeform: ["ITUNSMPB"]),
-        schema(.originalAlbum, "Original Album", .release, ["ORIGINALALBUM"], id3: ["TOAL"], mp4Freeform: ["ORIGINALALBUM"]),
-        schema(.originalArtist, "Original Artist", .people, ["ORIGINALARTIST"], id3: ["TOPE"], mp4Freeform: ["ORIGINALARTIST"], multi: true, people: true),
-        schema(.artistType, "Artist Type", .release, ["MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"], id3User: ["ARTISTTYPE"], mp4Freeform: ["ARTISTTYPE"]),
+        schema(.mood, "Mood", .basic, ["MOOD"], multi: true),
+        schema(.language, "Language", .basic, ["LANGUAGE"], multi: true),
+        schema(.musicalKey, "Musical Key", .basic, ["INITIALKEY", "KEY"]),
+        schema(.bpm, "BPM", .technical, ["BPM"]),
+        schema(.compilation, "Compilation", .release, ["COMPILATION"]),
+        schema(.explicitContent, "Explicit Content", .itunes, ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"]),
+        schema(.sortTitle, "Sort Title", .sorting, ["TITLESORT"]),
+        schema(.sortArtist, "Sort Artist", .sorting, ["ARTISTSORT"]),
+        schema(.sortAlbum, "Sort Album", .sorting, ["ALBUMSORT"]),
+        schema(.sortAlbumArtist, "Sort Album Artist", .sorting, ["ALBUMARTISTSORT"]),
+        schema(.sortComposer, "Sort Composer", .sorting, ["COMPOSERSORT"]),
+        schema(.musicBrainzArtistID, "MusicBrainz Artist ID", .identifiers, ["MUSICBRAINZ_ARTISTID", "MUSICBRAINZ ARTISTID", "MUSICBRAINZ ARTIST ID"]),
+        schema(.musicBrainzAlbumID, "MusicBrainz Album ID", .identifiers, ["MUSICBRAINZ_ALBUMID", "MUSICBRAINZ ALBUMID", "MUSICBRAINZ ALBUM ID"]),
+        schema(.musicBrainzAlbumArtistID, "MusicBrainz Album Artist ID", .identifiers, ["MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ ALBUMARTISTID", "MUSICBRAINZ ALBUM ARTIST ID"]),
+        schema(.musicBrainzTrackID, "MusicBrainz Track ID", .identifiers, ["MUSICBRAINZ_TRACKID", "MUSICBRAINZ TRACKID", "MUSICBRAINZ TRACK ID"]),
+        schema(.musicBrainzReleaseGroupID, "MusicBrainz Release Group ID", .identifiers, ["MUSICBRAINZ_RELEASEGROUPID", "MUSICBRAINZ RELEASEGROUPID", "MUSICBRAINZ RELEASE GROUP ID"]),
+        schema(.musicBrainzReleaseTrackID, "MusicBrainz Release Track ID", .identifiers, ["MUSICBRAINZ_RELEASETRACKID", "MUSICBRAINZ RELEASETRACKID", "MUSICBRAINZ RELEASE TRACK ID"]),
+        schema(.musicBrainzWorkID, "MusicBrainz Work ID", .identifiers, ["MUSICBRAINZ_WORKID", "MUSICBRAINZ WORKID", "MUSICBRAINZ WORK ID"]),
+        schema(.acoustID, "AcoustID", .identifiers, ["ACOUSTID_ID", "ACOUSTID ID"]),
+        schema(.acoustIDFingerprint, "AcoustID Fingerprint", .identifiers, ["ACOUSTID_FINGERPRINT", "ACOUSTID FINGERPRINT"]),
+        schema(.musicIPPUID, "MusicIP PUID", .identifiers, ["MUSICIP_PUID", "MUSICIP PUID"]),
+        schema(.replayGainTrackGain, "ReplayGain Track Gain", .replayGain, ["REPLAYGAIN_TRACK_GAIN"]),
+        schema(.replayGainAlbumGain, "ReplayGain Album Gain", .replayGain, ["REPLAYGAIN_ALBUM_GAIN"]),
+        schema(.replayGainTrackPeak, "ReplayGain Track Peak", .replayGain, ["REPLAYGAIN_TRACK_PEAK"]),
+        schema(.replayGainAlbumPeak, "ReplayGain Album Peak", .replayGain, ["REPLAYGAIN_ALBUM_PEAK"]),
+        schema(.itunesAlbumID, "iTunes Album ID", .itunes, ["ITUNESALBUMID"]),
+        schema(.itunesArtistID, "iTunes Artist ID", .itunes, ["ITUNESARTISTID"]),
+        schema(.itunesCatalogID, "iTunes Catalog ID", .itunes, ["ITUNESCATALOGID"]),
+        schema(.itunesGenreID, "iTunes Genre ID", .itunes, ["ITUNESGENREID"]),
+        schema(.itunesMediaType, "iTunes Media Type", .itunes, ["ITUNESMEDIATYPE"]),
+        schema(.itunesPurchaseDate, "iTunes Purchase Date", .itunes, ["ITUNESPURCHASEDATE"]),
+        schema(.itunesNorm, "iTunNORM", .itunes, ["ITUNNORM"]),
+        schema(.itunesSMPB, "iTunSMPB", .itunes, ["ITUNSMPB"]),
+        schema(.originalAlbum, "Original Album", .release, ["ORIGINALALBUM"]),
+        schema(.originalArtist, "Original Artist", .people, ["ORIGINALARTIST"], multi: true, people: true),
+        schema(.artistType, "Artist Type", .release, ["MUSICBRAINZ_ARTISTTYPE", "ARTISTTYPE", "MUSICBRAINZ ARTIST TYPE"]),
         schema(.trackerName, "Tracker Name", .technical, ["TRACKERNAME"]),
         schema(.director, "Director", .people, ["DIRECTOR"], multi: true, people: true),
         schema(.itunesAccount, "iTunes Account", .itunes, ["ITUNESACCOUNT"]),
@@ -530,8 +522,7 @@ public enum MetadataFieldRegistry {
     public nonisolated static let schemasByKey: [MetadataFieldKey: MetadataFieldSchema] =
         Dictionary(uniqueKeysWithValues: allSchemas.map { ($0.key, $0) })
 
-    /// One preferred semantic owner for each semantic key. Legacy API aliases
-    /// such as `.date` remain addressable but are excluded here.
+    /// One semantic owner for each semantic key; there are no YEAR aliases.
     public nonisolated static let canonicalSchemas: [MetadataFieldSchema] =
         allSchemas.filter(\.isCanonicalSemanticOwner)
 
@@ -547,19 +538,11 @@ public enum MetadataFieldRegistry {
     public nonisolated static let peoplePropertyMapKeys: Set<String> =
         Set(allSchemas.filter(\.isPeopleField).flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
 
-    /// Property-map keys with intentionally composite semantic ownership.
-    /// YEAR/DATE are owned by both the canonical `.year` identity and the
-    /// legacy `.date` spelling; `.year` is the explicit preferred owner.
-    public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [
-        "DATE": [.date, .year],
-        "YEAR": [.date, .year],
-    ]
+    /// No public semantic fields currently share a PropertyMap key.
+    /// Engine DATE projects YEAR; independent DATE uses STANDALONEDATE.
+    public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [:]
 
-    /// The explicit owner used by scalar lookup when a storage key is shared.
-    public nonisolated static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey] = [
-        "DATE": .year,
-        "YEAR": .year,
-    ]
+    public nonisolated static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey] = [:]
 
     public nonisolated static let propertyMapKeyOwners: [String: Set<MetadataFieldKey>] = {
         var result: [String: Set<MetadataFieldKey>] = [:]
@@ -668,7 +651,6 @@ public enum MetadataFieldRegistry {
     }()
 
     private nonisolated static let semanticKeyOverrides: [MetadataFieldKey: String] = [
-        .date: "YEAR",
         .year: "YEAR",
         .standaloneDate: "DATE",
         .publisher: "LABEL",
@@ -695,18 +677,11 @@ public enum MetadataFieldRegistry {
         _ category: MetadataFieldCategory,
         _ propertyKeys: [String],
         semantic: String? = nil,
-        id3: [String] = [],
-        id3User: [String] = [],
-        mp4: [String] = [],
-        mp4Freeform: [String] = [],
         multi: Bool = false,
         people: Bool = false,
-        role: Bool = false,
-        legacyYearAlias: Bool = false
+        role: Bool = false
     ) -> MetadataFieldSchema {
-        // Native identity is owned by the generated catalog; the legacy
-        // id3/mp4 arguments remain only as descriptive call-site hints.
-        _ = (id3, id3User, mp4, mp4Freeform)
+        // Native identities are declared only in MetadataMappingCatalog.
         let semanticKey = semantic ?? semanticKey(for: key, propertyKeys: propertyKeys)
         let profile = MetadataMappingCatalog.profile(forSemanticKey: semanticKey)
         return MetadataFieldSchema(
@@ -716,8 +691,6 @@ public enum MetadataFieldRegistry {
             semanticKey: semanticKey,
             propertyMapKeys: propertyKeys,
             nativeTargets: profile?.targets ?? [],
-            isCanonicalSemanticOwner: !legacyYearAlias,
-            isLegacyYearAlias: legacyYearAlias,
             isMultiValue: multi,
             isPeopleField: people,
             isRoleQualified: role,

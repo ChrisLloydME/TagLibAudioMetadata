@@ -27,10 +27,4 @@
     return self.explicitAdvisory == TagLibExplicitAdvisoryExplicit;
 }
 
-- (void)setExplicitContent:(BOOL)explicitContent {
-    self.explicitAdvisory = explicitContent
-        ? TagLibExplicitAdvisoryExplicit
-        : TagLibExplicitAdvisoryClean;
-}
-
 @end
