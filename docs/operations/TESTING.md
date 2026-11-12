@@ -136,7 +136,7 @@ TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
 
 The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, verified write batches, and flush samples. It also measures MP3/M4A/FLAC ordinary and 64-key metadata-heavy Basic/snapshot reads, typed/Basic/raw title writes, and declared-capability lookups. Each profile reports five batch-average latencies: `medianMs` is their median and `p95Ms` is their maximum (the nearest-rank 95th percentile of five samples), not a per-operation tail percentile. Reads assert byte immutability; writes include actual staging, verification and durability. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises. Baseline and optimized evidence are in the [API/performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
-The current gate requires at least 162 XCTest and 179 Swift Testing declarations, plus named passing evidence for descriptor fidelity and the three per-read lookup preservation regressions. An unchanged total count cannot substitute for those tests.
+The current gate requires at least 164 XCTest and 179 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the three per-read lookup preservation regressions and two transaction-readability regressions. An unchanged total count cannot substitute for those tests.
 
 ## Independent evidence used in the repository
 

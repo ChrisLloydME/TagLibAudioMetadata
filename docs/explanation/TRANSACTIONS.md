@@ -18,7 +18,7 @@ The short version: a write stages a sibling copy, mutates and (for verified faca
    - Reject hard-linked files (`st_nlink != 1`).
    - If `expectedVersion` was supplied, compare it to the current identity and throw `fileChanged` on mismatch.
    - Confirm `isRegularFile == true` and `isSymbolicLink != true` through `URLResourceValues`.
-   - Open the file with the selected parser; an unreadable or invalid audio file fails before staging.
+   - Open the file with the selected parser and the unchanged Accurate/credible-audio policy; an unreadable or invalid audio file fails before staging. Readability checks request Basic bridge evidence, without constructing discarded raw/structured/Swift projections. This does not replace the full semantic/native verification after mutation.
 3. **Stage.** Create one sibling temporary file in the same directory with `copyfile(COPYFILE_CLONE | COPYFILE_ACL)`.
    - `COPYFILE_CLONE` requests a copy-on-write clone and falls back to an ordinary copy when cloning is unavailable.
    - `COPYFILE_ACL` requests ACL preservation.

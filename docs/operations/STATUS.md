@@ -13,6 +13,10 @@ This page is a snapshot of the latest known validation state for the current sou
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
+## Write-preparation follow-up
+
+The current follow-up narrows discarded readability projections and reuses same-open-file property evidence. Focused regressions and the bounded-concurrency profile pass; its full gates are pending. The previous API campaign's accepted 162-test gates below do not certify this follow-up. See [write-concurrency record](../records/remediation/REM-2026-11-12-write-concurrency.md).
+
 ## Unreleased API/performance candidate
 
 This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. Final production implementation is `4dd2a60`; subsequent campaign edits are documentation/comments only. The [audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md) contains the removal inventory, migration, all 33 before/after measurements and exact evidence boundaries.

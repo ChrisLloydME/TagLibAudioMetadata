@@ -13,6 +13,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Performance and verification
 
+- Reduce discarded transaction-readability projections and reuse same-open-file Xiph/APE property evidence, retaining parser credibility, version guards and complete semantic verification. Add 1/2/4/8-worker durable-write profiles and required preflight regressions.
+
 - Cache immutable format descriptors while retaining per-extension support levels. Use per-read raw/MP4 indexes, including custom-field arrays, and remove a redundant pre-read identity lookup without caching concrete files.
 - Require named cache/lookup preservation regressions in the full gate, retain Unicode/first-owner/array behavior, and add repeatable multi-container warmed Release I/O profiles.
 - Require the checksum-pinned namespaced TagLib framework directly instead of silently accepting a legacy host framework.
