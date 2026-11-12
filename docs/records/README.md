@@ -136,3 +136,5 @@ These are the items a future maintainer or agent should not describe as fully so
 ## Adding a record
 
 Follow [CONVENTIONS.md](CONVENTIONS.md) and start from [TEMPLATE.md](TEMPLATE.md). Add one row here and, if the record creates or leaves an actionable finding, add it to the open register. Do not rewrite an existing final record; add an addendum or a superseding record instead.
+
+- [API ownership and metadata I/O performance](remediation/REM-2026-11-12-api-mapping-performance.md) — unreleased compatibility cleanup, measured I/O optimization and migration acceptance.
