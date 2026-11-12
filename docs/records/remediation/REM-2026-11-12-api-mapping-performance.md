@@ -22,3 +22,9 @@ Branch: `codex/api-mapping-performance`. Baseline: published 0.7.3 (`7ca1b753263
 ## Evidence
 
 Baseline, measured decisions, implementation commits and final acceptance will be appended as work completes. No performance gain or release readiness is claimed before those checks execute.
+
+## Baseline captured before production edits
+
+The expanded `SnapshotThroughputBenchmarkTests` ran in Release with `TAGLIB_BENCHMARK=1`, `--disable-sandbox --disable-keychain --disable-netrc`. All 33 profile measurements completed. Ordinary and 64-key metadata-heavy MP3/MP4/FLAC fixtures are measured separately; each API has five warmed samples and fixed iteration counts. Read probes also assert exact file-byte immutability. Verified writes include real staging, verification and flushes. [Raw baseline measurements](API_IO_BASELINE_2026-11-12.json) are committed; host logs remain outside source control.
+
+A concrete mapping-maintenance defect was also found: `MetadataFieldSchema` still accepts `id3`, `id3User`, `mp4` and `mp4Freeform` call-site hints and discards them. Some hints contradict the actual catalog (for example Release Date still lists ©day). These obsolete second-table hints will be removed; native-file aliases with preservation/migration purpose will remain explicitly separated.

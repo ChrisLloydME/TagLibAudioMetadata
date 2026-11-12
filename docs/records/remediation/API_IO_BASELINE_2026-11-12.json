@@ -1,0 +1,305 @@
+{
+  "productionBaseline": "7ca1b75326388a5902815f70145b600299944ae0",
+  "configuration": "release",
+  "cache": "warm; setup and warmup excluded",
+  "cpu": "Apple M1",
+  "rows": [
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "basic",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "0.25745727500000004",
+      "p95Ms": "0.35820625"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "snapshot",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "0.166703125",
+      "p95Ms": "0.1859573"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "typed-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "10.51863525",
+      "p95Ms": "11.247771"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "basic-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "13.2546665",
+      "p95Ms": "14.5021145"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "raw-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "11.50808325",
+      "p95Ms": "12.22797925"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-heavy",
+      "api": "basic",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "3.8370343750000004",
+      "p95Ms": "4.404083325"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-heavy",
+      "api": "snapshot",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "3.8294718750000003",
+      "p95Ms": "3.83235625"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-heavy",
+      "api": "typed-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "24.46472925",
+      "p95Ms": "24.99934375"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-heavy",
+      "api": "basic-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "44.27040625",
+      "p95Ms": "44.98795825"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-heavy",
+      "api": "raw-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "19.99528125",
+      "p95Ms": "20.43302075"
+    },
+    {
+      "format": "mp3",
+      "density": "descriptor-only",
+      "api": "declared-capability",
+      "iterations": "2000",
+      "samples": "5",
+      "medianMs": "0.012802229",
+      "p95Ms": "0.013902396"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "basic",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "0.259578125",
+      "p95Ms": "0.2661948"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "snapshot",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "0.25584897500000003",
+      "p95Ms": "0.26039375"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "typed-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "11.89159375",
+      "p95Ms": "13.31010425"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "basic-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "15.26709375",
+      "p95Ms": "16.7947605"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "raw-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "10.82954175",
+      "p95Ms": "11.14639575"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-heavy",
+      "api": "basic",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "4.5355448",
+      "p95Ms": "4.892094800000001"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-heavy",
+      "api": "snapshot",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "4.5196427",
+      "p95Ms": "4.5924875"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-heavy",
+      "api": "typed-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "26.730573",
+      "p95Ms": "27.2679585"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-heavy",
+      "api": "basic-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "57.22203125",
+      "p95Ms": "58.25485425"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-heavy",
+      "api": "raw-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "29.75119775",
+      "p95Ms": "31.23313525"
+    },
+    {
+      "format": "m4a",
+      "density": "descriptor-only",
+      "api": "declared-capability",
+      "iterations": "2000",
+      "samples": "5",
+      "medianMs": "0.017917771",
+      "p95Ms": "0.0187795625"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "basic",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "0.18069895",
+      "p95Ms": "0.18250625"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "snapshot",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "0.17564792499999998",
+      "p95Ms": "0.18026040000000002"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "typed-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "9.89933325",
+      "p95Ms": "11.737875"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "basic-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "13.01108325",
+      "p95Ms": "13.31977075"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "raw-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "10.22134375",
+      "p95Ms": "10.79446875"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-heavy",
+      "api": "basic",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "2.890130225",
+      "p95Ms": "3.401159375"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-heavy",
+      "api": "snapshot",
+      "iterations": "40",
+      "samples": "5",
+      "medianMs": "2.883246875",
+      "p95Ms": "2.90411145"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-heavy",
+      "api": "typed-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "19.97525",
+      "p95Ms": "20.0046875"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-heavy",
+      "api": "basic-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "37.2323855",
+      "p95Ms": "38.72015625"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-heavy",
+      "api": "raw-title",
+      "iterations": "4",
+      "samples": "5",
+      "medianMs": "17.250875",
+      "p95Ms": "17.99846875"
+    },
+    {
+      "format": "flac",
+      "density": "descriptor-only",
+      "api": "declared-capability",
+      "iterations": "2000",
+      "samples": "5",
+      "medianMs": "0.012229687500000001",
+      "p95Ms": "0.0134747085"
+    }
+  ]
+}
