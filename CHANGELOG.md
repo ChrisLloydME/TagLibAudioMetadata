@@ -3,7 +3,7 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.7.3] - 2026-11-12
 
 ### Fixed
 
@@ -20,8 +20,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Documentation
 
-- Separate the published `0.7.2` release boundary from the unreleased branch across the README, hub, guides, reference, operations, and records index.
-- Document native-owner preservation across PropertyMap replay and low-level reads, MP4 Comment/Lyrics native routing, ASF custom-field ownership, and the current sparse-state gate evidence.
+- Finalize the guide/reference set for the `0.7.3` release boundary, including native-owner preservation across PropertyMap replay and low-level reads, MP4 Comment/Lyrics native routing, ASF custom-field ownership, and the sparse-state gate evidence.
+- Refresh the README, documentation hub, installation, status, testing, mapping acceptance, migration, and records index for the `0.7.3` release.
 
 ## [0.7.2] - 2026-11-11
 

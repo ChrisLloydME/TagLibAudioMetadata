@@ -2,7 +2,7 @@
 
 This is the canonical reference for declared format coverage. It describes the capability registry in `Sources/CTagLibBridge/TLFormatRegistry.mm`, the container masks in `Sources/CTagLibBridge/Internal/TLMetadataCore.inc`, the evidence labels and field allowlists in `Sources/CTagLibBridge/Internal/TLRawInspection.inc`, and the field schema in `Sources/TagLibAudioMetadata/MetadataFieldSchema.swift`.
 
-Version `0.7.2` is the latest published tag; it finalized the audit and native-mapping repairs that followed `0.7.1`. The current branch adds unreleased native-owner state preservation and applies the same capability registry. The package side of mapping contract `AM-TLAM-MAPPING-2.2` was introduced in `0.7.0`. The matrix below is generated from the source registry. A declared label is not proof that every file, field, codec variant, or platform works: query the capability API for the extension and field in question, then validate a concrete file.
+Version `0.7.3` is the current release; it adds native-owner state preservation to the audit and native-mapping repairs finalized in `0.7.2`. The package side of mapping contract `AM-TLAM-MAPPING-2.2` was introduced in `0.7.0`. The matrix below is generated from the source registry. A declared label is not proof that every file, field, codec variant, or platform works: query the capability API for the extension and field in question, then validate a concrete file.
 
 ## How to read capability evidence
 

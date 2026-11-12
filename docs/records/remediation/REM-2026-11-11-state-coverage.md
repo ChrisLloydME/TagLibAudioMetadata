@@ -50,3 +50,7 @@ The final runs include independent seed preconditions: each date mask's actual n
 ## Addendum — repository state after validation
 
 This record was written while the validated evidence was still an uncommitted working tree. The repair branch has since been committed, with `52dd4f2` recording this document and the preceding commits carrying the production and test changes, and pushed to `origin/metadataStateCoverageRepairs`. No version bump, tag, release, binary rebuild, or publication was performed. The phrase "dirty working tree" above describes the validation-time state, not the current branch state; the evidence and limits in this record are unchanged.
+
+## Addendum — 0.7.3 release inclusion
+
+The repair branch was merged into `main` as `e9337f2` for the `0.7.3` release. The `0.7.3` release includes these state-coverage repairs and the final documentation. Tag creation and publication remain maintainer-owned and are not part of this record.

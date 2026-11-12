@@ -1,6 +1,6 @@
 # Compatibility and migration
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.2` (2026-11-11) is the latest published tag. The current branch contains unreleased post-`0.7.2` repairs. Sections are newest first; review the behavioral changes that apply to your starting version.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Sections are newest first; review the behavioral changes that apply to your starting version.
 
 ## Compatibility promises
 
@@ -10,11 +10,11 @@ This guide describes source-compatibility expectations and the changes a consume
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.
 
-## Adopting the unreleased current branch
+## Migrating from 0.7.2 to 0.7.3
 
-`codex/metadata-state-coverage-repairs` is based on published `0.7.2` and is not itself a release: it has no version bump, tag, binary rebuild, or automatic user-file migration. Public signatures are unchanged. The behavior changes below matter when an application depends on engine projections or scalar round trips rather than native-owner behavior.
+Version `0.7.3` contains native-owner state-preservation repairs. There is no version bump to the TagLib binary, no new mapping contract, and no automatic user-file migration. Public signatures are unchanged. The behavior changes below matter when an application depends on engine projections or scalar round trips rather than native-owner behavior.
 
-### Current-branch behavior changes
+### Behavior changes
 
 - **Native date owners survive PropertyMap replay.** Unedited MP4 items and ID3 frames for YEAR, DATE, RELEASEDATE, and ORIGINALDATE are restored on raw, semantic-custom and structured writes, including native absence. The engine's `DATE` projection no longer authorizes creating, changing, or removing another native date owner.
 - **Low-level date reads use native owners.** The bridge model resolves YEAR and standalone DATE from MP4/ID3/Xiph/APE-native storage rather than filling one from another engine projection. A file with DATE but no YEAR now returns an absent YEAR. That absence is intentional evidence, not a regression in the model.
@@ -29,7 +29,7 @@ This guide describes source-compatibility expectations and the changes a consume
 2. If you inspect MP4 comments or lyrics outside the package, expect `©cmt`/`©lyr`; do not infer support for structured comment/lyric collections.
 3. On ASF, do not assume a raw PropertyMap operation clears the native custom attribute. Patch the exact custom field and verify its native attribute if the distinction matters.
 4. Do not assume a whole-map `.replace` normalizes an array that is already equal to the current visible value. Edit the array explicitly when normalization is intended.
-5. Keep testing against the tag or exact revision you depend on. The branch's gate evidence does not make it a release.
+5. Keep production dependencies on a tagged release. The `0.7.3` gate evidence does not make an untagged `main` state a release.
 
 ## Migrating from 0.7.1 to 0.7.2
 
@@ -204,7 +204,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 ## Migration checklist
 
 - [ ] Resolve the package at a tag or an explicit revision; do not rely on an unnamed branch state.
-- [ ] If evaluating the unreleased branch, pin its exact revision and review the current-branch behavior changes above.
+- [ ] Pin production dependencies to `0.7.3` or an earlier tagged release; do not rely on an untagged `main` state.
 - [ ] Add the low-level product only if you directly use bridge declarations.
 - [ ] Replace deprecated reads/writes with the named alternatives.
 - [ ] Remove `failurePolicy:` arguments and handle thrown verification failures.

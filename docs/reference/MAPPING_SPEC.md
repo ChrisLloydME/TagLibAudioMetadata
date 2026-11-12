@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs. The current branch adds unreleased native-owner state preservation without changing the contract ID or registered target layouts; see [Migration](../operations/MIGRATION.md) for the release boundary and current delta.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` adds native-owner state preservation without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -149,7 +149,7 @@ Implemented in the current source tree:
 - four-state advisory storage with raw unknown-code preservation;
 - the MP4-exclusive typed fields, with `.rate` read-only;
 - gated Matroska target registrations with no advertised write support;
-- native-owner preservation across PropertyMap replay on MP4 and ID3-backed files, independent low-level YEAR/DATE reads, exact untouched MP4 custom-field spelling/arrays, and native ASF custom attributes (unreleased after `0.7.2`).
+- native-owner preservation across PropertyMap replay on MP4 and ID3-backed files, independent low-level YEAR/DATE reads, exact untouched MP4 custom-field spelling/arrays, and native ASF custom attributes (added in `0.7.3`).
 
 Known boundaries:
 
@@ -173,9 +173,9 @@ FLAC scalar comments use the Xiph verification path even when a secondary ID3 su
 
 ID3v2.3 date targets are registered read-only until a verified native codec exists. These changes do not establish an ID3v2.3 TDAT/TDRL codec, arbitrary unknown-advisory assignment, MKV writes, or a RATE scale. Unknown advisory preservation and typed known-state edits remain distinct from assigning a new unknown native code.
 
-### Unreleased current-branch repairs
+### 0.7.3 release
 
-The current branch extends the same contract without new native identifiers. It preserves untouched MP4 item and ID3 frame date owners, including native absence, during raw, semantic-custom and structured PropertyMap replay; reads independent YEAR/DATE values from native owners in the low-level model on MP4, ID3, Xiph and APE; retains unchanged MP4 custom-field name spelling and arrays; routes MP4 `.comment`/`.lyrics` through `©cmt`/`©lyr`; and verifies ASF native absence and custom attributes. None of this makes an existing ID3v2.3 tag writable for independent date edits.
+Version `0.7.3` extends the same contract without new native identifiers. It preserves untouched MP4 item and ID3 frame date owners, including native absence, during raw, semantic-custom and structured PropertyMap replay; reads independent YEAR/DATE values from native owners in the low-level model on MP4, ID3, Xiph and APE; retains unchanged MP4 custom-field name spelling and arrays; routes MP4 `.comment`/`.lyrics` through `©cmt`/`©lyr`; and verifies ASF native absence and custom attributes. None of this makes an existing ID3v2.3 tag writable for independent date edits.
 
 ## Related references
 

@@ -6,16 +6,16 @@ This page is a snapshot of the latest known validation state for the current sou
 
 | Item | State |
 | --- | --- |
-| Latest published release and tag | `0.7.2`, declared 2026-11-11 |
-| Current source branch | `codex/metadata-state-coverage-repairs`, based on `0.7.2` |
-| Current branch release status | Unreleased; no version bump, tag, binary rebuild, or publication |
-| Documentation scope | Current source tree; post-`0.7.2` behavior is identified in [Migration](MIGRATION.md) |
+| Current release | `0.7.3`, declared 2026-11-12 |
+| Source | `main` at the `0.7.3` release commit |
+| Later tag | None |
+| Documentation scope | Current pages describe `0.7.3`; release-specific behavior is called out in [Migration](MIGRATION.md) |
 
-Version `0.7.2` includes mapping contract 2.2, the `0.7.1` date/ownership corrections, and the audit-integrity, native-mapping, package test-system and MP4 Content Group repairs. Its release notes are in the [changelog](../../CHANGELOG.md). The current branch does not change the published binary or the mapping contract ID.
+Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
-## Current branch candidate
+## Recorded 0.7.3 validation
 
-`codex/metadata-state-coverage-repairs` repairs native-owner state loss found during application adoption. It is not included in the published `0.7.2` tag and is not a release. The expanded gate requires the new state matrices, all previous matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions.
+The state-coverage repairs were validated on `codex/metadata-state-coverage-repairs`, then merged to `main` as `e9337f2` without source changes. The expanded gate requires the new state matrices, all previous matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions.
 
 | Check | Debug | Release |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ Version `0.7.2` includes mapping contract 2.2, the `0.7.1` date/ownership correc
 | State matrices | 8,282 additional parameterized cases | Same |
 | Gate policy | 24 Python regressions passed | Same |
 
-Both gates compiled production and tests with Swift/C warnings as errors, and the mandatory privilege test passed with expanded filesystem access. Both independent consumers passed in separate runs, and all 24 policy tests passed. The current branch evidence is recorded in [the state-coverage repair record](../records/remediation/REM-2026-11-11-state-coverage.md). Historical release-line results below do not certify this candidate.
+Both gates compiled production and tests with Swift/C warnings as errors, and the mandatory privilege test passed with expanded filesystem access. Both independent consumers passed in separate runs, and all 24 policy tests passed. The evidence is recorded in [the state-coverage repair record](../records/remediation/REM-2026-11-11-state-coverage.md). These runs were on the pre-merge branch; no full accepted gate was rerun on the exact `0.7.3` release commit, and release preparation changes documentation only. Release preparation passed the documentation check over 53 Markdown files. Tag creation and publication remain maintainer-owned. Historical release-line results below do not certify `0.7.3`.
 
 ## Latest observed 0.7.2 release-line package gate
 
@@ -62,7 +62,7 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 - The test system adds independent MP4, FLAC, APE-family, Ogg, ASF and ID3-container lifecycle matrices, named gate evidence and strict compilation. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
 - DSF/DSDIFF structured writes now accept native ID3 frame upserts while retaining the explicit comment/lyric collection-replacement rejection.
 
-## What changed in the current branch
+## What changed in 0.7.3
 
 - Native MP4 item and ID3 date-frame owners survive PropertyMap replay, including absence; low-level date reads use native owners on MP4, ID3, Xiph, and APE.
 - MP4 `.comment`/`.lyrics` use native `©cmt`/`©lyr`; ASF semantic custom fields use native Unicode attributes and reconcile only their case aliases.
@@ -82,7 +82,8 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 
 | Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
-| `0.7.2` | Latest published release, declared 2026-11-11 | Includes the audit, native-mapping, test-system and MP4 Content Group repairs above; does not include the current branch |
+| `0.7.3` | Current release, declared 2026-11-12; source branch merged as `e9337f2` | Includes the native-owner state-preservation repairs above |
+| `0.7.2` | Release tag, declared 2026-11-11 | Previous release; includes the audit, native-mapping, test-system and MP4 Content Group repairs; does not include `0.7.3` |
 | `0.7.1` | Release tag and merge `649b7a9`; date/ownership, comment verification and UFID repairs | Previous release; does not include the `0.7.2` repairs |
 | `0.7.0` | Release tag and mapping contract 2.2 | Introduced the field identities and date/number model described by the current mapping contract |
 | `AUD-2026-11-11` | Independent audit on the pre-repair tree | Historical failing evidence; the reproduced blockers were repaired by the audit-integrity campaign |

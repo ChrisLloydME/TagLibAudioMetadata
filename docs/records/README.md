@@ -13,7 +13,7 @@ Historical records are retained unchanged apart from relative-link repair after 
 2. Read its **current relevance** and the linked record.
 3. For a disputed or material finding, follow the cross-reference to the remediation or verification record that addressed it.
 4. Check [open and bounded findings](#open-and-bounded-findings) before treating an old conclusion as resolved.
-5. Check [docs/STATUS.md](../operations/STATUS.md) for the latest known validation state of the current branch.
+5. Check [docs/STATUS.md](../operations/STATUS.md) for the latest known validation state of the current release.
 
 Do not cite an old record's "fixed", "ready", or test-count statement as evidence about the current HEAD without checking the later records and current source.
 
@@ -38,7 +38,7 @@ Records were written before the 2026-10-19 documentation restructuring. They may
 
 | Record ID | Date | Type | Examined revision / branch | Current relevance | Findings and outcome |
 | --- | --- | --- | --- | --- | --- |
-| [REM-2026-11-11-state-coverage](remediation/REM-2026-11-11-state-coverage.md) | 2026-11-11 | Remediation / verification | `codex/metadata-state-coverage-repairs`, based on `5e6f604` | Unreleased candidate after `0.7.2`; not published | Repaired native-owner state loss across public write surfaces and low-level reads; added 8,282 state cases. Both final gates, both consumers and 24 policy tests passed. |
+| [REM-2026-11-11-state-coverage](remediation/REM-2026-11-11-state-coverage.md) | 2026-11-11 | Remediation / verification | `codex/metadata-state-coverage-repairs`, based on `5e6f604`; merged as `e9337f2` | Included in the `0.7.3` release | Repaired native-owner state loss across public write surfaces and low-level reads; added 8,282 state cases. Both final gates, both consumers and 24 policy tests passed. |
 | [REM-2026-11-11-audit-integrity-repairs](remediation/REM-2026-11-11-audit-integrity-repairs.md) | 2026-11-11 | Remediation / verification | `c3f1481` plus repairs included in `0.7.2` | Included in the `0.7.2` release | All 24 audit probes pass; strict Debug/Release gates pass; expanded native matrices, both consumers and 574 AudioMator override tests pass. |
 | [AUD-2026-11-11-package-audit](audits/AUD-2026-11-11-package-audit.md) | 2026-11-11 | Independent audit | `26fc76f` plus this audit's uncommitted test/gate/documentation changes | Historical failing tree; reproduced blockers repaired in REM-2026-11-11-audit-integrity-repairs | Two reproduced P0 defects (Basic edit loses unedited date arrays; ASF Encoder Settings is dropped/relocated), three P1 defects (MP4 compatibility aliases, MP4 pair boundary, mixed-framework gate), and coverage limits. Verdict: NOT READY. |
 | [REM-2026-11-11-native-mapping-followup](remediation/REM-2026-11-11-native-mapping-followup.md) | 2026-11-11 | Remediation / verification | `codex/native-mapping-followup-repairs` | Included in the `0.7.2` release | Original expanded matrices pass; native ownership, integer boundaries and consumers verified |
@@ -129,7 +129,7 @@ These are the items a future maintainer or agent should not describe as fully so
 - Records written before 2026-10-19 use different test totals and different definitions of "verified". Read the record's own scope and environment.
 - From 2026-10-25 the package requires Swift tools 6.4. Swift 6.0–6.3 are not supported and cannot import current Apple SDKs; older records that mention tools 6.0 describe their revision, not the current manifest.
 - The clean-room audit observed 186 tests; the remediation final campaign reported 208. The audio-identity work raised the count to 222 before the three BWF regressions, for 225 test declarations at that revision. The 2026-11-11 independent audit observed 158 XCTest declarations (156 passed, 2 opt-in skips) and 152 Swift Testing declarations; 16 audit regressions plus the host privilege precondition failed. See [AUD-2026-11-11](audits/AUD-2026-11-11-package-audit.md).
-- The later 2026-11-11 state-coverage candidate observed 158 XCTest declarations (156 passed, two opt-in skips), 179 Swift Testing declarations in 41 suites, and 24 policy regressions, with both configurations accepted. See [REM-2026-11-11-state-coverage](remediation/REM-2026-11-11-state-coverage.md).
+- The 2026-11-11 state-coverage work included in `0.7.3` observed 158 XCTest declarations (156 passed, two opt-in skips), 179 Swift Testing declarations in 41 suites, and 24 policy regressions, with both configurations accepted. See [REM-2026-11-11-state-coverage](remediation/REM-2026-11-11-state-coverage.md).
 - Test totals are not evidence that arbitrary files, formats, platforms, or metadata variants are safe.
 - The current validation state, including the last executed suite observed during the documentation pass, is in [docs/STATUS.md](../operations/STATUS.md).
 
