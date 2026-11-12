@@ -2412,7 +2412,7 @@ case unsupportedFormat
 case unsupportedWritePolicy(String)
 case failedToReadWithUnderlying(String)
 case verificationFailed([String])
-/// Compatibility case for callers constructing a message-only failure.
+/// Operation failure described by a caller-supplied message.
 case operationFailed(String)
 /// A pre-commit native or filesystem failure, retaining domain, code, and
 /// nested causes for recovery decisions.

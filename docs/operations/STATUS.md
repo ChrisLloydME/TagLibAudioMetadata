@@ -15,7 +15,20 @@ Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` correctio
 
 ## Unreleased API/performance candidate
 
-This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. Immutable capability caching and per-read indexes are under evaluation; see [the audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md). Full candidate acceptance and AudioMator local integration are pending; historical passing gates below do not certify this candidate.
+This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. Final production implementation is `4dd2a60`; subsequent campaign edits are documentation/comments only. The [audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md) contains the removal inventory, migration, all 33 before/after measurements and exact evidence boundaries.
+
+| Check | Current observed result |
+| --- | --- |
+| Strict Debug and Release | Both accepted; 162 XCTest declarations (160 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites passed |
+| Mandatory native matrices and new cache/lookup tests | Required named evidence present; no case-count reduction, unexpected skips or failures |
+| Gate policy | 26 regressions passed |
+| Documentation/generators | 54 Markdown files and all four generated-reference checks passed |
+| Independent consumers | Both products built with strict warnings and ran successfully |
+| AudioMator local candidate | 62 core and 579 serial app-hosted tests passed; unsigned Release/artifact validation passed; final affected erase journey also passed |
+| Warm local I/O profile | Declared lookup roughly 80–120 times faster; metadata-heavy reads about 7–14% faster. Writes vary; some workloads are slower. No universal write-speed improvement claimed |
+| Publication | No version bump, tag, push or publication; an explicitly breaking release and consumer migration are required |
+
+Current strict-gate evidence: `.build/test-evidence/debug-20261112-133244-22151/` and `.build/test-evidence/release-20261112-133604-22116/`. The application record distinguishes its full-suite source snapshot from the subsequent exact-advisory erase check. Existing application XCTest isolation warnings remain visible. Sanitizers, minimum-platform/device runtime, cold storage, peak memory and large-artwork performance were not evaluated. Historical release-line evidence follows and is not a substitute for these candidate runs.
 
 ## Recorded 0.7.3 validation
 
