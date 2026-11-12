@@ -15,11 +15,13 @@ Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` correctio
 
 ## Write-preparation follow-up
 
-The current follow-up narrows discarded readability projections and reuses same-open-file property evidence. Focused regressions and the bounded-concurrency profile pass; its full gates are pending. The previous API campaign's accepted 162-test gates below do not certify this follow-up. See [write-concurrency record](../records/remediation/REM-2026-11-12-write-concurrency.md).
+Production `bbf64c3` narrows discarded readability projections and reuses same-open-file property evidence. Both full strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, all required native matrices and preflight/cache/lookup evidence. All 27 gate-policy tests and both independent consumer executables pass. There are 55 checked Markdown files. Evidence: `.build/test-evidence/debug-20261112-135450-25050/` and `.build/test-evidence/release-20261112-135822-25044/`.
 
-## Unreleased API/performance candidate
+The bounded-concurrency profile shows about 9%/5% lower ordinary/heavy batch medians at four workers, with some other worker samples varying in the opposite direction. The actual application executor sees only about 8%/3% improvement from four to eight workers, so four remains its default. The app separately adopts four-file scheduling in formerly serial provider/import paths; its complete gate is pending. See [write-concurrency record](../records/remediation/REM-2026-11-12-write-concurrency.md). The previous API campaign below is historical evidence for its own source.
 
-This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. Final production implementation is `4dd2a60`; subsequent campaign edits are documentation/comments only. The [audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md) contains the removal inventory, migration, all 33 before/after measurements and exact evidence boundaries.
+## Previous API/performance candidate
+
+This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. That campaign's final production implementation was `4dd2a60`; the write-preparation follow-up above supersedes its current-source acceptance. The [audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md) contains the removal inventory, migration, all 33 before/after measurements and exact evidence boundaries.
 
 | Check | Current observed result |
 | --- | --- |
