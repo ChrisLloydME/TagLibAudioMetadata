@@ -4,7 +4,7 @@ This guide explains how to discover what the package declares for a format or fi
 
 ## Query a declared family
 
-`capability(forExtension:)` does not open a file:
+`capability(forExtension:)` does not open a file. Declared descriptors are initialized once and returned as value copies; extension-specific support levels remain distinct. Concrete-file metadata and parse results are never cached by this lookup:
 
 ```swift
 import TagLibAudioMetadata
