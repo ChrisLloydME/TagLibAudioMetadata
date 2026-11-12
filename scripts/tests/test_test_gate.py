@@ -27,7 +27,9 @@ PASS = (
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testRawLookupPreservesFirstIdentityEmptyArraysAndText]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testUnicodeLookupRetainsFoundationCaseComparison]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState]' passed (0.001 seconds).\n"
-    "Executed 162 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
+    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityMatchesFullReaderAcrossFixtures]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n"
+    "Executed 164 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
     "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.\n"
     "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.\n"
     "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
@@ -95,6 +97,10 @@ class TestGatePolicy(unittest.TestCase):
             self.assertEqual(run.returncode == 0, accepted)
             return accepted
 
+    def test_missing_readability_preflight_evidence_is_rejected(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n", "")))
+
     def test_missing_cached_descriptor_evidence_is_rejected(self):
         self.assertFalse(self.accepted(PASS.replace(
             "Test Case '-[TagLibAudioMetadataTests.FormatCapabilityTests testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies]' passed (0.001 seconds).\n", "")))
@@ -111,7 +117,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'everyFieldPreservesAllSiblingDateStates' not in line)))
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
-        self.assertFalse(self.accepted(PASS.replace('Executed 162 tests', 'Executed 161 tests')))
+        self.assertFalse(self.accepted(PASS.replace('Executed 164 tests', 'Executed 163 tests')))
         self.assertFalse(self.accepted(PASS.replace('run with 179 tests', 'run with 178 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):

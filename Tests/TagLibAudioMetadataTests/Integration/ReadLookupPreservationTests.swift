@@ -4,6 +4,38 @@ import CTagLibBridge
 @testable import TagLibAudioMetadata
 
 final class ReadLookupPreservationTests: XCTestCase {
+    func testTransactionReadabilityMatchesFullReaderAcrossFixtures() throws {
+        for ext in ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav", "wma", "xm", "tta", "wv"] {
+            let url = try XCTUnwrap(Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
+                ?? Bundle.module.url(forResource: "testAudioFile", withExtension: ext))
+            let before = try Data(contentsOf: url)
+            let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
+            XCTAssertFalse(metadata.format.isEmpty, ext)
+            XCTAssertNoThrow(try TagLibMetadataManager.validateReadableAudioFile(at: url), ext)
+            XCTAssertEqual(try Data(contentsOf: url), before, ext)
+        }
+    }
+
+    func testTransactionReadabilityRejectsInvalidFilesBeforeMutation() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ReadabilityPreflight-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let mp4 = try XCTUnwrap(Bundle.module.url(forResource: "testAudioFile", withExtension: "m4a", subdirectory: "Audio")
+            ?? Bundle.module.url(forResource: "testAudioFile", withExtension: "m4a"))
+        for (name, data) in [("empty.mp3", Data()), ("corrupt.flac", Data("not FLAC audio".utf8)),
+                             ("wrong-parser.mp3", try Data(contentsOf: mp4))] {
+            let url = directory.appendingPathComponent(name)
+            try data.write(to: url)
+            XCTAssertThrowsError(try TagLibMetadataManager.readMetadataResult(from: url), name)
+            XCTAssertThrowsError(try TagLibMetadataManager.validateReadableAudioFile(at: url), name)
+            var entered = false
+            XCTAssertThrowsError(try TagLibMetadataManager.withAtomicFileMutation(at: url) { _ in entered = true }, name)
+            XCTAssertFalse(entered, name)
+            XCTAssertEqual(try Data(contentsOf: url), data, name)
+            XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: directory.path).contains { $0.contains(".taglib-") })
+        }
+    }
+
     private func entry(_ key: String, _ values: [String]) -> RawPropertyEntry {
         .init(key: key, value: values.joined(separator: "; "), values: values, count: values.count)
     }

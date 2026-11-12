@@ -239,7 +239,7 @@ public struct TagLibMetadataManager {
         }
 
         do {
-            _ = try readMetadataResult(from: url)
+            try validateReadableAudioFile(at: url)
         } catch {
             throw mutationError(
                 code: 1006,

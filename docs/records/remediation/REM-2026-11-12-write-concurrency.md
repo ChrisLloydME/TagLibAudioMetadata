@@ -17,3 +17,14 @@ Reproduce with `TAGLIB_BENCHMARK=1 TAGLIB_BENCHMARK_PROFILE=concurrency swift te
 ## Investigation and next experiment
 
 Initial source inspection identifies work whose results are discarded: transaction preflight requests full Basic/raw/structured metadata and creates Swift projections solely to establish readability. Each Xiph/APE unified extraction also builds the same visible PropertyMap twice. Evaluate narrower readability extraction and per-open reuse without weakening parser/audio credibility or any persisted-state verification. Full gates, independent consumers and real app integration will be required for production changes.
+
+## Implemented preparation optimization
+
+- Swift transaction preflight uses Basic-only bridge evidence, without creating raw/structured/Swift models that are discarded. It retains the exact extension-selected parser, Accurate audio properties, credibility policy and before/after readable-file identity comparison.
+- Public bridge pre/post readability checks use the same Basic-only evidence. Full semantic/native preservation checks on facade writes remain unchanged.
+- Unified extraction reuses the visible PropertyMap from the exact same open file for native Xiph/APE dates. A different explicitly selected Ogg parser keeps the existing fallback. No state is retained across reads or transactions.
+- New mandatory regressions compare readability across all eleven committed fixture extensions and assert corrupt/wrong-parser files fail before the mutation callback or staging. Gate floor becomes 164 XCTest; 179 Swift Testing and all existing native matrices remain required. All 27 policy checks pass.
+
+Strict focused validation passed 75 XCTest and 24 Swift Testing declarations, followed by the five lookup/readability tests. [Eight optimized samples](WRITE_CONCURRENCY_OPTIMIZED_2026-11-12.json) completed successfully with real durable commits and unchanged-field assertions. At four workers the ordinary batch median changes 164→150 ms and heavy 267→254 ms. Eight-worker heavy batches improve 269→226 ms; ordinary eight-worker batches vary 123→130 ms. These are small local samples, with no universal throughput or per-file latency guarantee.
+
+Full Debug/Release gates and real application follow-up remain pending.

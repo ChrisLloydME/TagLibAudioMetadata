@@ -597,6 +597,21 @@ extension TagLibMetadataManager {
         )
     }
 
+    /// A transaction validity check needs the same parser/audio credibility
+    /// result, not the raw/frame/Swift projections used for semantic reads.
+    nonisolated static func validateReadableAudioFile(at url: URL) throws {
+        guard let identity = regularFileIdentity(at: url) else {
+            throw TagLibManagerError.invalidFile
+        }
+        let projections = try bridgeMetadataProjectionDictionary(from: url, options: .basic)
+        guard projections["basic"] is TagLibAudioMetadata else {
+            throw TagLibManagerError.failedToReadWithUnderlying("The bridge returned no Basic readability evidence.")
+        }
+        guard identity.hasSameReadableContents(as: regularFileIdentity(at: url)) else {
+            throw TagLibManagerError.failedToReadWithUnderlying("The audio file changed while readability was being checked.")
+        }
+    }
+
     nonisolated static func readBasicMetadataAndRaw(
         from url: URL
     ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump) {
