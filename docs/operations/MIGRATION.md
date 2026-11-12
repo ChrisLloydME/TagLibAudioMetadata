@@ -6,7 +6,7 @@ This source branch intentionally removes compatibility-only API. It is not a pat
 
 | Removed surface | Current API |
 | --- | --- |
-| `MetadataFieldKey.date` (meaning YEAR), and `isLegacyYearAlias` | `.year` for YEAR; `.standaloneDate` for independent DATE. Persisted field-key token `date` is rejected, never silently reinterpreted. `BasicMetadata.date` still means independent DATE. |
+| `MetadataFieldKey.date` (meaning YEAR), `isLegacyYearAlias`, and its obsolete `conflictingYearRepresentations` error | `.year` for YEAR; `.standaloneDate` for independent DATE. Persisted field-key token `date` is rejected, never silently reinterpreted. `BasicMetadata.date` still means independent DATE. |
 | `writeMetadata`, `writeMetadataWithVerification` facade aliases | `replaceBasicMetadata` for full replacement or `updateBasicMetadata` for a captured-version update |
 | Optional `readMetadata`, `rawMetadata`, `readStructuredMetadata`, `rawMetadataText` aliases | Throwing `*Result` APIs or explicitly named `bestEffort*` functions |
 | `failurePolicy` overloads and `VerificationFailurePolicy` | Verified mismatches always abort; handle typed errors and commit status |
@@ -15,7 +15,7 @@ This source branch intentionally removes compatibility-only API. It is not a pat
 | `ArtworkVerificationExpectation.unchanged` | `.skip` (this concerns verification, not the separate artwork mutation `.unchanged`) |
 | `isReadableFormat`, `isWritableFormat`, `formatCapability(for:)`, `FormatSupportLevel.verified`, `failedToRead` | Explicit extension lookup, `fixtureCovered`, and throwing error with underlying detail |
 
-Existing native-file aliases and the legacy numbering inventory/explicit recovery plan remain supported. They preserve user data and do not reintroduce removed API meanings. Raw engine `DATE` can still denote YEAR on MP4/ID3; typed native ownership must be obtained from the catalog, not inferred from that engine key. Old runtime bridge-selector probing and contradictory ignored native-target hints have been removed.
+Existing native-file aliases and the legacy numbering inventory/explicit recovery plan remain supported. They preserve user data and do not reintroduce removed API meanings. Raw engine `DATE` can still denote YEAR on MP4/ID3; typed native ownership must be obtained from the catalog, not inferred from that engine key. Bridge `metadataFieldMappings()` now lists YEAR as the canonical PropertyMap spelling and DATE as its engine alias; consumers inspecting ordered descriptors must use that order. This is not a native-file rewrite. Old runtime bridge-selector probing and contradictory ignored native-target hints have been removed.
 
 
 This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Tagged-release sections below are historical migration instructions; the unreleased cleanup above supersedes their retained-alias advice. Review the behavioral changes that apply to your starting version.

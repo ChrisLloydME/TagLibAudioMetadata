@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe version `0.7.3` (2026-11-12), including the native-owner state-preservation repairs finalized in that release. Mapping contract 2.2 behavior was introduced in `0.7.0`; `0.7.1` and `0.7.2` added the preceding date/ownership and mapping repairs. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The current API pages describe the unreleased breaking API/performance candidate based on published `0.7.3` (2026-11-12). Read the `0.7.3` tag for its retained compatibility interface, and [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking) for removals in this branch. Mapping contract 2.2 behavior was introduced in `0.7.0`; `0.7.1` and `0.7.2` added the preceding date/ownership and mapping repairs. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 
@@ -9,10 +9,10 @@ The source code, `Package.swift`, and the test target are the final authority fo
 | Item | State |
 | --- | --- |
 | Current release | `0.7.3`, declared 2026-11-12 |
-| Source | `main` at the `0.7.3` release commit |
+| Source | Unreleased `codex/api-mapping-performance`, based on published `0.7.3` |
 | Later tag | None |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.2` |
-| Documentation scope | Current pages describe `0.7.3`; release-specific behavior is called out in [Migration](operations/MIGRATION.md) |
+| Documentation scope | Current source API; tagged-release changes are identified in [Migration](operations/MIGRATION.md) |
 | Install target | `0.7.3` for production |
 
 Version `0.7.3` adds state-preservation repairs, not a new public mapping contract. The contract remains `AM-TLAM-MAPPING-2.2`. See [Migration](operations/MIGRATION.md) for the consumer-visible delta and [Status](operations/STATUS.md) for the recorded evidence. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.

@@ -4,7 +4,7 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **Release status.** Version `0.7.3` (2026-11-12) is the current release. These docs describe that release and its finalized behavior.
+> **Source status.** Published `0.7.3` remains the production release. This branch contains unreleased, breaking API cleanup and measured I/O optimizations. Current API references describe this source; use the `0.7.3` tag for that release’s interface. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking) and [candidate evidence](docs/records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
 > **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` adds sparse native-owner preservation across public write surfaces and low-level reads. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
 

@@ -94,3 +94,22 @@ The final Release profile completed successfully on production commit `3ab2a34` 
 Reproduction: `TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox --disable-keychain --disable-netrc -Xswiftc -warnings-as-errors -Xcc -Werror --filter SnapshotThroughputBenchmarkTests`. Setup and parser warmup are outside timed regions. Ordinary and 64-custom-key fixtures are separate fresh copies. This run completed before full gates or application compilation began. Raw host logs: `/tmp/taglib-io-optimized-final-benchmark.log`; baseline `/tmp/taglib-api-perf-expanded-baseline.log`. Committed JSON preserves the measured values if temporary logs expire.
 
 The final source review also replaces erase's removed Boolean expectation with exact `.unspecified` advisory verification. Erase intends absence, not a present Clean or Not Explicit value. This strengthens that intermediate verification without changing flush/staging behavior; final gates include the explicit expectation.
+
+## Final verification
+
+Final production implementation: `4dd2a60`; later source changes in this campaign are documentation/comments only. The exact-advisory addition initially had an incorrect argument order, which strict compilation rejected; it was corrected before the final runs. The focused fixture suite then passed 69 tests. The failed intermediate gate remains rejected and is not acceptance evidence.
+
+| Check | Observed result | Evidence |
+| --- | --- | --- |
+| Final strict Debug | Accepted: 162 XCTest declarations, 160 passed / two existing opt-in skips; 179 Swift Testing declarations in 41 suites passed; all mandatory native matrices | `.build/test-evidence/debug-20261112-133244-22151/` |
+| Final strict Release | Accepted: 162 XCTest declarations, 160 passed / two existing opt-in skips; 179 Swift Testing declarations in 41 suites passed; all mandatory native matrices | `.build/test-evidence/release-20261112-133604-22116/` |
+| Gate policy | 26 regressions passed | `python3 -m unittest discover -s scripts/tests` |
+| Reference/documentation checks | 54 Markdown files and all four generated-reference checks passed | `scripts/check-docs.py` and generators `--check` |
+| Independent consumers, final production | Facade and low-level executables built with strict warnings and ran successfully | `/tmp/taglib-io-facade-consumer-final.log`, `/tmp/taglib-io-lowlevel-consumer-final.log` |
+| Real AudioMator candidate integration | 62 core and 579 serial app-hosted tests passed; unsigned Release and macOS artifact validation passed. Final affected erase journey also passed after rebuilding against the exact advisory check | Application record `Docs/Engineering/TAGLIB_API_PERFORMANCE_CANDIDATE_2026-11-12.md`, branch `codex/package-api-performance-integration` |
+
+The AudioMator source migration uses current canonical identities without changing its published 0.7.3 dependency pin; evaluation uses the explicit ignored local workspace. Its full Debug run precedes the final erase-only verification addition; the additional affected erase test and Release build include it. Existing application XCTest isolation warnings were not suppressed; strict package gates are separate.
+
+No tag, push, release publication, dependency version bump, binary change or manual application launch occurred. Sanitizers, minimum-platform/device runtime and broad storage/large-artwork performance remain unmeasured. The candidate intentionally breaks the old source interface and must be adopted as an explicitly breaking release with its migration guide.
+
+Both final gates are accepted with all required named matrix/oracle/cache/lookup evidence and no unexpected skips or failed tests. The candidate meets this campaign's API cleanup, package correctness, repeatable performance evaluation and real-consumer integration criteria. It is ready for review and deliberate breaking-version adoption, not an automatic patch publication.
