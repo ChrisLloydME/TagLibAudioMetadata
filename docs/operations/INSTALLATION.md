@@ -2,7 +2,7 @@
 
 The package consumes an immutable, checksum-pinned TagLib 2.3.1 dynamic XCFramework. It has no source, static, Homebrew, or system-library fallback.
 
-This page applies to the latest published tag, `0.7.2`, and to the tagged releases it supersedes. Version `0.7.2` includes mapping contract 2.2 behavior, the `0.7.1` date/ownership corrections, and the audit, native-mapping, test-system and MP4 Content Group repairs finalized for that release. The current branch contains unreleased post-`0.7.2` repairs and does not publish a new binary or version. Use the [migration guide](MIGRATION.md) to compare the published release with the current branch.
+This page applies to version `0.7.3` and to the tagged releases it supersedes. Version `0.7.3` includes mapping contract 2.2 behavior, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs finalized for this release. The TagLib binary identity is unchanged from `0.7.2`. Use the [migration guide](MIGRATION.md) when comparing behavior across releases.
 
 ## Add the package
 
@@ -11,22 +11,22 @@ Depend on the Swift facade for normal application code. This version range selec
 ```swift
 .package(
     url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-    from: "0.7.2"
+    from: "0.7.3"
 )
 
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
 
-The `0.7.2` release notes describe the delta from `0.7.1`; see the [changelog](../../CHANGELOG.md). The current post-`0.7.2` repairs are pushed on the remote `metadataStateCoverageRepairs` branch (local `codex/metadata-state-coverage-repairs`), not on `main` and not in the published tag. To evaluate that work, opt in explicitly:
+The `0.7.3` release notes describe the delta from `0.7.2`; see the [changelog](../../CHANGELOG.md). To evaluate later untagged work after `0.7.3`, opt in explicitly:
 
 ```swift
 .package(
     url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-    branch: "metadataStateCoverageRepairs"
+    branch: "main"
 )
 ```
 
-For reproducible evaluation, select the exact revision instead of a branch name. Branch dependencies move over time. Use them only for evaluation or coordinated integration; production dependencies should use a tagged version range or an exact release. The repository assigns a release version only in the release commit, and the current branch has none.
+For reproducible evaluation, select the exact revision instead of a branch name. Branch dependencies move over time. Use them only for evaluation or coordinated integration; production dependencies should use a tagged version range or an exact release. The repository assigns a release version only in the release commit; untagged `main` work has none.
 
 Targets that directly use `TagLibMetadataExtractor` or `TagLibAudioMetadata` must declare the low-level product explicitly:
 
