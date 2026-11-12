@@ -16,7 +16,7 @@ The single SwiftPM test target is organized physically by layer:
 | `Concurrency/` | Cross-format reads/writes, M4A stress, and same-file contention. |
 | `ModelSemantics/` | Pure value-model contracts. |
 | `Performance/` | Opt-in, non-gating throughput experiments. |
-| Root-level tests | Public Objective-C selectors, Swift nested types, deprecated function references, and no unsolicited console output. |
+| Root-level tests | Public Objective-C selectors, Swift nested types, current version-aware function references, and no unsolicited console output. |
 
 The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
 
@@ -26,7 +26,7 @@ The `0.7.3` gate requires the sparse-state matrices and 8,282 additional paramet
 
 ## Strict test compilation
 
-The full Debug/Release gates pass `-Xswiftc -warnings-as-errors -Xcc -Werror` to compilation. Only the test target demotes `DeprecatedDeclaration` because its source-compatibility checks deliberately reference deprecated APIs; those warnings remain visible. Production strict compilation has no exception.
+The full Debug/Release gates pass `-Xswiftc -warnings-as-errors -Xcc -Werror` to compilation. Production and test compilation have no deprecation-warning exception; obsolete compatibility APIs and their compile-only tests have been removed.
 
 ## Standard commands
 

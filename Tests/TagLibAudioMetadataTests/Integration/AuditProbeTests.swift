@@ -61,7 +61,7 @@ struct AuditProbeTests {
             model.encoderSettings = nil
             model.itunesAlbumId = nil
             model.work = nil
-            try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
+            _ = try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
             let after = try TagLibMetadataManager.readMetadataResult(from: url)
             #expect(after.encodedBy.isEmpty, "Encoded By resurrected: \(after.encodedBy)")
             #expect(after.encoderSettings.isEmpty, "Encoder Settings resurrected: \(after.encoderSettings)")
@@ -261,7 +261,7 @@ struct AuditProbeTests {
             let model = extracted
             model.movementNumber = value
             model.movementCount = value
-            try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
+            _ = try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
             let probe = try IndependentMP4Probe.read(url)
             try probe.expectValue(.integer(value), at: "\u{00A9}mvi")
             try probe.expectValue(.integer(value), at: "\u{00A9}mvc")
@@ -305,7 +305,7 @@ struct AuditProbeTests {
             model.movementNumber = value
             model.movementCount = value
             do {
-                try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
+                _ = try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
                 Issue.record("Low-level movement overflow unexpectedly succeeded")
             } catch {
                 // Expected.
@@ -436,7 +436,7 @@ struct AuditProbeTests {
     }
 
 
-    @Test func legacyDateAliasWritesOnlyTheYearSlot() throws {
+    @Test func explicitYearWritesOnlyTheYearSlot() throws {
         // MP4
         try withM4A { url in
             try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(mp4Atoms: [
@@ -444,7 +444,7 @@ struct AuditProbeTests {
                 .init(key: "----:com.apple.iTunes:DATE", type: "stringList", values: ["2003-02-01"])
             ]), to: url)
             let before = try IndependentMP4Probe.read(url)
-            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.date: .text("2005")]), to: url)
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.year: .text("2005")]), to: url)
             let after = try IndependentMP4Probe.read(url)
             try after.expectValue(.text("2005"), at: "\u{00A9}day")
             #expect(after.items["----:com.apple.iTunes:DATE"] == before.items["----:com.apple.iTunes:DATE"])
@@ -456,7 +456,7 @@ struct AuditProbeTests {
                 + HardeningFixture.frame("TXXX", Data([3]) + Data("DATE\02003-02-01".utf8))
             try (HardeningFixture.id3(frames) + audio).write(to: url)
             let before = try IndependentID3Probe.read(url)
-            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.date: .text("2005")]), to: url)
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.year: .text("2005")]), to: url)
             let after = try IndependentID3Probe.read(url)
             #expect(after.texts["TDRC"] == ["2005"])
             #expect(after.frames["TXXX:DATE"] == before.frames["TXXX:DATE"])
@@ -534,7 +534,7 @@ struct AuditProbeTests {
             data[3] = 3
             try data.write(to: url)
             #expect(try TagLibMetadataManager.readSnapshot(from: url).structured.id3v2MajorVersion == 3)
-            for field in [MetadataFieldKey.year, .date, .standaloneDate, .releaseDate, .originalReleaseDate] {
+            for field in [MetadataFieldKey.year, .standaloneDate, .releaseDate, .originalReleaseDate] {
                 let before = try Data(contentsOf: url)
                 do {
                     try TagLibMetadataManager.applyMetadataPatch(.init(fields: [field: .text("2017-06-09")]), to: url)

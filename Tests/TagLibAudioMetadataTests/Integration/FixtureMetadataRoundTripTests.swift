@@ -152,7 +152,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
                     expectedDiscNumber: nil,
                     expectedDiscTotal: nil,
                     expectedDiscNumberText: nil,
-                    expectedExplicitContent: nil,
                     artworkExpectation: .absent,
                     customFieldKeys: []
                 ),
@@ -382,7 +381,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             expectedDiscNumber: nil,
             expectedDiscTotal: nil,
             expectedDiscNumberText: nil,
-            expectedExplicitContent: nil,
             artworkExpectation: .skip,
             customFieldKeys: [],
             expectedTextFields: ["title": "Different title"]
@@ -406,8 +404,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertThrowsError(try TagLibMetadataManager.writeTagMetadata(
             metadata,
             to: warningURL,
-            verification: mismatchedVerification,
-            failurePolicy: .warn
+            verification: mismatchedVerification
         )) { error in
             guard case TagLibManagerError.verificationFailed = error else {
                 return XCTFail("Expected verificationFailed, got \(error)")
@@ -2296,7 +2293,6 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             expectedDiscNumber: nil,
             expectedDiscTotal: nil,
             expectedDiscNumberText: nil,
-            expectedExplicitContent: nil,
             artworkExpectation: .skip,
             customFieldKeys: [],
             expectedTextFields: ["title": "Different title"]

@@ -17,8 +17,6 @@ public enum FormatSupportLevel: String, Hashable, Sendable {
     /// The repository includes a fixture and regression tests for this extension.
     /// This does not assert that all metadata surfaces or files are verified.
     case fixtureCovered
-    @available(*, deprecated, message: "Use fixtureCovered. A configured support label is not empirical verification.")
-    case verified
     /// Available for evaluation, but container-specific field behavior is incomplete.
     case experimental
     /// TagLib exposes the operation, but this package has no round-trip fixture for it.
@@ -168,10 +166,6 @@ public extension TagLibMetadataManager {
         return FormatCapability(bridgeDictionary: dictionary)
     }
 
-    @available(*, deprecated, renamed: "capability(forExtension:)")
-    nonisolated static func formatCapability(for fileExtension: String) -> FormatCapability? {
-        capability(forExtension: fileExtension)
-    }
 
     /// Opens and reads a concrete file before returning its extension capability.
     ///

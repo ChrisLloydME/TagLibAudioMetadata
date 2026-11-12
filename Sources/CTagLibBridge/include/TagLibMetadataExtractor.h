@@ -82,7 +82,7 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
 /// Nil means the source is absent or representable without loss.
 @property (nonatomic, copy, nullable) NSString *explicitAdvisoryRawValue;
 /// Compatibility projection. Setting NO means explicitly clean; reading YES means explicit.
-@property (nonatomic, assign) BOOL explicitContent;
+@property (nonatomic, readonly) BOOL explicitContent;
 @property (nonatomic, copy, nullable) NSString *copyright;
 @property (nonatomic, copy, nullable) NSString *lyrics;
 @property (nonatomic, copy, nullable) NSString *label;

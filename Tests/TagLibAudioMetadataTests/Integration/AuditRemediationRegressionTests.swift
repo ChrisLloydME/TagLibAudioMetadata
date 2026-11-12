@@ -525,7 +525,7 @@ final class AuditRemediationRegressionTests: XCTestCase {
         XCTAssertEqual(TagLibMetadataManager.capability(forExtension: "aac")?.canWriteArtwork, true)
 
         let mp4 = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: "m4a"))
-        XCTAssertFalse(MetadataFieldRegistry.schemas(storableIn: mp4).contains { $0.key == .date })
+        XCTAssertFalse(MetadataFieldKey.allCases.contains { $0.rawValue == "date" })
         XCTAssertTrue(MetadataFieldRegistry.schemas(storableIn: mp4).contains { $0.key == .releaseDate })
 
         XCTAssertEqual(MetadataFieldRegistry.schema(forPropertyMapKey: "COMMENT:C1")?.key, .comment)

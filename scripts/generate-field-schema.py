@@ -81,7 +81,6 @@ CATALOG_FAMILIES = (
 )
 
 SEMANTIC_OVERRIDES = {
-    "date": "YEAR",
     "year": "YEAR",
     "standaloneDate": "DATE",
     "publisher": "LABEL",
@@ -181,7 +180,7 @@ def parse_fields() -> list[dict[str, object]]:
                 "people": bool(re.search(r"\bpeople:\s*true", entry)),
                 "role": bool(re.search(r"\brole:\s*true", entry)),
                 "artwork": key == "artwork",
-                "canonical": not bool(re.search(r"\blegacyYearAlias:\s*true", entry)),
+                "canonical": True,
                 "write_unsupported_reason": None,
             }
         else:

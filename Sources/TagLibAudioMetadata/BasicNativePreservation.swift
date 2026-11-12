@@ -22,7 +22,7 @@ extension TagLibMetadataManager {
         // unrelated Basic edit does not authorize that migration.
         let pairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
         let fields = identifier == "mp4"
-            ? BasicMetadata.editableFieldKeys.filter { $0 != .date && !pairFields.contains($0) }
+            ? BasicMetadata.editableFieldKeys.filter { !pairFields.contains($0) }
             : basicDateFields
         for field in fields where basicProjectionValue(for: field, metadata: requested) == basicProjectionValue(for: field, metadata: before.basic) {
             guard basicProjectionValue(for: field, metadata: requested) != nil,

@@ -240,8 +240,7 @@ final class FormatCapabilityTests: XCTestCase {
             let schemas = MetadataFieldRegistry.allSchemas.filter {
                 propertyKeys == $0.propertyMapKeys
             }
-            // YEAR keeps the deprecated `.date` spelling as a documented alias
-            // of the canonical `.year` identity; they are one semantic owner.
+            // Engine PropertyMap aliases are separate from typed field identities.
             let semanticKeys = Set(schemas.map(\.semanticKey))
             let schema = try XCTUnwrap(
                 semanticKeys.count == 1 ? schemas.first(where: \.isCanonicalSemanticOwner) ?? schemas.first : nil,

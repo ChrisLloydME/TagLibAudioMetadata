@@ -3,6 +3,14 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Breaking API cleanup
+
+- Remove the typed `.date` YEAR alias, obsolete facade read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters/verification expectations, and outdated capability/error aliases. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking).
+- Remove ignored, contradictory native-target hints and old bridge-selector probing. Native mapping contract 2.2, file read aliases, exact preservation and explicit legacy numbering recovery remain supported.
+- Compile production and tests without a deprecation-warning exception.
+
 ## [0.7.3] - 2026-11-12
 
 ### Fixed

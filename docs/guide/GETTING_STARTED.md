@@ -108,8 +108,8 @@ Rules worth knowing before the first write:
 - `.text("")`, `.values([])`, and empty array elements are validation errors, not deletion aliases.
 - Do not mix typed track/disc fields with `numberText` in one patch.
 - Verification mismatches throw before commit; a successful result carries only residual container advisories.
-- `.year` is the canonical YEAR field. `.date` is a legacy YEAR spelling that writes the same slot where writable; do not supply both.
-- `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` are independent fields. `BasicMetadata.date` carries the standalone DATE projection, not the typed `.date` legacy YEAR alias.
+- `.year` is the YEAR field. The ambiguous typed `.date` YEAR alias has been removed.
+- `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` are independent fields. `BasicMetadata.date` carries the standalone DATE projection.
 - Existing ID3v2.3 tags reject independent date edits. Inspect `StructuredMetadata.id3v2MajorVersion` before enabling those controls.
 - Unrelated edits preserve existing native date owners and their arrays. In particular, do not round-trip a scalar `BasicMetadata` date through an unrelated save and assume that proves the native collection was preserved; the writer retains it, but the scalar model cannot display the full state.
 - On MP4, typed `.comment` and `.lyrics` patches write the native `©cmt`/`©lyr` atoms. The structured `comments`/`lyrics` collections are a different surface and are ignored on MP4.

@@ -614,7 +614,7 @@ static const TLMetadataFieldMapping kMetadataFieldMappings[] = {
     { "ARTIST", { nullptr }, "TPE1", nullptr, "\xA9" "ART", nullptr, true, true, false },
     { "ALBUM", { nullptr }, "TALB", nullptr, "\xA9" "alb", nullptr, false, false, false },
     { "ALBUMARTIST", { "ALBUM ARTIST", nullptr }, "TPE2", nullptr, "aART", nullptr, true, true, false },
-    { "DATE", { "YEAR", nullptr }, "TDRC", nullptr, "\xA9" "day", nullptr, false, false, false },
+    { "YEAR", { "DATE", nullptr }, "TDRC", nullptr, "\xA9" "day", nullptr, false, false, false },
     { "STANDALONEDATE", { nullptr }, nullptr, "DATE", nullptr, "DATE", false, false, false },
     { "RELEASEDATE", { nullptr }, "TDRL", nullptr, nullptr, "RELEASEDATE", false, false, false },
     { "ORIGINALDATE", { "ORIGINAL YEAR", nullptr }, "TDOR", nullptr, nullptr, "ORIGINALDATE", false, false, false },
