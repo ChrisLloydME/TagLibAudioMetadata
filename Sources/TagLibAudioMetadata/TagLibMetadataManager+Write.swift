@@ -596,9 +596,9 @@ extension TagLibMetadataManager {
                     expectedDiscNumber: nil,
                     expectedDiscTotal: nil,
                     expectedDiscNumberText: nil,
-                    expectedExplicitAdvisory: .unspecified,
                     artworkExpectation: .absent,
-                    customFieldKeys: []
+                    customFieldKeys: [],
+                    expectedExplicitAdvisory: .unspecified
                 )
             )
         )
