@@ -8,6 +8,8 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 
 > **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` adds sparse native-owner preservation across public write surfaces and low-level reads. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
 
+The [write-concurrency follow-up](docs/records/remediation/REM-2026-11-12-write-concurrency.md) measures bounded durable writes and reduces discarded transaction projections. Its package strict Debug/Release and real AudioMator local-candidate gates pass; timings remain local workload observations.
+
 ## At a glance
 
 | Topic | Summary |
