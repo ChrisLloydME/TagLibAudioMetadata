@@ -7,11 +7,15 @@ This page is a snapshot of the latest known validation state for the current sou
 | Item | State |
 | --- | --- |
 | Current release | `0.7.3`, declared 2026-11-12 |
-| Source | `main` at the `0.7.3` release commit |
+| Source | Unreleased `codex/api-mapping-performance`, based on published `0.7.3` |
 | Later tag | None |
-| Documentation scope | Current pages describe `0.7.3`; release-specific behavior is called out in [Migration](MIGRATION.md) |
+| Documentation scope | Current source includes breaking API cleanup; tagged-release guidance is identified in [Migration](MIGRATION.md) |
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
+
+## Unreleased API/performance candidate
+
+This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. Immutable capability caching and per-read indexes are under evaluation; see [the audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md). Full candidate acceptance and AudioMator local integration are pending; historical passing gates below do not certify this candidate.
 
 ## Recorded 0.7.3 validation
 

@@ -153,17 +153,36 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
     }
 }
 
+// These are build-time descriptors, not evidence about any concrete file.
+// Swift static initialization is synchronized; callers receive value copies.
+private enum DeclaredFormatCapabilities {
+    nonisolated static let families: [FormatCapability] =
+        TagLibMetadataExtractor.formatCapabilities().compactMap(FormatCapability.init(bridgeDictionary:))
+
+    nonisolated static let byExtension: [String: FormatCapability] = {
+        var result: [String: FormatCapability] = [:]
+        for family in families {
+            for fileExtension in family.extensions {
+                // Alias extensions can have a different coverage level from
+                // their family's primary extension. Retain the exact descriptor.
+                if let dictionary = TagLibMetadataExtractor.formatCapability(for: fileExtension),
+                   let capability = FormatCapability(bridgeDictionary: dictionary) {
+                    result[fileExtension.lowercased()] = capability
+                }
+            }
+        }
+        return result
+    }()
+}
+
 public extension TagLibMetadataManager {
     nonisolated static var formatCapabilities: [FormatCapability] {
-        TagLibMetadataExtractor.formatCapabilities().compactMap(FormatCapability.init(bridgeDictionary:))
+        DeclaredFormatCapabilities.families
     }
 
     /// Returns declared capability for an extension. This does not inspect a file.
     nonisolated static func capability(forExtension fileExtension: String) -> FormatCapability? {
-        guard let dictionary = TagLibMetadataExtractor.formatCapability(for: fileExtension) else {
-            return nil
-        }
-        return FormatCapability(bridgeDictionary: dictionary)
+        DeclaredFormatCapabilities.byExtension[fileExtension.lowercased()]
     }
 
 

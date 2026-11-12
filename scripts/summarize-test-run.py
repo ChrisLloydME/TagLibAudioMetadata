@@ -41,6 +41,14 @@ swift_skips = [line for line in log.splitlines()
                if re.search(r'\b(?:Test|Suite)\s+(?!skipped\b).+?\s+skipped\b', line) and 'Test Case ' not in line]
 failed_named_tests = sorted(set(re.findall(r'\bTest ([A-Za-z_]\w*)\([^)]*\) failed\b', log)))
 failed_xctest = sorted(set(re.findall(r"Test Case '(-\[[^']+\])' failed", log)))
+required_xctest = {
+    ('FormatCapabilityTests', 'testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies'),
+    ('ReadLookupPreservationTests', 'testRawLookupPreservesFirstIdentityEmptyArraysAndText'),
+    ('ReadLookupPreservationTests', 'testUnicodeLookupRetainsFoundationCaseComparison'),
+    ('ReadLookupPreservationTests', 'testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState'),
+}
+passed_xctest = {xctest_identity(name) for name in re.findall(r"Test Case '(-\[[^']+\])' passed", log)}
+missing_xctest = sorted(required_xctest - passed_xctest)
 required_suites = ('SemanticLifecycleMatrixTests', 'FLACSemanticLifecycleTests', 'ID3SemanticLifecycleTests', 'NativeProbeContractTests', 'BasicIntegrityMatrixTests', 'AdditionalContainerLifecycleTests', 'ASFNativeLifecycleTests', 'AuditProbeTests', 'ID3ContainerLifecycleTests')
 completed_suites = dict(re.findall(r'Suite (\w+) (passed|failed)', log))
 missing_suites = [suite for suite in required_suites if suite not in completed_suites]
@@ -139,11 +147,12 @@ summary = {'runner_exit_status': status, 'xctest_executed': int(xctest[-1][0]) i
            'swift_testing_skips': swift_skips, 'missing_required_suites': missing_suites,
            'missing_required_tests': missing_tests,
            'failed_named_tests': failed_named_tests,
-           'failed_xctest_names': failed_xctest}
-ok = (status == 0 and bool(xctest) and int(xctest[-1][0]) >= 158 and int(xctest[-1][2]) == 0
+           'failed_xctest_names': failed_xctest,
+           'missing_required_xctest': missing_xctest}
+ok = (status == 0 and bool(xctest) and int(xctest[-1][0]) >= 162 and int(xctest[-1][2]) == 0
       and bool(swift) and int(swift[-1][0]) >= 179 and swift[-1][2] == 'passed'
       and not unexpected and not swift_skips and not missing_suites and not missing_tests
-      and not failed_named_tests and not failed_xctest
+      and not failed_named_tests and not failed_xctest and not missing_xctest
       and all(int(result[2]) == 0 for result in xctest)
       and all(result[2] == 'passed' for result in swift)
       and all(completed_suites[suite] == 'passed' for suite in required_suites)
