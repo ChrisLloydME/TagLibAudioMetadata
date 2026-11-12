@@ -11,6 +11,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Remove ignored, contradictory native-target hints and old bridge-selector probing. Native mapping contract 2.2, file read aliases, exact preservation and explicit legacy numbering recovery remain supported.
 - Compile production and tests without a deprecation-warning exception.
 
+### Performance and verification
+
+- Cache immutable format descriptors while retaining per-extension support levels. Use per-read raw/MP4 indexes, including custom-field arrays, and remove a redundant pre-read identity lookup without caching concrete files.
+- Require named cache/lookup preservation regressions in the full gate, retain Unicode/first-owner/array behavior, and add repeatable multi-container warmed Release I/O profiles.
+- Require the checksum-pinned namespaced TagLib framework directly instead of silently accepting a legacy host framework.
+
 ## [0.7.3] - 2026-11-12
 
 ### Fixed

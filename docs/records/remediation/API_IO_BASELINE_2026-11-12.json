@@ -301,5 +301,6 @@
       "medianMs": "0.012229687500000001",
       "p95Ms": "0.0134747085"
     }
-  ]
+  ],
+  "metricDefinition": "medianMs and p95Ms summarize five batch-average latencies; p95Ms is the nearest-rank percentile (maximum of five), not per-operation tail latency"
 }

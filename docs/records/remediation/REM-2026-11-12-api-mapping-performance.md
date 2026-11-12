@@ -32,3 +32,13 @@ A concrete mapping-maintenance defect was also found: `MetadataFieldSchema` stil
 ## API cleanup accepted independently
 
 Removed the typed `.date` YEAR alias, dead native-target hints, deprecated read/replacement/failure-policy overloads, old function-reference arities, runtime selector fallback and lossy Boolean advisory setters/expectations. The bridge descriptor now orders YEAR before its engine DATE alias, matching the single Swift owner. Existing file aliases and explicit numbering recovery remain intact. Strict focused tests passed (29 XCTest and 7 Swift Testing declarations). The complete strict Debug gate then passed: 158 XCTest declarations (156 passed, the two existing opt-in skips), 179 Swift Testing declarations in 41 suites, and every mandatory native matrix. See `.build/test-evidence/debug-20261112-131752-18246/`. No warning demotion remains on the test target. This is intentionally breaking source API work, not a patch-compatible release.
+
+## Performance implementation
+
+Only build-time declared capabilities are cached; exact extension support levels and value-copy behavior are verified against the bridge. Per-read indexes preserve first-owner precedence and native values; Unicode raw keys retain the prior Foundation comparison. The same index now supplies custom-field arrays, removing a quadratic scan across custom fields and raw properties. Redundant pre-read identity lookup is combined without removing the post-read check. No mutable per-file state is cached.
+
+A first profile found the descriptor query approximately 100 times faster while metadata-heavy reads remained limited by custom-field assembly. That evidence motivated the second lookup change; the final identical-workload profile is recorded separately below. The optional benchmark reports batch-average latency distributions, not per-operation tail percentiles.
+
+The pinned binary's namespaced headers and its Stem item type are now used directly; silent fallback to an unrelated old host framework has been removed. This does not change the binary version or checksum.
+
+Focused strict checks after these changes passed 27 XCTest and 24 Swift Testing declarations, including the native audit regressions. Gate policy now requires all four new passing XCTest identities and a 162-declaration floor; all 26 policy tests pass. Full strict Debug/Release and real consumer acceptance remain pending until their evidence is appended.

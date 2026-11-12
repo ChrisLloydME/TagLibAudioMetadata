@@ -200,3 +200,9 @@ The single SwiftPM test target is organized physically by layer:
 - Root-level tests cover public Objective-C selectors, Swift nested types, current version-aware function references, and console-diagnostics hygiene.
 
 `scripts/validate-tests.sh` runs the complete Debug or Release suite with strict warnings and writes evidence under `.build/test-evidence/`; `scripts/summarize-test-run.py` fails closed on missing framework summaries, unexpected skips, missing named matrices/oracles, case-count shrinkage, or named failures. `scripts/tests/` holds the gate-policy regressions. This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](../operations/TESTING.md) and [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md).
+
+## Declared capabilities and read lookup costs
+
+Format-family descriptors and exact extension variants are immutable and initialized once with synchronized Swift static initialization. Returned descriptors are value copies. A secondary extension retains its own support level; this cache is never concrete-file readability or write-layout evidence. `probeFile(at:)` still opens the current file.
+
+Basic projection indexes ASCII raw keys and exact MP4 atom identities only for the duration of a single read. It preserves the first owner, empty arrays, duplicate values and significant whitespace. Non-ASCII raw keys retain Foundation case-insensitive comparison. No file metadata, version, layout, audio identity or mutation result is cached across reads. Before/after identity checks, the TagLib serial guard, staging, native verification and durable flushes remain active.
