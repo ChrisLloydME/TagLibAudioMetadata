@@ -42,6 +42,66 @@ final class SnapshotThroughputBenchmarkTests: XCTestCase {
         }
         XCTAssertTrue(failures.errors.isEmpty, "\(failures.errors)")
         try measureWriteAndFlushCosts(in: directory)
+        try measureMetadataIOProfiles(in: directory)
+    }
+
+    private func measureMetadataIOProfiles(in directory: URL) throws {
+        func milliseconds(_ elapsed: Duration) -> Double {
+            let value = elapsed.components
+            return Double(value.seconds) * 1_000 + Double(value.attoseconds) / 1e15
+        }
+        func sample(_ api: String, format: String, density: String, iterations: Int,
+                    operation: () throws -> Void) rethrows {
+            try operation() // Warm the parser and immutable registry outside timing.
+            var timings: [Double] = []
+            for _ in 0..<5 {
+                let elapsed = try ContinuousClock().measure {
+                    for _ in 0..<iterations { try operation() }
+                }
+                timings.append(milliseconds(elapsed) / Double(iterations))
+            }
+            timings.sort()
+            print("METADATA_IO_BENCHMARK format=\(format) density=\(density) api=\(api) iterations=\(iterations) samples=5 medianMs=\(timings[2]) p95Ms=\(timings[4])")
+        }
+        for ext in ["mp3", "m4a", "flac"] {
+            let source = try XCTUnwrap(Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
+                ?? Bundle.module.url(forResource: "testAudioFile", withExtension: ext))
+            for density in ["ordinary", "metadata-heavy"] {
+                let url = directory.appendingPathComponent("profile-\(density).\(ext)")
+                try FileManager.default.copyItem(at: source, to: url)
+                if density == "metadata-heavy" {
+                    let values = Dictionary(uniqueKeysWithValues: (0..<64).map { index in
+                        ("PERF_FIELD_\(index)", [String(repeating: "Metadata ", count: 64), "duplicate", "duplicate", "  padded  "])
+                    })
+                    try TagLibMetadataManager.applyRawMetadataPatch(.init(valuesToSet: values), to: url)
+                }
+                let original = try Data(contentsOf: url)
+                try sample("basic", format: ext, density: density, iterations: 40) {
+                    _ = try TagLibMetadataManager.readBasicSnapshot(from: url)
+                }
+                try sample("snapshot", format: ext, density: density, iterations: 40) {
+                    _ = try TagLibMetadataManager.readSnapshot(from: url)
+                }
+                XCTAssertEqual(try Data(contentsOf: url), original, "Read benchmark mutated its fixture")
+                var sequence = 0
+                try sample("typed-title", format: ext, density: density, iterations: 4) {
+                    sequence += 1
+                    try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.title: .text("Typed \(sequence)")]), to: url)
+                }
+                try sample("basic-title", format: ext, density: density, iterations: 4) {
+                    sequence += 1
+                    try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Basic \(sequence)" }
+                }
+                try sample("raw-title", format: ext, density: density, iterations: 4) {
+                    sequence += 1
+                    try TagLibMetadataManager.applyRawMetadataPatch(.init(valuesToSet: ["TITLE": ["Raw \(sequence)"]]), to: url)
+                }
+                XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).title, "Raw \(sequence)")
+            }
+            sample("declared-capability", format: ext, density: "descriptor-only", iterations: 2_000) {
+                _ = TagLibMetadataManager.capability(forExtension: ext)
+            }
+        }
     }
 
     private func measureWriteAndFlushCosts(in directory: URL) throws {
