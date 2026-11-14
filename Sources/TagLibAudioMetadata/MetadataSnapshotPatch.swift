@@ -565,6 +565,13 @@ extension TagLibMetadataManager {
                     }
                 case .id3Frame(var frame):
                     nativeFieldAliases.formUnion(storage.keysToRemove)
+                    if !basicDateFields.contains(field) {
+                        for original in before.structured.id3v2Frames where original.frameID == "TXXX" {
+                            guard let description = original.description,
+                                  MetadataFieldRegistry.schema(forPropertyMapKey: description)?.key == field else { continue }
+                            id3Frames.append(.init(frameID: "TXXX", type: "userText", description: description))
+                        }
+                    }
                     frame.values = value.propertyMapValues
                     id3Frames.append(frame)
                 case .nativeTextKey(let key):

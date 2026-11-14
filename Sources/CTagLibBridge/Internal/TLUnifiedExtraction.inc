@@ -377,6 +377,35 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
         if (wantsStructured) [warningsOut addObject:@"Tracker fields vary by module format; only PropertyMap entries exposed by TagLib are returned."];
     }
 
+    TagLib::ID3v2::Tag *primaryID3 = nullptr;
+    if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(baseFile)) primaryID3 = mpeg->ID3v2Tag(false);
+    else if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(baseFile)) primaryID3 = wav->ID3v2Tag();
+    else if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(baseFile)) primaryID3 = aiff->tag();
+    else if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(baseFile)) primaryID3 = tta->ID3v2Tag(false);
+    else if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(baseFile)) primaryID3 = dsf->tag();
+    else if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(baseFile)) primaryID3 = dff->ID3v2Tag(false);
+    if (primaryID3 && primaryID3->header()->majorVersion() == 3 && (wantsBasic || wantsRawFrames || wantsStructured)) {
+        NSArray *dates = LiteralV23DateFrames(fileURL, error);
+        if (!dates) return nil;
+        NSSet *owners = [NSSet setWithArray:@[@"TYER", @"TDAT", @"TORY", @"TDRC", @"TDRL", @"TDOR"]];
+        for (NSMutableArray *frames in @[rawFramesOut, structuredFramesOut]) {
+            for (NSUInteger index = frames.count; index > 0; --index) {
+                NSDictionary *frame = frames[index - 1];
+                if ([owners containsObject:frame[@"id"]]) [frames removeObjectAtIndex:index - 1];
+            }
+        }
+        if (wantsRawFrames) [rawFramesOut addObjectsFromArray:dates];
+        if (wantsStructured) [structuredFramesOut addObjectsFromArray:dates];
+        if (wantsBasic) {
+            auto value = [&](NSString *identifier) -> NSString * {
+                for (NSDictionary *frame in dates) if ([frame[@"id"] isEqual:identifier]) return (NSString *)frame[@"value"];
+                return nil;
+            };
+            basic.year = value(@"TYER") ?: value(@"TDRC");
+            basic.standaloneDate = value(@"TDAT") ?: basic.standaloneDate;
+            basic.originalReleaseDate = value(@"TORY") ?: value(@"TDOR");
+        }
+    }
     NSDictionary<NSString *, NSObject *> *raw = @{
         @"properties": propertiesOut,
         @"id3v2Frames": rawFramesOut,
@@ -385,13 +414,6 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     if (wantsBasic) result[@"basic"] = basic;
     if (wantsRaw || explicitlyWantsPropertyMap || explicitlyWantsRawFrames) result[@"raw"] = raw;
     if (wantsStructured) {
-        TagLib::ID3v2::Tag *primaryID3 = nullptr;
-        if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(baseFile)) primaryID3 = mpeg->ID3v2Tag(false);
-        else if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(baseFile)) primaryID3 = wav->ID3v2Tag();
-        else if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(baseFile)) primaryID3 = aiff->tag();
-        else if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(baseFile)) primaryID3 = tta->ID3v2Tag(false);
-        else if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(baseFile)) primaryID3 = dsf->tag();
-        else if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(baseFile)) primaryID3 = dff->ID3v2Tag(false);
         NSDictionary<NSString *, NSObject *> *structured = @{
             @"properties": propertiesOut,
             @"id3v2Frames": structuredFramesOut,

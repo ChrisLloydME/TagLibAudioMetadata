@@ -180,7 +180,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `.../TagLibMetadataManager+Write.swift` | Basic replacement/update, bridge-model write, raw whole-map writes, erase, number text. |
 | `.../TagLibMetadataManager+Structured.swift` | Structured conversion, validation, write, verification. |
 | `.../TagLibMetadataManager+Verification.swift` | Verification helpers, warning construction, raw normalization, explicit provenance. |
-| `.../Reads/LegacyID3DateEvidence.swift` | Reads literal legacy v2.3 date slots before engine synthesis. |
+| `Sources/CTagLibBridge/Internal/TLLegacyID3Dates.inc` | Reads literal legacy v2.3 date slots before engine synthesis. |
 | `.../MetadataSnapshotPatch.swift` | `MetadataPatch`, typed patch validation and application. |
 | `.../RawMetadataPatch.swift` | Exact raw delta validation, application, and verification. |
 | `.../MetadataNativePlanning.swift` | Semantic patch value to exact native target translation. |

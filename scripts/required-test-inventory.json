@@ -191,6 +191,10 @@
     "suite": "MP4FieldInteractionTests",
     "path": "Integration/MP4FieldInteractionTests.swift"
   },
+  "legacyDateFlagsRetainLiteralOwners": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
   "legacyDatesAreIndependentAndBasicEditsPreserveThem": {
     "suite": "IndependentDiagnosticRepairTests",
     "path": "Integration/IndependentDiagnosticRepairTests.swift"

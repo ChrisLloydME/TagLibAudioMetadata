@@ -30,14 +30,35 @@ struct IndependentDiagnosticRepairTests {
     @Test func legacyDatesAreIndependentAndBasicEditsPreserveThem() throws {
         try Self.withCopy("mp3") { url in
             try Self.legacy(url)
-            let before = try LegacyID3DateEvidence.frames(at: url).sorted { ($0["id"] as? String ?? "") < ($1["id"] as? String ?? "") } as NSArray
+            let before = try IndependentLegacyID3DateProbe.frames(at: url).sorted { ($0["id"] as? String ?? "") < ($1["id"] as? String ?? "") } as NSArray
             let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
             #expect(snapshot.basic.year == "2004")
             #expect(snapshot.basic.date == "0906")
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Edited" }
             #expect(try TagLibMetadataManager.readMetadataResult(from: url).title == "Edited")
-            let after = try LegacyID3DateEvidence.frames(at: url).sorted { ($0["id"] as? String ?? "") < ($1["id"] as? String ?? "") } as NSArray
+            let after = try IndependentLegacyID3DateProbe.frames(at: url).sorted { ($0["id"] as? String ?? "") < ($1["id"] as? String ?? "") } as NSArray
             #expect(after == before, "before=\(before) after=\(after)")
+        }
+    }
+    @Test(arguments: [UInt8(0x20), 0x40, 0x80, 0xc0])
+    func legacyDateFlagsRetainLiteralOwners(_ flags: UInt8) throws {
+        try Self.withCopy("mp3") { url in
+            try Self.legacy(url)
+            let original = try Data(contentsOf: url)
+            let length = original[6..<10].reduce(0) { ($0 << 7) | Int($1) }
+            var body = Data(original[10..<(10 + length)])
+            if flags & 0x80 != 0 {
+                body = Data("XZZZ".utf8) + Data([0,0,0,2,0,0,0xff,0,0xe0]) + body
+            }
+            if flags & 0x40 != 0 { body = Data([0,0,0,6,0,0,0,0,0,0]) + body }
+            let n = body.count
+            let header = Data([73,68,51,3,0,flags,UInt8((n >> 21)&127),UInt8((n >> 14)&127),UInt8((n >> 7)&127),UInt8(n&127)])
+            let bytes = header + body + original.dropFirst(10 + length)
+            try bytes.write(to: url)
+            let metadata = try TagLibMetadataManager.readSnapshot(from: url).basic
+            #expect(metadata.year == "2004")
+            #expect(metadata.date == "0906")
+            #expect(try Data(contentsOf: url) == bytes)
         }
     }
     @Test func basicClearArtworkRemovesNativeCollections() throws {
@@ -148,26 +169,40 @@ struct IndependentDiagnosticRepairTests {
             #expect(try Data(contentsOf: url) == bytes)
         }
     }
-    @Test func lowLevelMP4WritableTextOwnersMatchCatalog() throws {
-        let cases: [(MetadataFieldKey, String)] = [
-            (.albumArtist, "albumArtist"), (.composer, "composer"), (.sortTitle, "sortTitle"),
-            (.sortArtist, "sortArtist"), (.sortAlbum, "sortAlbum"), (.sortAlbumArtist, "sortAlbumArtist"),
-            (.sortComposer, "sortComposer"), (.conductor, "conductor"), (.encodedBy, "encodedBy"),
-            (.encoderSettings, "encoderSettings"), (.copyright, "copyright"), (.contentGroup, "contentGroup"),
-            (.movement, "movement"), (.publisher, "label"), (.work, "work")
-        ]
-        for (field, property) in cases {
-            try Self.withCopy("m4a") { url in
-                let before = try IndependentMP4Probe.read(url)
-                let target = try #require(MetadataFieldRegistry.schema(for: field)?.writeTarget(for: .mp4))
-                try TagLibMetadataManager.applyMetadataPatch(.init(fields: [field: .text("Typed")]), to: url)
-                let metadata = TagLibAudioMetadata()
-                metadata.setValue("Lowlevel", forKey: property)
-                _ = try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
-                let native = try IndependentMP4Probe.read(url)
-                #expect(native.values[target.nativeIdentity] == [Data("Lowlevel".utf8)], "\(field)")
-                #expect(native.audio == before.audio)
-            }
+    struct MP4TextOwner: Sendable {
+        let field: MetadataFieldKey
+        let property: String
+    }
+    static let mp4TextOwners: [MP4TextOwner] = [
+        .init(field: .albumArtist, property: "albumArtist"),
+        .init(field: .composer, property: "composer"),
+        .init(field: .sortTitle, property: "sortTitle"),
+        .init(field: .sortArtist, property: "sortArtist"),
+        .init(field: .sortAlbum, property: "sortAlbum"),
+        .init(field: .sortAlbumArtist, property: "sortAlbumArtist"),
+        .init(field: .sortComposer, property: "sortComposer"),
+        .init(field: .conductor, property: "conductor"),
+        .init(field: .encodedBy, property: "encodedBy"),
+        .init(field: .encoderSettings, property: "encoderSettings"),
+        .init(field: .copyright, property: "copyright"),
+        .init(field: .contentGroup, property: "contentGroup"),
+        .init(field: .movement, property: "movement"),
+        .init(field: .publisher, property: "label"),
+        .init(field: .work, property: "work"),
+    ]
+    @Test(arguments: Self.mp4TextOwners)
+    func lowLevelMP4WritableTextOwnersMatchCatalog(_ entry: MP4TextOwner) throws {
+        let field = entry.field, property = entry.property
+        try Self.withCopy("m4a") { url in
+            let before = try IndependentMP4Probe.read(url)
+            let target = try #require(MetadataFieldRegistry.schema(for: field)?.writeTarget(for: .mp4))
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [field: .text("Typed")]), to: url)
+            let metadata = TagLibAudioMetadata()
+            metadata.setValue("Lowlevel", forKey: property)
+            _ = try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
+            let native = try IndependentMP4Probe.read(url)
+            #expect(native.values[target.nativeIdentity] == [Data("Lowlevel".utf8)], "\(field)")
+            #expect(native.audio == before.audio)
         }
     }
     @Test func versionedTextWritesAndRemovalsVerify() throws {
@@ -180,6 +215,11 @@ struct IndependentDiagnosticRepairTests {
                 frame.values = []
                 try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [frame]), to: url)
                 #expect(try TagLibMetadataManager.readMetadataResult(from: url).year.isEmpty)
+                if !v3 {
+                    let date = StructuredID3v2Frame(frameID: "TDAT", type: "versionedText", values: ["2017-06-09"], v23ID: "TDAT", v24Description: "DATE")
+                    try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [date]), to: url)
+                    #expect(try TagLibMetadataManager.readMetadataResult(from: url).date == "2017-06-09")
+                }
             }
         }
     }

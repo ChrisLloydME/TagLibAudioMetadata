@@ -6,7 +6,10 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = (
-    "Test lowLevelMP4WritableTextOwnersMatchCatalog() passed after 1 second.\n"
+    "Test legacyDateFlagsRetainLiteralOwners() with 4 test cases passed after 1 second.\n"
+    "Suite IndependentDiagnosticRepairTests passed.\n"
+    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testLegacyID3ProjectionOptionsHaveLiteralDateOwners]' passed (0.001 seconds).\n"
+    "Test lowLevelMP4WritableTextOwnersMatchCatalog() with 15 test cases passed after 1 second.\n"
     "Test legacyDatesAreIndependentAndBasicEditsPreserveThem() passed after 1 second.\n"
     "Test basicClearArtworkRemovesNativeCollections() passed after 1 second.\n"
     "Test movementAndReleaseOwnersAgreeAcrossEntrypoints() passed after 1 second.\n"
@@ -52,7 +55,7 @@ PASS = (
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityMatchesFullReaderAcrossFixtures]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n"
-    "Executed 167 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
+    "Executed 168 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
     "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.\n"
     "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.\n"
     "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
@@ -107,7 +110,7 @@ PASS = (
     "Suite ID3ContainerLifecycleTests passed.\n"
     "Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.\n"
     "Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.\n"
-    "Test run with 197 tests in 41 suites passed after 8 seconds.\n"
+    "Test run with 198 tests in 41 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -155,8 +158,8 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'everyFieldPreservesAllSiblingDateStates' not in line)))
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
-        self.assertFalse(self.accepted(PASS.replace('Executed 167 tests', 'Executed 166 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 197 tests', 'run with 196 tests')))
+        self.assertFalse(self.accepted(PASS.replace('Executed 168 tests', 'Executed 167 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 198 tests', 'run with 197 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))

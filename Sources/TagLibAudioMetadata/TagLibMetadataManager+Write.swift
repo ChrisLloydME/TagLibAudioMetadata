@@ -612,8 +612,14 @@ extension TagLibMetadataManager {
             custom[key] = values.isEmpty ? .remove : .values(values)
         }
         let mime = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
-        let artwork: MetadataArtworkPatch = meta.artworkData == before.basic.artworkData && mime == before.basic.artworkMIMEType ? .unchanged
+        var artwork: MetadataArtworkPatch = meta.artworkData == before.basic.artworkData && mime == before.basic.artworkMIMEType ? .unchanged
             : meta.artworkData.map { .replace([.init(mimeType: mime ?? "image/jpeg", data: $0)]) } ?? .removeAll
+        if let data = meta.artworkData, data == before.basic.artworkData, mime != before.basic.artworkMIMEType,
+           let index = before.structured.artwork.firstIndex(where: { $0.data == data }) {
+            var retained = before.structured.artwork
+            retained[index].mimeType = mime ?? retained[index].mimeType
+            artwork = .replace(retained)
+        }
         if meta.explicitAdvisoryRawValue != before.basic.explicitAdvisoryRawValue, meta.explicitAdvisoryRawValue != nil {
             throw TagLibManagerError.unsupportedWritePolicy("Unknown advisory provenance is read-only; use a raw native edit.")
         }
@@ -623,11 +629,13 @@ extension TagLibMetadataManager {
         var trackText: String?
         var discText: String?
         if !isMP4 {
-            if meta.trackNumberText != before.basic.trackNumberText {
+            if meta.trackNumberText != before.basic.trackNumberText,
+               parseNumberPair(meta.trackNumberText).number == meta.track, parseNumberPair(meta.trackNumberText).total == meta.trackTotal {
                 trackText = meta.trackNumberText
                 fields.removeValue(forKey: .track); fields.removeValue(forKey: .trackTotal)
             }
-            if meta.discNumberText != before.basic.discNumberText {
+            if meta.discNumberText != before.basic.discNumberText,
+               parseNumberPair(meta.discNumberText).number == meta.disc, parseNumberPair(meta.discNumberText).total == meta.discTotal {
                 discText = meta.discNumberText
                 fields.removeValue(forKey: .disc); fields.removeValue(forKey: .discTotal)
             }
