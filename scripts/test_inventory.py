@@ -42,8 +42,11 @@ def declarations(root):
     return found
 
 
-def validate(root=None, manifest=None):
+def validate(root=None, manifest=None, required_names=None):
     expected = json.loads(MANIFEST.read_text()) if manifest is None else manifest
+    if required_names is not None and set(expected) != set(required_names):
+        return [{'missing_manifest_names': sorted(set(required_names) - set(expected)),
+                 'extra_manifest_names': sorted(set(expected) - set(required_names))}]
     actual = declarations(root or ROOT / 'Tests/TagLibAudioMetadataTests')
     return [{'test': name, 'expected': owner, 'actual': actual.get(name, [])}
             for name, owner in expected.items() if actual.get(name) != [owner]]

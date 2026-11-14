@@ -844,7 +844,7 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "GROUPING", metadata.grouping);
     SetPropertyMapString(properties, "CONTENTGROUP", metadata.contentGroup);
     SetPropertyMapString(properties, "ARTISTS", metadata.artists);
-    SetPropertyMapString(properties, "MOVEMENT", metadata.movement);
+    SetPropertyMapString(properties, "MOVEMENTNAME", metadata.movement);
     SetPropertyMapString(properties, "MOVEMENTNAME", metadata.movement);
     SetPropertyMapString(
         properties,

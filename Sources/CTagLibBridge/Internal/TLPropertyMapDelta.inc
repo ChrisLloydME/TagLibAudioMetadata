@@ -686,7 +686,12 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return NO;
     }
     if (auto *asf = dynamic_cast<TagLib::ASF::File *>(file)) {
-        for (const char *key : { "ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT" }) asf->tag()->removeItem(key);
+        const auto attributes = asf->tag()->attributeListMap();
+        for (const auto &entry : attributes) {
+            const auto key = entry.first.upper();
+            if (key == "ITUNESADVISORY" || key == "ADVISORY" || key == "EXPLICITCONTENT" || key == "EXPLICIT")
+                asf->tag()->removeItem(entry.first);
+        }
         if (serialized) asf->tag()->setAttribute("ITUNESADVISORY", TagLib::ASF::Attribute(NSStringToTagString(serialized)));
         if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
             if (error) *error = PropertyMapDeltaError(9277, @"Could not save native ASF advisory");

@@ -17,6 +17,9 @@ class RequiredTestOwnerPolicy(unittest.TestCase):
                 (root / 'Other.swift').write_text(extra)
             return INVENTORY.validate(root, {'matrix': {'suite': 'Owner', 'path': 'Probe.swift'}})
 
+    def test_every_required_name_needs_a_manifest_owner(self):
+        self.assertTrue(INVENTORY.validate(manifest={}, required_names={'newRequiredTest'}))
+
     def test_expected_suite_is_accepted(self):
         self.assertFalse(self.check('struct Owner { @Test func matrix() {} }'))
 

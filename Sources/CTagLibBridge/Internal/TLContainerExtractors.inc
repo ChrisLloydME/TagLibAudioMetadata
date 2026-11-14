@@ -465,6 +465,7 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
         }
     }
     // Canonical native owners take precedence over old freeform projections.
+    if (items.contains("\xA9" "mvn")) metadata.movement = MP4TextItemValue(items, "\xA9" "mvn") ?: @"";
     if (items.contains("\xA9" "mvi")) metadata.movementNumber = items["\xA9" "mvi"].toInt();
     if (items.contains("\xA9" "mvc")) metadata.movementCount = items["\xA9" "mvc"].toInt();
     metadata.encodedBy = MP4TextItemValue(items, "\xA9" "enc") ?: MP4TextItemValue(items, "----:com.apple.iTunes:ENCODEDBY");
