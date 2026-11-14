@@ -134,7 +134,7 @@ extension TagLibMetadataManager {
         guard isWritableExtension(url.pathExtension) else { throw TagLibManagerError.unsupportedFormat }
         let replacements = values
         let removals = removed
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { temporary in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { temporary in
             if let expectedAudioContent {
                 try requireAudioContent(at: temporary, matching: expectedAudioContent)
             }

@@ -195,10 +195,10 @@ extension TagLibMetadataManager {
             guard fstat(descriptor, &info) == 0, info.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) else {
                 throw TagLibManagerError.invalidFile
             }
-            return MetadataFileVersion(FileIdentity(
+            return MetadataFileIdentity(
                 device: info.st_dev, mode: info.st_mode, inode: info.st_ino, size: info.st_size,
                 linkCount: info.st_nlink, modificationTime: info.st_mtimespec, statusChangeTime: info.st_ctimespec
-            ))
+            ).version
         }
 
         guard try descriptorVersion() == version else { throw TagLibManagerError.fileChanged }

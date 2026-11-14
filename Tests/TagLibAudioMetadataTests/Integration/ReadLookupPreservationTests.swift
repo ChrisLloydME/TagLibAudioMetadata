@@ -11,7 +11,7 @@ final class ReadLookupPreservationTests: XCTestCase {
             let before = try Data(contentsOf: url)
             let metadata = try TagLibMetadataManager.readMetadataResult(from: url)
             XCTAssertFalse(metadata.format.isEmpty, ext)
-            XCTAssertNoThrow(try TagLibMetadataManager.validateReadableAudioFile(at: url), ext)
+            XCTAssertNoThrow(try MetadataProjectionReader.validateReadableAudioFile(at: url), ext)
             XCTAssertEqual(try Data(contentsOf: url), before, ext)
         }
     }
@@ -27,9 +27,9 @@ final class ReadLookupPreservationTests: XCTestCase {
             let url = directory.appendingPathComponent(name)
             try data.write(to: url)
             XCTAssertThrowsError(try TagLibMetadataManager.readMetadataResult(from: url), name)
-            XCTAssertThrowsError(try TagLibMetadataManager.validateReadableAudioFile(at: url), name)
+            XCTAssertThrowsError(try MetadataProjectionReader.validateReadableAudioFile(at: url), name)
             var entered = false
-            XCTAssertThrowsError(try TagLibMetadataManager.withAtomicFileMutation(at: url) { _ in entered = true }, name)
+            XCTAssertThrowsError(try MetadataFileTransaction.withAtomicFileMutation(at: url) { _ in entered = true }, name)
             XCTAssertFalse(entered, name)
             XCTAssertEqual(try Data(contentsOf: url), data, name)
             XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: directory.path).contains { $0.contains(".taglib-") })

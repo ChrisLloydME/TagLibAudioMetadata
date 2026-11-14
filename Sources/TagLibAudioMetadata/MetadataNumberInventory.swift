@@ -457,7 +457,7 @@ extension TagLibMetadataManager {
                   try fileVersion(at: url) == plan.fileVersion else { throw TagLibManagerError.fileChanged }
             return MetadataWriteResult(warnings: plan.warnings)
         }
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: plan.fileVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: plan.fileVersion) { mutationURL in
             let before = try readSnapshot(from: mutationURL)
             let beforeInventory = numberingInventory(from: before)
             let allowedAliases = plan.groups.flatMap { ($0 == .track ? plan.inventory.track : plan.inventory.disc).legacyAliasIdentities }

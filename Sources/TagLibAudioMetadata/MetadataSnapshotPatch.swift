@@ -2,79 +2,6 @@ import Foundation
 import CTagLibBridge
 import CTagLibBridgeInternalAPI
 
-/// An opaque local-file version, for optimistic edits based on a snapshot.
-/// This detects observed filesystem changes; it is not a cross-process lock or
-/// a content digest. Uncooperative external writers can still race a commit.
-public struct MetadataFileVersion: Hashable, Sendable {
-    private let device: Int64
-    private let inode: UInt64
-    private let size: Int64
-    private let links: UInt64
-    private let modifiedSeconds: Int64
-    private let modifiedNanoseconds: Int64
-    private let changedSeconds: Int64
-    private let changedNanoseconds: Int64
-
-    nonisolated init(_ identity: TagLibMetadataManager.FileIdentity) {
-        device = Int64(identity.device)
-        inode = UInt64(identity.inode)
-        size = Int64(identity.size)
-        links = UInt64(identity.linkCount)
-        modifiedSeconds = Int64(identity.modificationTime.tv_sec)
-        modifiedNanoseconds = Int64(identity.modificationTime.tv_nsec)
-        changedSeconds = Int64(identity.statusChangeTime.tv_sec)
-        changedNanoseconds = Int64(identity.statusChangeTime.tv_nsec)
-    }
-}
-
-/// A comprehensive semantic metadata snapshot for professional editing.
-///
-/// `BasicMetadata` is a normalized convenience projection. The raw and structured
-/// representations retain value cardinality and supported container-specific entries.
-/// Unsupported or opaque native frames/items may be summarized rather than copied as
-/// reconstructable payloads, so this is not a lossless native serialization.
-public struct MetadataSnapshot: Sendable {
-    public var basic: BasicMetadata
-    public var raw: RawMetadataDump
-    public var structured: StructuredMetadata
-    public let fileVersion: MetadataFileVersion?
-    /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
-    public let audioContentIdentity: MetadataAudioContentIdentity?
-
-    public init(
-        basic: BasicMetadata,
-        raw: RawMetadataDump,
-        structured: StructuredMetadata,
-        fileVersion: MetadataFileVersion? = nil,
-        audioContentIdentity: MetadataAudioContentIdentity? = nil
-    ) {
-        self.basic = basic
-        self.raw = raw
-        self.structured = structured
-        self.fileVersion = fileVersion
-        self.audioContentIdentity = audioContentIdentity
-    }
-}
-
-/// A focused read for list/editor loading that needs normalized Basic metadata
-/// and an optimistic-concurrency token, but not structured inspector models.
-public struct BasicMetadataSnapshot: Sendable {
-    public var metadata: BasicMetadata
-    public let fileVersion: MetadataFileVersion
-    /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
-    public let audioContentIdentity: MetadataAudioContentIdentity?
-
-    public init(
-        metadata: BasicMetadata,
-        fileVersion: MetadataFileVersion,
-        audioContentIdentity: MetadataAudioContentIdentity? = nil
-    ) {
-        self.metadata = metadata
-        self.fileVersion = fileVersion
-        self.audioContentIdentity = audioContentIdentity
-    }
-}
-
 public enum MetadataPatchValue: Hashable, Sendable {
     /// Non-empty text. Leading and trailing whitespace is removed before mutation.
     case text(String)
@@ -276,10 +203,10 @@ extension TagLibMetadataManager {
 
     /// Captures a regular-file version without following a final symbolic link.
     public nonisolated static func fileVersion(at url: URL) throws -> MetadataFileVersion {
-        guard url.isFileURL, let identity = regularFileIdentity(at: url) else {
+        guard url.isFileURL, let identity = MetadataFileIdentity.read(at: url) else {
             throw TagLibManagerError.invalidFile
         }
-        return MetadataFileVersion(identity)
+        return identity.version
     }
 
     private struct ValidatedMetadataPatch: Sendable {
@@ -456,7 +383,7 @@ extension TagLibMetadataManager {
             result[entry.key] = try semanticStorage(for: entry.key, fileExtension: ext)
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             if let expectedAudioContent {
                 try requireAudioContent(at: mutationURL, matching: expectedAudioContent)
             }
@@ -730,7 +657,7 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
-            let projections = try bridgeMetadataProjectionDictionary(
+            let projections = try MetadataProjectionReader.extract(
                 from: mutationURL,
                 options: .all
             )

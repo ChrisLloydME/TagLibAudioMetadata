@@ -166,7 +166,7 @@ extension TagLibMetadataManager {
         guard hasVerificationExpectations(verification) else { return [] }
 
         var warnings: [String] = []
-        let projections = try? bridgeMetadataProjectionDictionary(from: url, options: .all)
+        let projections = try? MetadataProjectionReader.extract(from: url, options: .all)
         let rawDump = (projections?["raw"] as? [String: NSObject]).map {
             rawMetadataDump(fromBridgeDictionary: $0)
         }
