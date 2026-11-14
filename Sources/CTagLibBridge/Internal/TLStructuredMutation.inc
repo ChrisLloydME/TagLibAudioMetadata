@@ -593,10 +593,11 @@ static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
         if ([type isEqualToString:@"ufid"]) {
             NSString *owner = TrimmedStringOrNil((NSString *)entry[@"owner"]);
             NSData *data = DataValueFromObject(entry[@"data"]);
-            if (!owner || data.length == 0) continue;
+            if (!owner) continue;
             TagLib::ID3v2::UniqueFileIdentifierFrame *existing =
                 TagLib::ID3v2::UniqueFileIdentifierFrame::findByOwner(tag, NSStringToTagString(owner));
             if (existing) tag->removeFrame(existing);
+            if (data.length == 0) continue;
             tag->addFrame(new TagLib::ID3v2::UniqueFileIdentifierFrame(
                 NSStringToTagString(owner),
                 TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length)
@@ -870,7 +871,9 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     try {
     if (!ValidateMetadataObjectStrings(metadata, error)) return NO;
     if (TagLibAtomicMutationDepth == 0) {
+        if (!RejectDirectID3v23Write(fileURL, @"structured metadata", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"structured metadata", mutationError)) return NO;
             return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
         });
     }
@@ -1112,6 +1115,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:243 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to apply structured MP4 artwork" }];
             return NO;
         }
+        if (artwork && artwork.count == 0) file.tag()->removeItem("covr");
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:239 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MP4 metadata" }];
             return NO;

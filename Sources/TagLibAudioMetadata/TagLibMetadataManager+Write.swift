@@ -8,6 +8,8 @@ import CTagLibBridge
 import CTagLibBridgeInternalAPI
 
 extension TagLibMetadataManager {
+    nonisolated static let basicDateFields: [MetadataFieldKey] = [.year, .standaloneDate, .releaseDate, .originalReleaseDate]
+
     nonisolated static func isRepresentableYearText(_ text: String) -> Bool {
         let trimmed = normalizedTrimmed(text)
         guard !trimmed.isEmpty else { return true }
@@ -167,78 +169,6 @@ extension TagLibMetadataManager {
         }
     }
 
-    /// Raw PropertyMap entries that should be restored after a Basic write
-    /// because the corresponding Basic projection was not intentionally edited.
-    nonisolated static func preservedStandardValues(
-        desired: BasicMetadata,
-        current: BasicMetadata,
-        rawDump: RawMetadataDump,
-        isMP4: Bool
-    ) -> (values: [String: [String]], aliases: Set<String>) {
-        var values: [String: [String]] = [:]
-        var aliases: Set<String> = []
-        let fieldsHandledByTypedWriters: Set<MetadataFieldKey> = [
-            .track, .trackTotal, .disc, .discTotal,
-            .movementNumber, .movementCount, .bpm, .compilation,
-        ]
-
-        for entry in rawDump.properties where !entry.values.isEmpty {
-            guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key) else {
-                continue
-            }
-            guard schema.key != .artwork && schema.key != .custom && schema.key != .explicitContent else {
-                continue
-            }
-
-            let shouldPreserve: Bool
-            if !BasicMetadata.editableFieldKeys.contains(schema.key) {
-                shouldPreserve = true
-            } else if fieldsHandledByTypedWriters.contains(schema.key) {
-                shouldPreserve = false
-            } else if schema.key == .year {
-                // YEAR and DATE are independent and are written through their
-                // exact native slots; replaying the engine DATE projection here
-                // would synthesize YEAR from a standalone DATE.
-                shouldPreserve = false
-            } else if let desiredValue = basicProjectionValue(for: schema.key, metadata: desired),
-                      let currentValue = basicProjectionValue(for: schema.key, metadata: current) {
-                shouldPreserve = desiredValue == currentValue
-            } else {
-                shouldPreserve = false
-            }
-
-            guard shouldPreserve else { continue }
-            // Native MP4 freeform arrays/aliases are preserved by the native
-            // Basic writer. Replaying their uppercased PropertyMap projection
-            // can create a second, differently spelled atom.
-            if isMP4, schema.mappings.contains(where: { $0.format == .mp4 && $0.storageKind == .mp4Freeform }) {
-                continue
-            }
-            values[entry.key] = entry.values
-            aliases.formUnion(schema.propertyMapKeys)
-        }
-
-        return (values, aliases)
-    }
-
-    nonisolated static func preservedRawValueWarnings(
-        _ preservedValues: [String: [String]],
-        for url: URL
-    ) -> [String] {
-        guard !preservedValues.isEmpty else { return [] }
-        guard let dump = try? rawMetadataResult(from: url) else {
-            return ["Could not verify preserved native metadata after save."]
-        }
-        let actual = exactPropertyValues(dump)
-        return preservedValues.keys.sorted().compactMap { key in
-            let expected = preservedValues[key] ?? []
-            let observed = actual[key.uppercased()] ?? []
-            return observed == expected
-                ? nil
-                : "Preserved metadata field \(key) differs after save (expected \(expected), got \(observed))."
-        }
-    }
-
     /// Low-level bridge entry point. Its parameter type comes from the
     /// `CTagLibBridge` module, so clients must import that module (or use the
     /// `TagLibAudioMetadataLowLevel` product) to name it. Prefer
@@ -254,7 +184,17 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let before = try readSnapshot(from: mutationURL)
+            if before.structured.id3v2MajorVersion == 3 {
+                for (field, value) in [(MetadataFieldKey.year, metadata.year ?? ""), (.standaloneDate, metadata.standaloneDate ?? ""),
+                    (.releaseDate, metadata.releaseDate ?? ""), (.originalReleaseDate, metadata.originalReleaseDate ?? "")] {
+                    if value != basicProjectionValue(for: field, metadata: before.basic) {
+                        throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+                    }
+                }
+                throw TagLibManagerError.unsupportedWritePolicy("Use version-checked Basic updates or typed patches to preserve ID3v2.3 dates.")
+            }
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             try throwOnVerificationFailures(warnings)
@@ -277,7 +217,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let inventory = try numberingInventory(at: mutationURL)
             for (selected, group, name) in [
                 (true, inventory.track, "track"),
@@ -352,7 +292,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
                 try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
@@ -414,7 +354,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
                 try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
@@ -524,7 +464,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion, allowLegacyDateRemoval: true) { mutationURL in
             try eraseAllMetadataInPlaceWithVerification(from: mutationURL)
         }
     }
@@ -585,7 +525,9 @@ extension TagLibMetadataManager {
         meta.customFields = nil
 
         var warnings: [String] = []
-        try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
+        if try readSnapshot(from: url).structured.id3v2MajorVersion != 3 {
+            try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
+        }
 
 
         try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
@@ -630,486 +572,95 @@ extension TagLibMetadataManager {
         }
     }
 
+    /// Diff the normalized model against a versioned snapshot, then use the
+    /// same native planner and verification as typed field edits.
     @discardableResult
     public nonisolated static func replaceBasicMetadata(
         _ meta: BasicMetadata,
         to url: URL,
         expectedVersion: MetadataFileVersion? = nil
     ) throws -> MetadataWriteResult {
-        let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
-            throw TagLibManagerError.unsupportedFormat
+        guard isWritableExtension(url.pathExtension) else { throw TagLibManagerError.unsupportedFormat }
+        guard url.isFileURL, MetadataFileIdentity.read(at: url) != nil else {
+            throw TagLibManagerError.operationFailedWithUnderlying(NSError(domain: "TagLibMetadataManager", code: 1003,
+                userInfo: [NSLocalizedDescriptionKey: "Metadata mutations require an existing regular file and do not follow symbolic links."]))
         }
-        // Match the mutation API's typed error before the preservation read.
-        guard url.isFileURL, regularFileIdentity(at: url) != nil else {
-            throw TagLibManagerError.operationFailedWithUnderlying(NSError(
-                domain: "TagLibMetadataManager", code: 1003,
-                userInfo: [NSLocalizedDescriptionKey: "Metadata mutations require an existing regular file and do not follow symbolic links."]
-            ))
-        }
-        let originalSnapshot = try readSnapshot(from: url)
+        let before = try readSnapshot(from: url)
+        if let expectedVersion, expectedVersion != before.fileVersion { throw TagLibManagerError.fileChanged }
         var validation = meta
-        if meta.year == originalSnapshot.basic.year { validation.year = "" }
+        if meta.year == before.basic.year { validation.year = "" }
         try validateBasicMetadataForWrite(validation)
-        try validateNativeNumberPair(number: meta.track, total: meta.trackTotal, field: .track, for: url)
-        try validateNativeNumberPair(number: meta.disc, total: meta.discTotal, field: .disc, for: url)
-
-        try validateNativeMovement(meta.movementNumber, field: .movementNumber, for: url)
-        try validateNativeMovement(meta.movementCount, field: .movementCount, for: url)
-        let m = TagLibAudioMetadata()
-
-        func nilIfEmpty(_ s: String) -> String? {
-            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-            return t.isEmpty ? nil : t
+        var fields: [MetadataFieldKey: MetadataPatchValue] = [:]
+        let scalarNumbers: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount, .bpm, .tvEpisode, .tvSeason, .rate]
+        for field in BasicMetadata.editableFieldKeys.subtracting([.artwork, .explicitContent]) {
+            guard let value = basicProjectionValue(for: field, metadata: meta),
+                  value != basicProjectionValue(for: field, metadata: before.basic),
+                  let schema = MetadataFieldRegistry.schema(for: field) else { continue }
+            if before.structured.id3v2MajorVersion == 3, basicDateFields.contains(field) {
+                throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+            }
+            if value.isEmpty || value == "0" && scalarNumbers.contains(field) { fields[field] = .remove }
+            else if schema.acceptedPatchValueKinds.contains(.boolean) { fields[field] = .boolean(value == "1") }
+            else if schema.acceptedPatchValueKinds.contains(.integer), let integer = Int(value) { fields[field] = .integer(integer) }
+            else { fields[field] = .text(value) }
         }
-
-        // Core tags
-        m.title = nilIfEmpty(meta.title)
-        m.artist = nilIfEmpty(meta.artist)
-        m.album = nilIfEmpty(meta.album)
-        m.albumArtist = nilIfEmpty(meta.albumArtist)
-        m.composer = nilIfEmpty(meta.composer)
-        m.genre = nilIfEmpty(meta.genre)
-        m.comment = nilIfEmpty(meta.comment)
-
-        // Numbers
-        // TagLib bridge uses `Int` for these fields; use 0 to represent “not set/clear”.
-        m.trackNumber = meta.track
-        m.totalTracks = meta.trackTotal
-        m.discNumber = meta.disc
-        m.totalDiscs = meta.discTotal
-        m.trackNumberText = nilIfEmpty(meta.trackNumberText)
-        m.discNumberText = nilIfEmpty(meta.discNumberText)
-
-        // Dates
-        m.year = isRepresentableYearText(meta.year) ? nilIfEmpty(meta.year) : nil
-        m.standaloneDate = nilIfEmpty(meta.date)
-        m.releaseDate = nilIfEmpty(meta.releaseDate)
-        m.originalReleaseDate = nilIfEmpty(meta.originalReleaseDate)
-
-        // Legal / publisher
-        m.label = nilIfEmpty(meta.publisher)
-        m.copyright = nilIfEmpty(meta.copyright)
-        m.lyrics = nilIfEmpty(meta.lyrics)
-        m.encodedBy = nilIfEmpty(meta.encodedBy)
-        m.encoderSettings = nilIfEmpty(meta.encoderSettings)
-        m.sortTitle = nilIfEmpty(meta.sortTitle)
-        m.sortArtist = nilIfEmpty(meta.sortArtist)
-        m.sortAlbum = nilIfEmpty(meta.sortAlbum)
-        m.sortAlbumArtist = nilIfEmpty(meta.sortAlbumArtist)
-        m.sortComposer = nilIfEmpty(meta.sortComposer)
-        m.conductor = nilIfEmpty(meta.conductor)
-        m.remixer = nilIfEmpty(meta.remixer)
-        m.producer = nilIfEmpty(meta.producer)
-        m.engineer = nilIfEmpty(meta.engineer)
-        m.lyricist = nilIfEmpty(meta.lyricist)
-        m.subtitle = nilIfEmpty(meta.subtitle)
-        m.grouping = nilIfEmpty(meta.grouping)
-        m.contentGroup = nilIfEmpty(meta.contentGroup)
-        m.artists = nilIfEmpty(meta.artists)
-        m.movement = nilIfEmpty(meta.movement)
-        m.mood = nilIfEmpty(meta.mood)
-        m.language = nilIfEmpty(meta.language)
-        m.musicalKey = nilIfEmpty(meta.musicalKey)
-        m.replayGainTrack = nilIfEmpty(meta.replayGainTrack)
-        m.replayGainAlbum = nilIfEmpty(meta.replayGainAlbum)
-        m.replayGainTrackPeak = nilIfEmpty(meta.replayGainTrackPeak)
-        m.replayGainAlbumPeak = nilIfEmpty(meta.replayGainAlbumPeak)
-        m.mediaType = nilIfEmpty(meta.mediaType)
-        m.itunesAlbumId = nilIfEmpty(meta.itunesAlbumID)
-        m.itunesArtistId = nilIfEmpty(meta.itunesArtistID)
-        m.itunesCatalogId = nilIfEmpty(meta.itunesCatalogID)
-        m.itunesGenreId = nilIfEmpty(meta.itunesGenreID)
-        m.itunesMediaType = nilIfEmpty(meta.itunesMediaType)
-        m.itunesPurchaseDate = nilIfEmpty(meta.itunesPurchaseDate)
-        m.itunesNorm = nilIfEmpty(meta.itunesNorm)
-        m.itunesSmpb = nilIfEmpty(meta.itunesSMPB)
-        m.releaseType = nilIfEmpty(meta.releaseType)
-        m.releaseStatus = nilIfEmpty(meta.releaseStatus)
-        m.catalogNumber = nilIfEmpty(meta.catalogNumber)
-        m.releaseCountry = nilIfEmpty(meta.releaseCountry)
-        m.artistType = nilIfEmpty(meta.artistType)
-        m.asin = nilIfEmpty(meta.asin)
-        m.originalAlbum = nilIfEmpty(meta.originalAlbum)
-        m.originalArtist = nilIfEmpty(meta.originalArtist)
-        m.discSubtitle = nilIfEmpty(meta.discSubtitle)
-        m.work = nilIfEmpty(meta.work)
-        m.movementNumber = meta.movementNumber
-        m.movementCount = meta.movementCount
-
-        // Explicit
-        m.bpm = meta.bpm
-        m.compilation = meta.isCompilation
-        m.explicitAdvisory = switch meta.explicitAdvisory {
-        case .unspecified: .unspecified
-        case .notExplicit: .notExplicit
-        case .clean: .clean
-        case .explicit: .explicit
+        var custom: [String: MetadataPatchValue] = [:]
+        for (key, value) in meta.customFields where value != before.basic.customFields[key] {
+            custom[key] = value.isEmpty ? .remove : .text(value)
         }
-        m.explicitAdvisoryRawValue = nilIfEmpty(meta.explicitAdvisoryRawValue ?? "")
-        m.isrc = nilIfEmpty(meta.isrc)
-        m.barcode = nilIfEmpty(meta.barcode)
-        m.musicBrainzArtistId = nilIfEmpty(meta.musicBrainzArtistID)
-        m.musicBrainzAlbumId = nilIfEmpty(meta.musicBrainzAlbumID)
-        m.musicBrainzAlbumArtistId = nilIfEmpty(meta.musicBrainzAlbumArtistID)
-        m.musicBrainzTrackId = nilIfEmpty(meta.musicBrainzTrackID)
-        m.musicBrainzReleaseGroupId = nilIfEmpty(meta.musicBrainzReleaseGroupID)
-        m.musicBrainzReleaseTrackId = nilIfEmpty(meta.musicBrainzReleaseTrackID)
-        m.musicBrainzWorkId = nilIfEmpty(meta.musicBrainzWorkID)
-        m.acoustId = nilIfEmpty(meta.acoustID)
-        m.acoustIdFingerprint = nilIfEmpty(meta.acoustIDFingerprint)
-        m.musicIpPuid = nilIfEmpty(meta.musicIPPUID)
-        let explicitlyChangedCustomFields = meta.customFields.filter { key, value in
-            guard let originalProjection = meta.originalCustomFieldProjection.first(where: {
-                $0.key.caseInsensitiveCompare(key) == .orderedSame
-            })?.value else {
-                return true
-            }
-            return originalProjection != value
+        for (key, values) in meta.customFieldValues where values != before.basic.customFieldValues[key] && custom[key] == nil {
+            custom[key] = values.isEmpty ? .remove : .values(values)
         }
-        m.customFields = explicitlyChangedCustomFields.isEmpty ? nil : explicitlyChangedCustomFields
-        m.artworkData = meta.artworkData
-        m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
-
-        let isMP4Family = capability(forExtension: ext)?.identifier == "mp4"
-        let expectedTrackNumberText = numberTextPreservingFormatting(
-            meta.trackNumberText,
-            number: meta.track,
-            total: meta.trackTotal
-        )
-        let expectedDiscNumberText = numberTextPreservingFormatting(
-            meta.discNumberText,
-            number: meta.disc,
-            total: meta.discTotal
-        )
-        let expectedYear = meta.year
-
-        var verification = MetadataWriteVerificationContext(
-                expectedTrackNumber: meta.track,
-                expectedTrackTotal: meta.trackTotal,
-                expectedTrackNumberText: expectedTrackNumberText,
-                expectedDiscNumber: meta.disc,
-                expectedDiscTotal: meta.discTotal,
-                expectedDiscNumberText: expectedDiscNumberText,
-                artworkExpectation: meta.artworkData == nil ? .skip : .present,
-                customFieldKeys: Array(meta.customFields.keys),
-                expectedTextFields: [
-                    "title": meta.title,
-                    "artist": meta.artist,
-                    "album": meta.album,
-                    "composer": meta.composer,
-                    "genre": meta.genre,
-                    "comment": meta.comment,
-                    "lyrics": meta.lyrics,
-                    "year": expectedYear,
-                    "date": meta.date,
-                    "contentGroup": meta.contentGroup,
-                    "albumArtist": meta.albumArtist,
-                    "releaseDate": meta.releaseDate,
-                    "originalReleaseDate": meta.originalReleaseDate,
-                    "publisher": meta.publisher,
-                    "copyright": meta.copyright,
-                    "encodedBy": meta.encodedBy,
-                    "encoderSettings": meta.encoderSettings,
-                    "isrc": meta.isrc,
-                    "barcode": meta.barcode,
-                    "sortTitle": meta.sortTitle,
-                    "sortArtist": meta.sortArtist,
-                    "sortAlbum": meta.sortAlbum,
-                    "sortAlbumArtist": meta.sortAlbumArtist,
-                    "sortComposer": meta.sortComposer,
-                    "conductor": meta.conductor,
-                    "remixer": meta.remixer,
-                    "producer": meta.producer,
-                    "engineer": meta.engineer,
-                    "lyricist": meta.lyricist,
-                    "subtitle": meta.subtitle,
-                    "grouping": meta.grouping,
-                    "movement": meta.movement,
-                    "mood": meta.mood,
-                    "language": meta.language,
-                    "musicalKey": meta.musicalKey,
-                    "replayGainTrack": meta.replayGainTrack,
-                    "replayGainAlbum": meta.replayGainAlbum,
-                    "mediaType": meta.mediaType,
-                    "itunesAlbumID": meta.itunesAlbumID,
-                    "itunesArtistID": meta.itunesArtistID,
-                    "itunesCatalogID": meta.itunesCatalogID,
-                    "itunesGenreID": meta.itunesGenreID,
-                    "itunesMediaType": meta.itunesMediaType,
-                    "itunesPurchaseDate": meta.itunesPurchaseDate,
-                    "itunesNorm": meta.itunesNorm,
-                    "itunesSMPB": meta.itunesSMPB,
-                    "releaseType": meta.releaseType,
-                    "releaseStatus": meta.releaseStatus,
-                    "catalogNumber": meta.catalogNumber,
-                    "releaseCountry": meta.releaseCountry,
-                    "artistType": meta.artistType,
-                    "asin": meta.asin,
-                    "originalAlbum": meta.originalAlbum,
-                    "originalArtist": meta.originalArtist,
-                    "discSubtitle": meta.discSubtitle,
-                    "work": meta.work,
-                    "musicBrainzArtistID": meta.musicBrainzArtistID,
-                    "musicBrainzAlbumID": meta.musicBrainzAlbumID,
-                    "musicBrainzAlbumArtistID": meta.musicBrainzAlbumArtistID,
-                    "musicBrainzTrackID": meta.musicBrainzTrackID,
-                    "musicBrainzReleaseGroupID": meta.musicBrainzReleaseGroupID,
-                    "musicBrainzReleaseTrackID": meta.musicBrainzReleaseTrackID,
-                    "musicBrainzWorkID": meta.musicBrainzWorkID,
-                    "acoustID": meta.acoustID,
-                    "acoustIDFingerprint": meta.acoustIDFingerprint,
-                    "musicIPPUID": meta.musicIPPUID,
-                    "movementNumber": String(meta.movementNumber),
-                    "movementCount": String(meta.movementCount),
-                    "bpm": String(meta.bpm),
-                    "isCompilation": String(meta.isCompilation),
-                ],
-                expectedExplicitAdvisory: meta.explicitAdvisory,
-                customFieldValues: meta.customFields
-            )
-
-        verification.expectedExplicitAdvisoryRawValue = meta.explicitAdvisory == .unspecified
-            ? meta.explicitAdvisoryRawValue : nil
-        verification.expectedArtworkData = meta.artworkData
-        verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
-        let exactVerification = verification
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion ?? originalSnapshot.fileVersion) { mutationURL in
-            let current = try readBasicMetadataRawAndStructured(from: mutationURL)
-            if current.structured.id3v2MajorVersion == 3 {
-                let dates: [(MetadataFieldKey, String, String)] = [
-                    (.year, meta.year, current.metadata.year), (.standaloneDate, meta.date, current.metadata.date),
-                    (.releaseDate, meta.releaseDate, current.metadata.releaseDate),
-                    (.originalReleaseDate, meta.originalReleaseDate, current.metadata.originalReleaseDate)
-                ]
-                if let changed = dates.first(where: { $0.1 != $0.2 }) {
-                    throw MetadataPatchValidationError.unsupportedFieldForFormat(field: changed.0, format: "ID3v2.3 independent dates (read-only)")
-                }
-            }
-            let numberingIdentifier = capability(forExtension: ext)?.identifier ?? ext
-            let isID3Primary = ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"]
-                .contains(numberingIdentifier)
-            let numberInventory = numberingInventory(
-                raw: current.raw,
-                structured: current.structured,
-                isMP4: isMP4Family,
-                isID3: isID3Primary,
-                version: nil
-            )
-            for (changed, group, name) in [
-                (meta.track != current.metadata.track || meta.trackTotal != current.metadata.trackTotal, numberInventory.track, "track"),
-                (meta.disc != current.metadata.disc || meta.discTotal != current.metadata.discTotal, numberInventory.disc, "disc"),
-            ] where changed && group.hasUnresolvedComponents {
-                throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                    field: name, identities: group.number.identities + group.total.identities
-                )
-            }
-            if meta.track != current.metadata.track,
-               meta.trackTotal == current.metadata.trackTotal {
-                if numberInventory.track.total.state == .recoveredLegacy {
-                    m.totalTracks = numberInventory.track.total.recoveredValue ?? 0
-                } else if numberInventory.track.total.isUnresolved {
-                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                        field: "trackTotal",
-                        identities: numberInventory.track.total.identities
-                    )
-                }
-            }
-            if meta.disc != current.metadata.disc,
-               meta.discTotal == current.metadata.discTotal {
-                if numberInventory.disc.total.state == .recoveredLegacy {
-                    m.totalDiscs = numberInventory.disc.total.recoveredValue ?? 0
-                } else if numberInventory.disc.total.isUnresolved {
-                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                        field: "discTotal",
-                        identities: numberInventory.disc.total.identities
-                    )
-                }
-            }
-            var adjustedVerification = exactVerification
-            if Int(m.totalTracks) != meta.trackTotal || Int(m.totalDiscs) != meta.discTotal {
-                adjustedVerification.expectedTrackTotal = Int(m.totalTracks)
-                adjustedVerification.expectedDiscTotal = Int(m.totalDiscs)
-                adjustedVerification.expectedTrackNumberText = numberTextPreservingFormatting(
-                    meta.trackNumberText, number: meta.track, total: Int(m.totalTracks)
-                )
-                adjustedVerification.expectedDiscNumberText = numberTextPreservingFormatting(
-                    meta.discNumberText, number: meta.disc, total: Int(m.totalDiscs)
-                )
-            }
-            // A PropertyMap cannot carry ID3 comment/lyric languages or the
-            // original description spelling. Preserve the native collections
-            // when their scalar Basic projection was not edited.
-            var nativeCollections = StructuredMetadata()
-            var preservedCollections: Set<StructuredMetadataReplaceableCollection> = []
-            if capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
-                let native = try readStructuredMetadataResult(from: mutationURL)
-                if meta.comment == current.metadata.comment, !native.comments.isEmpty {
-                    nativeCollections.comments = native.comments
-                    preservedCollections.insert(.comments)
-                }
-                if meta.lyrics == current.metadata.lyrics, !native.lyrics.isEmpty {
-                    nativeCollections.lyrics = native.lyrics
-                    preservedCollections.insert(.lyrics)
-                }
-            }
-            var preservedMP4Atoms: [StructuredMP4Atom] = []
-            if isMP4Family {
-                // Restore untouched multi-value arrays through exact native
-                // atoms. Replaying the engine PropertyMap would collapse MP4
-                // cardinality and drop atoms TagLib does not project.
-                for entry in current.raw.properties where entry.values.count > 1 {
-                    guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key),
-                          schema.isMultiValue,
-                          schema.key != .artwork,
-                          let target = schema.writeTarget(for: .mp4),
-                          target.shape == .textArray,
-                          target.storage == .mp4Atom || target.storage == .mp4Freeform,
-                          let desired = basicProjectionValue(for: schema.key, metadata: meta),
-                          let original = basicProjectionValue(for: schema.key, metadata: current.metadata),
-                          desired == original else { continue }
-                    let atomKey = target.storage == .mp4Freeform
-                        ? "----:com.apple.iTunes:\(target.nativeIdentity)"
-                        : target.nativeIdentity
-                    preservedMP4Atoms.append(
-                        StructuredMP4Atom(key: atomKey, type: "stringList", values: entry.values)
-                    )
-                }
-            }
-            // Whole-map Engine PropertyMap replay is unsafe for the 2.2
-            // profile: TagLib merges independent YEAR/DATE frames into one
-            // projection and would rewrite them on an unrelated edit. Preserve
-            // untouched multi-value arrays through exact native collections.
-            var preservedID3Frames: [StructuredID3v2Frame] = []
-            var preservedNativeTextKeys: [String: [String]] = [:]
-            let identifier = capability(forExtension: ext)?.identifier ?? ext
-            let isXiphOrAPE = ["flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex",
-                               "ape", "wavpack", "musepack"].contains(identifier)
-            for entry in current.raw.properties where !entry.values.isEmpty {
-                // An explicitly edited/deleted Basic custom value must not be
-                // resurrected by exact-key preservation.
-                if let customKey = meta.customFields.keys.first(where: {
-                    $0.caseInsensitiveCompare(entry.key) == .orderedSame
-                }) {
-                    let original = meta.originalCustomFieldProjection.first {
-                        $0.key.caseInsensitiveCompare(customKey) == .orderedSame
-                    }?.value
-                    if original != meta.customFields[customKey] { continue }
-                }
-                guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key) else {
-                    if isXiphOrAPE { preservedNativeTextKeys[entry.key] = entry.values }
-                    continue
-                }
-                guard schema.key != .artwork,
-                      schema.key != .year,
-                      schema.key != .standaloneDate else { continue }
-                if BasicMetadata.editableFieldKeys.contains(schema.key) {
-                    guard let desired = basicProjectionValue(for: schema.key, metadata: meta),
-                          let original = basicProjectionValue(for: schema.key, metadata: current.metadata),
-                          desired == original else { continue }
-                }
-                if isMP4Family {
-                    continue
-                } else if isXiphOrAPE {
-                    // Preserve the exact physical key, including documented
-                    // aliases and qualified role/comment/lyric keys. Writing a
-                    // canonical target here would drop the original spelling.
-                    preservedNativeTextKeys[entry.key] = entry.values
-                } else if entry.values.count > 1,
-                          ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"].contains(identifier) {
-                    if var frame = id3Frame(for: schema.key, schema: schema) {
-                        frame.values = entry.values
-                        preservedID3Frames.append(frame)
-                    }
-                }
-            }
-            let numericFields: Set<MetadataFieldKey> = [
-                .track, .trackTotal, .disc, .discTotal,
-                .movementNumber, .movementCount, .bpm, .compilation
-            ]
-            let editedTextKeys = current.raw.properties.compactMap { entry -> String? in
-                guard let schema = MetadataFieldRegistry.schema(forPropertyMapKey: entry.key),
-                      BasicMetadata.editableFieldKeys.contains(schema.key),
-                      !numericFields.contains(schema.key) else { return nil }
-                let field = schema.key
-                guard let desired = basicProjectionValue(for: field, metadata: meta),
-                      let original = basicProjectionValue(for: field, metadata: current.metadata),
-                      desired != original else { return nil }
-                return entry.key
-            }
-            if !editedTextKeys.isEmpty && !isMP4Family {
-                // Remove the complete represented alias/description group before
-                // emitting the caller's replacement. Otherwise old TXXX aliases
-                // can resurface when the canonical field is later cleared. MP4
-                // native writes address exact atoms; replaying the engine
-                // PropertyMap would drop atoms TagLib does not project.
-                if ext == "wav" {
-                    try TagLibMetadataExtractor.applyPropertyMapValuesPreservingInfoSurfaceInPlace(
-                        [:], removingKeys: editedTextKeys, preserveInfoOnlyValues: true, to: mutationURL
-                    )
-                } else {
-                    try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-                        [:], removingKeys: editedTextKeys, to: mutationURL
-                    )
-                }
-            }
-            try TagLibMetadataExtractor.writeMetadataInPlace(m, to: mutationURL)
-            if !preservedNativeTextKeys.isEmpty {
-                try TagLibMetadataExtractor.applyNativeTextKeyValuesInPlace(
-                    preservedNativeTextKeys,
-                    removingKeys: [],
-                    to: mutationURL
-                )
-            }
-            if !preservedID3Frames.isEmpty {
-                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
-                    bridgePayload(
-                        from: StructuredMetadata(id3v2Frames: preservedID3Frames),
-                        includeProperties: false,
-                        replacingCollections: [],
-                        riffPolicy: .preserveInfo
-                    ),
-                    to: mutationURL
-                )
-            }
-            if !preservedMP4Atoms.isEmpty {
-                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
-                    bridgePayload(
-                        from: StructuredMetadata(mp4Atoms: preservedMP4Atoms),
-                        includeProperties: false,
-                        replacingCollections: [],
-                        riffPolicy: .preserveInfo
-                    ),
-                    to: mutationURL
-                )
-            }
-            if !preservedCollections.isEmpty {
-                let payload = bridgePayload(
-                    from: nativeCollections,
-                    includeProperties: false,
-                    replacingCollections: preservedCollections,
-                    riffPolicy: .preserveInfo
-                )
-                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
-                let nativeVerification = structuredWriteVerification(
-                    expected: nativeCollections,
-                    includeProperties: false,
-                    replacingCollections: preservedCollections,
-                    for: mutationURL
-                )
-                try throwOnVerificationFailures(nativeVerification.failures)
-            }
-            try restoreUneditedBasicNativeValues(requested: meta, before: .init(basic: current.metadata, raw: current.raw, structured: current.structured), at: mutationURL)
-            try restoreUneditedBasicUnknownAdvisory(requested: meta,
-                before: .init(basic: current.metadata, raw: current.raw, structured: current.structured), at: mutationURL)
-            let warnings = metadataWriteWarnings(for: mutationURL, verification: adjustedVerification)
-            try throwOnVerificationFailures(warnings)
-            return MetadataWriteResult(warnings: warnings)
+        let mime = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
+        var artwork: MetadataArtworkPatch = meta.artworkData == before.basic.artworkData && mime == before.basic.artworkMIMEType ? .unchanged
+            : meta.artworkData.map { .replace([.init(mimeType: mime ?? "image/jpeg", data: $0)]) } ?? .removeAll
+        if let data = meta.artworkData, data == before.basic.artworkData, mime != before.basic.artworkMIMEType,
+           let index = before.structured.artwork.firstIndex(where: { $0.data == data }) {
+            var retained = before.structured.artwork
+            retained[index].mimeType = mime ?? retained[index].mimeType
+            artwork = .replace(retained)
         }
+        if meta.explicitAdvisoryRawValue != before.basic.explicitAdvisoryRawValue, meta.explicitAdvisoryRawValue != nil {
+            throw TagLibManagerError.unsupportedWritePolicy("Unknown advisory provenance is read-only; use a raw native edit.")
+        }
+        let advisory = meta.explicitAdvisory != before.basic.explicitAdvisory || meta.explicitAdvisoryRawValue != before.basic.explicitAdvisoryRawValue
+            ? meta.explicitAdvisory : nil
+        let isMP4 = capability(forExtension: url.pathExtension)?.identifier == "mp4"
+        var trackText: String?
+        var discText: String?
+        if meta.trackNumberText != before.basic.trackNumberText,
+           !meta.trackNumberText.isEmpty {
+            let pair = parseNumberPair(meta.trackNumberText)
+            guard pair.number == meta.track, pair.total == meta.trackTotal else {
+                throw MetadataPatchValidationError.numberTextMismatch(
+                    field: "trackNumberText", text: meta.trackNumberText
+                )
+            }
+            if !isMP4 {
+                trackText = meta.trackNumberText
+                fields.removeValue(forKey: .track)
+                fields.removeValue(forKey: .trackTotal)
+            }
+        }
+        if meta.discNumberText != before.basic.discNumberText,
+           !meta.discNumberText.isEmpty {
+            let pair = parseNumberPair(meta.discNumberText)
+            guard pair.number == meta.disc, pair.total == meta.discTotal else {
+                throw MetadataPatchValidationError.numberTextMismatch(
+                    field: "discNumberText", text: meta.discNumberText
+                )
+            }
+            if !isMP4 {
+                discText = meta.discNumberText
+                fields.removeValue(forKey: .disc)
+                fields.removeValue(forKey: .discTotal)
+            }
+        }
+        let patch = MetadataPatch(fields: fields, customFields: custom, explicitAdvisory: advisory, artwork: artwork,
+            numberText: trackText == nil && discText == nil ? nil : .init(trackNumberText: trackText, discNumberText: discText))
+        return try applyMetadataPatch(patch, to: url, expectedVersion: expectedVersion ?? before.fileVersion)
     }
 
-    /// Reads the current Basic projection, applies an in-memory edit, and replaces
-    /// it only if the file still matches the captured version.
     @discardableResult
     public nonisolated static func updateBasicMetadata(
         at url: URL,
@@ -1125,42 +676,5 @@ extension TagLibMetadataManager {
         )
     }
 
-    @discardableResult
-    public nonisolated static func writeRawMetadataPropertyMap(
-        _ properties: [String: String],
-        to url: URL,
-        mode: RawPropertyMapWriteMode = .replace,
-        expectedVersion: MetadataFileVersion? = nil
-    ) throws -> Bool {
-        let ext = url.pathExtension.lowercased()
-        guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
-            throw TagLibManagerError.unsupportedFormat
-        }
 
-        _ = try writeRawMetadataPropertyMapWithVerification(
-            properties,
-            to: url,
-            mode: mode,
-            expectedVersion: expectedVersion
-        )
-        return true
-    }
-
-    /// Remove (as much as TagLib allows) all metadata from a file.
-    ///
-    /// Implementation strategy: write an empty `TagLibAudioMetadata` object.
-    /// This should clear the common tag fields and reset numeric fields to 0.
-    @discardableResult
-    public nonisolated static func eraseAllMetadata(from url: URL) throws -> Bool {
-        _ = try eraseAllMetadataWithVerification(from: url)
-        return true
-    }
-
-    /// Raw metadata dump for GUI inspection ("show me everything TagLib sees").
-    ///
-    /// The extractor returns a dictionary with stable keys:
-    /// - "properties": unified TagLib PropertyMap entries
-    /// - "id3v2Frames": ID3v2 frames (MP3 only)
-    ///
-    /// Returns `nil` if format is not supported by TagLib in this app.
 }

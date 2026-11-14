@@ -36,12 +36,14 @@ struct HardeningFormatTests {
                         StructuredMetadata(comments: [.init(text: "Unsupported native replacement")]), to: url)
                 }
                 #expect(try Data(contentsOf: url) == bytes)
-                // The Basic preservation path must not commit a lossy projection
-                // when it cannot replay the native DSD comment/lyric collections.
-                #expect(throws: (any Error).self) {
-                    try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Requires native replay" }
-                }
-                #expect(try Data(contentsOf: url) == bytes)
+                // Basic now uses the same omission-preserving native delta;
+                // it must not replay or normalize unrelated DSD collections.
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Preserves native collections" }
+                let basicAfter = try HardeningFixture.dsdState(Data(contentsOf: url), ext: ext)
+                let basicFrames = try HardeningFixture.frames(basicAfter.tag)
+                #expect(basicAfter.audio == before.audio)
+                for id in ["COMM", "USLT", "APIC", "XZZZ"] { #expect(basicFrames[id] == nativeBefore[id], "\(ext): \(id)") }
+
             }
         }
     }

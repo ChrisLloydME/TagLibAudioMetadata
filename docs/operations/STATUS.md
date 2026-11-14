@@ -7,13 +7,25 @@ This page is a snapshot of the latest known validation state for the current sou
 | Item | State |
 | --- | --- |
 | Current release | `0.7.3`, declared 2026-11-12 |
-| Source | Unreleased `codex/api-mapping-performance`, based on published `0.7.3` |
+| Source | Unreleased `codex/diagnostic-native-owner-repairs`, continuing the breaking API candidate based on published `0.7.3` |
 | Later tag | None |
 | Documentation scope | Current source includes breaking API cleanup; tagged-release guidance is identified in [Migration](MIGRATION.md) |
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
-## Independent-review repair candidate
+## Current release-assessment follow-up
+
+The six third-party repairs through `12f6ce2` address confirmed native-owner, low-level preservation, advisory, APE verification and Basic numbering defects. The follow-up adds a central staged-copy legacy-date invariant, version-bound structured preservation, exact TXXX owner identity, bridge staged-file checks and complete artwork-owner removal. Final `de282df` test-tree gates are both **accepted**: 181 XCTest declarations (179 passed, two existing opt-in skips), 198 Swift Testing declarations in 43 suites, zero failures. The unchanged privilege test passed with host filesystem access. Debug evidence: `.build/test-evidence/debug-20261114-233512-4938/`; Release: `.build/test-evidence/release-20261114-232509-5048/`. All 36 policy regressions, 59 Markdown files/reference checks, both independent consumers, targeted ASan/TSan (each 16 XCTest and 12 Swift Testing) and AudioMator's local candidate gate (62 core, 580 app-hosted tests, Release/artifact) passed. Earlier evidence below certifies its recorded revision only. See [adjudication and verification](../records/remediation/REM-2026-11-14-release-review-followup.md).
+
+## Prior architecture and selective-I/O candidate
+
+Production `f2ac9ad` consolidates the canonical public API, separates storage/read/model/contract ownership, makes native storage planning depend on explicit format evidence and skips unrequested metadata work. Both full strict gates are accepted: **167 XCTest declarations** (165 passed, the two original opt-in skips), **186 Swift Testing declarations in 42 suites**, with every required independent native/advisory matrix and the three new selective-projection contracts. All **30 gate-policy regressions**, 57 Markdown files, all four reference generators and both independent consumer products pass.
+
+Evidence: `.build/test-evidence/debug-20261114-182100-6841/` and `.build/test-evidence/release-20261114-182604-7715/`. Targeted ASan and TSan each passed 15 XCTest and 17 Swift Testing declarations with no reports. The pinned prebuilt TagLib binary was not instrumented. The unchanged AudioMator checkout passed its real local-candidate gate at `.deriveddata-codex/Validation/20261114-182135-7046/`: 62 core tests, 580 serial app-hosted tests, unsigned Release build and artifact validation.
+
+The 48-row baseline/final profile shows faster selective reads and metadata-heavy writes, while ordinary MP3/M4A writes and some full snapshots remain slower in individual runs. These are local measurements, not a universal improvement claim. Native mapping contract 2.2, global parser guard, exact native/semantic verification and durable atomic commits remain intact. The breaking API/migration changes are unreleased; no version/pin/tag/publication changed. Minimum-platform/device, full-suite sanitizer, hosted-CI and interactive UI runtime acceptance remain unverified. See the [architecture/removal/performance record](../records/remediation/REM-2026-11-14-package-architecture.md).
+
+## Previous independent-review repair candidate
 
 Production `a93c2f0` fixes the ASF alias erase false failure, exact advisory absence and unchanged unknown-code preservation. Both strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 186 Swift Testing declarations in 42 suites, and all required native/advisory evidence. All 29 policy tests and both independent consumers pass. Targeted ASan and TSan each passed 13 tests without reports; the prebuilt TagLib binary was not instrumented. The real AudioMator local-candidate gate passed 62 core and 580 app-hosted tests, unsigned Release build and artifact validation. Documentation checks cover 56 Markdown files.
 

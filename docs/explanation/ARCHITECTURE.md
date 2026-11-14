@@ -21,6 +21,18 @@ The low-level product makes direct bridge use intentional. The facade does not r
 
 The framework name, Mach-O install name, bundle identifier, headers, and module map are namespaced. This prevents a generic `TagLib.framework` from being mistaken for this package's artifact. It cannot fully isolate the C++ ABI: TagLib symbols are still exported, so a process that also loads an incompatible TagLib build risks symbol interposition. A stable C shim or hidden/private C++ exports would be required for stronger isolation.
 
+## Swift ownership boundaries
+
+The public `TagLibMetadataManager` is a namespace for operations and format discovery. Its extensions coordinate semantic reads/writes; they do not own the POSIX transaction implementation.
+
+- `Models/MetadataSnapshot.swift` owns opaque version and snapshot values. It has no dependency on the file transaction or native bridge.
+- `Contracts/MetadataWriteContract.swift` owns the facade's public verification/result types, retaining their nested public names.
+- `Reads/MetadataProjectionReader.swift` owns native extraction and transaction readability, including consistent bridge error translation and observed-file checks. Complete reads require all three views through one contract; an incomplete result cannot silently become an empty structured model. Each native extraction has a local autorelease pool, while the returned dictionary retains its escaping values.
+- `Storage/MetadataFileIdentity.swift` owns regular-file identity observations and conversion to the opaque version token.
+- `Storage/MetadataFileTransaction.swift` owns coordination, staging, metadata preservation, final validation, sync and atomic rename. Both generic internal mutations and facade result-bearing writes use this implementation.
+
+These are package-internal services, not new public dependency injection or compatibility layers. The native bridge retains its separate direct-client transaction implementation; both paths are covered by their own atomicity tests.
+
 ## Read pipeline
 
 `readSnapshot(from:)` runs one locked extraction call and derives Basic, raw, and structured projections from the same extension-selected parser session:
@@ -64,7 +76,7 @@ The bridge supports five option bits: `basic`, `raw`, `structured`, `propertyMap
 
 The unified extractor also clears any engine-provided date projection before populating the bridge Basic model. ID3 reads clear all four date slots and repopulate them from `TDRC`/`TYER`, `TDAT`/`TXXX(DATE)`, `TDRL`, and `TDOR`/`TORY`; MP4 reads use the native atom map and preserve absence; ASF reads its Unicode attributes; and Xiph/APE read YEAR and DATE from their visible native properties. This keeps an inferred or cross-owner projection from becoming a low-level date value.
 
-The unified bridge still constructs its internal Basic carrier during a structured-only traversal; removing that allocation requires a wider format-extractor split. This is an implementation detail, not a public contract.
+Selective native reads skip unrequested Basic tag/custom-field/artwork extraction, native date overrides and structured collections. A small internal carrier still holds audio properties for the same parser-credibility policy. A zero option mask performs readability validation and returns an empty dictionary; it does not build a PropertyMap or metadata views. Successful extraction still requires the exact selected parser and credible Accurate audio properties (tracker formats retain their channel-only policy). Direct bridge Basic/raw/structured readers now request only their own view. Facade Basic reads continue to request all views because exact native owner resolution needs them.
 
 `updateBasicMetadata(at:_:)` reads a focused Basic snapshot, applies the closure, and passes the captured version to the version-checked replacement.
 
@@ -82,7 +94,7 @@ The facade transaction coordinator performs:
 2. destination validation and optional `expectedVersion` check;
 3. one sibling copy (`copyfile` with clone request and ACL preservation);
 4. in-place bridge mutation on the copy;
-5. format-specific preservation of unedited native owners, including `restoreUneditedBasicNativeValues` for Basic replacement, exact MP4 item retention and detached ID3 date-frame restoration during PropertyMap replay, unchanged MP4 custom-field arrays, and native ASF custom attributes;
+5. format-specific preservation of unedited native owners, including omission of unchanged Basic fields in the common typed delta, exact MP4 item retention and detached ID3 date-frame restoration during PropertyMap replay, unchanged MP4 custom-field arrays, and native ASF custom attributes;
 6. semantic verification for the verified facade APIs;
 7. `F_FULLFSYNC`/`fsync` of the copy;
 8. final destination identity check;
@@ -96,6 +108,8 @@ A complex `MetadataPatch` can open and save the staged file separately for numbe
 ## Metadata model and write semantics
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged, `.remove` clears a property, `explicitAdvisory` retains all four advisory states, and artwork distinguishes unchanged, replacement, and removal. Typed fields are validated for kind and numeric range against `MetadataFieldRegistry` before staging. Schema-known keys are rejected from `customFields`, including aliases and case variants. Role-qualified fields such as `.performer` are rejected by the typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are part of the key.
+
+The semantic storage planner receives the resolved format identifier and format-family set as explicit inputs, rather than reaching back through the facade for capability lookup. A patch resolves that immutable descriptor once and reuses it through planning and verification.
 
 Most property changes are applied as a bridge delta to the current `PropertyMap`; MP4 track/disc pairs, movement, and advisory data use native `trkn`, `disk`, `©mvi`/`©mvc`, and `rtng` mutation, while ID3 advisory uses the supported `TXXX` representation. Track/disc components are normalized from the engine's signed projection to their unsigned 16-bit storage; movement remains bounded to `0...32767`. TagLib still saves the affected native tag, so the guarantee is semantic omission rather than byte-for-byte container preservation.
 
@@ -118,7 +132,7 @@ Track/disc integers begin at one; movement and BPM begin at zero. Native `trkn`/
 
 `BasicMetadata` has replacement semantics only for fields the Basic replacement path actually writes. It preserves untouched multi-value arrays through exact native collections, restores unchanged native ID3 comment/lyric collections, and carries Xiph/APE text keys through their exact physical spelling. Other opaque or unmodeled data may survive because TagLib saves the native tag, but it is not reconstructed from the Basic model. `BasicMetadata` multi-value scalars are display strings with format-dependent separators and are not a lossless array representation. Removing a custom dictionary key does not request deletion; callers use `MetadataPatchValue.remove`.
 
-The MP4-exclusive Basic properties (`director`, store IDs, TV fields, and related Booleans) are readable through `BasicMetadata` but are not written by `replaceBasicMetadata`: the bridge writer model has no corresponding properties. Use `MetadataPatch` or structured writes for those fields; see [Write semantics](PRESERVATION.md#basic-preservation-rules).
+Basic replacement uses the same native planner as typed patches, including the MP4-exclusive fields; unsupported edits reject. Its diff is version-checked and preserves omitted native structures. See [Write semantics](PRESERVATION.md#basic-preservation-rules).
 
 Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered value cardinality. `TXXX` descriptions identify frames and are kept separate from their payload arrays. Structured verification compares those arrays element by element; an empty text/user-text payload is a removal request and is verified as absence. DSF/DSDIFF route native ID3 frame upserts through the structured writer while rejecting comment/lyric collection replacement. `StructuredID3v2Frame.fields` is merged into the bridge payload dictionary; it is reserved for future frame-specific fields and can collide with `id`, `type`, `value`, or `values`, so callers should leave it empty.
 
@@ -132,7 +146,7 @@ If rename succeeds but the final parent-directory sync fails, the new file is al
 
 ## Schema, capabilities, and generated documentation
 
-`MetadataFieldRegistry` is the Swift source of public field semantics. `MetadataMappingCatalog` is the checked-in declarative target table; it is not generated from Markdown. `MetadataFieldSchema` joins that catalog to display, category, patch-kind, and integer-constraint policy. `mappings` is derived from `nativeTargets`, so the legacy compatibility view cannot drift. The bridge retains a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
+`MetadataFieldRegistry` is the Swift source of public field semantics. `MetadataMappingCatalog` is the checked-in declarative target table; it is not generated from Markdown. `MetadataFieldSchema` joins that catalog to display, category, patch-kind, and integer-constraint policy. `mappings` is derived from `nativeTargets`, so the format-summary view cannot drift. The bridge retains a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
 
 Adding a production schema requires updating the semantic registry and, where the bridge must address the native target directly, the bridge mapping, then running the parity and codec tests. The documentation pipeline consumes the Swift sources:
 
@@ -156,14 +170,18 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | Path | Responsibility |
 | --- | --- |
 | `Package.swift` | Products, targets, platform minimums, binary pin, C++20. |
-| `Sources/TagLibAudioMetadata/TagLibMetadataManager.swift` | Static facade entry points, nested write/result types, transaction coordinator, file identity. |
+| `Sources/TagLibAudioMetadata/TagLibMetadataManager.swift` | Facade namespace, format discovery and hidden private-field identities. |
+| `.../Contracts/MetadataWriteContract.swift` | Public nested write verification/result contracts. |
+| `.../Models/MetadataSnapshot.swift` | Opaque version and snapshot values. |
+| `.../Reads/MetadataProjectionReader.swift` | Native extraction, complete-view contract and readability validation. |
+| `.../Storage/MetadataFileIdentity.swift` | POSIX regular-file observations and version conversion. |
+| `.../Storage/MetadataFileTransaction.swift` | Coordinated staging, guards, validation, sync and atomic rename. |
 | `.../TagLibMetadataManager+Read.swift` | Basic/raw/snapshot reads, bridge projection conversion, diagnostic dump. |
 | `.../TagLibMetadataManager+Write.swift` | Basic replacement/update, bridge-model write, raw whole-map writes, erase, number text. |
 | `.../TagLibMetadataManager+Structured.swift` | Structured conversion, validation, write, verification. |
 | `.../TagLibMetadataManager+Verification.swift` | Verification helpers, warning construction, raw normalization, explicit provenance. |
-| `.../BasicNativePreservation.swift` | Restores untouched Basic native dates, MP4 owners/aliases, and absence before verification. |
-| `.../TagLibMetadataManager+Compatibility.swift` | Deprecated-signature and pre-`expectedVersion` forwarding overloads. |
-| `.../MetadataSnapshotPatch.swift` | Snapshot/version models, `MetadataPatch`, typed patch validation and application. |
+| `Sources/CTagLibBridge/Internal/TLLegacyID3Dates.inc` | Reads literal legacy v2.3 date slots before engine synthesis. |
+| `.../MetadataSnapshotPatch.swift` | `MetadataPatch`, typed patch validation and application. |
 | `.../RawMetadataPatch.swift` | Exact raw delta validation, application, and verification. |
 | `.../MetadataNativePlanning.swift` | Semantic patch value to exact native target translation. |
 | `.../MetadataNumberInventory.swift` | Number inventory, recovery, normalization plans, and application. |
@@ -177,7 +195,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `Sources/CTagLibBridge/TagLibMetadataExtractor.mm` | Objective-C++ implementation; includes the subsystem `.inc` files. |
 | `Sources/CTagLibBridge/TLBridgeTransactions.mm` | Bridge transaction coordinator, same-entry locks, process mutex, logging. |
 | `Sources/CTagLibBridge/TLFormatRegistry.mm` | Format descriptor table and extension lookup. |
-| `Sources/CTagLibBridge/Internal/*.hpp` | Private C++/Objective-C++ declarations and TagLib header compatibility. |
+| `Sources/CTagLibBridge/Internal/*.hpp` | Private C++/Objective-C++ declarations and pinned namespaced TagLib imports. |
 | `Sources/CTagLibBridge/Internal/*.inc` | Bridge subsystems compiled into the extractor translation unit. |
 | `Sources/CTagLibBridgeInternalAPI/` | Non-product in-place mutation and coordination declarations used by the facade/tests. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |

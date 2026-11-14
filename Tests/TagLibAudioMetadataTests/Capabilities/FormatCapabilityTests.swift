@@ -263,17 +263,17 @@ final class FormatCapabilityTests: XCTestCase {
         XCTAssertEqual(bridgeKeys, MetadataFieldRegistry.canonicalPropertyMapKeys)
     }
 
-    func testPropertyMapKeysHaveOneOwnerUnlessExplicitlyShared() {
-        let collisions = MetadataFieldRegistry.propertyMapKeyOwners.filter { $0.value.count > 1 }
-
-        XCTAssertEqual(collisions, MetadataFieldRegistry.sharedPropertyMapKeyOwners)
-        XCTAssertEqual(
-            Set(MetadataFieldRegistry.preferredSharedPropertyMapKeyOwner.keys),
-            Set(MetadataFieldRegistry.sharedPropertyMapKeyOwners.keys)
-        )
-        for (key, preferredOwner) in MetadataFieldRegistry.preferredSharedPropertyMapKeyOwner {
-            XCTAssertTrue(MetadataFieldRegistry.sharedPropertyMapKeyOwners[key]?.contains(preferredOwner) == true)
-            XCTAssertEqual(MetadataFieldRegistry.schema(forPropertyMapKey: key)?.key, preferredOwner)
+    func testEachPropertyMapKeyHasExactlyOneSemanticOwner() {
+        var owners: [String: Set<MetadataFieldKey>] = [:]
+        for schema in MetadataFieldRegistry.allSchemas {
+            for key in schema.propertyMapKeys {
+                owners[MetadataFieldRegistry.normalizePropertyMapKey(key), default: []].insert(schema.key)
+            }
+        }
+        XCTAssertFalse(owners.isEmpty)
+        XCTAssertTrue(owners.values.allSatisfy { $0.count == 1 })
+        for (key, value) in owners {
+            XCTAssertEqual(MetadataFieldRegistry.schema(forPropertyMapKey: key)?.key, value.first)
         }
     }
 
@@ -288,7 +288,7 @@ final class FormatCapabilityTests: XCTestCase {
             // Engine PropertyMap aliases are separate from typed field identities.
             let semanticKeys = Set(schemas.map(\.semanticKey))
             let schema = try XCTUnwrap(
-                semanticKeys.count == 1 ? schemas.first(where: \.isCanonicalSemanticOwner) ?? schemas.first : nil,
+                semanticKeys.count == 1 ? schemas.first : nil,
                 "Bridge ordered mapping \(propertyKeys) must exactly match one Swift semantic owner; found \(schemas.map { $0.key.rawValue })"
             )
 

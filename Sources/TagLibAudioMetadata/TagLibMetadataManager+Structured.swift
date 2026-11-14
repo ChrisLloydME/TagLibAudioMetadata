@@ -183,7 +183,8 @@ extension TagLibMetadataManager {
         _ expected: StructuredID3v2Frame,
         _ actual: StructuredID3v2Frame
     ) -> Bool {
-        guard expected.frameID == actual.frameID, expected.type == actual.type else { return false }
+        func identity(_ id: String) -> String { id == "TYER" ? "TDRC" : id == "TORY" ? "TDOR" : id }
+        guard identity(expected.frameID) == identity(actual.frameID), expected.type == actual.type else { return false }
 
         let expectedValues = expected.values.isEmpty && !expected.value.isEmpty
             ? [expected.value]
@@ -294,12 +295,26 @@ extension TagLibMetadataManager {
         }
 
         var unmatchedFrames = after.id3v2Frames
-        for frame in expected.id3v2Frames {
+        for input in expected.id3v2Frames {
+            var frame = input
+            if frame.type == "versionedText" {
+                let v3 = after.id3v2MajorVersion == 3
+                frame.frameID = (v3 ? frame.v23ID : frame.v24ID) ?? frame.frameID
+                if let description = v3 ? frame.v23Description : frame.v24Description {
+                    frame.frameID = "TXXX"
+                    frame.description = description
+                    frame.type = "userText"
+                } else { frame.type = "text" }
+            }
+            // TagLib canonicalizes these legacy frame identities on extraction.
+            if frame.frameID == "TYER" { frame.frameID = "TDRC" }
+            if frame.frameID == "TORY" { frame.frameID = "TDOR" }
+
             // Empty text is the structured removal operation. Verify absence,
             // rather than searching for a frame the writer correctly removed.
             if ["text", "userText"].contains(frame.type), frame.values.isEmpty, frame.value.isEmpty {
                 let remains = after.id3v2Frames.contains {
-                    $0.frameID == frame.frameID && (frame.type != "userText" || $0.description == frame.description)
+                    ([$0.frameID, $0.frameID == "TYER" ? "TDRC" : $0.frameID == "TORY" ? "TDOR" : $0.frameID].contains(frame.frameID)) && (frame.type != "userText" || $0.description == frame.description)
                 }
                 if remains { warnings.append("ID3v2 frame \(frame.frameID) remains after removal.") }
                 continue
@@ -476,17 +491,17 @@ extension TagLibMetadataManager {
     }
 
     public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {
-        guard regularFileIdentity(at: url) != nil else {
+        guard MetadataFileIdentity.read(at: url) != nil else {
             throw TagLibManagerError.invalidFile
         }
-        let identityBeforeRead = regularFileIdentity(at: url)
-        let projections = try bridgeMetadataProjectionDictionary(from: url, options: .structured)
+        let identityBeforeRead = MetadataFileIdentity.read(at: url)
+        let projections = try MetadataProjectionReader.extract(from: url, options: .structured)
         guard let bridgeStructured = projections["structured"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The bridge returned an incomplete structured metadata projection set."
             )
         }
-        guard identityBeforeRead?.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
+        guard identityBeforeRead?.hasSameReadableContents(as: MetadataFileIdentity.read(at: url)) == true else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while structured metadata was being read."
             )
@@ -602,28 +617,72 @@ extension TagLibMetadataManager {
             )
         }
 
+        let family = capability(forExtension: ext)?.identifier
+        if ["mp4", "asf"].contains(family ?? ""),
+           !metadata.comments.isEmpty || !metadata.lyrics.isEmpty ||
+           replacingCollections.contains(.comments) || replacingCollections.contains(.lyrics) {
+            throw TagLibManagerError.unsupportedWritePolicy("This format requires semantic Comment/Lyrics fields, not ID3 comment/lyric collections.")
+        }
         try validateStructuredMetadataForWrite(metadata, includeProperties: includeProperties)
+        if metadata.id3v2Frames.isEmpty && metadata.mp4Atoms.isEmpty && metadata.asfAttributes.isEmpty &&
+            metadata.artwork.isEmpty && metadata.comments.isEmpty && metadata.lyrics.isEmpty &&
+            (!includeProperties || metadata.properties.isEmpty) && replacingCollections.isEmpty && riffPolicy == .preserveInfo {
+            let version = try fileVersion(at: url)
+            if let expectedVersion, version != expectedVersion { throw TagLibManagerError.fileChanged }
+            try MetadataProjectionReader.validateReadableAudioFile(at: url)
+            guard version == (try? fileVersion(at: url)) else { throw TagLibManagerError.fileChanged }
+            return MetadataWriteResult(warnings: [])
+        }
+        let observedVersion = try fileVersion(at: url)
+        if let expectedVersion, expectedVersion != observedVersion { throw TagLibManagerError.fileChanged }
+        let beforeStructured = try readStructuredMetadataResult(from: url)
+        guard observedVersion == (try? fileVersion(at: url)) else { throw TagLibManagerError.fileChanged }
+        let isID3v23 = beforeStructured.id3v2MajorVersion == 3
+        if isID3v23 {
+            if ID3v23DateSafety.isDateEdit(metadata, includeProperties: includeProperties) {
+                throw TagLibManagerError.unsupportedWritePolicy(
+                    "ID3v2.3 date frames are read-only through structured writes."
+                )
+            }
+            if let reason = ID3v23DateSafety.unpreservableReason(in: beforeStructured.id3v2Frames) {
+                throw TagLibManagerError.unsupportedWritePolicy(reason)
+            }
+        }
+        var effectiveMetadata = metadata
+        if isID3v23 {
+            effectiveMetadata.id3v2Frames.append(
+                contentsOf: ID3v23DateSafety.preservationFrames(in: beforeStructured.id3v2Frames)
+            )
+        }
         for atom in metadata.mp4Atoms where !atom.remove {
             if let value = Int(atom.value), atom.key == "©mvi" || atom.key == "©mvc" {
                 try validateNativeMovement(value, field: atom.key == "©mvi" ? .movementNumber : .movementCount, for: url)
             }
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion ?? observedVersion) { mutationURL in
             var warnings: [String] = []
             var verificationFailures: [String] = []
 
             let payload = bridgePayload(
-                from: metadata,
+                from: effectiveMetadata,
                 includeProperties: includeProperties,
                 replacingCollections: replacingCollections,
                 riffPolicy: riffPolicy
             )
             try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
 
+            if isID3v23 {
+                let afterStructured = try readStructuredMetadataResult(from: mutationURL)
+                verificationFailures.append(contentsOf: ID3v23DateSafety.unexpectedChanges(
+                    before: beforeStructured.id3v2Frames,
+                    after: afterStructured.id3v2Frames
+                ))
+            }
+
             if verifyAfterWrite {
                 let verification = structuredWriteVerification(
-                    expected: metadata,
+                    expected: effectiveMetadata,
                     includeProperties: includeProperties,
                     replacingCollections: replacingCollections,
                     for: mutationURL

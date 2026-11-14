@@ -12,7 +12,7 @@ final class SameFileTransactionTests: XCTestCase {
         let originalBytes = try Data(contentsOf: url)
 
         XCTAssertThrowsError(
-            try TagLibMetadataManager.withAtomicFileMutation(at: url) { mutationURL in
+            try MetadataFileTransaction.withAtomicFileMutation(at: url) { mutationURL in
                 try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
                     ["TITLE": ["Must not commit"]],
                     removingKeys: ["TITLE"],
@@ -48,7 +48,7 @@ final class SameFileTransactionTests: XCTestCase {
         queue.async {
             defer { group.leave() }
             do {
-                try TagLibMetadataManager.withAtomicFileMutation(at: url, directorySync: { _ in
+                try MetadataFileTransaction.withAtomicFileMutation(at: url, directorySync: { _ in
                     // The destination inode has already changed, but the
                     // transaction still owns the entry through durability work.
                     committed.signal()
@@ -65,7 +65,7 @@ final class SameFileTransactionTests: XCTestCase {
         queue.async {
             defer { group.leave() }
             do {
-                try TagLibMetadataManager.withAtomicFileMutation(at: aliasedURL) { temporary in
+                try MetadataFileTransaction.withAtomicFileMutation(at: aliasedURL) { temporary in
                     nextEntered.signal()
                     try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
                         ["COMMENT": ["After replacement"]], removingKeys: ["COMMENT"], to: temporary
@@ -96,7 +96,7 @@ final class SameFileTransactionTests: XCTestCase {
         queue.async {
             defer { group.leave() }
             do {
-                try TagLibMetadataManager.withAtomicFileMutation(at: url, afterFinalValidation: {
+                try MetadataFileTransaction.withAtomicFileMutation(at: url, afterFinalValidation: {
                     firstEntered.signal()
                     guard allowFirstToFinish.wait(timeout: .now() + 5) == .success else {
                         throw TestTransactionError.timedOut
@@ -120,7 +120,7 @@ final class SameFileTransactionTests: XCTestCase {
             defer { group.leave() }
             secondAttempting.signal()
             do {
-                try TagLibMetadataManager.withAtomicFileMutation(at: url) { mutationURL in
+                try MetadataFileTransaction.withAtomicFileMutation(at: url) { mutationURL in
                     secondEntered.signal()
                     try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
                         ["COMMENT": ["Second transaction"]],

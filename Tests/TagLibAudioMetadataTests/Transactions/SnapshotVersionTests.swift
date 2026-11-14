@@ -5,28 +5,28 @@ import XCTest
 final class SnapshotVersionTests: XCTestCase {
     func testReadIdentityIgnoresStatusOnlyChanges() throws {
         let url = try fixtureCopy()
-        let before = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+        let before = try XCTUnwrap(MetadataFileIdentity.read(at: url))
 
         try FileManager.default.setAttributes(
             [.posixPermissions: NSNumber(value: Int16(0o600))],
             ofItemAtPath: url.path
         )
 
-        let after = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+        let after = try XCTUnwrap(MetadataFileIdentity.read(at: url))
         XCTAssertNotEqual(before, after, "Changing permissions should update file status identity.")
         XCTAssertTrue(before.hasSameReadableContents(as: after))
     }
 
     func testReadIdentityRejectsContentChanges() throws {
         let url = try fixtureCopy()
-        let before = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+        let before = try XCTUnwrap(MetadataFileIdentity.read(at: url))
 
         let handle = try FileHandle(forWritingTo: url)
         defer { try? handle.close() }
         try handle.seekToEnd()
         try handle.write(contentsOf: Data([0]))
 
-        let after = try XCTUnwrap(TagLibMetadataManager.regularFileIdentity(at: url))
+        let after = try XCTUnwrap(MetadataFileIdentity.read(at: url))
         XCTAssertFalse(before.hasSameReadableContents(as: after))
     }
 

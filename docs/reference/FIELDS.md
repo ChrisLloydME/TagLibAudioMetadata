@@ -15,7 +15,7 @@ It does **not** answer whether a particular file or format actually stores a fie
 <!-- BEGIN GENERATED FIELD SUMMARY -->
 **100 fields** are declared in 14 categories: Basic and descriptive (12), Numbering (6), Dates (4), People (11), Role-qualified people (3), Lyrics and comments (2), Artwork (1), Sorting (5), Identifiers (13), Release (10), Technical (4), ReplayGain (4), iTunes (24), Custom (1).
 
-100 canonical semantic owners and 0 legacy aliases (none). The tables below are generated from the Swift registry and catalog; do not edit them by hand.
+100 canonical semantic owners. The tables below are generated from the Swift registry and catalog; do not edit them by hand.
 
 Typed writes are withheld for: .rate — no verified native rating type or scale in this profile.
 <!-- END GENERATED FIELD SUMMARY -->
@@ -43,7 +43,7 @@ let writable = MetadataFieldRegistry.schemas(storableIn: capability)
 | `canonicalSchema(forSemanticKey:)` | Resolves an uppercased semantic key to its canonical owner. |
 | `schema(forPropertyMapKey:)` | Normalizes the key, recognizes qualified prefixes, and resolves the owning schema. |
 | `schemas(withMappingsFor:)` | Returns every schema with at least one mapping for a `MetadataFieldFormat`. |
-| `schemas(storableIn:)` | Returns `[]` for read-only capabilities; otherwise enumerates canonical semantic owners and filters by native target capability, explicit `writableFields` allowlist, and artwork support. `.date` remains addressable but is not a second canonical field. |
+| `schemas(storableIn:)` | Returns `[]` for read-only capabilities; otherwise enumerates canonical semantic owners and filters by native target capability, explicit `writableFields` allowlist, and artwork support. |
 | `schema(_:hasMappingFor:)` | Convenience check for one format mapping. |
 | `shouldDisplayRawPropertyAsMultiValue(_:)` | UI hint for raw `PropertyMap` keys; true for multi-value schemas and the qualified prefixes below. |
 | `normalizePropertyMapKey(_:)` | Trims whitespace and uppercases. Use it before comparing raw keys. |
@@ -58,7 +58,7 @@ Column meanings:
 - **ID3v2** lists the native text frame, `TXXX:<description>` user-text frame, `EXTFRAME:<frame>` versioned extension, or `UFID:<owner>` identifier frame. `—` means the schema has no direct ID3v2 target.
 - **MP4** lists native atoms and `----:com.apple.iTunes:<description>` freeform keys. A `(read)` suffix marks a non-preferred target that is not a typed write destination.
 - **Vorbis**, **APE**, **ASF**, and **RIFF** list the exact native key or attribute.
-- **Flags** identify `multi` (multi-value), `people`, `role` (role-qualified key required), `artwork`, and `legacy alias`.
+- **Flags** identify `multi` (multi-value), `people`, `role` (role-qualified key required), `artwork`.
 - **Component** suffixes `(number)` and `(total)` identify the two components of a shared native pair. They are not independent native slots.
 
 <!-- BEGIN GENERATED FIELD TABLES -->
@@ -203,7 +203,7 @@ Column meanings:
 
 | Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `explicitContent` | Explicit Content | `ITUNESADVISORY` | `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT` | `TXXX:ITUNESADVISORY` | `TXXX:ITUNESADVISORY` | `rtng` | `ITUNESADVISORY` | `ITUNESADVISORY` | — | — | — |
+| `explicitContent` | Explicit Content | `ITUNESADVISORY` | `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT` | `TXXX:ITUNESADVISORY` | `TXXX:ITUNESADVISORY` | `rtng` | `ITUNESADVISORY` | `ITUNESADVISORY` | `ITUNESADVISORY` | — | — |
 | `itunesAlbumID` | iTunes Album ID | `ITUNESALBUMID` | `ITUNESALBUMID` | `TXXX:ITUNESALBUMID` | `TXXX:ITUNESALBUMID` | `plID` | `ITUNESALBUMID` | `ITUNESALBUMID` | — | — | — |
 | `itunesArtistID` | iTunes Artist ID | `ITUNESARTISTID` | `ITUNESARTISTID` | `TXXX:ITUNESARTISTID` | `TXXX:ITUNESARTISTID` | `atID` | `ITUNESARTISTID` | `ITUNESARTISTID` | — | — | — |
 | `itunesCatalogID` | iTunes Catalog ID | `ITUNESCATALOGID` | `ITUNESCATALOGID` | `TXXX:ITUNESCATALOGID` | `TXXX:ITUNESCATALOGID` | `cnID` | `ITUNESCATALOGID` | `ITUNESCATALOGID` | — | — | — |
@@ -357,7 +357,7 @@ Empty text, empty arrays, and array elements that are empty after trimming are v
 
 ## Lookup and ownership rules
 
-`MetadataFieldRegistry.propertyMapKeyOwners` normalizes every schema's `propertyMapKeys`. When one normalized key has multiple owners, `schema(forPropertyMapKey:)` uses `preferredSharedPropertyMapKeyOwner`; if there is no preferred owner it returns `nil` instead of guessing.
+`schema(forPropertyMapKey:)` uses a private, single-owner index of normalized engine keys. Registry construction rejects duplicate owners; there is no preferred-owner override or public field alias flag.
 
 No public fields currently share a PropertyMap key. Engine `DATE` and `YEAR` resolve to the YEAR schema; independent DATE uses `STANDALONEDATE`. These engine spellings are not native storage targets: use the catalog for native ownership.
 

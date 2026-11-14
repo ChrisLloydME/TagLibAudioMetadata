@@ -6,7 +6,7 @@ Contract `AM-TLAM-MAPPING-2.2` (decision date `2026-11-09`). The table is genera
 from the executable `MetadataMappingCatalog` target table; the Swift catalog 
 is the package-side source of truth for semantic-to-native targets.
 
-`100` semantic profiles; `498` native target registrations (`491` preferred write targets).
+`100` semantic profiles; `499` native target registrations (`492` preferred write targets).
 
 | Family | Targets | Preferred write targets |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ is the package-side source of truth for semantic-to-native targets.
 | MP4 | 99 | 98 |
 | Vorbis | 83 | 83 |
 | APE | 83 | 83 |
-| ASF | 55 | 55 |
+| ASF | 56 | 56 |
 | RIFF | 10 | 10 |
 | Matroska | 2 | 0 |
 
@@ -71,7 +71,7 @@ extension frame, `F(...)` is an exact MP4 freeform description, and
 | `INVOLVEDPEOPLE` | `roleText` | **IPLS (roles)** | **TIPL (roles)** | **F(INVOLVEDPEOPLE)** | **INVOLVEDPEOPLE** | **INVOLVEDPEOPLE** | — | — | — |
 | `ISRC` | `text` | **TSRC** | **TSRC** | **F(ISRC)** | **ISRC** | **ISRC** | **WM/ISRC** | — | — |
 | `ITUNESACCOUNT` | `text` | — | — | **apID** | — | — | — | — | — |
-| `ITUNESADVISORY` | `advisory` | **TXXX(ITUNESADVISORY)** | **TXXX(ITUNESADVISORY)** | **rtng** | **ITUNESADVISORY** | **ITUNESADVISORY** | — | — | — |
+| `ITUNESADVISORY` | `advisory` | **TXXX(ITUNESADVISORY)** | **TXXX(ITUNESADVISORY)** | **rtng** | **ITUNESADVISORY** | **ITUNESADVISORY** | **ITUNESADVISORY** | — | — |
 | `ITUNESALBUMID` | `text` | **TXXX(ITUNESALBUMID)** | **TXXX(ITUNESALBUMID)** | **plID** | **ITUNESALBUMID** | **ITUNESALBUMID** | — | — | — |
 | `ITUNESARTISTID` | `text` | **TXXX(ITUNESARTISTID)** | **TXXX(ITUNESARTISTID)** | **atID** | **ITUNESARTISTID** | **ITUNESARTISTID** | — | — | — |
 | `ITUNESCATALOGID` | `text` | **TXXX(ITUNESCATALOGID)** | **TXXX(ITUNESCATALOGID)** | **cnID** | **ITUNESCATALOGID** | **ITUNESCATALOGID** | — | — | — |
