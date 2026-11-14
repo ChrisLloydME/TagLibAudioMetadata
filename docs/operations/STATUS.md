@@ -15,9 +15,11 @@ Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` correctio
 
 ## Independent-review repair candidate
 
-The advisory erase/verification review found real regressions and a further unknown-code preservation defect. Focused repairs pass; full acceptance is pending. Prior passing gates below do not certify these new changes. See [review adjudication and repair evidence](../records/remediation/REM-2026-11-14-independent-review-repairs.md).
+Production `a93c2f0` fixes the ASF alias erase false failure, exact advisory absence and unchanged unknown-code preservation. Both strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 186 Swift Testing declarations in 42 suites, and all required native/advisory evidence. All 29 policy tests and both independent consumers pass. Targeted ASan and TSan each passed 13 tests without reports; the prebuilt TagLib binary was not instrumented. The real AudioMator local-candidate gate passed 62 core and 580 app-hosted tests, unsigned Release build and artifact validation. Documentation checks cover 56 Markdown files.
 
-## Write-preparation follow-up
+Evidence: `.build/test-evidence/debug-20261114-111016-13278/` and `.build/test-evidence/release-20261114-111355-13265/`. Minimum-platform/device and hosted-CI runtime remain unverified. Previous campaign results below describe earlier source phases and do not replace these current gates. See [review adjudication and repair evidence](../records/remediation/REM-2026-11-14-independent-review-repairs.md).
+
+## Historical write-preparation follow-up
 
 Production `bbf64c3` narrows discarded readability projections and reuses same-open-file property evidence. Both full strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, all required native matrices and preflight/cache/lookup evidence. All 27 gate-policy tests and both independent consumer executables pass. There are 55 checked Markdown files. Evidence: `.build/test-evidence/debug-20261112-135450-25050/` and `.build/test-evidence/release-20261112-135822-25044/`.
 

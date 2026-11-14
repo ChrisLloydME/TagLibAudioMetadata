@@ -1,6 +1,6 @@
 # API ownership and metadata I/O performance — 2026-11-12
 
-Branch: `codex/api-mapping-performance`. Baseline: published 0.7.3 (`7ca1b75326388a5902815f70145b600299944ae0`). This is unreleased work; commits record each independently reviewable phase.
+Branch: `codex/api-mapping-performance`. Baseline: published 0.7.3 (`7ca1b75326388a5902815f70145b600299944ae0`). This is unreleased work; commits record the work stages; the later evidence boundary identifies a non-compiling intermediate commit.
 
 ## Scope and acceptance
 
@@ -95,7 +95,7 @@ Reproduction: `TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox --disa
 
 The final source review also replaces erase's removed Boolean expectation with exact `.unspecified` advisory verification. Erase intends absence, not a present Clean or Not Explicit value. This strengthens that intermediate verification without changing flush/staging behavior; final gates include the explicit expectation.
 
-## Final verification
+## Final verification of the API-cleanup phase (historical)
 
 Final production implementation: `4dd2a60`; later source changes in this campaign are documentation/comments only. The exact-advisory addition initially had an incorrect argument order, which strict compilation rejected; it was corrected before the final runs. The focused fixture suite then passed 69 tests. The failed intermediate gate remains rejected and is not acceptance evidence.
 
