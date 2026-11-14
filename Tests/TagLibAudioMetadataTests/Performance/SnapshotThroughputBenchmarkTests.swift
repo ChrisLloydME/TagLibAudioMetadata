@@ -1,6 +1,7 @@
 import Dispatch
 import Foundation
 import Darwin
+import CTagLibBridge
 import XCTest
 @testable import TagLibAudioMetadata
 
@@ -8,6 +9,10 @@ final class SnapshotThroughputBenchmarkTests: XCTestCase {
     func testOptInIndependentFileSnapshotThroughput() throws {
         guard ProcessInfo.processInfo.environment["TAGLIB_BENCHMARK"] == "1" else {
             throw XCTSkip("Set TAGLIB_BENCHMARK=1 for the non-gating throughput experiment.")
+        }
+        if ProcessInfo.processInfo.environment["TAGLIB_BENCHMARK_PROFILE"] == "projections" {
+            try measureProjectionWork()
+            return
         }
         if ProcessInfo.processInfo.environment["TAGLIB_BENCHMARK_PROFILE"] == "concurrency" {
             try measureConcurrentWrites()
@@ -47,6 +52,61 @@ final class SnapshotThroughputBenchmarkTests: XCTestCase {
         XCTAssertTrue(failures.errors.isEmpty, "\(failures.errors)")
         try measureWriteAndFlushCosts(in: directory)
         try measureMetadataIOProfiles(in: directory)
+    }
+
+    private func measureProjectionWork() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ProjectionBenchmark-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        func sample(_ api: String, ext: String, density: String, iterations: Int = 12, operation: () throws -> Void) rethrows {
+            try operation()
+            var samples: [Double] = []
+            for _ in 0..<3 {
+                let duration = try ContinuousClock().measure { for _ in 0..<iterations { try operation() } }.components
+                samples.append((Double(duration.seconds) * 1_000 + Double(duration.attoseconds) / 1e15) / Double(iterations))
+            }
+            samples.sort()
+            print("PROJECTION_IO_BENCHMARK format=\(ext) density=\(density) api=\(api) iterations=\(iterations) samples=3 medianMs=\(samples[1])")
+        }
+        for ext in ["mp3", "m4a", "flac"] {
+            for density in ["ordinary", "metadata-and-artwork"] {
+                let source = try XCTUnwrap(Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
+                    ?? Bundle.module.url(forResource: "testAudioFile", withExtension: ext))
+                let url = directory.appendingPathComponent("\(density).\(ext)")
+                try FileManager.default.copyItem(at: source, to: url)
+                if density == "metadata-and-artwork" {
+                    let custom = Dictionary(uniqueKeysWithValues: (0..<64).map {
+                        ("PROFILE_\($0)", [String(repeating: "Metadata ", count: 64), "duplicate", "duplicate", "  padded  "])
+                    })
+                    try TagLibMetadataManager.applyRawMetadataPatch(.init(valuesToSet: custom), to: url)
+                    let image = try XCTUnwrap(Bundle.module.url(forResource: "testCover", withExtension: "jpg", subdirectory: "Artwork")
+                        ?? Bundle.module.url(forResource: "testCover", withExtension: "jpg"))
+                    var cover = try Data(contentsOf: image)
+                    cover.append(Data(repeating: 0, count: max(0, 1_048_576 - cover.count)))
+                    try TagLibMetadataManager.applyMetadataPatch(.init(artwork: .replace([.init(mimeType: "image/jpeg", data: cover)])), to: url)
+                }
+                let before = try TagLibMetadataManager.readSnapshot(from: url)
+                let bytes = try Data(contentsOf: url)
+                for (name, options) in [("bridge-basic", TagLibMetadataExtractionOptions.basic),
+                    ("bridge-raw", .raw), ("bridge-structured", .structured), ("bridge-validation", .init(rawValue: 0))] {
+                    try sample(name, ext: ext, density: density) { _ = try TagLibMetadataExtractor.metadataProjections(for: url, options: options) }
+                }
+                try sample("facade-raw", ext: ext, density: density) { _ = try TagLibMetadataManager.rawMetadataResult(from: url) }
+                try sample("facade-structured", ext: ext, density: density) { _ = try TagLibMetadataManager.readStructuredMetadataResult(from: url) }
+                try sample("snapshot", ext: ext, density: density) { _ = try TagLibMetadataManager.readSnapshot(from: url) }
+                XCTAssertEqual(try Data(contentsOf: url), bytes)
+                var sequence = 0
+                try sample("typed-title", ext: ext, density: density, iterations: 3) {
+                    sequence += 1
+                    try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.title: .text("Profile \(sequence)")]), to: url)
+                }
+                let after = try TagLibMetadataManager.readSnapshot(from: url)
+                var expected = Dictionary(uniqueKeysWithValues: before.raw.properties.map { ($0.key, $0.values) })
+                expected["TITLE"] = ["Profile \(sequence)"]
+                XCTAssertEqual(Dictionary(uniqueKeysWithValues: after.raw.properties.map { ($0.key, $0.values) }), expected)
+                XCTAssertEqual(after.structured.artwork, before.structured.artwork)
+            }
+        }
     }
 
     private func measureConcurrentWrites() throws {
