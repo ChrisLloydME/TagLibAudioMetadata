@@ -143,7 +143,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'everyFieldPreservesAllSiblingDateStates' not in line)))
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
-        self.assertFalse(self.accepted(PASS.replace('Executed 167 tests', 'Executed 163 tests')))
+        self.assertFalse(self.accepted(PASS.replace('Executed 167 tests', 'Executed 166 tests')))
         self.assertFalse(self.accepted(PASS.replace('run with 186 tests', 'run with 185 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):

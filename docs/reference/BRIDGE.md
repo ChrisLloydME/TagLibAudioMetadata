@@ -81,7 +81,7 @@ The package-internal `CTagLibBridgeInternalAPI` additionally exposes `applyNativ
 | `TagLibExplicitAdvisory` | `TagLibExplicitAdvisoryUnspecified = 0`, `TagLibExplicitAdvisoryClean = 1`, `TagLibExplicitAdvisoryExplicit = 2`, `TagLibExplicitAdvisoryNotExplicit = 3` |
 | `TagLibMetadataExtractionOptions` | `TagLibMetadataExtractionOptionBasic = 1 << 0`, `TagLibMetadataExtractionOptionRaw = 1 << 1`, `TagLibMetadataExtractionOptionStructured = 1 << 2`, `TagLibMetadataExtractionOptionPropertyMap = 1 << 3`, `TagLibMetadataExtractionOptionRawFrames = 1 << 4`, `TagLibMetadataExtractionOptionAll = NSUIntegerMax` |
 
-`TagLibMetadataExtractionOptions` is an `NS_OPTIONS` mask. Passing a mask with no recognized bits yields an empty result dictionary; it does not throw. The Swift facade mirrors the five known bits as `MetadataExtractionOptions`; its `.all` is the union of those bits, while the bridge's `All` is `NSUIntegerMax`.
+`TagLibMetadataExtractionOptions` is an `NS_OPTIONS` mask. A mask with no recognized bits retains the same selected-parser/audio-credibility validation and yields an empty result dictionary for a valid file. Invalid input still fails. Unrequested Basic tag/custom/artwork extraction and structured collections are skipped. The bridge's `All` is `NSUIntegerMax`; there is no separate public facade options type.
 
 ## Selectors
 

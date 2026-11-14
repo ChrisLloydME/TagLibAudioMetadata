@@ -45,3 +45,18 @@ The [first optimized run](ARCHITECTURE_IO_OPTIMIZED_2026-11-14.json) and [repeat
 ## Complete-read and planning boundaries
 
 All full facade reads and verification now use one complete native-view contract; missing structured evidence throws rather than being replaced by an empty model. Removed the additional tuple-only Basic forwarding helper. The semantic storage planner now takes explicit format/family values and no longer queries the facade. Each patch resolves these immutable values once for planning and verification. Native extraction has a local autorelease pool to bound temporary NSString/NSData/collection lifetimes during a long batch; returned dictionaries retain their values. The selective contract now also compares every stored facade Basic property and raw/structured values across public read entry points after nested pools drain. Strict focused checks pass: 13 XCTest and 46 Swift Testing declarations (`/tmp/taglib-read-planning-pools-fixed.log`).
+
+## Final measured candidate
+
+[All 48 final measurements](ARCHITECTURE_IO_FINAL_2026-11-14.json) are from production `f2ac9ad`, after complete-read/planning consolidation and local autorelease pools. All benchmark invocations exited zero and retained raw arrays/artwork/read immutability assertions. The preceding two runs remain available above. Negative deltas mean lower elapsed time; these local three-batch medians are descriptive, not a performance gate.
+
+| Format / density | Facade raw | Facade structured | Full snapshot | Durable typed title write |
+| --- | ---: | ---: | ---: | ---: |
+| mp3 / ordinary | 0.121 → 0.092 ms (-24.3%) | 0.126 → 0.100 ms (-20.8%) | 0.137 → 0.142 ms (+3.6%) | 9.639 → 10.570 ms (+9.7%) |
+| mp3 / metadata-and-artwork | 2.060 → 1.143 ms (-44.5%) | 2.597 → 1.625 ms (-37.4%) | 3.254 → 3.237 ms (-0.5%) | 21.001 → 20.271 ms (-3.5%) |
+| m4a / ordinary | 0.192 → 0.141 ms (-26.9%) | 0.201 → 0.162 ms (-19.7%) | 0.216 → 0.228 ms (+5.5%) | 9.400 → 10.438 ms (+11.0%) |
+| m4a / metadata-and-artwork | 3.227 → 1.127 ms (-65.1%) | 3.734 → 1.627 ms (-56.4%) | 4.105 → 4.066 ms (-0.9%) | 25.802 → 23.174 ms (-10.2%) |
+| flac / ordinary | 0.142 → 0.094 ms (-33.5%) | 0.143 → 0.101 ms (-29.3%) | 0.153 → 0.162 ms (+5.5%) | 9.998 → 9.709 ms (-2.9%) |
+| flac / metadata-and-artwork | 1.937 → 0.876 ms (-54.8%) | 2.026 → 0.940 ms (-53.6%) | 2.300 → 2.559 ms (+11.3%) | 19.700 → 17.184 ms (-12.8%) |
+
+The consistent benefit is selective extraction and metadata-heavy verified writes. Ordinary MP3/M4A writes are slower in this final run; heavy FLAC full snapshots are also slower. Full snapshots still need all views and are not universally faster. Explicit pools move temporary-object cleanup into the native read interval instead of deferring it to an outer pool; this bounds the lifetime of native temporaries but changes where cleanup cost is paid. Total process memory was not measured. Durability flushes and complete native verification remain in the write timing. No parser-concurrency increase, reduced verification, or universal write-speed claim is made.

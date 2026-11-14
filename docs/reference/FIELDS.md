@@ -43,7 +43,7 @@ let writable = MetadataFieldRegistry.schemas(storableIn: capability)
 | `canonicalSchema(forSemanticKey:)` | Resolves an uppercased semantic key to its canonical owner. |
 | `schema(forPropertyMapKey:)` | Normalizes the key, recognizes qualified prefixes, and resolves the owning schema. |
 | `schemas(withMappingsFor:)` | Returns every schema with at least one mapping for a `MetadataFieldFormat`. |
-| `schemas(storableIn:)` | Returns `[]` for read-only capabilities; otherwise enumerates canonical semantic owners and filters by native target capability, explicit `writableFields` allowlist, and artwork support. `.date` remains addressable but is not a second canonical field. |
+| `schemas(storableIn:)` | Returns `[]` for read-only capabilities; otherwise enumerates canonical semantic owners and filters by native target capability, explicit `writableFields` allowlist, and artwork support. |
 | `schema(_:hasMappingFor:)` | Convenience check for one format mapping. |
 | `shouldDisplayRawPropertyAsMultiValue(_:)` | UI hint for raw `PropertyMap` keys; true for multi-value schemas and the qualified prefixes below. |
 | `normalizePropertyMapKey(_:)` | Trims whitespace and uppercases. Use it before comparing raw keys. |
