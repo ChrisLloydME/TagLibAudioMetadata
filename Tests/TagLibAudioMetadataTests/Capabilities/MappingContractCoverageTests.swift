@@ -80,18 +80,17 @@ struct MappingContractCoverageTests {
         let date = try #require(MetadataFieldRegistry.schema(for: .standaloneDate))
         #expect(year.semanticKey == "YEAR")
         #expect(date.semanticKey == "DATE")
-        #expect(year.isCanonicalSemanticOwner && date.isCanonicalSemanticOwner)
         #expect(MetadataFieldRegistry.canonicalSchema(forSemanticKey: "YEAR")?.key == .year)
         #expect(MetadataFieldRegistry.canonicalSchema(forSemanticKey: "DATE")?.key == .standaloneDate)
     }
 
     @Test func everyFieldHasOneSchemaAndOneCanonicalSemanticOwner() {
         #expect(MetadataFieldRegistry.allSchemas.count == MetadataFieldKey.allCases.count)
-        #expect(MetadataFieldRegistry.canonicalSchemas.count == MetadataFieldKey.allCases.count)
+        #expect(MetadataFieldRegistry.allSchemas.count == MetadataFieldKey.allCases.count)
         #expect(MetadataMappingCatalog.semanticKeys.count == 100)
         #expect(
-            Set(MetadataFieldRegistry.canonicalSchemas.map(\.semanticKey)).count
-                == MetadataFieldRegistry.canonicalSchemas.count
+            Set(MetadataFieldRegistry.allSchemas.map(\.semanticKey)).count
+                == MetadataFieldRegistry.allSchemas.count
         )
         for key in MetadataFieldKey.allCases {
             #expect(MetadataFieldRegistry.schema(for: key)?.key == key)

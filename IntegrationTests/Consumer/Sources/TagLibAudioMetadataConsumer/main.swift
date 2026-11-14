@@ -13,7 +13,7 @@ func compileTypicalFileCalls(_ url: URL) throws {
     let structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
 
     _ = try TagLibMetadataManager.replaceBasicMetadata(basic, to: url)
-    _ = try TagLibMetadataManager.writeRawMetadataPropertyMap(
+    _ = try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
         Dictionary(uniqueKeysWithValues: raw.properties.map { ($0.key, $0.value) }),
         to: url
     )
@@ -21,7 +21,7 @@ func compileTypicalFileCalls(_ url: URL) throws {
         structured,
         to: url
     )
-    _ = try TagLibMetadataManager.eraseAllMetadata(from: url)
+    _ = try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
 
 }
 

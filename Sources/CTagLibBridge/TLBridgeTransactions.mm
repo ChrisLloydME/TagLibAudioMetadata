@@ -191,8 +191,8 @@ static bool SameTagLibFileVersion(const struct stat &lhs, const struct stat &rhs
 static BOOL ValidateTagLibAudioFile(NSURL *fileURL, NSError **error)
 {
     NSDictionary *projections = [TagLibMetadataExtractor metadataProjectionsForURL:fileURL
-        options:TagLibMetadataExtractionOptionBasic error:error];
-    return [projections[@"basic"] isKindOfClass:[TagLibAudioMetadata class]];
+        options:0 error:error];
+    return projections != nil;
 }
 
 static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,

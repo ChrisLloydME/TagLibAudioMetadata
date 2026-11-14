@@ -233,7 +233,7 @@ public struct BasicMetadata: Sendable {
     public var artworkMIMEType: String?
     public var customFields: [String: String]
     /// Original cardinality for custom fields read from a file.
-    /// `customFields` remains the source-compatible, display-oriented projection.
+    /// `customFields` is the scalar display/edit projection; existing arrays are retained separately.
     /// This read-only provenance is not caller-editable metadata.
     public internal(set) var customFieldValues: [String: [String]]
     /// Exact projected values captured during read, used to detect intentional Basic edits.
@@ -680,23 +680,8 @@ public struct StructuredMetadata: Hashable, Sendable {
         artwork: [StructuredArtwork] = [],
         lyrics: [StructuredLyrics] = [],
         comments: [StructuredComment] = [],
-        warnings: [String] = []
-    ) {
-        self.init(properties: properties, id3v2Frames: id3v2Frames, mp4Atoms: mp4Atoms,
-                  asfAttributes: asfAttributes, artwork: artwork, lyrics: lyrics,
-                  comments: comments, warnings: warnings, id3v2MajorVersion: nil)
-    }
-
-    public init(
-        properties: [StructuredPropertyEntry] = [],
-        id3v2Frames: [StructuredID3v2Frame] = [],
-        mp4Atoms: [StructuredMP4Atom] = [],
-        asfAttributes: [StructuredASFAttribute] = [],
-        artwork: [StructuredArtwork] = [],
-        lyrics: [StructuredLyrics] = [],
-        comments: [StructuredComment] = [],
         warnings: [String] = [],
-        id3v2MajorVersion: Int?
+        id3v2MajorVersion: Int? = nil
     ) {
         self.id3v2MajorVersion = id3v2MajorVersion
         self.properties = properties

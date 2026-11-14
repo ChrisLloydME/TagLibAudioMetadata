@@ -136,7 +136,13 @@ TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
 
 The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, verified write batches, and flush samples. It also measures MP3/M4A/FLAC ordinary and 64-key metadata-heavy Basic/snapshot reads, typed/Basic/raw title writes, and declared-capability lookups. Each profile reports five batch-average latencies: `medianMs` is their median and `p95Ms` is their maximum (the nearest-rank 95th percentile of five samples), not a per-operation tail percentile. Reads assert byte immutability; writes include actual staging, verification and durability. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises. Baseline and optimized evidence are in the [API/performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
-The current gate requires at least 164 XCTest and 186 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the three per-read lookup preservation regressions and two transaction-readability regressions. An unchanged total count cannot substitute for those tests.
+The current gate requires at least 181 XCTest and 198 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the three per-read lookup preservation regressions and two transaction-readability regressions. An unchanged total count cannot substitute for those tests.
+
+### Selective extraction profile and mandatory contracts
+
+`TAGLIB_BENCHMARK=1 TAGLIB_BENCHMARK_PROFILE=projections` selects a separate 48-row workload: three containers, two metadata densities and eight APIs. Each row is the median of three warmed batch-average latencies, not a per-operation percentile. Setup and preservation assertions are outside timing. See the [architecture record](../records/remediation/REM-2026-11-14-package-architecture.md) for baseline/optimized artifacts, variability and exact scope.
+
+`SelectiveExtractionTests` is mandatory in the strict gate: all 32 option combinations are compared against full extraction on 19 committed fixtures and three rich temporary copies. Every Objective-C Basic property, exact raw/structured collections, direct single-view readers and whole-file immutability are checked. Zero-mask invalid/parser-mismatch inputs and direct low-level writes must fail without mutation. These are projection-equivalence checks; the existing independent native byte matrices continue to establish mapping correctness.
 
 ## Independent evidence used in the repository
 
@@ -204,3 +210,7 @@ Record the revision, environment, command, opt-in state, counts, skips, and any 
 For a bounded six-format write-concurrency profile, set both `TAGLIB_BENCHMARK=1` and `TAGLIB_BENCHMARK_PROFILE=concurrency` on the same optional benchmark method. It measures 1/2/4/8 workers with fresh ordinary and metadata-heavy fixtures and real durable commits. It checks all untouched raw fields after timing. See [write-concurrency evidence](../records/remediation/REM-2026-11-12-write-concurrency.md); file setup and verification are excluded from the batch timings.
 
 Advisory erase/preservation acceptance additionally requires six named functions and 118 parameterized cases: ASF alias erasure (24), unknown-code absence rejection (4), Basic unknown preservation (16), ASF alias preservation (6), exact raw-code verification (4) and known/unknown erase across sixteen formats (64). The erased-MP4 oracle contract is also mandatory. Gate-policy tampering tests reject missing or reduced evidence.
+
+## Diagnostic remediation gate
+
+All 13 `RemediationPreservationTests` methods are required by exact XCTest class/method identity. They cover low-level model preservation, native ASF repeated updates/advisory aliases, unknown advisory codes, APE release projections, Basic number-text consistency, legacy date rejection/preservation, direct bridge rejection and the central facade date guard. Gate-policy tests remove each method's evidence and require rejection. The artwork clear regression independently requires absence of the MP4 `covr` atom. These tests complement the native field matrices; they do not establish the complete format/version/value/API cross-product.

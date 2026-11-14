@@ -196,6 +196,8 @@ NS_SWIFT_NAME(extractMetadata(from:));
 NS_SWIFT_NAME(metadataProjections(for:));
 
 /// Selectively derive projections from one extension-selected parser session.
+/// A zero mask validates the same parser/audio credibility and returns an empty
+/// dictionary; unrequested tag/custom/artwork projections are not materialized.
 + (nullable NSDictionary<NSString *, NSObject *> *)metadataProjectionsForURL:(NSURL *)fileURL
                                                                      options:(TagLibMetadataExtractionOptions)options
                                                                        error:(NSError *_Nullable *_Nullable)error

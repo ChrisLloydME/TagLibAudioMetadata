@@ -1,0 +1,314 @@
+{
+  "advisoryBearingEraseClearsKnownAndUnknownCodes": {
+    "suite": "AdvisoryEraseRegressionTests",
+    "path": "Integration/AdvisoryEraseRegressionTests.swift"
+  },
+  "allAttributeOwnersAcrossDatePresenceStates": {
+    "suite": "ASFNativeLifecycleTests",
+    "path": "Integration/ASFNativeLifecycleTests.swift"
+  },
+  "allPublicWriteSurfacesRequireContainerStateEvidence": {
+    "suite": "CrossContainerWriteSurfaceTests",
+    "path": "Integration/CrossContainerWriteSurfaceTests.swift"
+  },
+  "allSixteenDatePresenceMasksAreExplicit": {
+    "suite": "MP4DateStateCoverageTests",
+    "path": "Integration/MP4DateStateCoverageTests.swift"
+  },
+  "apeNativeItemLifecycle": {
+    "suite": "AdditionalContainerLifecycleTests",
+    "path": "Integration/AdditionalContainerLifecycleTests.swift"
+  },
+  "asfAdvisoryAliasEraseVerifiesFinalNativeState": {
+    "suite": "AdvisoryEraseRegressionTests",
+    "path": "Integration/AdvisoryEraseRegressionTests.swift"
+  },
+  "asfContentDescriptionVectorAndMalformedBounds": {
+    "suite": "NativeProbeContractTests",
+    "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "asfCustomFieldLifecycleOwnsOnlyItsCaseAliases": {
+    "suite": "ASFNativeLifecycleTests",
+    "path": "Integration/ASFNativeLifecycleTests.swift"
+  },
+  "asfEncoderOwnersRemainIndependent": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "asfPublicWriteSurfacesPreserveSparseDateOwners": {
+    "suite": "ASFNativeLifecycleTests",
+    "path": "Integration/ASFNativeLifecycleTests.swift"
+  },
+  "asfUnrelatedBasicEditPreservesNativeEncodingSettings": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "asfUnrelatedSemanticPatchPreservesNativeEncodingSettings": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicAPEDatesPreserveExactBytesAndAudio": {
+    "suite": "BasicIntegrityMatrixTests",
+    "path": "Integration/BasicIntegrityMatrixTests.swift"
+  },
+  "basicClearArtworkRemovesNativeCollections": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "basicClearOfLegacyBackedMP4FieldsMustCommit": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicContentGroupGroupingAndWorkStayIndependent": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicFLACDatesKeepDuplicatesAndWhitespace": {
+    "suite": "BasicIntegrityMatrixTests",
+    "path": "Integration/BasicIntegrityMatrixTests.swift"
+  },
+  "basicID3DatesPreserveNativeArrays": {
+    "suite": "BasicIntegrityMatrixTests",
+    "path": "Integration/BasicIntegrityMatrixTests.swift"
+  },
+  "basicMixedNumbersAndText": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "basicMusicBrainzUsesCanonicalUFIDAndClearsIt": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "basicOggDatesPreserveArraysAndAudio": {
+    "suite": "AdditionalContainerLifecycleTests",
+    "path": "Integration/AdditionalContainerLifecycleTests.swift"
+  },
+  "basicSetMustRetireEditedMP4CompatibilityAliases": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicUnrelatedEditMustAcceptValidMultivalueMP4Year": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicUnrelatedEditMustPreserveMP4DateFreeformArrays": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicUnrelatedEditMustPreserveMultivalueDatesOnAPE": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicUnrelatedEditMustPreserveMultivalueDatesOnFLAC": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicUnrelatedEditMustPreserveMultivalueYearOnID3": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicUnrelatedEditPreservesUnknownAdvisoryOnMP4": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "basicVerificationRejectsIncorrectDateAndContentGroup": {
+    "suite": "BasicIntegrityMatrixTests",
+    "path": "Integration/BasicIntegrityMatrixTests.swift"
+  },
+  "basicWorkMustKeepCanonicalOwnerAndRetireLegacyFreeform": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "emptyStructuredWritesAndUnsupportedCollectionsDoNotCommit": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "erasedMP4OracleAllowsMissingMetadataWithoutAcceptingBrokenContainers": {
+    "suite": "NativeProbeContractTests",
+    "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "everyContainerAndDateMaskRequiresTextLifecycleEvidence": {
+    "suite": "CrossContainerTextStateTests",
+    "path": "Integration/CrossContainerTextStateTests.swift"
+  },
+  "everyFieldPreservesAllOtherPresentOwners": {
+    "suite": "MP4FieldInteractionTests",
+    "path": "Integration/MP4FieldInteractionTests.swift"
+  },
+  "everyFieldPreservesAllSiblingDateStates": {
+    "suite": "MP4FieldInteractionTests",
+    "path": "Integration/MP4FieldInteractionTests.swift"
+  },
+  "everyFieldRequiresAnExplicitCoverageDecision": {
+    "suite": "SemanticLifecycleMatrixTests",
+    "path": "Integration/SemanticLifecycleMatrixTests.swift"
+  },
+  "everyTransactionRejectsUnreadableStagedOutput": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "exactUnknownAdvisoryVerificationRequiresMatchingRawCode": {
+    "suite": "AdvisoryEraseRegressionTests",
+    "path": "Integration/AdvisoryEraseRegressionTests.swift"
+  },
+  "explicitYearWritesOnlyTheYearSlot": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "flacKnownVectorKeepsDuplicateCommentEntriesAndAudio": {
+    "suite": "NativeProbeContractTests",
+    "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "id3EncodedByEditPreservesEncoderSettings": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "id3EncodedByRemovalWithEncoderSettingsMustSucceed": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "id3EncoderSettingsEditMustSucceedAndPreserveEncodedBy": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "id3EncoderSettingsMustNotPopulateEncodedBy": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "id3KnownVectorAndUnsupportedHeaderBounds": {
+    "suite": "NativeProbeContractTests",
+    "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "id3v23DateWritesRejectBeforeMutation": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "independentCommentLifecycle": {
+    "suite": "FLACSemanticLifecycleTests",
+    "path": "Integration/FLACSemanticLifecycleTests.swift"
+  },
+  "interactionManifestIncludesEveryNativeField": {
+    "suite": "MP4FieldInteractionTests",
+    "path": "Integration/MP4FieldInteractionTests.swift"
+  },
+  "legacyDateFlagsRetainLiteralOwners": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "legacyDatesAreIndependentAndBasicEditsPreserveThem": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "lowLevelClearMustNotResurrectOldMP4Values": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "lowLevelLegacyReplacementRejectsWithoutMutation": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "lowLevelMP4WritableTextOwnersMatchCatalog": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "malformedMP4LengthsAndFreeformsThrowRatherThanGuess": {
+    "suite": "NativeProbeContractTests",
+    "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "movementAndReleaseOwnersAgreeAcrossEntrypoints": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "mp4ExtendedAndZeroSizeAtomsKeepValuesAndAudio": {
+    "suite": "NativeProbeContractTests",
+    "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "mp4LifecycleHasNativeOwnerAndPreservesSiblings": {
+    "suite": "SemanticLifecycleMatrixTests",
+    "path": "Integration/SemanticLifecycleMatrixTests.swift"
+  },
+  "mp4MovementOverflowRejectsAcrossFacadeEntryPointsWithoutMutation": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "mp4MovementUpperBoundWorksAcrossFacadeEntryPoints": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "mp4PairUpperBound65535RoundTrips": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "nativeAttributeLifecycle": {
+    "suite": "ASFNativeLifecycleTests",
+    "path": "Integration/ASFNativeLifecycleTests.swift"
+  },
+  "nativeContainerFrameLifecycle": {
+    "suite": "ID3ContainerLifecycleTests",
+    "path": "Integration/ID3ContainerLifecycleTests.swift"
+  },
+  "nativeFrameLifecyclePreservesOtherFramesAndAudio": {
+    "suite": "ID3SemanticLifecycleTests",
+    "path": "Integration/ID3SemanticLifecycleTests.swift"
+  },
+  "nativeTextLifecycleAcrossSparseContainerStates": {
+    "suite": "CrossContainerTextStateTests",
+    "path": "Integration/CrossContainerTextStateTests.swift"
+  },
+  "oggNativeCommentLifecycle": {
+    "suite": "AdditionalContainerLifecycleTests",
+    "path": "Integration/AdditionalContainerLifecycleTests.swift"
+  },
+  "publicWriteSurfacesPreserveSparseNativeOwners": {
+    "suite": "CrossContainerWriteSurfaceTests",
+    "path": "Integration/CrossContainerWriteSurfaceTests.swift"
+  },
+  "semanticEncoderRemovalRetiresOnlyOwnedCompatibilityAlias": {
+    "suite": "AuditProbeTests",
+    "path": "Integration/AuditProbeTests.swift"
+  },
+  "textLifecyclePreservesEveryDatePresenceState": {
+    "suite": "MP4DateStateCoverageTests",
+    "path": "Integration/MP4DateStateCoverageTests.swift"
+  },
+  "typedASFAdvisoryPersistsNativeAttribute": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "unavailableTypedMP4WritesRejectBeforeMutation": {
+    "suite": "SemanticLifecycleMatrixTests",
+    "path": "Integration/SemanticLifecycleMatrixTests.swift"
+  },
+  "unknownAdvisoryDoesNotSatisfyExactAbsence": {
+    "suite": "AdvisoryEraseRegressionTests",
+    "path": "Integration/AdvisoryEraseRegressionTests.swift"
+  },
+  "unrelatedBasicEditPreservesUnknownASFAliasOwners": {
+    "suite": "AdvisoryEraseRegressionTests",
+    "path": "Integration/AdvisoryEraseRegressionTests.swift"
+  },
+  "unrelatedBasicEditPreservesUnknownAdvisory": {
+    "suite": "AdvisoryEraseRegressionTests",
+    "path": "Integration/AdvisoryEraseRegressionTests.swift"
+  },
+  "unrelatedMP4BasicEditKeepsLegacyOwnersAndArrays": {
+    "suite": "BasicIntegrityMatrixTests",
+    "path": "Integration/BasicIntegrityMatrixTests.swift"
+  },
+  "unrelatedWriteSurfacesPreserveDateState": {
+    "suite": "MP4WriteSurfaceStateTests",
+    "path": "Integration/MP4DateStateCoverageTests.swift"
+  },
+  "unsignedMP4PairsAcrossWriteSurfaces": {
+    "suite": "BasicIntegrityMatrixTests",
+    "path": "Integration/BasicIntegrityMatrixTests.swift"
+  },
+  "versionedTextWritesAndRemovalsVerify": {
+    "suite": "IndependentDiagnosticRepairTests",
+    "path": "Integration/IndependentDiagnosticRepairTests.swift"
+  },
+  "wrongValueKindCannotPartiallyCommitAnotherField": {
+    "suite": "SemanticLifecycleMatrixTests",
+    "path": "Integration/SemanticLifecycleMatrixTests.swift"
+  }
+}

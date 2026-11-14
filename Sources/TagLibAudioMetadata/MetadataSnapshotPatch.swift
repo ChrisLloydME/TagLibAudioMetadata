@@ -2,87 +2,6 @@ import Foundation
 import CTagLibBridge
 import CTagLibBridgeInternalAPI
 
-/// An opaque local-file version, for optimistic edits based on a snapshot.
-/// This detects observed filesystem changes; it is not a cross-process lock or
-/// a content digest. Uncooperative external writers can still race a commit.
-public struct MetadataFileVersion: Hashable, Sendable {
-    private let device: Int64
-    private let inode: UInt64
-    private let size: Int64
-    private let links: UInt64
-    private let modifiedSeconds: Int64
-    private let modifiedNanoseconds: Int64
-    private let changedSeconds: Int64
-    private let changedNanoseconds: Int64
-
-    nonisolated init(_ identity: TagLibMetadataManager.FileIdentity) {
-        device = Int64(identity.device)
-        inode = UInt64(identity.inode)
-        size = Int64(identity.size)
-        links = UInt64(identity.linkCount)
-        modifiedSeconds = Int64(identity.modificationTime.tv_sec)
-        modifiedNanoseconds = Int64(identity.modificationTime.tv_nsec)
-        changedSeconds = Int64(identity.statusChangeTime.tv_sec)
-        changedNanoseconds = Int64(identity.statusChangeTime.tv_nsec)
-    }
-}
-
-/// A comprehensive semantic metadata snapshot for professional editing.
-///
-/// `BasicMetadata` is a normalized convenience projection. The raw and structured
-/// representations retain value cardinality and supported container-specific entries.
-/// Unsupported or opaque native frames/items may be summarized rather than copied as
-/// reconstructable payloads, so this is not a lossless native serialization.
-public struct MetadataSnapshot: Sendable {
-    public var basic: BasicMetadata
-    public var raw: RawMetadataDump
-    public var structured: StructuredMetadata
-    public let fileVersion: MetadataFileVersion?
-    /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
-    public let audioContentIdentity: MetadataAudioContentIdentity?
-
-    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil) {
-        self.init(basic: basic, raw: raw, structured: structured, fileVersion: fileVersion, audioContentIdentity: nil)
-    }
-
-    public init(
-        basic: BasicMetadata,
-        raw: RawMetadataDump,
-        structured: StructuredMetadata,
-        fileVersion: MetadataFileVersion? = nil,
-        audioContentIdentity: MetadataAudioContentIdentity?
-    ) {
-        self.basic = basic
-        self.raw = raw
-        self.structured = structured
-        self.fileVersion = fileVersion
-        self.audioContentIdentity = audioContentIdentity
-    }
-}
-
-/// A focused read for list/editor loading that needs normalized Basic metadata
-/// and an optimistic-concurrency token, but not structured inspector models.
-public struct BasicMetadataSnapshot: Sendable {
-    public var metadata: BasicMetadata
-    public let fileVersion: MetadataFileVersion
-    /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
-    public let audioContentIdentity: MetadataAudioContentIdentity?
-
-    public init(metadata: BasicMetadata, fileVersion: MetadataFileVersion) {
-        self.init(metadata: metadata, fileVersion: fileVersion, audioContentIdentity: nil)
-    }
-
-    public init(
-        metadata: BasicMetadata,
-        fileVersion: MetadataFileVersion,
-        audioContentIdentity: MetadataAudioContentIdentity?
-    ) {
-        self.metadata = metadata
-        self.fileVersion = fileVersion
-        self.audioContentIdentity = audioContentIdentity
-    }
-}
-
 public enum MetadataPatchValue: Hashable, Sendable {
     /// Non-empty text. Leading and trailing whitespace is removed before mutation.
     case text(String)
@@ -169,6 +88,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case emptyValueList(location: String)
     case emptyValue(location: String, index: Int)
     case conflictingNumberRepresentations
+    case numberTextMismatch(field: String, text: String)
     case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
     case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
     case ambiguousNumberRecovery(field: String, identities: [String])
@@ -200,6 +120,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(location) contains an empty value at index \(index); use .remove to delete the field."
         case .conflictingNumberRepresentations:
             return "Use either formatted number text or typed track/disc fields in one patch, not both."
+        case .numberTextMismatch(let field, let text):
+            return "\(field) \(text.debugDescription) does not match the numeric track/disc pair; update both consistently."
         case .roleQualifiedFieldRequiresRawAPI(let field):
             return "\(field.rawValue) requires a role-qualified key; use RawMetadataPatch or StructuredMetadata instead of the typed Patch field."
         case .unsupportedPartialPairRemoval(let field, let format):
@@ -284,10 +206,10 @@ extension TagLibMetadataManager {
 
     /// Captures a regular-file version without following a final symbolic link.
     public nonisolated static func fileVersion(at url: URL) throws -> MetadataFileVersion {
-        guard url.isFileURL, let identity = regularFileIdentity(at: url) else {
+        guard url.isFileURL, let identity = MetadataFileIdentity.read(at: url) else {
             throw TagLibManagerError.invalidFile
         }
-        return MetadataFileVersion(identity)
+        return identity.version
     }
 
     private struct ValidatedMetadataPatch: Sendable {
@@ -358,15 +280,10 @@ extension TagLibMetadataManager {
         return ValidatedMetadataPatch(fields: normalizedFields, customFields: normalizedCustomFields)
     }
 
-    /// Reads all public metadata representations while rejecting concurrent file changes.
-    public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
-        try readSnapshot(from: url, afterExtraction: {})
-    }
-
     /// Streams the encoded audio when requested. Unsupported layouts return a nil
     /// identity; callers must require explicit reload instead of automatic rebase.
     public nonisolated static func readSnapshot(
-        from url: URL, includingAudioContent: Bool
+        from url: URL, includingAudioContent: Bool = false
     ) throws -> MetadataSnapshot {
         try readSnapshot(from: url, includingAudioContent: includingAudioContent, afterExtraction: {})
     }
@@ -377,7 +294,7 @@ extension TagLibMetadataManager {
         from url: URL, includingAudioContent: Bool = false, afterExtraction: () throws -> Void
     ) throws -> MetadataSnapshot {
         let version = try fileVersion(at: url)
-        let projections = try bridgeMetadataProjections(from: url)
+        let projections = try MetadataProjectionReader.complete(from: url)
         try afterExtraction()
         let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
         let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
@@ -432,23 +349,31 @@ extension TagLibMetadataManager {
                 try validateNativeMovement(value, field: field, for: url)
             }
         }
-        let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
-        if patch.numberText != nil, !numberPairFields.isDisjoint(with: validatedPatch.fields.keys) {
+        let trackPairFields: Set<MetadataFieldKey> = [.track, .trackTotal]
+        let discPairFields: Set<MetadataFieldKey> = [.disc, .discTotal]
+        if patch.numberText?.trackNumberText != nil,
+           !trackPairFields.isDisjoint(with: validatedPatch.fields.keys) {
+            throw MetadataPatchValidationError.conflictingNumberRepresentations
+        }
+        if patch.numberText?.discNumberText != nil,
+           !discPairFields.isDisjoint(with: validatedPatch.fields.keys) {
             throw MetadataPatchValidationError.conflictingNumberRepresentations
         }
         let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
-        if let capability = capability(forExtension: ext),
-           let writableFields = capability.writableFields {
+        let formatCapability = capability(forExtension: ext)
+        let formatIdentifier = formatCapability?.identifier ?? ext
+        let fieldFormats = formatCapability?.metadataFieldFormats ?? []
+        if let capability = formatCapability {
             let requestedFields = Set(validatedPatch.fields.keys)
                 .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])
                 .union(patch.artwork == .unchanged ? [] : [.artwork])
                 .union(patch.numberText?.trackNumberText == nil ? [] : [.track, .trackTotal])
                 .union(patch.numberText?.discNumberText == nil ? [] : [.disc, .discTotal])
             if let unsupported = requestedFields
-                .filter({ !writableFields.contains($0) })
+                .filter({ capability.writeSupport(for: $0) == .unsupported })
                 .sorted(by: { $0.rawValue < $1.rawValue })
                 .first {
                 throw MetadataPatchValidationError.unsupportedFieldForFormat(
@@ -462,23 +387,27 @@ extension TagLibMetadataManager {
         // shared ID3 MVIN. Route them through the registry's native planner.
         let structuredNumberPairFields: Set<MetadataFieldKey> = Set([
             .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount,
-        ]).subtracting(capability(forExtension: ext)?.identifier == "mp4" ? [.movementNumber, .movementCount] : [])
+        ]).subtracting(formatIdentifier == "mp4" ? [.movementNumber, .movementCount] : [])
         let fieldStorage = try validatedPatch.fields.reduce(into: [MetadataFieldKey: SemanticPropertyStorage]()) {
             result, entry in
             guard !structuredNumberPairFields.contains(entry.key) else { return }
-            result[entry.key] = try semanticStorage(for: entry.key, fileExtension: ext)
+            result[entry.key] = try semanticStorage(for: entry.key, formatIdentifier: formatIdentifier, formats: fieldFormats)
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             if let expectedAudioContent {
                 try requireAudioContent(at: mutationURL, matching: expectedAudioContent)
             }
             let before = try readSnapshot(from: mutationURL)
-            if before.structured.id3v2MajorVersion == 3,
-               let field = validatedPatch.fields.keys.first(where: {
-                   [.year, .standaloneDate, .releaseDate, .originalReleaseDate].contains($0)
-               }) {
-                throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+            if before.structured.id3v2MajorVersion == 3 {
+                if let field = validatedPatch.fields.keys.first(where: {
+                    [.year, .standaloneDate, .releaseDate, .originalReleaseDate].contains($0)
+                }) {
+                    throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+                }
+                if let reason = ID3v23DateSafety.unpreservableReason(in: before.structured.id3v2Frames) {
+                    throw TagLibManagerError.unsupportedWritePolicy(reason)
+                }
             }
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
@@ -487,6 +416,7 @@ extension TagLibMetadataManager {
             var nativeAtoms: [StructuredMP4Atom] = []
             let patchesNumberPair = !structuredNumberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
+            var numberMutations: [() throws -> Void] = []
 
             if patchesNumberPair {
                 let current = before.basic
@@ -558,18 +488,20 @@ extension TagLibMetadataManager {
                     expectedNumberPairs[.movementCount] = movementCount
                 }
 
-                try TagLibMetadataExtractor.writeNumberPairsInPlace(
-                    trackNumber: track,
-                    totalTracks: trackTotal,
-                    updateTrackPair: updatesTrackPair,
-                    discNumber: disc,
-                    totalDiscs: discTotal,
-                    updateDiscPair: updatesDiscPair,
-                    movementNumber: movementNumber,
-                    movementCount: movementCount,
-                    updateMovementPair: updatesMovementPair,
-                    to: mutationURL
-                )
+                numberMutations.append {
+                    try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                        trackNumber: track,
+                        totalTracks: trackTotal,
+                        updateTrackPair: updatesTrackPair,
+                        discNumber: disc,
+                        totalDiscs: discTotal,
+                        updateDiscPair: updatesDiscPair,
+                        movementNumber: movementNumber,
+                        movementCount: movementCount,
+                        updateMovementPair: updatesMovementPair,
+                        to: mutationURL
+                    )
+                }
             }
 
             if let numberText = patch.numberText {
@@ -593,29 +525,33 @@ extension TagLibMetadataManager {
                 }
                 var trackPair = numberText.trackNumberText.map(parseNumberPair)
                 var discPair = numberText.discNumberText.map(parseNumberPair)
-                if let pair = trackPair, pair.total == 0 {
+                if let pair = trackPair, pair.total == 0, numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
                     trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")
                 }
-                if let pair = discPair, pair.total == 0 {
+                if let pair = discPair, pair.total == 0, numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
                     discPair?.total = try resolvedTotal(inventory.disc.total, field: "discTotal")
                 }
-                try TagLibMetadataExtractor.writeNumberPairsInPlace(
-                    trackNumber: trackPair?.number ?? 0,
-                    totalTracks: trackPair?.total ?? 0,
-                    updateTrackPair: trackPair != nil,
-                    discNumber: discPair?.number ?? 0,
-                    totalDiscs: discPair?.total ?? 0,
-                    updateDiscPair: discPair != nil,
-                    movementNumber: 0,
-                    movementCount: 0,
-                    updateMovementPair: false,
-                    to: mutationURL
-                )
-                try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
-                    numberText.trackNumberText,
-                    discNumberText: numberText.discNumberText,
-                    to: mutationURL
-                )
+                numberMutations.append {
+                    try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                        trackNumber: trackPair?.number ?? 0,
+                        totalTracks: trackPair?.total ?? 0,
+                        updateTrackPair: trackPair != nil,
+                        discNumber: discPair?.number ?? 0,
+                        totalDiscs: discPair?.total ?? 0,
+                        updateDiscPair: discPair != nil,
+                        movementNumber: 0,
+                        movementCount: 0,
+                        updateMovementPair: false,
+                        to: mutationURL
+                    )
+                }
+                numberMutations.append {
+                    try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
+                        numberText.trackNumberText,
+                        discNumberText: numberText.discNumberText,
+                        to: mutationURL
+                    )
+                }
                 if let trackPair {
                     expectedNumberPairs[.track] = trackPair.number
                     expectedNumberPairs[.trackTotal] = trackPair.total
@@ -642,6 +578,13 @@ extension TagLibMetadataManager {
                     }
                 case .id3Frame(var frame):
                     nativeFieldAliases.formUnion(storage.keysToRemove)
+                    if !basicDateFields.contains(field) {
+                        for original in before.structured.id3v2Frames where original.frameID == "TXXX" {
+                            guard let description = original.description,
+                                  MetadataFieldRegistry.schema(forPropertyMapKey: description)?.key == field else { continue }
+                            id3Frames.append(.init(frameID: "TXXX", type: "userText", description: description))
+                        }
+                    }
                     frame.values = value.propertyMapValues
                     id3Frames.append(frame)
                 case .nativeTextKey(let key):
@@ -669,7 +612,7 @@ extension TagLibMetadataManager {
             }
 
             for (key, value) in validatedPatch.customFields {
-                if capability(forExtension: ext)?.identifier == "asf" {
+                if formatIdentifier == "asf" {
                     // ASF PropertyMap cannot represent arbitrary attributes.
                     nativeTextRemovals.insert(key)
                     if !value.propertyMapValues.isEmpty { nativeTextValues[key] = value.propertyMapValues }
@@ -710,6 +653,12 @@ extension TagLibMetadataManager {
                 }
             }
 
+            if before.structured.id3v2MajorVersion == 3 {
+                id3Frames.append(contentsOf: ID3v23DateSafety.preservationFrames(
+                    in: before.structured.id3v2Frames
+                ))
+            }
+
             if !nativeAtoms.isEmpty || !id3Frames.isEmpty {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
                     bridgePayload(
@@ -743,22 +692,20 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
-            let projections = try bridgeMetadataProjectionDictionary(
-                from: mutationURL,
-                options: .all
-            )
-            guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
-                  let bridgeRaw = projections["raw"] as? [String: NSObject] else {
-                throw TagLibManagerError.failedToReadWithUnderlying(
-                    "The bridge returned incomplete patch verification projections."
-                )
+            // PropertyMap replay can normalize native number pairs. Emit their
+            // exact requested representation after other mutation surfaces.
+            for mutation in numberMutations { try mutation() }
+            let projections = try MetadataProjectionReader.complete(from: mutationURL)
+            let afterRaw = rawMetadataDump(fromBridgeDictionary: projections.raw)
+            let afterStructured = structuredMetadata(fromBridgeDictionary: projections.structured)
+            if before.structured.id3v2MajorVersion == 3 {
+                warnings.append(contentsOf: ID3v23DateSafety.unexpectedChanges(
+                    before: before.structured.id3v2Frames,
+                    after: afterStructured.id3v2Frames
+                ))
             }
-            let afterRaw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
-            let afterStructured = (projections["structured"] as? [String: NSObject]).map {
-                structuredMetadata(fromBridgeDictionary: $0)
-            } ?? StructuredMetadata()
             let afterBasic = basicMetadata(
-                fromBridgeMetadata: bridgeBasic,
+                fromBridgeMetadata: projections.basic,
                 rawDump: afterRaw,
                 fileExtension: mutationURL.pathExtension,
                 structured: afterStructured
@@ -786,16 +733,16 @@ extension TagLibMetadataManager {
             // semantic GROUPING belongs to the independent iTunes freeform.
             // Allow this engine projection only for a Content Group edit;
             // exact native siblings are still checked below.
-            let isMP4 = capability(forExtension: ext)?.identifier == "mp4"
+            let isMP4 = formatIdentifier == "mp4"
             if isMP4, validatedPatch.fields[.contentGroup] != nil {
                 intentionallyChangedKeys.insert("GROUPING")
             }
-            if (isMP4 || capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true), validatedPatch.fields[.encoderSettings] != nil {
+            if (isMP4 || fieldFormats.contains(.id3v2)), validatedPatch.fields[.encoderSettings] != nil {
                 intentionallyChangedKeys.insert("ENCODING")
             }
             let primaryID3 = ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"]
-                .contains(capability(forExtension: ext)?.identifier ?? "")
-            if (primaryID3 || capability(forExtension: ext)?.identifier == "asf"), validatedPatch.fields[.contentGroup] != nil {
+                .contains(formatIdentifier)
+            if (primaryID3 || formatIdentifier == "asf"), validatedPatch.fields[.contentGroup] != nil {
                 // TagLib projects TIT1 and ASF Content Group as WORK.
                 // Exact native siblings are verified separately below.
                 intentionallyChangedKeys.insert("WORK")
@@ -815,7 +762,7 @@ extension TagLibMetadataManager {
             // Xiph/APE date values must remain unchanged even when their engine
             // spelling appears in intentionallyChangedKeys for another field.
             let nativeTextDateFamily = ["flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex", "ape", "wavpack", "musepack"]
-                .contains(capability(forExtension: ext)?.identifier ?? "")
+                .contains(formatIdentifier)
             if nativeTextDateFamily {
                 for (field, key) in [(MetadataFieldKey.year, "YEAR"), (.standaloneDate, "DATE"),
                                      (.releaseDate, "RELEASEDATE"), (.originalReleaseDate, "ORIGINALDATE")] {
@@ -827,7 +774,7 @@ extension TagLibMetadataManager {
                 }
             }
             let dateFields: [MetadataFieldKey] = [.year, .standaloneDate, .releaseDate, .originalReleaseDate]
-            let identifier = capability(forExtension: ext)?.identifier ?? ""
+            let identifier = formatIdentifier
             let independentNativeFields = dateFields
                 + (identifier == "mp4" || primaryID3 ? [.contentGroup, .grouping, .work] : [])
                 + (identifier == "mp4" || primaryID3 ? [.encodedBy, .encoderSettings] : [])
@@ -846,7 +793,7 @@ extension TagLibMetadataManager {
                         warnings.append("Unedited native \(kind) \(field.rawValue) changed during the patch.")
                     }
                 } else if !nativeTextDateFamily,
-                          capability(forExtension: ext)?.metadataFieldFormats.contains(.id3v2) == true {
+                          fieldFormats.contains(.id3v2) {
                     let targets = schema.targets(for: .id3v23) + schema.targets(for: .id3v24)
                     func owned(_ frame: StructuredID3v2Frame) -> Bool {
                         targets.contains { target in
@@ -934,13 +881,18 @@ extension TagLibMetadataManager {
                 case .nativeTextKey(let key), .propertyMap(let key):
                     // TagLib exposes these exact APE owners under its
                     // canonical PropertyMap dialect rather than native names.
-                    let isAPE = ["ape", "wavpack", "musepack"].contains(capability(forExtension: ext)?.identifier ?? "")
-                    let projectionKey: String = isAPE ? (["ALBUM ARTIST": "ALBUMARTIST", "MIXARTIST": "REMIXER"][key] ?? key) : key
+                    let isAPE = ["ape", "wavpack", "musepack"].contains(formatIdentifier)
+                    let projectionKey: String = isAPE ? ([
+                        "ALBUM ARTIST": "ALBUMARTIST",
+                        "MIXARTIST": "REMIXER",
+                        "MUSICBRAINZ_ALBUMTYPE": "RELEASETYPE",
+                        "MUSICBRAINZ_ALBUMSTATUS": "RELEASESTATUS",
+                    ][key] ?? key) : key
                     let asfValues = afterStructured.asfAttributes
                         .filter { key.caseInsensitiveCompare($0.key) == .orderedSame }
                         .map(\.value)
                     if case .nativeTextKey = storage.mechanism,
-                       capability(forExtension: ext)?.identifier == "asf" {
+                       formatIdentifier == "asf" {
                         // Native absence is authoritative. Engine DATE can
                         // still project WM/Year after independent DATE removal.
                         actual = asfValues
@@ -966,7 +918,7 @@ extension TagLibMetadataManager {
                     warnings.append("Patched field \(field.rawValue) differs after save.")
                 }
             }
-            let formats = capability(forExtension: ext)?.metadataFieldFormats ?? []
+            let formats = fieldFormats
             // FLAC may contain secondary ID3 tags, but its semantic comment
             // writes use Xiph. Verify the active family, not every possible tag.
             if formats.contains(.id3v2), !nativeTextDateFamily, !formats.contains(.asf) {
@@ -980,7 +932,7 @@ extension TagLibMetadataManager {
             }
             for (key, value) in validatedPatch.customFields {
                 let actual: [String]
-                if capability(forExtension: ext)?.identifier == "asf" {
+                if formatIdentifier == "asf" {
                     actual = afterStructured.asfAttributes.filter {
                         $0.key.caseInsensitiveCompare(key) == .orderedSame
                     }.map(\.value)

@@ -156,7 +156,7 @@ Known boundaries:
 - `.rate` typed writes are withheld.
 - Matroska `tvEpisode`/`tvSeason` writes are not implemented.
 - The bridge and Swift catalog are separate representations; parity tests guard them.
-- `replaceBasicMetadata` does not write the MP4-exclusive Basic properties; use `MetadataPatch` for those fields.
+- `replaceBasicMetadata` differences use the same planner/capability rules as typed fields, including MP4-exclusive fields; `.rate` remains read-only.
 - Extension-level capability cannot identify a concrete tag version; inspect `StructuredMetadata.id3v2MajorVersion` before offering ID3 date edits.
 - ASF has no verified total-only number representation.
 - Cross-tool fixtures for YEAR/DATE/RELEASEDATE independence are limited to the formats covered by [mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md).

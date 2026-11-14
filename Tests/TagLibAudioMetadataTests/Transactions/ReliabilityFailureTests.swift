@@ -13,7 +13,7 @@ final class ReliabilityFailureTests: XCTestCase {
         metadata.title = "Committed despite directory sync failure"
 
         XCTAssertThrowsError(
-            try TagLibMetadataManager.withAtomicFileMutation(
+            try MetadataFileTransaction.withAtomicFileMutation(
                 at: url,
                 directorySync: { _ in -1 }
             ) { mutationURL in
@@ -35,7 +35,7 @@ final class ReliabilityFailureTests: XCTestCase {
     func testHighLevelWriteReturnsCommittedDurabilityUncertainStatus() throws {
         let url = try copyFixture("flac")
 
-        let result = try TagLibMetadataManager.withAtomicMetadataWriteMutation(
+        let result = try MetadataFileTransaction.withAtomicMetadataWriteMutation(
             at: url,
             directorySync: { _ in -1 }
         ) { mutationURL in

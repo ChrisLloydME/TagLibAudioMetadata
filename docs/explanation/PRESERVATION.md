@@ -41,26 +41,15 @@ An empty `MetadataPatch` or `RawMetadataPatch` is a no-op. It returns without st
 - `replaceBasicMetadata` has replacement semantics for fields the Basic replacement path actually writes. Empty strings and zero numeric values clear those fields where the container allows it.
 - `updateBasicMetadata(at:_:)` reads a focused Basic snapshot, applies the closure, and passes the captured version to the replacement.
 - Removing a key from `BasicMetadata.customFields` does not request deletion. Use `MetadataPatch(customFields: [key: .remove])` or a raw API. An explicitly supplied empty custom value clears that entry.
-- The MP4-exclusive fields are readable through Basic but are not written by the Basic replacement path. Use a typed patch or structured write for them.
+- MP4-exclusive changes in Basic use the same typed native targets and capability rules as a patch. Unsupported changes fail rather than being silently ignored.
 
 ## Basic preservation rules
 
-A Basic read retains raw cardinality and provenance for fields that Basic cannot fully represent. An unrelated Basic edit restores untouched data through exact native collections:
+Basic replacement compares the requested normalized model with a versioned full snapshot and sends only differences through the same native planner and verification as `MetadataPatch`. It no longer reconstructs every field through the low-level Basic writer or replays read models as preservation payloads.
 
-- tracked multi-value arrays managed by the Basic writer, through exact MP4 atoms, ID3 multi-value frames, or Xiph/APE text keys;
-- complete YEAR text and independent DATE, RELEASEDATE, and ORIGINALDATE slots, which are skipped by the generic raw-preservation loop and written through their own owners;
-- on Xiph/APE families, all visible text keys, including role-qualified and schema-known keys, through their exact physical spelling;
-- on tested ID3-backed formats, multi-value frames for schema fields the Basic writer does not edit;
-- unchanged native comment and lyric collections, including languages and descriptions, on tested ID3-backed formats;
-- unknown Xiph/APE text keys and custom fields that the writer carries through.
+Unchanged native arrays, malformed existing dates, duplicate values, whitespace, qualified comments/lyrics, aliases and absent owners remain outside the requested delta. Basic does not split display strings to guess arrays. Explicitly changed custom arrays use `customFieldValues`; omitted custom dictionary keys remain unchanged. A nil `artworkData` clears all artwork; unchanged data/MIME preserves the existing artwork collection. MP4-exclusive fields use the same typed targets and capability rules, including rejecting `.rate` changes. An unchanged unknown advisory remains native provenance rather than an implicit removal request.
 
-The replacement path calls `restoreUneditedBasicNativeValues` before verification. It does not replay a whole engine `PropertyMap`; that projection merges independent YEAR/DATE owners. The helper handles the fields whose scalar Basic projection is unchanged:
-
-- **MP4:** all editable Basic fields except track/disc pairs. It restores the exact canonical atom, compatibility aliases, and any original owner spelling; an alias absent from the original is explicitly removed instead of being created by the edit.
-- **Xiph/APE:** the four independent date fields, using the target native key and the `ORIGINAL YEAR` alias where present. Existing arrays, malformed text, duplicates, whitespace, and absence are retained; no present scalar projection causes a missing owner to be synthesized.
-- **ID3-backed formats:** the four independent date fields, restoring existing frames and explicitly checking that targets absent before the edit stay absent.
-
-The helper reads and restores the state captured at the transaction version, so a concurrent replacement cannot make the preservation read stale. Other native structures are preserved by the format-specific collection replay in the Basic writer. Basic does not guess cardinality by splitting a display string.
+The captured version binds the diff to the eventual staged mutation. ID3v2.3 Basic updates reject actual date differences, while unrelated edits use typed deltas. Literal TYER/TDAT/TORY owners are read independently of TagLib's synthetic TDRC. The native reader handles v2.3 extended headers, experimental flags and whole-tag unsynchronization. Compressed/encrypted date-frame payloads without a verified decoder fail explicitly rather than manufacturing a date. Full low-level Basic bridge replacement of existing v2.3 tags is rejected: callers use version-checked Basic updates, typed deltas or non-date structured edits on preservable layouts. Structured date edits reject before staging. Public direct raw, structured and number bridge mutations of concrete v2.3 tags reject with code `9290`; full-model replacement rejects with `9261`. Explicit wipe remains intentional removal.
 
 Editing or adding a schema-known name through `BasicMetadata.customFields` is rejected; use the typed field or a raw/structured API. Existing native custom attributes whose names overlap the schema may be carried through unchanged when their value is unchanged. The current validation does not reject the package-reserved hidden formatting names in custom data; do not use those names.
 
@@ -164,7 +153,7 @@ Prefer `RawMetadataPatch` for preservation-oriented partial edits. It preserves 
 - MP4 atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other inspected item types are ignored by the writer; omit them.
 - Structured text values are exact payload values, not display text. ID3 frame values and MP4 `stringList` entries retain order, duplicates, and surrounding whitespace; an empty array removes the item or frame identity where the type supports removal. The typed patch layer's trimming rules do not apply to structured values.
 - ASF attributes are upserts. GUID attributes are inspection-only. There is no individual structured deletion operation.
-- DSF/DSDIFF accept native ID3 frame upserts, PropertyMap deltas and artwork through the structured writer. Whole native frame collection replacement and comment/lyric collection replacement remain unsupported. A Basic edit that would require replaying existing DSD comments or lyrics rejects safely rather than normalizing them.
+- DSF/DSDIFF accept native ID3 frame upserts, PropertyMap deltas and artwork through the structured writer. Whole native frame collection replacement and comment/lyric collection replacement remain unsupported. Unrelated Basic edits now use typed deltas and preserve existing DSD comment/lyric and opaque frames without replaying those collections; independent byte assertions cover this path.
 - Mixed TrueAudio APEv2 metadata rejects before commit because the pinned handler cannot reconcile both surfaces.
 
 ### Content Group, encoder, and MP4 ownership
@@ -267,3 +256,11 @@ Preservation and verification happen on a sibling staging copy. The destination 
 Known advisory values 0/1/2, absence, and unknown raw codes remain distinct. An exact `.unspecified` verification expectation requires `explicitAdvisoryRawValue == nil`; supplying `expectedExplicitAdvisoryRawValue` instead requests exact unknown-code preservation. Basic automatically carries the existing unknown code into verification. Unchanged unknown ASF attributes, ID3 user-text frames and Xiph/APE values are restored through their native owners; their `.unspecified` enum projection does not authorize deletion. MP4 retains its existing native-atom preservation.
 
 Erase checks the final staged state after Basic clearing, raw clearing and native wipe. Transient aliases that will be removed later must not cause a false failure. Native ASF residual attributes and raw residual fields remain checked before commit; stale versions and all existing atomic/durability guards remain active.
+
+## Legacy date commit invariant
+
+Every facade metadata transaction compares the concrete v2.3 date owners before and after mutation on its staged copy. Owner identity includes the TXXX description and exact value arrays, including duplicate cardinality. Distinct DATE and ORIGINALDATE TXXX owners are independent. Optional semantic verification does not disable this integrity check. Explicit erase-all is the sole exception because removal is its requested operation.
+
+Standalone TDAT is replayed for supported unrelated Basic and structured edits. Paths that cannot preserve it fail without committing. Duplicate owners, conflicting TORY/TDOR and v2.4-only date owners embedded in v2.3 tags reject conservatively; this is not a tag conversion API. Structured preservation plans are bound to the version observed during their read. Empty structured payloads remain nonmutating even for an otherwise uneditable legacy layout.
+
+Low-level Basic read/modify/write carries Content Group, ARTISTS and both ReplayGain peaks. ASF canonical updates and advisory alias retirement use native attributes; unknown advisory raw codes remain present on unrelated low-level writes. APE Release Type/Status verification resolves the engine spelling without changing the declared native target. Non-empty Basic number text must agree with the numeric pair; empty number text permits a total-only edit. Track and disc requests are validated independently. Numeric-only containers may still normalize padding.

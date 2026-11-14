@@ -1,7 +1,7 @@
 + (nullable TagLibAudioMetadata *)extractMetadataFromURL:(NSURL *)fileURL
                                                    error:(NSError **)error {
     try {
-    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL error:error];
+    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL options:TagLibMetadataExtractionOptionBasic error:error];
     return projections ? (TagLibAudioMetadata *)projections[@"basic"] : nil;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Metadata extraction", nil)
 }
@@ -42,28 +42,6 @@ static NSString * _Nullable BuildNumberTextPreservingFormatting(NSString * _Null
     NSInteger padWidth = 0;
     ParseNumberPairFromNSString(trimmedExistingText, ignoredNumber, ignoredTotal, padWidth);
     return BuildTRCKString(number, total, padWidth);
-}
-
-static NSString * _Nullable BuildSynchronizedNumberTextPreservingFormatting(
-    NSString * _Nullable existingText,
-    NSInteger number,
-    NSInteger total
-)
-{
-    NSString *trimmedExistingText = TrimmedStringOrNil(existingText);
-    NSInteger existingNumber = 0;
-    NSInteger existingTotal = 0;
-    NSInteger ignoredPadWidth = 0;
-    ParseNumberPairFromNSString(
-        trimmedExistingText,
-        existingNumber,
-        existingTotal,
-        ignoredPadWidth
-    );
-    if (existingNumber == number && existingTotal == total) {
-        return trimmedExistingText;
-    }
-    return BuildNumberTextPreservingFormatting(trimmedExistingText, number, total);
 }
 
 static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSString * _Nullable existingText,
@@ -163,7 +141,9 @@ static BOOL StripAllTagsAndSave(FileType &file,
         return NO;
     }
     if (TagLibAtomicMutationDepth == 0) {
+        if (!RejectDirectID3v23Write(fileURL, @"track-number", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Track-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"track-number", mutationError)) return NO;
             return [self writeTrackNumber:trackNumber
                               totalTracks:totalTracks
                                  padWidth:padWidth

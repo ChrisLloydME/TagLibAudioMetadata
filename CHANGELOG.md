@@ -5,11 +5,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Preserve low-level Content Group, ARTISTS, ReplayGain peaks and unknown advisory codes; apply native ASF updates and retire advisory aliases.
+- Verify APE release fields through their engine projection and reject inconsistent Basic number text per pair while allowing total-only updates.
+- Fail closed on concrete ID3v2.3 date edits and unpreservable layouts across mutation entry points. Bind structured preservation to its observed version; preserve independent TXXX identities and exact date arrays.
+- Remove the MP4 `covr` owner on explicit artwork clear. Require every diagnostic remediation regression in the strict gate.
+
 ### Independent-review fixes
 
 - Verify advisory absence after the final erase stages, fixing false failures for ASF/WMA read aliases. Distinguish unknown raw codes from absence in exact verification.
 - Preserve unchanged unknown advisory owners during Basic edits across native text, ID3 and ASF paths, with native readback checks.
 - Retry failed initial capability-descriptor loads, remove an unused dump parser, correct read-only advisory documentation and document changed registry introspection.
+
+### Architecture and selective I/O
+
+- Separate facade contracts, snapshot values, native projection reads, regular-file identity and atomic transactions into explicit internal ownership boundaries. Require complete native views for full reads and verification; make storage planning accept explicit format evidence.
+- Skip unrequested native Basic/custom/artwork/date projections, use validation-only reads for transaction preflight, and request only the needed view from direct bridge Basic/raw/structured readers. Bound facade native-read temporaries with a local autorelease pool.
+- Remove uncalled retention/verification helpers, redundant constructor/read arities, Bool-only write wrappers, the unused facade extraction mask, and obsolete canonical-alias/collision registry shapes. Native-file aliases and explicit numbering recovery remain supported.
+- Require all selective-projection contracts in the strict gate, including all 32 masks across 19 fixtures and three rich copies, facade value lifetime, and invalid-input atomicity. Retain all 48 baseline/final I/O measurements and observed regressions; see the [architecture record](docs/records/remediation/REM-2026-11-14-package-architecture.md).
 
 ### Breaking API cleanup
 
