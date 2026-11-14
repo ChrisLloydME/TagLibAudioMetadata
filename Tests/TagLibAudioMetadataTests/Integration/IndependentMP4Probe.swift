@@ -31,14 +31,21 @@ struct IndependentMP4Probe {
         return result
     }
 
-    static func read(_ url: URL) throws -> Self {
+    static func read(_ url: URL, allowingAbsentMetadata: Bool = false) throws -> Self {
         let data = try Data(contentsOf: url)
         let top = try atoms(data, 0..<data.count)
         let audio = top.filter { $0.type == "mdat" }.map { Data(data[$0.payload]) }
         guard !audio.isEmpty else { throw Invalid.atom }
         var children = top
         for name in ["moov", "udta", "meta", "ilst"] {
-            guard let container = children.first(where: { $0.type == name }) else { throw Invalid.atom }
+            guard let container = children.first(where: { $0.type == name }) else {
+                // Erase may legitimately remove udta/meta/ilst. Keep moov,
+                // mdat and every present atom's bounds mandatory.
+                if allowingAbsentMetadata && name != "moov" {
+                    return Self(items: [:], values: [:], audio: audio)
+                }
+                throw Invalid.atom
+            }
             let start = container.payload.lowerBound + (name == "meta" ? 4 : 0)
             guard start <= container.payload.upperBound else { throw Invalid.atom }
             children = try atoms(data, start..<container.payload.upperBound)

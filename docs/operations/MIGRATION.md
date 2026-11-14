@@ -1,11 +1,35 @@
 # Compatibility and migration
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Sections are newest first; review the behavioral changes that apply to your starting version.
+## Unreleased API cleanup (breaking)
+
+This source branch intentionally removes compatibility-only API. It is not a patch-compatible replacement for the published 0.7.3 interface; publish it as an explicitly breaking release after consumer migration. Native target layouts and canonical mapping contract 2.2 are unchanged.
+
+| Removed surface | Current API |
+| --- | --- |
+| `MetadataFieldKey.date` (meaning YEAR), `isLegacyYearAlias`, and its obsolete `conflictingYearRepresentations` error | `.year` for YEAR; `.standaloneDate` for independent DATE. Persisted field-key token `date` is rejected, never silently reinterpreted. `BasicMetadata.date` still means independent DATE. |
+| `writeMetadata`, `writeMetadataWithVerification` facade aliases | `replaceBasicMetadata` for full replacement or `updateBasicMetadata` for a captured-version update |
+| Optional `readMetadata`, `rawMetadata`, `readStructuredMetadata`, `rawMetadataText` aliases | Throwing `*Result` APIs or explicitly named `bestEffort*` functions |
+| `failurePolicy` overloads and `VerificationFailurePolicy` | Verified mismatches always abort; handle typed errors and commit status |
+| Old function-reference arities without `expectedVersion` | Bind the current version-aware function signature; ordinary calls may still use documented defaults |
+| Writable Boolean `isExplicit` / bridge `explicitContent` and Boolean verification expectations | Set and verify the exact four-state `explicitAdvisory`; Boolean properties are read-only projections |
+| `ArtworkVerificationExpectation.unchanged` | `.skip` (this concerns verification, not the separate artwork mutation `.unchanged`) |
+| `isReadableFormat`, `isWritableFormat`, `formatCapability(for:)`, `FormatSupportLevel.verified`, `failedToRead` | Explicit extension lookup, `fixtureCovered`, and throwing error with underlying detail |
+
+Existing native-file aliases and the legacy numbering inventory/explicit recovery plan remain supported. They preserve user data and do not reintroduce removed API meanings. Raw engine `DATE` can still denote YEAR on MP4/ID3; typed native ownership must be obtained from the catalog, not inferred from that engine key. Bridge `metadataFieldMappings()` now lists YEAR as the canonical PropertyMap spelling and DATE as its engine alias; consumers inspecting ordered descriptors must use that order. This is not a native-file rewrite. Old runtime bridge-selector probing and contradictory ignored native-target hints have been removed.
+
+
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Tagged-release sections below are historical migration instructions; the unreleased cleanup above supersedes their retained-alias advice. Review the behavioral changes that apply to your starting version.
+
+### Registry introspection and exact advisory verification
+
+Removing `.date` also changes still-compiling registry introspection: `propertyMapKeyOwners["DATE"]` and `["YEAR"]` each contain only `.year`; `sharedPropertyMapKeyOwners` and `preferredSharedPropertyMapKeyOwner` are empty. `canonicalSchemas` equals `allSchemas` for built-in entries. Engine lookup still resolves DATE/YEAR to YEAR; standalone DATE remains its own semantic field. Do not infer native storage from these formatless engine spellings. The public schema's canonical-owner flag remains meaningful for caller-created descriptions and is not a live YEAR alias.
+
+`expectedExplicitAdvisory = .unspecified` now verifies absence of both the known state and unknown raw-code provenance. To verify preservation of an unknown existing code, also set `expectedExplicitAdvisoryRawValue` to that exact code. A non-nil raw expectation can be used on its own. Basic replacement supplies this expectation automatically for an unchanged unknown state and restores its native owners. An unrelated save must not turn an unknown code into absence. Erase verifies the final staged file after all clearing/wiping steps.
 
 ## Compatibility promises
 
-- **Source compatibility:** public API changes should keep existing source compiling where practical, using deprecated forwarding overloads. Typed function references are the supported compatibility shape; untyped references to overloaded names can become ambiguous.
-- **Behavioral compatibility:** some methods are deprecated because their semantics were easy to misuse, not because they were removed. Deprecated verification policies do not bypass verification.
+- **Source compatibility:** breaking API removals require an explicitly breaking release and migration instructions. Compatibility-only aliases that contradict current field meanings are removed in this candidate.
+- **Behavioral compatibility:** native-file read aliases and explicit legacy recovery preserve data; they do not authorize ambiguous source-level aliases or verification bypasses.
 - **Binary compatibility:** the package does not promise a stable Swift ABI or a stable C++ ABI. Rebuild consumers against the package version they use.
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
 - **Error compatibility:** error enums gained cases. Exhaustive switches must handle new cases or use an appropriate wildcard/default pattern.

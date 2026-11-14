@@ -3,6 +3,51 @@ import TagLibAudioMetadata
 import CTagLibBridge
 
 final class FormatCapabilityTests: XCTestCase {
+    func testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies() throws {
+        for family in TagLibMetadataExtractor.formatCapabilities() {
+            for ext in try XCTUnwrap(family["extensions"] as? [String]) {
+                let source = try XCTUnwrap(TagLibMetadataExtractor.formatCapability(for: ext))
+                let cached = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: ext))
+                XCTAssertEqual(cached, TagLibMetadataManager.capability(forExtension: ext.uppercased()))
+                XCTAssertEqual(cached.identifier, source["identifier"] as? String)
+                XCTAssertEqual(cached.displayName, source["displayName"] as? String)
+                XCTAssertEqual(cached.codecName, source["codecName"] as? String)
+                XCTAssertEqual(cached.primaryExtension, source["primaryExtension"] as? String)
+                XCTAssertEqual(cached.extensions, source["extensions"] as? [String])
+                XCTAssertEqual(cached.containers, source["containers"] as? [String])
+                XCTAssertEqual(cached.supportLevel.rawValue, source["supportLevel"] as? String)
+                XCTAssertEqual(cached.extensionSupportLevels.mapValues(\.rawValue), source["extensionSupportLevels"] as? [String: String])
+                XCTAssertEqual(cached.structuredReadSupport.rawValue, source["structuredReadSupport"] as? String)
+                XCTAssertEqual(cached.structuredWriteSupport.rawValue, source["structuredWriteSupport"] as? String)
+                XCTAssertEqual(cached.readOnlyReason, source["readOnlyReason"] as? String)
+                XCTAssertEqual(cached.notes, source["notes"] as? String)
+                for (key, value) in ["isReadable": cached.isReadable, "isWritable": cached.isWritable,
+                    "canReadArtwork": cached.canReadArtwork, "canWriteArtwork": cached.canWriteArtwork,
+                    "preservesMultiValueProperties": cached.preservesMultiValueProperties] {
+                    XCTAssertEqual(value, (source[key] as? NSNumber)?.boolValue ?? false, "\(ext) / \(key)")
+                }
+                for (key, value) in ["readableFields": cached.readableFields, "writableFields": cached.writableFields] {
+                    let expected = (source[key] as? [String]).map { Set($0.compactMap(MetadataFieldKey.init(rawValue:))) }
+                    XCTAssertEqual(value, expected, "\(ext) / \(key)")
+                }
+                var copy = cached
+                copy.containers = ["changed"]
+                copy.identifier = "changed"
+                copy.isWritable.toggle()
+                copy.extensions.removeAll()
+                XCTAssertEqual(TagLibMetadataManager.capability(forExtension: ext), cached)
+                XCTAssertEqual(copy.metadataFieldFormats, [.tagLibPropertyMap])
+            }
+        }
+        for unknown in ["", ".mp3", " mp3", "mp3 ", "unknown"] {
+            XCTAssertNil(TagLibMetadataManager.capability(forExtension: unknown))
+        }
+        var families = TagLibMetadataManager.formatCapabilities
+        let original = families
+        families.removeAll()
+        XCTAssertEqual(TagLibMetadataManager.formatCapabilities, original)
+    }
+
     func testReadOnlyMP4RateRemainsReadableButIsNotAdvertisedWritable() throws {
         for ext in ["m4a", "mp4"] {
             let capability = try XCTUnwrap(TagLibMetadataManager.capability(forExtension: ext))
@@ -240,8 +285,7 @@ final class FormatCapabilityTests: XCTestCase {
             let schemas = MetadataFieldRegistry.allSchemas.filter {
                 propertyKeys == $0.propertyMapKeys
             }
-            // YEAR keeps the deprecated `.date` spelling as a documented alias
-            // of the canonical `.year` identity; they are one semantic owner.
+            // Engine PropertyMap aliases are separate from typed field identities.
             let semanticKeys = Set(schemas.map(\.semanticKey))
             let schema = try XCTUnwrap(
                 semanticKeys.count == 1 ? schemas.first(where: \.isCanonicalSemanticOwner) ?? schemas.first : nil,

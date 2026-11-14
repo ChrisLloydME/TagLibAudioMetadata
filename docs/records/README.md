@@ -38,6 +38,8 @@ Records were written before the 2026-10-19 documentation restructuring. They may
 
 | Record ID | Date | Type | Examined revision / branch | Current relevance | Findings and outcome |
 | --- | --- | --- | --- | --- | --- |
+| [REM-2026-11-14-independent-review-repairs](remediation/REM-2026-11-14-independent-review-repairs.md) | 2026-11-14 | Independent review / repair | `codex/api-mapping-performance`, baseline `c4259cb` | Current repair campaign | ASF erase false failure, exact advisory absence and unknown native-code preservation; deliberate API/validation design distinguished from defects. |
+| [REM-2026-11-12-write-concurrency](remediation/REM-2026-11-12-write-concurrency.md) | 2026-11-12 | Performance investigation | `codex/api-mapping-performance`, baseline `16b01fb` | Active campaign | Bounded write parallelism and redundant transaction/read preparation; see record for measured evidence and final acceptance. |
 | [REM-2026-11-11-state-coverage](remediation/REM-2026-11-11-state-coverage.md) | 2026-11-11 | Remediation / verification | `codex/metadata-state-coverage-repairs`, based on `5e6f604`; merged as `e9337f2` | Included in the `0.7.3` release | Repaired native-owner state loss across public write surfaces and low-level reads; added 8,282 state cases. Both final gates, both consumers and 24 policy tests passed. |
 | [REM-2026-11-11-audit-integrity-repairs](remediation/REM-2026-11-11-audit-integrity-repairs.md) | 2026-11-11 | Remediation / verification | `c3f1481` plus repairs included in `0.7.2` | Included in the `0.7.2` release | All 24 audit probes pass; strict Debug/Release gates pass; expanded native matrices, both consumers and 574 AudioMator override tests pass. |
 | [AUD-2026-11-11-package-audit](audits/AUD-2026-11-11-package-audit.md) | 2026-11-11 | Independent audit | `26fc76f` plus this audit's uncommitted test/gate/documentation changes | Historical failing tree; reproduced blockers repaired in REM-2026-11-11-audit-integrity-repairs | Two reproduced P0 defects (Basic edit loses unedited date arrays; ASF Encoder Settings is dropped/relocated), three P1 defects (MP4 compatibility aliases, MP4 pair boundary, mixed-framework gate), and coverage limits. Verdict: NOT READY. |
@@ -136,3 +138,5 @@ These are the items a future maintainer or agent should not describe as fully so
 ## Adding a record
 
 Follow [CONVENTIONS.md](CONVENTIONS.md) and start from [TEMPLATE.md](TEMPLATE.md). Add one row here and, if the record creates or leaves an actionable finding, add it to the open register. Do not rewrite an existing final record; add an addendum or a superseding record instead.
+
+- [API ownership and metadata I/O performance](remediation/REM-2026-11-12-api-mapping-performance.md) — unreleased compatibility cleanup, measured I/O optimization and migration acceptance.

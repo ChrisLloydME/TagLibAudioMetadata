@@ -16,7 +16,7 @@ The single SwiftPM test target is organized physically by layer:
 | `Concurrency/` | Cross-format reads/writes, M4A stress, and same-file contention. |
 | `ModelSemantics/` | Pure value-model contracts. |
 | `Performance/` | Opt-in, non-gating throughput experiments. |
-| Root-level tests | Public Objective-C selectors, Swift nested types, deprecated function references, and no unsolicited console output. |
+| Root-level tests | Public Objective-C selectors, Swift nested types, current version-aware function references, and no unsolicited console output. |
 
 The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
 
@@ -26,7 +26,7 @@ The `0.7.3` gate requires the sparse-state matrices and 8,282 additional paramet
 
 ## Strict test compilation
 
-The full Debug/Release gates pass `-Xswiftc -warnings-as-errors -Xcc -Werror` to compilation. Only the test target demotes `DeprecatedDeclaration` because its source-compatibility checks deliberately reference deprecated APIs; those warnings remain visible. Production strict compilation has no exception.
+The full Debug/Release gates pass `-Xswiftc -warnings-as-errors -Xcc -Werror` to compilation. Production and test compilation have no deprecation-warning exception; obsolete compatibility APIs and their compile-only tests have been removed.
 
 ## Standard commands
 
@@ -134,7 +134,9 @@ TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
   --filter SnapshotThroughputBenchmarkTests
 ```
 
-The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, write batches, and flush samples. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises.
+The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, verified write batches, and flush samples. It also measures MP3/M4A/FLAC ordinary and 64-key metadata-heavy Basic/snapshot reads, typed/Basic/raw title writes, and declared-capability lookups. Each profile reports five batch-average latencies: `medianMs` is their median and `p95Ms` is their maximum (the nearest-rank 95th percentile of five samples), not a per-operation tail percentile. Reads assert byte immutability; writes include actual staging, verification and durability. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises. Baseline and optimized evidence are in the [API/performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md).
+
+The current gate requires at least 164 XCTest and 186 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the three per-read lookup preservation regressions and two transaction-readability regressions. An unchanged total count cannot substitute for those tests.
 
 ## Independent evidence used in the repository
 
@@ -198,3 +200,7 @@ Record the revision, environment, command, opt-in state, counts, skips, and any 
 ## Numbering acceptance regressions
 
 `IndependentAcceptanceProbes` retains the eight originally failing acceptance cases. `NumberingRepairRegressionTests` adds cross-format native cleanup, both private namespaces and foreign lookalikes, explicit legacy resolution, native absence/removal, malformed multi-value rejection, empty-group byte preservation, MP4 bounds and formatted orphan-total preservation. Repairs and exact observed results are in the [numbering acceptance repair record](../records/remediation/REM-2026-11-09-numbering-acceptance-repairs.md). These suites use temporary fixture copies; they do not operate on a user library.
+
+For a bounded six-format write-concurrency profile, set both `TAGLIB_BENCHMARK=1` and `TAGLIB_BENCHMARK_PROFILE=concurrency` on the same optional benchmark method. It measures 1/2/4/8 workers with fresh ordinary and metadata-heavy fixtures and real durable commits. It checks all untouched raw fields after timing. See [write-concurrency evidence](../records/remediation/REM-2026-11-12-write-concurrency.md); file setup and verification are excluded from the batch timings.
+
+Advisory erase/preservation acceptance additionally requires six named functions and 118 parameterized cases: ASF alias erasure (24), unknown-code absence rejection (4), Basic unknown preservation (16), ASF alias preservation (6), exact raw-code verification (4) and known/unknown erase across sixteen formats (64). The erased-MP4 oracle contract is also mandatory. Gate-policy tampering tests reject missing or reduced evidence.

@@ -239,7 +239,7 @@ public struct TagLibMetadataManager {
         }
 
         do {
-            _ = try readMetadataResult(from: url)
+            try validateReadableAudioFile(at: url)
         } catch {
             throw mutationError(
                 code: 1006,
@@ -378,8 +378,6 @@ public struct TagLibMetadataManager {
     public enum ArtworkVerificationExpectation: Sendable {
         /// Skip artwork verification. This is the default.
         case skip
-        @available(*, deprecated, renamed: "skip")
-        case unchanged
         case present
         case absent
     }
@@ -391,8 +389,13 @@ public struct TagLibMetadataManager {
         public var expectedDiscNumber: Int?
         public var expectedDiscTotal: Int?
         public var expectedDiscNumberText: String?
-        public var expectedExplicitContent: Bool?
+        /// `.unspecified` requires native absence unless an expected unknown
+        /// raw code is also supplied below. Nil skips the semantic comparison.
         public var expectedExplicitAdvisory: ExplicitAdvisory?
+        /// Exact unknown-code provenance. Together with `.unspecified`, this
+        /// verifies preservation rather than absence. A non-nil value is also
+        /// an independent verification request when the semantic state is nil.
+        public var expectedExplicitAdvisoryRawValue: String? = nil
         public var artworkExpectation: ArtworkVerificationExpectation
         /// Optional exact artwork expectations, independent of the legacy presence check.
         public var expectedArtworkData: Data? = nil
@@ -414,7 +417,6 @@ public struct TagLibMetadataManager {
             expectedDiscNumber: Int?,
             expectedDiscTotal: Int?,
             expectedDiscNumberText: String?,
-            expectedExplicitContent: Bool?,
             artworkExpectation: ArtworkVerificationExpectation,
             customFieldKeys: [String],
             expectedTextFields: [String: String] = [:],
@@ -427,7 +429,6 @@ public struct TagLibMetadataManager {
             self.expectedDiscNumber = expectedDiscNumber
             self.expectedDiscTotal = expectedDiscTotal
             self.expectedDiscNumberText = expectedDiscNumberText
-            self.expectedExplicitContent = expectedExplicitContent
             self.expectedExplicitAdvisory = expectedExplicitAdvisory
             self.artworkExpectation = artworkExpectation
             self.customFieldKeys = customFieldKeys
@@ -442,7 +443,6 @@ public struct TagLibMetadataManager {
             expectedDiscNumber: nil,
             expectedDiscTotal: nil,
             expectedDiscNumberText: nil,
-            expectedExplicitContent: nil,
             artworkExpectation: .skip,
             customFieldKeys: [],
             expectedTextFields: [:],
@@ -488,29 +488,12 @@ public struct TagLibMetadataManager {
         case merge
     }
 
-    @available(*, deprecated, message: "Verification mismatches always abort the transaction. Omit the obsolete failurePolicy parameter.")
-    public enum VerificationFailurePolicy: Sendable {
-        @available(*, deprecated, message: "Warnings do not bypass verification; mismatches always throw. Use .throw.")
-        case warn
-        case `throw`
-    }
-
     public nonisolated static func isReadableExtension(_ fileExtension: String) -> Bool {
         TagLibMetadataExtractor.isSupportedFormat(fileExtension)
     }
 
     public nonisolated static func isWritableExtension(_ fileExtension: String) -> Bool {
         TagLibMetadataExtractor.isWritableFormat(fileExtension)
-    }
-
-    @available(*, deprecated, renamed: "isReadableExtension(_:)")
-    public nonisolated static func isReadableFormat(_ fileExtension: String) -> Bool {
-        isReadableExtension(fileExtension)
-    }
-
-    @available(*, deprecated, renamed: "isWritableExtension(_:)")
-    public nonisolated static func isWritableFormat(_ fileExtension: String) -> Bool {
-        isWritableExtension(fileExtension)
     }
 
     public nonisolated static var readableExtensions: [String] {

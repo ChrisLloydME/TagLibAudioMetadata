@@ -4,9 +4,13 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **Release status.** Version `0.7.3` (2026-11-12) is the current release. These docs describe that release and its finalized behavior.
+> **Source status.** Published `0.7.3` remains the production release. This branch contains unreleased, breaking API cleanup and measured I/O optimizations. Current API references describe this source; use the `0.7.3` tag for that release’s interface. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking) and [candidate evidence](docs/records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
 > **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` adds sparse native-owner preservation across public write surfaces and low-level reads. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
+
+The [write-concurrency follow-up](docs/records/remediation/REM-2026-11-12-write-concurrency.md) measures bounded durable writes and reduces discarded transaction projections. Its package strict Debug/Release and real AudioMator local-candidate gates pass; timings remain local workload observations.
+
+The later [independent-review repairs](docs/records/remediation/REM-2026-11-14-independent-review-repairs.md) fix advisory erase/unknown-code preservation and distinguish confirmed defects from intentional breaking design. Current acceptance belongs to that record and [Status](docs/operations/STATUS.md).
 
 ## At a glance
 
@@ -115,9 +119,9 @@ for warning in result.warnings {
 
 Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. Do not mix typed track/disc fields with `numberText` in one patch. Verification mismatches throw before commit; a successful result carries only residual container advisories.
 
-Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` is the canonical YEAR field; `.date` is a legacy YEAR spelling that writes the same slot where writable. `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension. Existing ID3v2.3 tags are read-only for independent date edits; inspect `StructuredMetadata.id3v2MajorVersion` before offering them.
+Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` is the YEAR field; `.standaloneDate` is the independent DATE field. The unreleased API removes the ambiguous typed `.date` alias. `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension. Existing ID3v2.3 tags are read-only for independent date edits; inspect `StructuredMetadata.id3v2MajorVersion` before offering them.
 
-For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The older `writeMetadata` and `writeMetadataWithVerification` names are deprecated because replacement semantics were easy to mistake for a partial update. The MP4-exclusive Basic properties are read into the model but are not written by `replaceBasicMetadata`; use `MetadataPatch` for them.
+For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The unreleased API removes the older `writeMetadata` and `writeMetadataWithVerification` aliases; see [migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking). The MP4-exclusive Basic properties are read into the model but are not written by `replaceBasicMetadata`; use `MetadataPatch` for them.
 
 Check capability evidence before enabling controls:
 

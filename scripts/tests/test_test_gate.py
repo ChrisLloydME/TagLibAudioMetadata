@@ -6,6 +6,13 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = (
+    "Test asfAdvisoryAliasEraseVerifiesFinalNativeState() with 24 test cases passed after 1 second.\n"
+    "Test unknownAdvisoryDoesNotSatisfyExactAbsence() with 4 test cases passed after 1 second.\n"
+    "Test unrelatedBasicEditPreservesUnknownAdvisory() with 16 test cases passed after 1 second.\n"
+    "Test unrelatedBasicEditPreservesUnknownASFAliasOwners() with 6 test cases passed after 1 second.\n"
+    "Test advisoryBearingEraseClearsKnownAndUnknownCodes() with 64 test cases passed after 1 second.\n"
+    "Test exactUnknownAdvisoryVerificationRequiresMatchingRawCode() with 4 test cases passed after 1 second.\n"
+    "Test erasedMP4OracleAllowsMissingMetadataWithoutAcceptingBrokenContainers() passed after 1 second.\n"
     "Test asfPublicWriteSurfacesPreserveSparseDateOwners() with 80 test cases passed after 1 second.\n"
     "Test asfCustomFieldLifecycleOwnsOnlyItsCaseAliases() with 24 test cases passed after 1 second.\n"
     "Test asfContentDescriptionVectorAndMalformedBounds() passed after 1 second.\n"
@@ -23,7 +30,13 @@ PASS = (
 
     "Test Case '-[TagLibAudioMetadataTests.ExternalCorpusPreservationTests testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]' skipped (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.SnapshotThroughputBenchmarkTests testOptInIndependentFileSnapshotThroughput]' skipped (0.001 seconds).\n"
-    "Executed 158 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
+    "Test Case '-[TagLibAudioMetadataTests.FormatCapabilityTests testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testRawLookupPreservesFirstIdentityEmptyArraysAndText]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testUnicodeLookupRetainsFoundationCaseComparison]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityMatchesFullReaderAcrossFixtures]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n"
+    "Executed 164 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
     "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.\n"
     "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.\n"
     "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
@@ -66,7 +79,7 @@ PASS = (
     'Test id3EncoderSettingsMustNotPopulateEncodedBy() passed after 1 second.\n'
     'Test id3EncodedByRemovalWithEncoderSettingsMustSucceed() passed after 1 second.\n'
     'Test asfEncoderOwnersRemainIndependent() passed after 1 second.\n'
-    'Test legacyDateAliasWritesOnlyTheYearSlot() passed after 1 second.\n'
+    'Test explicitYearWritesOnlyTheYearSlot() passed after 1 second.\n'
     'Test basicContentGroupGroupingAndWorkStayIndependent() passed after 1 second.\n'
     'Test asfUnrelatedBasicEditPreservesNativeEncodingSettings() passed after 1 second.\n'
     'Test asfUnrelatedSemanticPatchPreservesNativeEncodingSettings() passed after 1 second.\n'
@@ -78,7 +91,7 @@ PASS = (
     "Suite ID3ContainerLifecycleTests passed.\n"
     "Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.\n"
     "Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.\n"
-    "Test run with 179 tests in 41 suites passed after 8 seconds.\n"
+    "Test run with 186 tests in 41 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -91,6 +104,28 @@ class TestGatePolicy(unittest.TestCase):
             self.assertEqual(run.returncode == 0, accepted)
             return accepted
 
+    def test_missing_advisory_erase_regression_cannot_pass(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            "Test asfAdvisoryAliasEraseVerifiesFinalNativeState() with 24 test cases passed after 1 second.\n", "")))
+
+    def test_advisory_matrix_case_count_cannot_shrink(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            'advisoryBearingEraseClearsKnownAndUnknownCodes() with 64 test cases',
+            'advisoryBearingEraseClearsKnownAndUnknownCodes() with 63 test cases')))
+
+    def test_missing_readability_preflight_evidence_is_rejected(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n", "")))
+
+    def test_missing_cached_descriptor_evidence_is_rejected(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            "Test Case '-[TagLibAudioMetadataTests.FormatCapabilityTests testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies]' passed (0.001 seconds).\n", "")))
+
+    def test_wrong_lookup_class_cannot_substitute_for_preservation_test(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            'ReadLookupPreservationTests testUnicodeLookupRetainsFoundationCaseComparison',
+            'OtherTests testUnicodeLookupRetainsFoundationCaseComparison')))
+
     def test_state_matrix_evidence_cannot_be_removed_or_shrunk(self):
         for count in (114, 176, 4128, 1248, 168, 2080, 80, 24):
             with self.subTest(count=count):
@@ -98,8 +133,8 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'everyFieldPreservesAllSiblingDateStates' not in line)))
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
-        self.assertFalse(self.accepted(PASS.replace('Executed 158 tests', 'Executed 157 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 179 tests', 'run with 178 tests')))
+        self.assertFalse(self.accepted(PASS.replace('Executed 164 tests', 'Executed 163 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 186 tests', 'run with 185 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))

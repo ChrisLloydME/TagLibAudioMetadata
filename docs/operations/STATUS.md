@@ -7,11 +7,40 @@ This page is a snapshot of the latest known validation state for the current sou
 | Item | State |
 | --- | --- |
 | Current release | `0.7.3`, declared 2026-11-12 |
-| Source | `main` at the `0.7.3` release commit |
+| Source | Unreleased `codex/api-mapping-performance`, based on published `0.7.3` |
 | Later tag | None |
-| Documentation scope | Current pages describe `0.7.3`; release-specific behavior is called out in [Migration](MIGRATION.md) |
+| Documentation scope | Current source includes breaking API cleanup; tagged-release guidance is identified in [Migration](MIGRATION.md) |
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
+
+## Independent-review repair candidate
+
+Production `a93c2f0` fixes the ASF alias erase false failure, exact advisory absence and unchanged unknown-code preservation. Both strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 186 Swift Testing declarations in 42 suites, and all required native/advisory evidence. All 29 policy tests and both independent consumers pass. Targeted ASan and TSan each passed 13 tests without reports; the prebuilt TagLib binary was not instrumented. The real AudioMator local-candidate gate passed 62 core and 580 app-hosted tests, unsigned Release build and artifact validation. Documentation checks cover 56 Markdown files.
+
+Evidence: `.build/test-evidence/debug-20261114-111016-13278/` and `.build/test-evidence/release-20261114-111355-13265/`. Minimum-platform/device and hosted-CI runtime remain unverified. Previous campaign results below describe earlier source phases and do not replace these current gates. See [review adjudication and repair evidence](../records/remediation/REM-2026-11-14-independent-review-repairs.md).
+
+## Historical write-preparation follow-up
+
+Production `bbf64c3` narrows discarded readability projections and reuses same-open-file property evidence. Both full strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, all required native matrices and preflight/cache/lookup evidence. All 27 gate-policy tests and both independent consumer executables pass. There are 55 checked Markdown files. Evidence: `.build/test-evidence/debug-20261112-135450-25050/` and `.build/test-evidence/release-20261112-135822-25044/`.
+
+The bounded-concurrency profile shows about 9%/5% lower ordinary/heavy batch medians at four workers, with some other worker samples varying in the opposite direction. The actual application executor sees only about 8%/3% improvement from four to eight workers, so four remains its default. The app separately adopts four-file scheduling in formerly serial provider/import paths; its complete local-candidate gate passed 62 core and 580 app-hosted tests, 13 policy tests, unsigned Release and artifact validation. See [write-concurrency record](../records/remediation/REM-2026-11-12-write-concurrency.md). The previous API campaign below is historical evidence for its own source.
+
+## Previous API/performance candidate
+
+This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. That campaign's final production implementation was `4dd2a60`; the write-preparation follow-up above supersedes its current-source acceptance. The [audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md) contains the removal inventory, migration, all 33 before/after measurements and exact evidence boundaries.
+
+| Check | Current observed result |
+| --- | --- |
+| Strict Debug and Release | Both accepted; 162 XCTest declarations (160 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites passed |
+| Mandatory native matrices and new cache/lookup tests | Required named evidence present; no case-count reduction, unexpected skips or failures |
+| Gate policy | 26 regressions passed |
+| Documentation/generators | 54 Markdown files and all four generated-reference checks passed |
+| Independent consumers | Both products built with strict warnings and ran successfully |
+| AudioMator local candidate | 62 core and 579 serial app-hosted tests passed; unsigned Release/artifact validation passed; final affected erase journey also passed |
+| Warm local I/O profile | Declared lookup roughly 80–120 times faster; metadata-heavy reads about 7–14% faster. Writes vary; some workloads are slower. No universal write-speed improvement claimed |
+| Publication | No version bump, tag, push or publication; an explicitly breaking release and consumer migration are required |
+
+Current strict-gate evidence: `.build/test-evidence/debug-20261112-133244-22151/` and `.build/test-evidence/release-20261112-133604-22116/`. The application record distinguishes its full-suite source snapshot from the subsequent exact-advisory erase check. Existing application XCTest isolation warnings remain visible. Sanitizers, minimum-platform/device runtime, cold storage, peak memory and large-artwork performance were not evaluated. Historical release-line evidence follows and is not a substitute for these candidate runs.
 
 ## Recorded 0.7.3 validation
 

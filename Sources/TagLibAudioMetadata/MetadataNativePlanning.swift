@@ -121,7 +121,7 @@ extension TagLibMetadataManager {
             // Same-semantic engine/freeform spellings are read aliases, never
             // parallel write targets. YEAR and the independent DATE identity
             // share engine aliases but must never remove each other.
-            for description in schema.propertyMapKeys where field != .year && field != .date {
+            for description in schema.propertyMapKeys where field != .year {
                 // Engine ENCODING projects Encoder Settings, not Encoded By.
                 if field == .encodedBy && description.uppercased() == "ENCODING" { continue }
                 let candidate = "----:com.apple.iTunes:\(description.uppercased())"
@@ -147,7 +147,7 @@ extension TagLibMetadataManager {
             var removals = Set(schema.propertyMapKeys.map { $0.uppercased() })
             // DATE is an engine-level YEAR alias, but on Xiph/APE it owns
             // independent native storage. Never retire another semantic slot.
-            if field == .year || field == .date { removals.remove("DATE") }
+            if field == .year { removals.remove("DATE") }
             for candidate in schema.nativeTargets where candidate.family == nativeFamily {
                 removals.insert(candidate.nativeIdentity.uppercased())
             }
@@ -170,12 +170,12 @@ extension TagLibMetadataManager {
             // album fields use the engine PropertyMap so TagLib also retires
             // stale lower-case aliases.
             let nativeFields: Set<MetadataFieldKey> = [
-                .year, .date, .standaloneDate, .originalReleaseDate,
+                .year, .standaloneDate, .originalReleaseDate,
                 .contentGroup, .artists, .encodedBy, .encoderSettings, .replayGainTrackPeak, .replayGainAlbumPeak,
             ]
             var removals = Set(schema.propertyMapKeys.map { $0.uppercased() })
             if nativeFields.contains(field) {
-                if field == .year || field == .date {
+                if field == .year {
                     // YEAR and the independent DATE attribute share historical
                     // aliases but must not remove each other.
                     removals = ["YEAR"]
@@ -259,7 +259,7 @@ extension TagLibMetadataManager {
         // Dates are version-specific and must never be smuggled across
         // versions. The bridge chooses the v2.3/v2.4 identity at write time.
         switch field {
-        case .date, .year:
+        case .year:
             return StructuredID3v2Frame(
                 frameID: "TDRC", type: "versionedText",
                 v23ID: "TYER", v24ID: "TDRC"

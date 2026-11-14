@@ -62,7 +62,7 @@ Properties are nullable `NSString *` unless marked numeric or Boolean.
 
 `artworkMimeType` is the declared media type for `artworkData`; readers normalize common values and may infer a type from magic bytes when the container omits it. `removeArtwork` is a write instruction, not a readable property: set it to clear the picture collection.
 
-`explicitContent` is a Boolean compatibility projection. Reading `YES` means `.explicit`; setting `NO` records `.clean`. It cannot represent absence or not-explicit. Use `explicitAdvisory` for the four-state model.
+`explicitContent` is a read-only Boolean projection. Reading `YES` means `.explicit`; it cannot represent absence or not-explicit. Set `explicitAdvisory` explicitly for the four-state model. The lossy Boolean setter has been removed.
 
 The bridge model does not expose the MP4-exclusive facade properties (`director`, store IDs, TV fields, and related Booleans). They are available through `BasicMetadata` reads and `MetadataPatch`/structured writes, not through `writeTagMetadata`.
 

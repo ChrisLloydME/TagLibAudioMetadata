@@ -22,7 +22,7 @@ extension TagLibMetadataManager {
         // unrelated Basic edit does not authorize that migration.
         let pairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
         let fields = identifier == "mp4"
-            ? BasicMetadata.editableFieldKeys.filter { $0 != .date && !pairFields.contains($0) }
+            ? BasicMetadata.editableFieldKeys.filter { !pairFields.contains($0) }
             : basicDateFields
         for field in fields where basicProjectionValue(for: field, metadata: requested) == basicProjectionValue(for: field, metadata: before.basic) {
             guard basicProjectionValue(for: field, metadata: requested) != nil,
@@ -86,4 +86,54 @@ extension TagLibMetadataManager {
             }
         }
     }
+
+    /// An unchanged unknown state is provenance to retain, not an instruction
+    /// to clear a native advisory owner through its `.unspecified` projection.
+    nonisolated static func restoreUneditedBasicUnknownAdvisory(
+        requested: BasicMetadata, before: MetadataSnapshot, at url: URL
+    ) throws {
+        guard requested.explicitAdvisory == before.basic.explicitAdvisory,
+              requested.explicitAdvisoryRawValue == before.basic.explicitAdvisoryRawValue,
+              before.basic.explicitAdvisoryRawValue != nil else { return }
+        let identifier = capability(forExtension: url.pathExtension)?.identifier ?? ""
+        let aliases: Set<String> = ["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"]
+        if identifier == "asf" {
+            let original = before.structured.asfAttributes.filter { aliases.contains($0.key.uppercased()) }
+            guard !original.isEmpty else { return }
+            let keys = Set(original.map(\.key)).union(["ITUNESADVISORY"])
+            try TagLibMetadataExtractor.applyNativeTextKeyValuesInPlace([:], removingKeys: Array(keys), to: url)
+            try TagLibMetadataExtractor.writeStructuredMetadataInPlace(bridgePayload(
+                from: StructuredMetadata(asfAttributes: original), includeProperties: false,
+                replacingCollections: [], riffPolicy: .preserveInfo), to: url)
+            let after = try readStructuredMetadataResult(from: url).asfAttributes.filter { aliases.contains($0.key.uppercased()) }
+            guard after == original else {
+                throw TagLibManagerError.verificationFailed(["Unknown native ASF advisory changed during Basic preservation."])
+            }
+        } else if ["mpeg-id3", "mpeg-aac", "wav", "aiff", "trueaudio", "dsf", "dsdiff"].contains(identifier) {
+            let original = before.structured.id3v2Frames.filter {
+                $0.frameID == "TXXX" && aliases.contains(($0.description ?? "").uppercased())
+            }
+            guard !original.isEmpty else { return }
+            try TagLibMetadataExtractor.writeStructuredMetadataInPlace(bridgePayload(
+                from: StructuredMetadata(id3v2Frames: original), includeProperties: false,
+                replacingCollections: [], riffPolicy: .preserveInfo), to: url)
+            let after = try readStructuredMetadataResult(from: url).id3v2Frames.filter {
+                $0.frameID == "TXXX" && aliases.contains(($0.description ?? "").uppercased())
+            }
+            guard after == original else {
+                throw TagLibManagerError.verificationFailed(["Unknown native ID3 advisory changed during Basic preservation."])
+            }
+        } else if ["flac", "ogg-vorbis", "ogg-opus", "ogg-flac", "ogg-speex", "ape", "wavpack", "musepack"].contains(identifier) {
+            let original = before.structured.properties.filter { aliases.contains($0.key.uppercased()) }
+            let values = Dictionary(original.map { ($0.key, $0.values) }, uniquingKeysWith: +)
+            guard !values.isEmpty else { return }
+            try TagLibMetadataExtractor.applyNativeTextKeyValuesInPlace(values,
+                removingKeys: Array(aliases.union(values.keys)), to: url)
+            let after = try readStructuredMetadataResult(from: url).properties.filter { aliases.contains($0.key.uppercased()) }
+            guard after == original else {
+                throw TagLibManagerError.verificationFailed(["Unknown native text advisory changed during Basic preservation."])
+            }
+        }
+    }
+
 }
