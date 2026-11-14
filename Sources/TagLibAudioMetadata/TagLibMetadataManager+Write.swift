@@ -628,7 +628,8 @@ extension TagLibMetadataManager {
         let isMP4 = capability(forExtension: url.pathExtension)?.identifier == "mp4"
         var trackText: String?
         var discText: String?
-        if meta.trackNumberText != before.basic.trackNumberText {
+        if meta.trackNumberText != before.basic.trackNumberText,
+           !meta.trackNumberText.isEmpty {
             let pair = parseNumberPair(meta.trackNumberText)
             guard pair.number == meta.track, pair.total == meta.trackTotal else {
                 throw MetadataPatchValidationError.numberTextMismatch(
@@ -641,7 +642,8 @@ extension TagLibMetadataManager {
                 fields.removeValue(forKey: .trackTotal)
             }
         }
-        if meta.discNumberText != before.basic.discNumberText {
+        if meta.discNumberText != before.basic.discNumberText,
+           !meta.discNumberText.isEmpty {
             let pair = parseNumberPair(meta.discNumberText)
             guard pair.number == meta.disc, pair.total == meta.discTotal else {
                 throw MetadataPatchValidationError.numberTextMismatch(
