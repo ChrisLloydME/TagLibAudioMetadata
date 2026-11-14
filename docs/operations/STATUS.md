@@ -7,13 +7,21 @@ This page is a snapshot of the latest known validation state for the current sou
 | Item | State |
 | --- | --- |
 | Current release | `0.7.3`, declared 2026-11-12 |
-| Source | Unreleased `codex/api-mapping-performance`, based on published `0.7.3` |
+| Source | Unreleased `codex/package-architecture-performance`, continuing the breaking API candidate based on published `0.7.3` |
 | Later tag | None |
 | Documentation scope | Current source includes breaking API cleanup; tagged-release guidance is identified in [Migration](MIGRATION.md) |
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
-## Independent-review repair candidate
+## Architecture and selective-I/O candidate
+
+Production `f2ac9ad` consolidates the canonical public API, separates storage/read/model/contract ownership, makes native storage planning depend on explicit format evidence and skips unrequested metadata work. Both full strict gates are accepted: **167 XCTest declarations** (165 passed, the two original opt-in skips), **186 Swift Testing declarations in 42 suites**, with every required independent native/advisory matrix and the three new selective-projection contracts. All **30 gate-policy regressions**, 57 Markdown files, all four reference generators and both independent consumer products pass.
+
+Evidence: `.build/test-evidence/debug-20261114-182100-6841/` and `.build/test-evidence/release-20261114-182604-7715/`. Targeted ASan and TSan each passed 15 XCTest and 17 Swift Testing declarations with no reports. The pinned prebuilt TagLib binary was not instrumented. The unchanged AudioMator checkout passed its real local-candidate gate at `.deriveddata-codex/Validation/20261114-182135-7046/`: 62 core tests, 580 serial app-hosted tests, unsigned Release build and artifact validation.
+
+The 48-row baseline/final profile shows faster selective reads and metadata-heavy writes, while ordinary MP3/M4A writes and some full snapshots remain slower in individual runs. These are local measurements, not a universal improvement claim. Native mapping contract 2.2, global parser guard, exact native/semantic verification and durable atomic commits remain intact. The breaking API/migration changes are unreleased; no version/pin/tag/publication changed. Minimum-platform/device, full-suite sanitizer, hosted-CI and interactive UI runtime acceptance remain unverified. See the [architecture/removal/performance record](../records/remediation/REM-2026-11-14-package-architecture.md).
+
+## Previous independent-review repair candidate
 
 Production `a93c2f0` fixes the ASF alias erase false failure, exact advisory absence and unchanged unknown-code preservation. Both strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 186 Swift Testing declarations in 42 suites, and all required native/advisory evidence. All 29 policy tests and both independent consumers pass. Targeted ASan and TSan each passed 13 tests without reports; the prebuilt TagLib binary was not instrumented. The real AudioMator local-candidate gate passed 62 core and 580 app-hosted tests, unsigned Release build and artifact validation. Documentation checks cover 56 Markdown files.
 
