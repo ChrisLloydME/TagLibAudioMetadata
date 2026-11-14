@@ -20,9 +20,17 @@ Existing native-file aliases and the legacy numbering inventory/explicit recover
 
 This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Tagged-release sections below are historical migration instructions; the unreleased cleanup above supersedes their retained-alias advice. Review the behavioral changes that apply to your starting version.
 
+### Further architecture cleanup (same unreleased breaking candidate)
+
+- Use `allSchemas`; `canonicalSchemas`, `isCanonicalSemanticOwner` and the public shared/preferred/property-owner tables are removed. Every field schema now represents one canonical identity. `schema(forPropertyMapKey:)` keeps explicit engine/qualified aliases in a private single-owner index, and `canonicalSchema(forSemanticKey:)` remains the semantic lookup.
+- `readSnapshot(from:includingAudioContent:)` and `readBasicSnapshot(from:includingAudioContent:)` are single functions with a default false flag. Full current function references include the Bool argument. Ordinary one-argument calls still compile through the default.
+- Snapshot and Structured constructors have one current signature with default optional provenance/version values; old arity-only forwarding initializers are removed.
+- Bool-only `eraseAllMetadata` and `writeRawMetadataPropertyMap` wrappers are removed. Use the verified result-bearing functions and inspect commit status, including committed-but-durability-uncertain outcomes.
+- Uncalled retention/verification functions and the unused synchronized-number helper are removed. Native-file read aliases and explicit number recovery remain active.
+
 ### Registry introspection and exact advisory verification
 
-Removing `.date` also changes still-compiling registry introspection: `propertyMapKeyOwners["DATE"]` and `["YEAR"]` each contain only `.year`; `sharedPropertyMapKeyOwners` and `preferredSharedPropertyMapKeyOwner` are empty. `canonicalSchemas` equals `allSchemas` for built-in entries. Engine lookup still resolves DATE/YEAR to YEAR; standalone DATE remains its own semantic field. Do not infer native storage from these formatless engine spellings. The public schema's canonical-owner flag remains meaningful for caller-created descriptions and is not a live YEAR alias.
+At the earlier alias-removal stage, removing `.date` changed registry introspection: `propertyMapKeyOwners["DATE"]` and `["YEAR"]` each contain only `.year`; `sharedPropertyMapKeyOwners` and `preferredSharedPropertyMapKeyOwner` are empty. `canonicalSchemas` equals `allSchemas` for built-in entries. Engine lookup still resolves DATE/YEAR to YEAR; standalone DATE remains its own semantic field. Do not infer native storage from these formatless engine spellings. The subsequent strict-registry cleanup above removes these legacy alias/collision shapes; caller-created schemas now use the same canonical model.
 
 `expectedExplicitAdvisory = .unspecified` now verifies absence of both the known state and unknown raw-code provenance. To verify preservation of an unknown existing code, also set `expectedExplicitAdvisoryRawValue` to that exact code. A non-nil raw expectation can be used on its own. Basic replacement supplies this expectation automatically for an unchanged unknown state and restores its native owners. An unrelated save must not turn an unknown code into absence. Erase verifies the final staged file after all clearing/wiping steps.
 

@@ -658,15 +658,10 @@ extension TagLibMetadataManager {
     }
 
     /// Reads normalized Basic metadata and the exact file version captured with it.
-    /// This avoids constructing structured/container inspector models.
-    public nonisolated static func readBasicSnapshot(from url: URL) throws -> BasicMetadataSnapshot {
-        try readBasicSnapshot(from: url, afterExtraction: {})
-    }
-
     /// Streams encoded audio for continuity checks as part of the same observed
     /// revision. This adds O(audio size) I/O and returns nil for unsupported layouts.
     public nonisolated static func readBasicSnapshot(
-        from url: URL, includingAudioContent: Bool
+        from url: URL, includingAudioContent: Bool = false
     ) throws -> BasicMetadataSnapshot {
         try readBasicSnapshot(from: url, includingAudioContent: includingAudioContent, afterExtraction: {})
     }

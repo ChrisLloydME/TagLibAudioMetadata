@@ -430,7 +430,7 @@ final class AuditRemediationRegressionTests: XCTestCase {
         }
         XCTAssertEqual(try Data(contentsOf: url), before)
 
-        XCTAssertThrowsError(try TagLibMetadataManager.writeRawMetadataPropertyMap(
+        XCTAssertThrowsError(try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
             ["TITLE": "Stale convenience"],
             to: url,
             mode: .merge,

@@ -180,7 +180,6 @@ def parse_fields() -> list[dict[str, object]]:
                 "people": bool(re.search(r"\bpeople:\s*true", entry)),
                 "role": bool(re.search(r"\brole:\s*true", entry)),
                 "artwork": key == "artwork",
-                "canonical": True,
                 "write_unsupported_reason": None,
             }
         else:
@@ -198,9 +197,6 @@ def parse_fields() -> list[dict[str, object]]:
                 "people": bool(re.search(r"\bisPeopleField:\s*true", entry)),
                 "role": bool(re.search(r"\bisRoleQualified:\s*true", entry)),
                 "artwork": bool(re.search(r"\bisArtworkField:\s*true", entry)),
-                "canonical": not bool(
-                    re.search(r"\bisCanonicalSemanticOwner:\s*false", entry)
-                ),
                 "write_unsupported_reason": None,
             }
         fields.append(field)
@@ -297,8 +293,6 @@ def render_field_table(
         flags.append("role")
     if field["artwork"]:
         flags.append("artwork")
-    if not field["canonical"]:
-        flags.append("legacy alias")
     return [
         f"| `{field['key']}` | {field['display']} | `{semantic}` | "
         f"{code_list(list(field['property_keys']))} | "
@@ -311,25 +305,6 @@ def render_field_table(
         f"{native_cell(targets.get('riffInfo', []))} | "
         f"{', '.join(flags) or '—'} |"
     ]
-
-
-def parse_shared_owners() -> tuple[dict[str, list[str]], dict[str, str]]:
-    text = SOURCE.read_text(encoding="utf-8")
-    owners: dict[str, list[str]] = {}
-    preferred: dict[str, str] = {}
-    block_match = re.search(
-        r"sharedPropertyMapKeyOwners:[^=]*=\s*\[(.*?)\n    \]", text, re.S
-    )
-    if block_match:
-        for key, cases in re.findall(r'"([^"]+)":\s*\[([^\]]*)\]', block_match.group(1)):
-            owners[key] = re.findall(r"\.(\w+)", cases)
-    preferred_match = re.search(
-        r"preferredSharedPropertyMapKeyOwner:[^=]*=\s*\[(.*?)\n    \]", text, re.S
-    )
-    if preferred_match:
-        for key, case in re.findall(r'"([^"]+)":\s*\.(\w+)', preferred_match.group(1)):
-            preferred[key] = case
-    return owners, preferred
 
 
 def parse_patch_policy(fields: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -403,9 +378,6 @@ def render_summary(
     fields: list[dict[str, object]],
     profiles: dict[str, dict[str, object]],
 ) -> str:
-    canonical = [field for field in fields if field["canonical"]]
-    aliases = [field for field in fields if not field["canonical"]]
-    owners, preferred = parse_shared_owners()
     category_counts: "OrderedDict[str, int]" = OrderedDict(
         (category, 0) for category in CATEGORY_ORDER
     )
@@ -418,15 +390,6 @@ def render_summary(
         for category, count in category_counts.items()
         if count
     )
-    shared = "; ".join(
-        f"{key} → {', '.join('.' + case for case in cases)}"
-        + (
-            f" (preferred `. {preferred[key]}`)".replace(". ", ".")
-            if key in preferred
-            else ""
-        )
-        for key, cases in owners.items()
-    )
     unsupported = [
         f".{field['key']} — {profiles.get(semantic_key(field).upper(), {}).get('reason')}"
         for field in fields
@@ -436,15 +399,10 @@ def render_summary(
         SUMMARY_BEGIN,
         f"**{len(fields)} fields** are declared in {len(category_counts)} categories: {categories}.",
         "",
-        f"{len(canonical)} canonical semantic "
-        f"{'owner' if len(canonical) == 1 else 'owners'} and {len(aliases)} legacy "
-        f"{'alias' if len(aliases) == 1 else 'aliases'} "
-        f"({', '.join('.' + str(field['key']) for field in aliases) or 'none'}). "
+        f"{len(fields)} canonical semantic owners. "
         "The tables below are generated from the Swift registry and catalog; do not "
         "edit them by hand.",
     ]
-    if shared:
-        lines.extend(["", f"Shared PropertyMap keys: {shared}."])
     if unsupported:
         lines.extend(
             [

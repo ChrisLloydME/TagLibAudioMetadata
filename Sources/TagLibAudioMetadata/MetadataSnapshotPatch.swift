@@ -41,16 +41,12 @@ public struct MetadataSnapshot: Sendable {
     /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
     public let audioContentIdentity: MetadataAudioContentIdentity?
 
-    public init(basic: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata, fileVersion: MetadataFileVersion? = nil) {
-        self.init(basic: basic, raw: raw, structured: structured, fileVersion: fileVersion, audioContentIdentity: nil)
-    }
-
     public init(
         basic: BasicMetadata,
         raw: RawMetadataDump,
         structured: StructuredMetadata,
         fileVersion: MetadataFileVersion? = nil,
-        audioContentIdentity: MetadataAudioContentIdentity?
+        audioContentIdentity: MetadataAudioContentIdentity? = nil
     ) {
         self.basic = basic
         self.raw = raw
@@ -68,14 +64,10 @@ public struct BasicMetadataSnapshot: Sendable {
     /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
     public let audioContentIdentity: MetadataAudioContentIdentity?
 
-    public init(metadata: BasicMetadata, fileVersion: MetadataFileVersion) {
-        self.init(metadata: metadata, fileVersion: fileVersion, audioContentIdentity: nil)
-    }
-
     public init(
         metadata: BasicMetadata,
         fileVersion: MetadataFileVersion,
-        audioContentIdentity: MetadataAudioContentIdentity?
+        audioContentIdentity: MetadataAudioContentIdentity? = nil
     ) {
         self.metadata = metadata
         self.fileVersion = fileVersion
@@ -358,15 +350,10 @@ extension TagLibMetadataManager {
         return ValidatedMetadataPatch(fields: normalizedFields, customFields: normalizedCustomFields)
     }
 
-    /// Reads all public metadata representations while rejecting concurrent file changes.
-    public nonisolated static func readSnapshot(from url: URL) throws -> MetadataSnapshot {
-        try readSnapshot(from: url, afterExtraction: {})
-    }
-
     /// Streams the encoded audio when requested. Unsupported layouts return a nil
     /// identity; callers must require explicit reload instead of automatic rebase.
     public nonisolated static func readSnapshot(
-        from url: URL, includingAudioContent: Bool
+        from url: URL, includingAudioContent: Bool = false
     ) throws -> MetadataSnapshot {
         try readSnapshot(from: url, includingAudioContent: includingAudioContent, afterExtraction: {})
     }

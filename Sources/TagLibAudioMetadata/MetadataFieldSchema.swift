@@ -205,9 +205,6 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     /// Explicit native read/write targets from the mapping catalog.
     public var nativeTargets: [MetadataNativeTarget]
     /// Exactly one schema owns a semantic key for canonical enumeration.
-    /// All built-in entries are canonical after alias removal. Custom schema
-    /// descriptions may still mark an alias with false.
-    public var isCanonicalSemanticOwner: Bool
     public var isMultiValue: Bool
     public var isPeopleField: Bool
     public var isRoleQualified: Bool
@@ -273,7 +270,6 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         semanticKey: String,
         propertyMapKeys: [String],
         nativeTargets: [MetadataNativeTarget] = [],
-        isCanonicalSemanticOwner: Bool = true,
         isMultiValue: Bool = false,
         isPeopleField: Bool = false,
         isRoleQualified: Bool = false,
@@ -287,7 +283,6 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         self.semanticKey = semanticKey
         self.propertyMapKeys = propertyMapKeys
         self.nativeTargets = nativeTargets
-        self.isCanonicalSemanticOwner = isCanonicalSemanticOwner
         self.isMultiValue = isMultiValue
         self.isPeopleField = isPeopleField
         self.isRoleQualified = isRoleQualified
@@ -525,11 +520,8 @@ public enum MetadataFieldRegistry {
         Dictionary(uniqueKeysWithValues: allSchemas.map { ($0.key, $0) })
 
     /// One semantic owner for each semantic key; there are no YEAR aliases.
-    public nonisolated static let canonicalSchemas: [MetadataFieldSchema] =
-        allSchemas.filter(\.isCanonicalSemanticOwner)
-
     public nonisolated static let schemasBySemanticKey: [String: MetadataFieldSchema] =
-        Dictionary(uniqueKeysWithValues: canonicalSchemas.map { ($0.semanticKey, $0) })
+        Dictionary(uniqueKeysWithValues: allSchemas.map { ($0.semanticKey, $0) })
 
     public nonisolated static let canonicalPropertyMapKeys: Set<String> =
         Set(allSchemas.flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
@@ -540,21 +532,12 @@ public enum MetadataFieldRegistry {
     public nonisolated static let peoplePropertyMapKeys: Set<String> =
         Set(allSchemas.filter(\.isPeopleField).flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
 
-    /// No public semantic fields currently share a PropertyMap key.
-    /// Engine DATE projects YEAR; independent DATE uses STANDALONEDATE.
-    public nonisolated static let sharedPropertyMapKeyOwners: [String: Set<MetadataFieldKey>] = [:]
-
-    public nonisolated static let preferredSharedPropertyMapKeyOwner: [String: MetadataFieldKey] = [:]
-
-    public nonisolated static let propertyMapKeyOwners: [String: Set<MetadataFieldKey>] = {
-        var result: [String: Set<MetadataFieldKey>] = [:]
-        for schema in allSchemas {
-            for key in schema.propertyMapKeys {
-                result[normalizePropertyMapKey(key), default: []].insert(schema.key)
-            }
-        }
-        return result
-    }()
+    // Registry construction enforces the single-owner contract. Engine aliases
+    // are different keys of one schema, never competing public field identities.
+    private nonisolated static let schemasByPropertyMapKey: [String: MetadataFieldSchema] =
+        Dictionary(uniqueKeysWithValues: allSchemas.flatMap { schema in
+            schema.propertyMapKeys.map { (normalizePropertyMapKey($0), schema) }
+        })
 
     public nonisolated static func schema(for key: MetadataFieldKey) -> MetadataFieldSchema? {
         schemasByKey[key]
@@ -576,9 +559,7 @@ public enum MetadataFieldRegistry {
         for (prefix, owner) in qualifiedPrefixes where normalized.hasPrefix(prefix) {
             return schemasByKey[owner]
         }
-        guard let owners = propertyMapKeyOwners[normalized] else { return nil }
-        let owner = owners.count == 1 ? owners.first : preferredSharedPropertyMapKeyOwner[normalized]
-        return owner.flatMap { schemasByKey[$0] }
+        return schemasByPropertyMapKey[normalized]
     }
 
     nonisolated static func schema(forHighLevelCustomKey key: String) -> MetadataFieldSchema? {
@@ -598,7 +579,7 @@ public enum MetadataFieldRegistry {
 
     public nonisolated static func schemas(storableIn capability: FormatCapability) -> [MetadataFieldSchema] {
         guard capability.isWritable else { return [] }
-        return canonicalSchemas.filter { schema in
+        return allSchemas.filter { schema in
             if let writableFields = capability.writableFields, !writableFields.contains(schema.key) {
                 return false
             }
