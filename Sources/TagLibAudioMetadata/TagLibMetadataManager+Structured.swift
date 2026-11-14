@@ -495,7 +495,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.invalidFile
         }
         let identityBeforeRead = MetadataFileIdentity.read(at: url)
-        let projections = try LegacyID3DateEvidence.correcting(MetadataProjectionReader.extract(from: url, options: .structured), at: url)
+        let projections = try MetadataProjectionReader.extract(from: url, options: .structured)
         guard let bridgeStructured = projections["structured"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The bridge returned an incomplete structured metadata projection set."
@@ -624,6 +624,29 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedWritePolicy("This format requires semantic Comment/Lyrics fields, not ID3 comment/lyric collections.")
         }
         try validateStructuredMetadataForWrite(metadata, includeProperties: includeProperties)
+        let legacyIDs: Set<String> = ["TYER", "TDAT", "TORY", "TDRL"]
+        if metadata.id3v2Frames.contains(where: { $0.type == "versionedText" || legacyIDs.contains($0.frameID) }),
+           try readStructuredMetadataResult(from: url).id3v2MajorVersion == 3 {
+            for frame in metadata.id3v2Frames {
+                let id = frame.type == "versionedText" ? frame.v23ID ?? frame.frameID : frame.frameID
+                let values = frame.values.isEmpty && !frame.value.isEmpty ? [frame.value] : frame.values
+                if values.isEmpty { continue }
+                if ["TYER", "TORY", "TDAT"].contains(id) {
+                    guard values.count == 1, let value = values.first, value.utf8.count == 4,
+                          value.utf8.allSatisfy({ (48...57).contains($0) }) else {
+                        throw TagLibManagerError.unsupportedWritePolicy("Legacy \(id) requires one four-digit native value.")
+                    }
+                    if id == "TDAT" {
+                        let day = Int(value.prefix(2)) ?? 0, month = Int(value.suffix(2)) ?? 0
+                        guard (1...31).contains(day), (1...12).contains(month) else {
+                            throw TagLibManagerError.unsupportedWritePolicy("Legacy TDAT requires DDMM; no year/date conversion is performed.")
+                        }
+                    }
+                } else if id == "TDRL" {
+                    throw TagLibManagerError.unsupportedWritePolicy("ID3v2.3 has no verified release-time codec.")
+                }
+            }
+        }
         for atom in metadata.mp4Atoms where !atom.remove {
             if let value = Int(atom.value), atom.key == "©mvi" || atom.key == "©mvc" {
                 try validateNativeMovement(value, field: atom.key == "©mvi" ? .movementNumber : .movementCount, for: url)
@@ -632,7 +655,7 @@ extension TagLibMetadataManager {
 
         if metadata.id3v2Frames.isEmpty && metadata.mp4Atoms.isEmpty && metadata.asfAttributes.isEmpty &&
             metadata.artwork.isEmpty && metadata.comments.isEmpty && metadata.lyrics.isEmpty &&
-            (!includeProperties || metadata.properties.isEmpty) && replacingCollections.isEmpty {
+            (!includeProperties || metadata.properties.isEmpty) && replacingCollections.isEmpty && riffPolicy == .preserveInfo {
             let version = try fileVersion(at: url)
             if let expectedVersion, version != expectedVersion { throw TagLibManagerError.fileChanged }
             try MetadataProjectionReader.validateReadableAudioFile(at: url)

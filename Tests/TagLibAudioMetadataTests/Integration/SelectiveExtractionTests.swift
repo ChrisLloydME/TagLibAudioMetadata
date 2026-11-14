@@ -85,6 +85,16 @@ final class SelectiveExtractionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), bytes, "Every read must leave the entire file untouched")
     }
 
+    func testLegacyID3ProjectionOptionsHaveLiteralDateOwners() throws {
+        try IndependentDiagnosticRepairTests.withCopy("mp3") { url in
+            try IndependentDiagnosticRepairTests.legacy(url)
+            try checkAllOptions(url)
+            let native = try TagLibMetadataExtractor.extractMetadata(from: url)
+            XCTAssertEqual(native.year, "2004")
+            XCTAssertEqual(native.standaloneDate, "0906")
+        }
+    }
+
     func testSelectiveViewsMatchFullExtractionAcrossNativeFixtures() throws {
         for (name, ext) in fixtures { try checkAllOptions(fixture(name, ext)) }
     }

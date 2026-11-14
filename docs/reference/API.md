@@ -30,7 +30,7 @@
 | [`readSnapshot`](#readsnapshot) | — | [MetadataSnapshotPatch.swift:282](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L282) |
 | [`readStructuredMetadataResult`](#readstructuredmetadataresult) | — | [TagLibMetadataManager+Structured.swift:493](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift#L493) |
 | [`replaceBasicMetadata`](#replacebasicmetadata) | — | [TagLibMetadataManager+Write.swift:577](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L577) |
-| [`updateBasicMetadata`](#updatebasicmetadata) | — | [TagLibMetadataManager+Write.swift:640](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L640) |
+| [`updateBasicMetadata`](#updatebasicmetadata) | — | [TagLibMetadataManager+Write.swift:648](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L648) |
 | [`writeRawMetadataPropertyMapValuesWithVerification`](#writerawmetadatapropertymapvalueswithverification) | — | [TagLibMetadataManager+Write.swift:341](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L341) |
 | [`writeRawMetadataPropertyMapWithVerification`](#writerawmetadatapropertymapwithverification) | — | [TagLibMetadataManager+Write.swift:281](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L281) |
 | [`writeStructuredMetadataWithVerification`](#writestructuredmetadatawithverification) | — | [TagLibMetadataManager+Structured.swift:598](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift#L598) |
@@ -390,7 +390,7 @@ func updateBasicMetadata(
 ) throws -> MetadataWriteResult
 ```
 
-Source: [TagLibMetadataManager+Write.swift:640](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L640)
+Source: [TagLibMetadataManager+Write.swift:648](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L648)
 
 ## `writeRawMetadataPropertyMapValuesWithVerification`
 

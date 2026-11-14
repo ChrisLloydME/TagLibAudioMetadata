@@ -1,7 +1,8 @@
 import Foundation
+import TagLibAudioMetadata
 
 /// Read literal v2.3 date owners before TagLib's timestamp normalization.
-internal enum LegacyID3DateEvidence {
+internal enum IndependentLegacyID3DateProbe {
     static let owners: Set<String> = ["TYER", "TDAT", "TDRC", "TDRL", "TORY", "TDOR"]
 
     static func frames(at url: URL) throws -> [[String: NSObject]] {
@@ -70,19 +71,4 @@ internal enum LegacyID3DateEvidence {
         return result
     }
 
-    static func correcting(_ projections: [String: NSObject], at url: URL) throws -> [String: NSObject] {
-        guard let structured = projections["structured"] as? [String: NSObject],
-              (structured["id3v2MajorVersion"] as? NSNumber)?.intValue == 3 else { return projections }
-        let dates = try frames(at: url)
-        var result = projections
-        for key in ["structured", "raw"] {
-            guard var view = result[key] as? [String: NSObject] else { continue }
-            let frames = (view["id3v2Frames"] as? [[String: NSObject]] ?? []).filter {
-                !owners.contains(($0["id"] as? String) ?? "")
-            }
-            view["id3v2Frames"] = (frames + dates) as NSArray
-            result[key] = view as NSDictionary
-        }
-        return result
-    }
 }

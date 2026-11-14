@@ -89,11 +89,7 @@
             return NO;
         }
 
-        if (auto *existing = mpegFile.ID3v2Tag(false); existing && existing->header()->majorVersion() == 3) {
-            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:9261
-                userInfo:@{NSLocalizedDescriptionKey: @"ID3v2.3 Basic replacement is unsupported; use typed field deltas to preserve legacy dates"}];
-            return NO;
-        }
+
         {
             TagLib::Tag *tag = mpegFile.tag();
             if (!tag) {
