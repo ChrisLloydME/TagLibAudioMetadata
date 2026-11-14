@@ -306,6 +306,29 @@ final class RemediationPreservationTests: XCTestCase {
         }
     }
 
+    func testDirectBridgeV23WritesRejectWithoutMutation() throws {
+        let url = try makeV23Tag([("TDAT", "0304")])
+        let before = try Data(contentsOf: url)
+        let structured: [String: NSObject] = [
+            "id3v2Frames": [[
+                "id": "TIT2", "type": "text", "value": "Direct", "values": ["Direct"],
+            ] as NSDictionary] as NSArray,
+        ]
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeStructuredMetadata(structured, to: url)) { error in
+            XCTAssertEqual((error as NSError).code, 9290)
+        }
+        XCTAssertThrowsError(try TagLibMetadataExtractor.writeRawPropertyMap(["TITLE": "Raw"], to: url)) { error in
+            XCTAssertEqual((error as NSError).code, 9290)
+        }
+        XCTAssertThrowsError(
+            try TagLibMetadataExtractor.writeTrackNumber(7, totalTracks: 12, padWidth: 2, to: url)
+        ) { error in
+            XCTAssertEqual((error as NSError).code, 9290)
+        }
+        XCTAssertEqual(try Data(contentsOf: url), before)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).date, "0304")
+    }
+
     func testV23DateWritesRejectBeforeMutation() throws {
         let url = try makeV23Tag([("TYER", "2004"), ("TDAT", "0304")])
         let before = try Data(contentsOf: url)

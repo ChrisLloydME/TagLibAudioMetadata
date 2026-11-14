@@ -871,6 +871,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     try {
     if (!ValidateMetadataObjectStrings(metadata, error)) return NO;
     if (TagLibAtomicMutationDepth == 0) {
+        if (!RejectDirectID3v23Write(fileURL, @"structured metadata", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
         });
