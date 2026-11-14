@@ -391,13 +391,13 @@ class SwiftFileParser:
             "attrs": attributes,
             "mods": modifiers,
             "line": self.line(line_start),
-            "path": self.path.name,
+            "path": self.path.relative_to(SOURCE_DIR).as_posix(),
         }
 
 
 def parse_sources() -> list[dict[str, object]]:
     items: list[dict[str, object]] = []
-    for path in sorted(SOURCE_DIR.glob("*.swift")):
+    for path in sorted(SOURCE_DIR.rglob("*.swift")):
         items.extend(SwiftFileParser(path).parse())
     return items
 

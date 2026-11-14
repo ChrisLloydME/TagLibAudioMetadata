@@ -29,3 +29,7 @@ Implementation and final evidence will be appended as each phase passes.
 ## API consolidation accepted in focused checks
 
 Removed four uncalled Swift helpers, one uncalled C++ number helper, Bool-only write wrappers, redundant read-function arities and three forwarding model constructors. The schema registry now has one canonical collection and a private single-owner engine-key index; the old alias flag and empty collision/preferred-owner tables are removed deliberately under the new cleanup request. Native targets, qualified keys and recovery are unchanged. Current result-bearing consumer calls and full function references compile strictly; capability/registry/audit-remediation tests pass. No failed intermediate compile was committed.
+
+## Ownership split accepted in focused checks
+
+Moved file identity and the existing complete transaction implementation into internal Storage services; moved snapshot values and public nested write contracts into Models/Contracts. Native extraction/readability now has a single internal reader boundary shared by facade reads and storage. Removed the unused public Swift extraction-options type: no public facade operation accepted it; the native low-level option type remains supported. Snapshot tokens no longer depend on a facade-nested POSIX type. Updated API generation to recurse and retain relative source paths. Strict API, identity, transaction, read-lookup, durability and audio-identity checks passed (`/tmp/taglib-architecture-split-fixed.log`).

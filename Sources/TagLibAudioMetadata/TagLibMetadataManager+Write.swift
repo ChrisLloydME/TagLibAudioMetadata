@@ -182,7 +182,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             try throwOnVerificationFailures(warnings)
@@ -205,7 +205,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             let inventory = try numberingInventory(at: mutationURL)
             for (selected, group, name) in [
                 (true, inventory.track, "track"),
@@ -280,7 +280,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
                 try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
@@ -342,7 +342,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
                 try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
@@ -452,7 +452,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             try eraseAllMetadataInPlaceWithVerification(from: mutationURL)
         }
     }
@@ -569,7 +569,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
         // Match the mutation API's typed error before the preservation read.
-        guard url.isFileURL, regularFileIdentity(at: url) != nil else {
+        guard url.isFileURL, MetadataFileIdentity.read(at: url) != nil else {
             throw TagLibManagerError.operationFailedWithUnderlying(NSError(
                 domain: "TagLibMetadataManager", code: 1003,
                 userInfo: [NSLocalizedDescriptionKey: "Metadata mutations require an existing regular file and do not follow symbolic links."]
@@ -802,7 +802,7 @@ extension TagLibMetadataManager {
         verification.expectedArtworkData = meta.artworkData
         verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
         let exactVerification = verification
-        return try withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion ?? originalSnapshot.fileVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion ?? originalSnapshot.fileVersion) { mutationURL in
             let current = try readBasicMetadataRawAndStructured(from: mutationURL)
             if current.structured.id3v2MajorVersion == 3 {
                 let dates: [(MetadataFieldKey, String, String)] = [

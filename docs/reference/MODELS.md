@@ -16,7 +16,6 @@ Every public value, error, schema, numbering, and capability type is listed alph
 | [`MetadataArtworkPatch`](#metadataartworkpatch) | enum |  |
 | [`MetadataAudioContentError`](#metadataaudiocontenterror) | enum |  |
 | [`MetadataAudioContentIdentity`](#metadataaudiocontentidentity) | struct | An opaque SHA-256 identity of encoded audio and its interpretation parameters. |
-| [`MetadataExtractionOptions`](#metadataextractionoptions) | struct |  |
 | [`MetadataFieldCategory`](#metadatafieldcategory) | enum |  |
 | [`MetadataFieldFormat`](#metadatafieldformat) | enum |  |
 | [`MetadataFieldKey`](#metadatafieldkey) | enum |  |
@@ -247,7 +246,7 @@ static let empty
 
 ## `BasicMetadataSnapshot`
 
-Source: [MetadataSnapshotPatch.swift:61](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L61)
+Source: [Models/MetadataSnapshot.swift:68](../../Sources/TagLibAudioMetadata/Models/MetadataSnapshot.swift#L68)
 
 ```swift
 struct BasicMetadataSnapshot: Sendable
@@ -421,7 +420,7 @@ case unsupported
 
 ## `MetadataArtworkPatch`
 
-Source: [MetadataSnapshotPatch.swift:205](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L205)
+Source: [MetadataSnapshotPatch.swift:132](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L132)
 
 ```swift
 enum MetadataArtworkPatch: Hashable, Sendable
@@ -476,35 +475,6 @@ struct MetadataAudioContentIdentity: Hashable, Sendable
 > limited to native FLAC and single-data-chunk RIFF WAVE / AIFF / AIFF-C layouts.
 > Do not infer continuity from two missing identities. Tokens are for in-memory
 > comparison within this package version, not persistent identifiers.
-
-## `MetadataExtractionOptions`
-
-Source: [TagLibMetadataManager+Read.swift:9](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L9)
-
-```swift
-struct MetadataExtractionOptions: OptionSet, Sendable
-```
-
-### Properties
-
-```swift
-let rawValue: UInt
-
-static let basic
-static let raw
-static let structured
-static let propertyMap
-static let rawFrames
-static let all: MetadataExtractionOptions
-```
-
-### Initializers
-
-```swift
-init(
-    rawValue: UInt
-)
-```
 
 ## `MetadataFieldCategory`
 
@@ -952,7 +922,7 @@ case pattern
 
 ## `MetadataFileVersion`
 
-Source: [MetadataSnapshotPatch.swift:8](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L8)
+Source: [Models/MetadataSnapshot.swift:6](../../Sources/TagLibAudioMetadata/Models/MetadataSnapshot.swift#L6)
 
 ```swift
 struct MetadataFileVersion: Hashable, Sendable
@@ -1416,7 +1386,7 @@ case replace(number: Int?, total: Int?)
 
 ## `MetadataNumberTextPatch`
 
-Source: [MetadataSnapshotPatch.swift:214](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L214)
+Source: [MetadataSnapshotPatch.swift:141](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L141)
 
 ```swift
 struct MetadataNumberTextPatch: Hashable, Sendable
@@ -1474,7 +1444,7 @@ init(
 
 ## `MetadataPatch`
 
-Source: [MetadataSnapshotPatch.swift:230](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L230)
+Source: [MetadataSnapshotPatch.swift:157](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L157)
 
 ```swift
 struct MetadataPatch: Hashable, Sendable
@@ -1509,7 +1479,7 @@ init(
 
 ## `MetadataPatchValidationError`
 
-Source: [MetadataSnapshotPatch.swift:147](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L147)
+Source: [MetadataSnapshotPatch.swift:74](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L74)
 
 ```swift
 enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedError
@@ -1543,7 +1513,7 @@ var errorDescription: String?
 
 ## `MetadataPatchValue`
 
-Source: [MetadataSnapshotPatch.swift:78](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L78)
+Source: [MetadataSnapshotPatch.swift:5](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L5)
 
 ```swift
 enum MetadataPatchValue: Hashable, Sendable
@@ -1586,7 +1556,7 @@ case values
 
 ## `MetadataSnapshot`
 
-Source: [MetadataSnapshotPatch.swift:36](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L36)
+Source: [Models/MetadataSnapshot.swift:43](../../Sources/TagLibAudioMetadata/Models/MetadataSnapshot.swift#L43)
 
 ```swift
 struct MetadataSnapshot: Sendable

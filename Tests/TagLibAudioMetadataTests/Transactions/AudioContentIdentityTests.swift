@@ -362,7 +362,7 @@ struct AudioContentIdentityTests {
             let identity = try #require(snapshot.audioContentIdentity)
             var replacedBytes = Data()
             do {
-                _ = try TagLibMetadataManager.withAtomicMetadataWriteMutation(
+                _ = try MetadataFileTransaction.withAtomicMetadataWriteMutation(
                     at: url, expectedVersion: snapshot.fileVersion
                 ) { temporary in
                     try TagLibMetadataManager.requireAudioContent(at: temporary, matching: identity)

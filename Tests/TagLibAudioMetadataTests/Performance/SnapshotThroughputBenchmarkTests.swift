@@ -282,7 +282,7 @@ final class SnapshotThroughputBenchmarkTests: XCTestCase {
                 var status: Int32 = 0
                 let elapsed = ContinuousClock().measure {
                     status = useFullSync
-                        ? TagLibMetadataManager.fullSync(handle.fileDescriptor)
+                        ? MetadataFileTransaction.fullSync(handle.fileDescriptor)
                         : Darwin.fsync(handle.fileDescriptor)
                 }
                 XCTAssertEqual(status, 0)

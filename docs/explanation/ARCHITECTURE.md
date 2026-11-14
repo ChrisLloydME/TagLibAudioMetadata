@@ -21,6 +21,18 @@ The low-level product makes direct bridge use intentional. The facade does not r
 
 The framework name, Mach-O install name, bundle identifier, headers, and module map are namespaced. This prevents a generic `TagLib.framework` from being mistaken for this package's artifact. It cannot fully isolate the C++ ABI: TagLib symbols are still exported, so a process that also loads an incompatible TagLib build risks symbol interposition. A stable C shim or hidden/private C++ exports would be required for stronger isolation.
 
+## Swift ownership boundaries
+
+The public `TagLibMetadataManager` is a namespace for operations and format discovery. Its extensions coordinate semantic reads/writes; they do not own the POSIX transaction implementation.
+
+- `Models/MetadataSnapshot.swift` owns opaque version and snapshot values. It has no dependency on the file transaction or native bridge.
+- `Contracts/MetadataWriteContract.swift` owns the facade's public verification/result types, retaining their nested public names.
+- `Reads/MetadataProjectionReader.swift` owns native extraction and transaction readability, including consistent bridge error translation and observed-file checks.
+- `Storage/MetadataFileIdentity.swift` owns regular-file identity observations and conversion to the opaque version token.
+- `Storage/MetadataFileTransaction.swift` owns coordination, staging, metadata preservation, final validation, sync and atomic rename. Both generic internal mutations and facade result-bearing writes use this implementation.
+
+These are package-internal services, not new public dependency injection or compatibility layers. The native bridge retains its separate direct-client transaction implementation; both paths are covered by their own atomicity tests.
+
 ## Read pipeline
 
 `readSnapshot(from:)` runs one locked extraction call and derives Basic, raw, and structured projections from the same extension-selected parser session:
