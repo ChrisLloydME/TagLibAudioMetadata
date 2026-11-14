@@ -138,6 +138,63 @@ final class RemediationPreservationTests: XCTestCase {
         }
     }
 
+
+    func testAPEReleaseTypeAndStatusAreWritableThroughTypedAndBasic() throws {
+        for (ext, name) in [("ape", "hardening"), ("wv", "testAudioFile"), ("mpc", "hardening")] {
+            let typedURL = try copyFixture(ext, name: name)
+            try TagLibMetadataManager.applyMetadataPatch(
+                .init(fields: [.releaseType: .text("type"), .releaseStatus: .text("status")]),
+                to: typedURL
+            )
+            var after = try TagLibMetadataManager.readMetadataResult(from: typedURL)
+            XCTAssertEqual(after.releaseType, "type", "\(ext) typed release type")
+            XCTAssertEqual(after.releaseStatus, "status", "\(ext) typed release status")
+
+            try TagLibMetadataManager.updateBasicMetadata(at: typedURL) {
+                $0.releaseType = "basic-type"
+                $0.releaseStatus = "basic-status"
+            }
+            after = try TagLibMetadataManager.readMetadataResult(from: typedURL)
+            XCTAssertEqual(after.releaseType, "basic-type", "\(ext) Basic release type")
+            XCTAssertEqual(after.releaseStatus, "basic-status", "\(ext) Basic release status")
+        }
+    }
+
+    func testBasicNumberTextMismatchRejectsAndMixedPairsCommit() throws {
+        let url = try copyFixture("mp3")
+        var seed = try TagLibMetadataManager.readMetadataResult(from: url)
+        seed.track = 1
+        seed.trackTotal = 10
+        seed.trackNumberText = "1/10"
+        seed.disc = 1
+        seed.discTotal = 2
+        seed.discNumberText = "1/2"
+        try TagLibMetadataManager.replaceBasicMetadata(seed, to: url)
+
+        let before = try Data(contentsOf: url)
+        var mismatch = try TagLibMetadataManager.readMetadataResult(from: url)
+        mismatch.trackNumberText = "2/10"
+        XCTAssertThrowsError(try TagLibMetadataManager.replaceBasicMetadata(mismatch, to: url)) { error in
+            guard case MetadataPatchValidationError.numberTextMismatch = error else {
+                return XCTFail("Expected numberTextMismatch, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: url), before)
+
+        var mixed = try TagLibMetadataManager.readMetadataResult(from: url)
+        mixed.track = 2
+        mixed.disc = 2
+        mixed.discNumberText = "2/2"
+        try TagLibMetadataManager.replaceBasicMetadata(mixed, to: url)
+        let after = try TagLibMetadataManager.readMetadataResult(from: url)
+        XCTAssertEqual(after.track, 2)
+        XCTAssertEqual(after.trackTotal, 10)
+        XCTAssertEqual(after.trackNumberText, "2/10")
+        XCTAssertEqual(after.disc, 2)
+        XCTAssertEqual(after.discTotal, 2)
+        XCTAssertEqual(after.discNumberText, "2/2")
+    }
+
     func testASFLowLevelAdvisoryEditRemovesAliases() throws {
         let url = try copyFixture("wma")
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(

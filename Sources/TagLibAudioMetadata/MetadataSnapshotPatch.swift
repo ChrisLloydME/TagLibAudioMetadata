@@ -88,6 +88,7 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case emptyValueList(location: String)
     case emptyValue(location: String, index: Int)
     case conflictingNumberRepresentations
+    case numberTextMismatch(field: String, text: String)
     case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
     case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
     case ambiguousNumberRecovery(field: String, identities: [String])
@@ -119,6 +120,8 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(location) contains an empty value at index \(index); use .remove to delete the field."
         case .conflictingNumberRepresentations:
             return "Use either formatted number text or typed track/disc fields in one patch, not both."
+        case .numberTextMismatch(let field, let text):
+            return "\(field) \(text.debugDescription) does not match the numeric track/disc pair; update both consistently."
         case .roleQualifiedFieldRequiresRawAPI(let field):
             return "\(field.rawValue) requires a role-qualified key; use RawMetadataPatch or StructuredMetadata instead of the typed Patch field."
         case .unsupportedPartialPairRemoval(let field, let format):
@@ -346,8 +349,14 @@ extension TagLibMetadataManager {
                 try validateNativeMovement(value, field: field, for: url)
             }
         }
-        let numberPairFields: Set<MetadataFieldKey> = [.track, .trackTotal, .disc, .discTotal]
-        if patch.numberText != nil, !numberPairFields.isDisjoint(with: validatedPatch.fields.keys) {
+        let trackPairFields: Set<MetadataFieldKey> = [.track, .trackTotal]
+        let discPairFields: Set<MetadataFieldKey> = [.disc, .discTotal]
+        if patch.numberText?.trackNumberText != nil,
+           !trackPairFields.isDisjoint(with: validatedPatch.fields.keys) {
+            throw MetadataPatchValidationError.conflictingNumberRepresentations
+        }
+        if patch.numberText?.discNumberText != nil,
+           !discPairFields.isDisjoint(with: validatedPatch.fields.keys) {
             throw MetadataPatchValidationError.conflictingNumberRepresentations
         }
         let ext = url.pathExtension.lowercased()
@@ -857,7 +866,12 @@ extension TagLibMetadataManager {
                     // TagLib exposes these exact APE owners under its
                     // canonical PropertyMap dialect rather than native names.
                     let isAPE = ["ape", "wavpack", "musepack"].contains(formatIdentifier)
-                    let projectionKey: String = isAPE ? (["ALBUM ARTIST": "ALBUMARTIST", "MIXARTIST": "REMIXER"][key] ?? key) : key
+                    let projectionKey: String = isAPE ? ([
+                        "ALBUM ARTIST": "ALBUMARTIST",
+                        "MIXARTIST": "REMIXER",
+                        "MUSICBRAINZ_ALBUMTYPE": "RELEASETYPE",
+                        "MUSICBRAINZ_ALBUMSTATUS": "RELEASESTATUS",
+                    ][key] ?? key) : key
                     let asfValues = afterStructured.asfAttributes
                         .filter { key.caseInsensitiveCompare($0.key) == .orderedSame }
                         .map(\.value)

@@ -628,16 +628,30 @@ extension TagLibMetadataManager {
         let isMP4 = capability(forExtension: url.pathExtension)?.identifier == "mp4"
         var trackText: String?
         var discText: String?
-        if !isMP4 {
-            if meta.trackNumberText != before.basic.trackNumberText,
-               parseNumberPair(meta.trackNumberText).number == meta.track, parseNumberPair(meta.trackNumberText).total == meta.trackTotal {
-                trackText = meta.trackNumberText
-                fields.removeValue(forKey: .track); fields.removeValue(forKey: .trackTotal)
+        if meta.trackNumberText != before.basic.trackNumberText {
+            let pair = parseNumberPair(meta.trackNumberText)
+            guard pair.number == meta.track, pair.total == meta.trackTotal else {
+                throw MetadataPatchValidationError.numberTextMismatch(
+                    field: "trackNumberText", text: meta.trackNumberText
+                )
             }
-            if meta.discNumberText != before.basic.discNumberText,
-               parseNumberPair(meta.discNumberText).number == meta.disc, parseNumberPair(meta.discNumberText).total == meta.discTotal {
+            if !isMP4 {
+                trackText = meta.trackNumberText
+                fields.removeValue(forKey: .track)
+                fields.removeValue(forKey: .trackTotal)
+            }
+        }
+        if meta.discNumberText != before.basic.discNumberText {
+            let pair = parseNumberPair(meta.discNumberText)
+            guard pair.number == meta.disc, pair.total == meta.discTotal else {
+                throw MetadataPatchValidationError.numberTextMismatch(
+                    field: "discNumberText", text: meta.discNumberText
+                )
+            }
+            if !isMP4 {
                 discText = meta.discNumberText
-                fields.removeValue(forKey: .disc); fields.removeValue(forKey: .discTotal)
+                fields.removeValue(forKey: .disc)
+                fields.removeValue(forKey: .discTotal)
             }
         }
         let patch = MetadataPatch(fields: fields, customFields: custom, explicitAdvisory: advisory, artwork: artwork,
