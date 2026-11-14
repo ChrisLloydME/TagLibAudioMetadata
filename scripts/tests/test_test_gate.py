@@ -6,6 +6,18 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = (
+    "Test lowLevelMP4WritableTextOwnersMatchCatalog() passed after 1 second.\n"
+    "Test legacyDatesAreIndependentAndBasicEditsPreserveThem() passed after 1 second.\n"
+    "Test basicClearArtworkRemovesNativeCollections() passed after 1 second.\n"
+    "Test movementAndReleaseOwnersAgreeAcrossEntrypoints() passed after 1 second.\n"
+    "Test typedASFAdvisoryPersistsNativeAttribute() passed after 1 second.\n"
+    "Test basicMixedNumbersAndText() with 7 test cases passed after 1 second.\n"
+    "Test lowLevelLegacyReplacementRejectsWithoutMutation() passed after 1 second.\n"
+    "Test basicMusicBrainzUsesCanonicalUFIDAndClearsIt() passed after 1 second.\n"
+    "Test emptyStructuredWritesAndUnsupportedCollectionsDoNotCommit() passed after 1 second.\n"
+    "Test everyTransactionRejectsUnreadableStagedOutput() passed after 1 second.\n"
+    "Test versionedTextWritesAndRemovalsVerify() passed after 1 second.\n"
+
     "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testSelectiveViewsMatchFullExtractionAcrossNativeFixtures]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testRichSelectiveViewsPreserveNativeValuesAndArtwork]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testValidationOnlyRejectsInvalidInputsWithoutMutation]' passed (0.001 seconds).\n"
@@ -95,7 +107,7 @@ PASS = (
     "Suite ID3ContainerLifecycleTests passed.\n"
     "Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.\n"
     "Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.\n"
-    "Test run with 186 tests in 41 suites passed after 8 seconds.\n"
+    "Test run with 197 tests in 41 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -144,7 +156,7 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 167 tests', 'Executed 166 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 186 tests', 'run with 185 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 197 tests', 'run with 196 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))

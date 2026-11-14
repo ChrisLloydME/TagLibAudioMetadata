@@ -41,26 +41,15 @@ An empty `MetadataPatch` or `RawMetadataPatch` is a no-op. It returns without st
 - `replaceBasicMetadata` has replacement semantics for fields the Basic replacement path actually writes. Empty strings and zero numeric values clear those fields where the container allows it.
 - `updateBasicMetadata(at:_:)` reads a focused Basic snapshot, applies the closure, and passes the captured version to the replacement.
 - Removing a key from `BasicMetadata.customFields` does not request deletion. Use `MetadataPatch(customFields: [key: .remove])` or a raw API. An explicitly supplied empty custom value clears that entry.
-- The MP4-exclusive fields are readable through Basic but are not written by the Basic replacement path. Use a typed patch or structured write for them.
+- MP4-exclusive changes in Basic use the same typed native targets and capability rules as a patch. Unsupported changes fail rather than being silently ignored.
 
 ## Basic preservation rules
 
-A Basic read retains raw cardinality and provenance for fields that Basic cannot fully represent. An unrelated Basic edit restores untouched data through exact native collections:
+Basic replacement compares the requested normalized model with a versioned full snapshot and sends only differences through the same native planner and verification as `MetadataPatch`. It no longer reconstructs every field through the low-level Basic writer or replays read models as preservation payloads.
 
-- tracked multi-value arrays managed by the Basic writer, through exact MP4 atoms, ID3 multi-value frames, or Xiph/APE text keys;
-- complete YEAR text and independent DATE, RELEASEDATE, and ORIGINALDATE slots, which are skipped by the generic raw-preservation loop and written through their own owners;
-- on Xiph/APE families, all visible text keys, including role-qualified and schema-known keys, through their exact physical spelling;
-- on tested ID3-backed formats, multi-value frames for schema fields the Basic writer does not edit;
-- unchanged native comment and lyric collections, including languages and descriptions, on tested ID3-backed formats;
-- unknown Xiph/APE text keys and custom fields that the writer carries through.
+Unchanged native arrays, malformed existing dates, duplicate values, whitespace, qualified comments/lyrics, aliases and absent owners remain outside the requested delta. Basic does not split display strings to guess arrays. Explicitly changed custom arrays use `customFieldValues`; omitted custom dictionary keys remain unchanged. A nil `artworkData` clears all artwork; unchanged data/MIME preserves the existing artwork collection. MP4-exclusive fields use the same typed targets and capability rules, including rejecting `.rate` changes. An unchanged unknown advisory remains native provenance rather than an implicit removal request.
 
-The replacement path calls `restoreUneditedBasicNativeValues` before verification. It does not replay a whole engine `PropertyMap`; that projection merges independent YEAR/DATE owners. The helper handles the fields whose scalar Basic projection is unchanged:
-
-- **MP4:** all editable Basic fields except track/disc pairs. It restores the exact canonical atom, compatibility aliases, and any original owner spelling; an alias absent from the original is explicitly removed instead of being created by the edit.
-- **Xiph/APE:** the four independent date fields, using the target native key and the `ORIGINAL YEAR` alias where present. Existing arrays, malformed text, duplicates, whitespace, and absence are retained; no present scalar projection causes a missing owner to be synthesized.
-- **ID3-backed formats:** the four independent date fields, restoring existing frames and explicitly checking that targets absent before the edit stay absent.
-
-The helper reads and restores the state captured at the transaction version, so a concurrent replacement cannot make the preservation read stale. Other native structures are preserved by the format-specific collection replay in the Basic writer. Basic does not guess cardinality by splitting a display string.
+The captured version binds the diff to the eventual staged mutation. ID3v2.3 Basic updates reject actual date differences, while unrelated edits use typed deltas. Literal TYER/TDAT/TORY owners are read independently of TagLib's synthetic TDRC. Legacy flagged-tag layouts not understood by the evidence reader fail explicitly rather than manufacturing a date. Full low-level Basic bridge replacement of existing v2.3 tags is rejected: callers use version-checked Basic updates, typed deltas or explicit native structured edits.
 
 Editing or adding a schema-known name through `BasicMetadata.customFields` is rejected; use the typed field or a raw/structured API. Existing native custom attributes whose names overlap the schema may be carried through unchanged when their value is unchanged. The current validation does not reject the package-reserved hidden formatting names in custom data; do not use those names.
 

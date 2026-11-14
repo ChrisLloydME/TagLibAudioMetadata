@@ -314,7 +314,7 @@ extension TagLibMetadataManager {
             // rather than searching for a frame the writer correctly removed.
             if ["text", "userText"].contains(frame.type), frame.values.isEmpty, frame.value.isEmpty {
                 let remains = after.id3v2Frames.contains {
-                    $0.frameID == frame.frameID && (frame.type != "userText" || $0.description == frame.description)
+                    ([$0.frameID, $0.frameID == "TYER" ? "TDRC" : $0.frameID == "TORY" ? "TDOR" : $0.frameID].contains(frame.frameID)) && (frame.type != "userText" || $0.description == frame.description)
                 }
                 if remains { warnings.append("ID3v2 frame \(frame.frameID) remains after removal.") }
                 continue
@@ -630,6 +630,15 @@ extension TagLibMetadataManager {
             }
         }
 
+        if metadata.id3v2Frames.isEmpty && metadata.mp4Atoms.isEmpty && metadata.asfAttributes.isEmpty &&
+            metadata.artwork.isEmpty && metadata.comments.isEmpty && metadata.lyrics.isEmpty &&
+            (!includeProperties || metadata.properties.isEmpty) && replacingCollections.isEmpty {
+            let version = try fileVersion(at: url)
+            if let expectedVersion, version != expectedVersion { throw TagLibManagerError.fileChanged }
+            try MetadataProjectionReader.validateReadableAudioFile(at: url)
+            guard version == (try? fileVersion(at: url)) else { throw TagLibManagerError.fileChanged }
+            return MetadataWriteResult(warnings: [])
+        }
         return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             var warnings: [String] = []
             var verificationFailures: [String] = []

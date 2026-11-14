@@ -403,6 +403,7 @@ extension TagLibMetadataManager {
             var nativeAtoms: [StructuredMP4Atom] = []
             let patchesNumberPair = !structuredNumberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
+            var numberMutations: [() throws -> Void] = []
 
             if patchesNumberPair {
                 let current = before.basic
@@ -474,18 +475,20 @@ extension TagLibMetadataManager {
                     expectedNumberPairs[.movementCount] = movementCount
                 }
 
-                try TagLibMetadataExtractor.writeNumberPairsInPlace(
-                    trackNumber: track,
-                    totalTracks: trackTotal,
-                    updateTrackPair: updatesTrackPair,
-                    discNumber: disc,
-                    totalDiscs: discTotal,
-                    updateDiscPair: updatesDiscPair,
-                    movementNumber: movementNumber,
-                    movementCount: movementCount,
-                    updateMovementPair: updatesMovementPair,
-                    to: mutationURL
-                )
+                numberMutations.append {
+                    try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                        trackNumber: track,
+                        totalTracks: trackTotal,
+                        updateTrackPair: updatesTrackPair,
+                        discNumber: disc,
+                        totalDiscs: discTotal,
+                        updateDiscPair: updatesDiscPair,
+                        movementNumber: movementNumber,
+                        movementCount: movementCount,
+                        updateMovementPair: updatesMovementPair,
+                        to: mutationURL
+                    )
+                }
             }
 
             if let numberText = patch.numberText {
@@ -509,29 +512,33 @@ extension TagLibMetadataManager {
                 }
                 var trackPair = numberText.trackNumberText.map(parseNumberPair)
                 var discPair = numberText.discNumberText.map(parseNumberPair)
-                if let pair = trackPair, pair.total == 0 {
+                if let pair = trackPair, pair.total == 0, numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
                     trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")
                 }
-                if let pair = discPair, pair.total == 0 {
+                if let pair = discPair, pair.total == 0, numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
                     discPair?.total = try resolvedTotal(inventory.disc.total, field: "discTotal")
                 }
-                try TagLibMetadataExtractor.writeNumberPairsInPlace(
-                    trackNumber: trackPair?.number ?? 0,
-                    totalTracks: trackPair?.total ?? 0,
-                    updateTrackPair: trackPair != nil,
-                    discNumber: discPair?.number ?? 0,
-                    totalDiscs: discPair?.total ?? 0,
-                    updateDiscPair: discPair != nil,
-                    movementNumber: 0,
-                    movementCount: 0,
-                    updateMovementPair: false,
-                    to: mutationURL
-                )
-                try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
-                    numberText.trackNumberText,
-                    discNumberText: numberText.discNumberText,
-                    to: mutationURL
-                )
+                numberMutations.append {
+                    try TagLibMetadataExtractor.writeNumberPairsInPlace(
+                        trackNumber: trackPair?.number ?? 0,
+                        totalTracks: trackPair?.total ?? 0,
+                        updateTrackPair: trackPair != nil,
+                        discNumber: discPair?.number ?? 0,
+                        totalDiscs: discPair?.total ?? 0,
+                        updateDiscPair: discPair != nil,
+                        movementNumber: 0,
+                        movementCount: 0,
+                        updateMovementPair: false,
+                        to: mutationURL
+                    )
+                }
+                numberMutations.append {
+                    try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
+                        numberText.trackNumberText,
+                        discNumberText: numberText.discNumberText,
+                        to: mutationURL
+                    )
+                }
                 if let trackPair {
                     expectedNumberPairs[.track] = trackPair.number
                     expectedNumberPairs[.trackTotal] = trackPair.total
@@ -659,6 +666,9 @@ extension TagLibMetadataManager {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
             }
 
+            // PropertyMap replay can normalize native number pairs. Emit their
+            // exact requested representation after other mutation surfaces.
+            for mutation in numberMutations { try mutation() }
             let projections = try MetadataProjectionReader.complete(from: mutationURL)
             let afterRaw = rawMetadataDump(fromBridgeDictionary: projections.raw)
             let afterStructured = structuredMetadata(fromBridgeDictionary: projections.structured)
