@@ -163,7 +163,7 @@ for name, minimum in required_tests.items():
     elif actual < minimum:
         missing_tests.append({'test': name, 'expected_cases': minimum, 'actual_cases': actual})
 
-inventory_errors = validate_test_inventory()
+inventory_errors = validate_test_inventory(required_names=set(required_tests))
 summary = {'source_inventory_errors': inventory_errors, 'runner_exit_status': status, 'xctest_executed': int(xctest[-1][0]) if xctest else None,
            'xctest_skipped': int(xctest[-1][1] or 0) if xctest else None,
            'xctest_failures': int(xctest[-1][2]) if xctest else None,

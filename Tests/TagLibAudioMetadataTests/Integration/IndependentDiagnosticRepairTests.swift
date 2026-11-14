@@ -75,6 +75,10 @@ struct IndependentDiagnosticRepairTests {
     @Test func movementAndReleaseOwnersAgreeAcrossEntrypoints() throws {
         try Self.withCopy("m4a") { url in
             try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.movement: .text("Typed")]), to: url)
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(mp4Atoms: [
+                .init(key: "----:com.apple.iTunes:MOVEMENT", type: "stringList", values: ["Legacy"])
+            ]), to: url)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).movement == "Typed")
             try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.movement = "Basic" }
             let atoms = try TagLibMetadataManager.readSnapshot(from: url).structured.mp4Atoms
             #expect(atoms.contains { $0.key == "©mvn" && $0.values == ["Basic"] })
@@ -88,10 +92,24 @@ struct IndependentDiagnosticRepairTests {
             let bytes = try Data(contentsOf: url)
             #expect(bytes.range(of: Data("RELEASETYPE=single".utf8)) != nil)
             #expect(bytes.range(of: Data("RELEASESTATUS=promotion".utf8)) != nil)
+            let metadata = TagLibAudioMetadata()
+            metadata.releaseType = "album"
+            metadata.releaseStatus = "official"
+            metadata.movement = "Native movement"
+            _ = try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
+            let native = try IndependentFLACProbe.read(url)
+            #expect(native.comments["RELEASETYPE"] == ["album"])
+            #expect(native.comments["RELEASESTATUS"] == ["official"])
+            #expect(native.comments["MOVEMENTNAME"] == ["Native movement"])
+            #expect(native.comments["MOVEMENT"] == nil)
+
         }
     }
     @Test func typedASFAdvisoryPersistsNativeAttribute() throws {
         try Self.withCopy("wma") { url in
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(asfAttributes: [
+                .init(key: "AdViSoRy", type: "string", value: "1")
+            ]), to: url)
             for state in [ExplicitAdvisory.explicit, .clean, .notExplicit, .unspecified] {
                 try TagLibMetadataManager.applyMetadataPatch(.init(explicitAdvisory: state), to: url)
                 #expect(try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory == state)
