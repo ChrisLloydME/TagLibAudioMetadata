@@ -1,0 +1,104 @@
+{
+  "productionBaseline": "16b01fb",
+  "configuration": "release",
+  "cpu": "Apple M1",
+  "metric": "median of three 24-file durable typed-title batch durations; setup and correctness readback excluded",
+  "rows": [
+    {
+      "density": "ordinary",
+      "files": "24",
+      "workers": "1",
+      "samples": "3",
+      "medianMs": "285.427458",
+      "batchSamplesMs": [
+        258.617667,
+        285.427458,
+        312.589042
+      ]
+    },
+    {
+      "density": "ordinary",
+      "files": "24",
+      "workers": "2",
+      "samples": "3",
+      "medianMs": "215.986833",
+      "batchSamplesMs": [
+        189.628292,
+        215.986833,
+        237.357125
+      ]
+    },
+    {
+      "density": "ordinary",
+      "files": "24",
+      "workers": "4",
+      "samples": "3",
+      "medianMs": "163.698458",
+      "batchSamplesMs": [
+        159.509125,
+        163.698458,
+        166.689625
+      ]
+    },
+    {
+      "density": "ordinary",
+      "files": "24",
+      "workers": "8",
+      "samples": "3",
+      "medianMs": "122.832834",
+      "batchSamplesMs": [
+        119.468333,
+        122.832834,
+        126.3475
+      ]
+    },
+    {
+      "density": "metadata-heavy",
+      "files": "24",
+      "workers": "1",
+      "samples": "3",
+      "medianMs": "519.895916",
+      "batchSamplesMs": [
+        484.264292,
+        519.895916,
+        542.925792
+      ]
+    },
+    {
+      "density": "metadata-heavy",
+      "files": "24",
+      "workers": "2",
+      "samples": "3",
+      "medianMs": "332.883084",
+      "batchSamplesMs": [
+        307.554541,
+        332.883084,
+        410.1215
+      ]
+    },
+    {
+      "density": "metadata-heavy",
+      "files": "24",
+      "workers": "4",
+      "samples": "3",
+      "medianMs": "267.15025",
+      "batchSamplesMs": [
+        247.955166,
+        267.15025,
+        273.203417
+      ]
+    },
+    {
+      "density": "metadata-heavy",
+      "files": "24",
+      "workers": "8",
+      "samples": "3",
+      "medianMs": "269.005667",
+      "batchSamplesMs": [
+        229.909792,
+        269.005667,
+        287.897416
+      ]
+    }
+  ]
+}

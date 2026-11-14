@@ -13,18 +13,16 @@ It does **not** answer whether a particular file or format actually stores a fie
 ## Registry summary
 
 <!-- BEGIN GENERATED FIELD SUMMARY -->
-**101 fields** are declared in 14 categories: Basic and descriptive (12), Numbering (6), Dates (5), People (11), Role-qualified people (3), Lyrics and comments (2), Artwork (1), Sorting (5), Identifiers (13), Release (10), Technical (4), ReplayGain (4), iTunes (24), Custom (1).
+**100 fields** are declared in 14 categories: Basic and descriptive (12), Numbering (6), Dates (4), People (11), Role-qualified people (3), Lyrics and comments (2), Artwork (1), Sorting (5), Identifiers (13), Release (10), Technical (4), ReplayGain (4), iTunes (24), Custom (1).
 
-100 canonical semantic owners and 1 legacy alias (.date). The tables below are generated from the Swift registry and catalog; do not edit them by hand.
-
-Shared PropertyMap keys: DATE → .date, .year (preferred `.year`); YEAR → .date, .year (preferred `.year`).
+100 canonical semantic owners and 0 legacy aliases (none). The tables below are generated from the Swift registry and catalog; do not edit them by hand.
 
 Typed writes are withheld for: .rate — no verified native rating type or scale in this profile.
 <!-- END GENERATED FIELD SUMMARY -->
 
-`year` is the canonical YEAR identity. `date` is a legacy YEAR-slot spelling kept for source compatibility; it is not a separate stored field and it is not marked `@available(*, deprecated)` in the enum. Supplying both `.date` and `.year` in one patch throws `MetadataPatchValidationError.conflictingYearRepresentations`. `standaloneDate` is the independent DATE identity.
+`year` is the YEAR identity and `standaloneDate` is independent DATE. The ambiguous typed `date` alias has been removed; the serialized `date` token is rejected.
 
-`BasicMetadata.date` is not the typed `.date` key: it carries the standalone DATE projection (the same slot as `.standaloneDate`), while `BasicMetadata.year` carries YEAR. Use the typed or Basic field whose model you are actually editing.
+`BasicMetadata.date` carries standalone DATE (the same slot as `.standaloneDate`), while `BasicMetadata.year` carries YEAR. Use the typed or Basic field whose model you are actually editing.
 
 The `.comment` and `.lyrics` rows list the qualified ID3 frames and the ordinary MP4 atoms they own. On MP4, typed edits use `©cmt`/`©lyr`; the structured `comments`/`lyrics` collections are not interchangeable with those typed fields and are ignored by the MP4 structured writer. On ASF, a semantic custom field is addressed through a native Unicode attribute even though the `customFields` API is keyed like a PropertyMap field.
 
@@ -64,7 +62,7 @@ Column meanings:
 - **Component** suffixes `(number)` and `(total)` identify the two components of a shared native pair. They are not independent native slots.
 
 <!-- BEGIN GENERATED FIELD TABLES -->
-<!-- Generated from MetadataFieldSchema.swift and MetadataMappingCatalog.swift. 101 fields. -->
+<!-- Generated from MetadataFieldSchema.swift and MetadataMappingCatalog.swift. 100 fields. -->
 
 ### Basic and descriptive
 
@@ -98,7 +96,6 @@ Column meanings:
 
 | Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `date` | Recording Date (legacy YEAR spelling) | `YEAR` | `DATE`, `YEAR` | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | legacy alias |
 | `year` | Year | `YEAR` | `YEAR`, `DATE` | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `YEAR` | `WM/Year` | `ICRD` | — |
 | `standaloneDate` | Date | `DATE` | `STANDALONEDATE` | `TDAT (read)` | `TXXX:DATE` | `----:com.apple.iTunes:DATE` | `DATE` | `DATE` | `DATE` | — | — |
 | `releaseDate` | Release Date | `RELEASEDATE` | `RELEASEDATE` | `EXTFRAME:TDRL (read)` | `TDRL` | `----:com.apple.iTunes:RELEASEDATE` | `RELEASEDATE` | `RELEASEDATE` | — | — | — |
@@ -253,7 +250,6 @@ Global typed integer constraints are not a guarantee of native precision for eve
 | `.artist` | `.text`, `.values` | — | — |
 | `.album` | `.text` | — | — |
 | `.albumArtist` | `.text`, `.values` | — | — |
-| `.date` | `.text` | — | — |
 | `.year` | `.text` | — | — |
 | `.standaloneDate` | `.text` | — | — |
 | `.releaseDate` | `.text` | — | — |
@@ -355,7 +351,7 @@ Global typed integer constraints are not a guarantee of native precision for eve
 <!-- END GENERATED PATCH CONTRACT -->
 Role-qualified fields (`performer`, `involvedPeople`, `musicianCredits`) have schemas but are rejected by the typed patch API because their native keys carry a role. Use `RawMetadataPatch` or `StructuredMetadata` for those. `.artwork`, `.custom`, and `.explicitContent` use dedicated `MetadataPatch` properties. `rate` accepts an integer at the schema layer but is read-only for typed writes because no verified native rating type and scale are registered.
 
-The generated `.date`, `.year`, `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` rows describe schema-level kinds and ranges, not a concrete file's editability. Existing ID3v2.3 tags are read-only for independent date writes: typed patches reject before staging and a Basic replacement rejects only when a date changes. Read `StructuredMetadata.id3v2MajorVersion` before presenting that edit. See [Formats](FORMATS.md#dates).
+The generated `.year`, `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` rows describe schema-level kinds and ranges, not a concrete file's editability. Existing ID3v2.3 tags are read-only for independent date writes: typed patches reject before staging and a Basic replacement rejects only when a date changes. Read `StructuredMetadata.id3v2MajorVersion` before presenting that edit. See [Formats](FORMATS.md#dates).
 
 Empty text, empty arrays, and array elements that are empty after trimming are validation errors; `.remove` is the explicit deletion request. Do not use `.text("")` or `.values([])` as an implicit deletion alias.
 
@@ -363,7 +359,7 @@ Empty text, empty arrays, and array elements that are empty after trimming are v
 
 `MetadataFieldRegistry.propertyMapKeyOwners` normalizes every schema's `propertyMapKeys`. When one normalized key has multiple owners, `schema(forPropertyMapKey:)` uses `preferredSharedPropertyMapKeyOwner`; if there is no preferred owner it returns `nil` instead of guessing.
 
-`DATE` and `YEAR` are the shared keys in the current registry. They are owned by the legacy `.date` spelling and the canonical `.year` identity. `.year` is the preferred scalar owner, so a raw `DATE` or `YEAR` lookup resolves to the YEAR schema.
+No public fields currently share a PropertyMap key. Engine `DATE` and `YEAR` resolve to the YEAR schema; independent DATE uses `STANDALONEDATE`. These engine spellings are not native storage targets: use the catalog for native ownership.
 
 The lookup recognizes these qualified prefixes before the general owner table:
 

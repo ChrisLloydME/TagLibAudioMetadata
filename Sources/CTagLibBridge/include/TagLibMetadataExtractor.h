@@ -81,8 +81,8 @@ typedef NS_ENUM(NSInteger, TagLibExplicitAdvisory) {
 /// Exact native advisory code when it is not one of the four semantic states.
 /// Nil means the source is absent or representable without loss.
 @property (nonatomic, copy, nullable) NSString *explicitAdvisoryRawValue;
-/// Compatibility projection. Setting NO means explicitly clean; reading YES means explicit.
-@property (nonatomic, assign) BOOL explicitContent;
+/// Read-only Boolean projection. YES means explicit; use explicitAdvisory for edits.
+@property (nonatomic, readonly) BOOL explicitContent;
 @property (nonatomic, copy, nullable) NSString *copyright;
 @property (nonatomic, copy, nullable) NSString *lyrics;
 @property (nonatomic, copy, nullable) NSString *label;

@@ -3,6 +3,28 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Independent-review fixes
+
+- Verify advisory absence after the final erase stages, fixing false failures for ASF/WMA read aliases. Distinguish unknown raw codes from absence in exact verification.
+- Preserve unchanged unknown advisory owners during Basic edits across native text, ID3 and ASF paths, with native readback checks.
+- Retry failed initial capability-descriptor loads, remove an unused dump parser, correct read-only advisory documentation and document changed registry introspection.
+
+### Breaking API cleanup
+
+- Remove the typed `.date` YEAR alias, obsolete facade read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters/verification expectations, and outdated capability/error aliases. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking).
+- Remove ignored, contradictory native-target hints and old bridge-selector probing. Native mapping contract 2.2, file read aliases, exact preservation and explicit legacy numbering recovery remain supported.
+- Compile production and tests without a deprecation-warning exception.
+
+### Performance and verification
+
+- Reduce discarded transaction-readability projections and reuse same-open-file Xiph/APE property evidence, retaining parser credibility, version guards and complete semantic verification. Add 1/2/4/8-worker durable-write profiles and required preflight regressions.
+
+- Cache immutable format descriptors while retaining per-extension support levels. Use per-read raw/MP4 indexes, including custom-field arrays, and remove a redundant pre-read identity lookup without caching concrete files.
+- Require named cache/lookup preservation regressions in the full gate, retain Unicode/first-owner/array behavior, and add repeatable multi-container warmed Release I/O profiles.
+- Require the checksum-pinned namespaced TagLib framework directly instead of silently accepting a legacy host framework.
+
 ## [0.7.3] - 2026-11-12
 
 ### Fixed

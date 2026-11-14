@@ -102,12 +102,15 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     const bool wantsRawFrames = wantsRaw || explicitlyWantsRawFrames;
 
     bool openedExpectedType = false;
+    bool commonUsesBaseFile = false;
+    TagLib::PropertyMap commonProperties;
     auto applyCommon = [&](TagLib::File *file) {
         ApplyBasicTagMetadata(file->tag(), basic);
-        const TagLib::PropertyMap properties = VisibleMetadataProperties(file);
-        ApplyGenericPropertyMapMetadata(properties, basic);
+        commonUsesBaseFile = file == baseFile;
+        commonProperties = VisibleMetadataProperties(file);
+        ApplyGenericPropertyMapMetadata(commonProperties, basic);
         ApplyAudioPropertiesMetadata(file->audioProperties(), basic);
-        if (wantsPropertyMap) AppendRawPropertyEntries(propertiesOut, properties);
+        if (wantsPropertyMap) AppendRawPropertyEntries(propertiesOut, commonProperties);
     };
 
     if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
@@ -346,7 +349,9 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     if (NativeXiphComment(baseFile) || NativeAPETag(baseFile)) {
         // Tag::year() may derive a four-digit year from native DATE. The
         // low-level model must expose the independent native owners instead.
-        const auto nativeDates = VisibleMetadataProperties(baseFile);
+        // Reuse only evidence from this exact open file. Explicitly selected
+        // Ogg parsers may differ from FileRef; retain their existing fallback.
+        const auto nativeDates = commonUsesBaseFile ? commonProperties : VisibleMetadataProperties(baseFile);
         basic.year = FirstStringFromProperty(nativeDates, { "YEAR" }, true);
         basic.standaloneDate = FirstStringFromProperty(nativeDates, { "DATE" }, true);
     }

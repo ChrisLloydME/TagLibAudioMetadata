@@ -475,11 +475,6 @@ extension TagLibMetadataManager {
         try? readStructuredMetadataResult(from: url)
     }
 
-    @available(*, deprecated, renamed: "bestEffortStructuredMetadata(from:)")
-    public nonisolated static func readStructuredMetadata(from url: URL) -> StructuredMetadata? {
-        bestEffortStructuredMetadata(from: url)
-    }
-
     public nonisolated static func readStructuredMetadataResult(from url: URL) throws -> StructuredMetadata {
         guard regularFileIdentity(at: url) != nil else {
             throw TagLibManagerError.invalidFile
@@ -640,29 +635,6 @@ extension TagLibMetadataManager {
             try throwOnVerificationFailures(verificationFailures)
             return MetadataWriteResult(warnings: warnings)
         }
-    }
-
-    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
-    @discardableResult
-    public nonisolated static func writeStructuredMetadataWithVerification(
-        _ metadata: StructuredMetadata,
-        to url: URL,
-        riffPolicy: RIFFMetadataWritePolicy = .preserveInfo,
-        includeProperties: Bool = false,
-        replacingCollections: Set<StructuredMetadataReplaceableCollection> = [],
-        verifyAfterWrite: Bool = true,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy
-    ) throws -> MetadataWriteResult {
-        try writeStructuredMetadataWithVerification(
-            metadata,
-            to: url,
-            riffPolicy: riffPolicy,
-            includeProperties: includeProperties,
-            replacingCollections: replacingCollections,
-            verifyAfterWrite: verifyAfterWrite,
-            expectedVersion: expectedVersion
-        )
     }
 
 }

@@ -74,40 +74,20 @@ struct MappingContractCoverageTests {
         #expect(!disc.nativeTargets.contains { $0.nativeIdentity.uppercased().contains("TOTALDISCS") })
     }
 
-    @Test func yearAndDateRepresentationsAreMutuallyExclusive() throws {
-        let source = try #require(
-            Bundle.module.url(forResource: "testAudioFile", withExtension: "m4a", subdirectory: "Audio")
-                ?? Bundle.module.url(forResource: "testAudioFile", withExtension: "m4a")
-        )
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("m4a")
-        try FileManager.default.copyItem(at: source, to: url)
-        defer { try? FileManager.default.removeItem(at: url) }
-        let original = try Data(contentsOf: url)
-
-        #expect(throws: MetadataPatchValidationError.self) {
-            try TagLibMetadataManager.applyMetadataPatch(
-                MetadataPatch(fields: [
-                    .date: .text("2021"),
-                    .year: .text("2021"),
-                ]),
-                to: url
-            )
-        }
-        #expect(try Data(contentsOf: url) == original)
-
+    @Test func yearAndDateHaveUniquePublicIdentities() throws {
+        #expect(MetadataFieldKey(rawValue: "date") == nil, "Removed YEAR alias must not silently change meaning")
         let year = try #require(MetadataFieldRegistry.schema(for: .year))
-        let legacy = try #require(MetadataFieldRegistry.schema(for: .date))
-        #expect(year.isCanonicalSemanticOwner)
-        #expect(!legacy.isCanonicalSemanticOwner)
-        #expect(year.semanticKey == legacy.semanticKey)
+        let date = try #require(MetadataFieldRegistry.schema(for: .standaloneDate))
+        #expect(year.semanticKey == "YEAR")
+        #expect(date.semanticKey == "DATE")
+        #expect(year.isCanonicalSemanticOwner && date.isCanonicalSemanticOwner)
         #expect(MetadataFieldRegistry.canonicalSchema(forSemanticKey: "YEAR")?.key == .year)
+        #expect(MetadataFieldRegistry.canonicalSchema(forSemanticKey: "DATE")?.key == .standaloneDate)
     }
 
     @Test func everyFieldHasOneSchemaAndOneCanonicalSemanticOwner() {
         #expect(MetadataFieldRegistry.allSchemas.count == MetadataFieldKey.allCases.count)
-        #expect(MetadataFieldRegistry.canonicalSchemas.count == MetadataFieldKey.allCases.count - 1)
+        #expect(MetadataFieldRegistry.canonicalSchemas.count == MetadataFieldKey.allCases.count)
         #expect(MetadataMappingCatalog.semanticKeys.count == 100)
         #expect(
             Set(MetadataFieldRegistry.canonicalSchemas.map(\.semanticKey)).count

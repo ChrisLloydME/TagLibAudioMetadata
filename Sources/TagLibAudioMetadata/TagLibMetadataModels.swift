@@ -219,13 +219,8 @@ public struct BasicMetadata: Sendable {
     public var tvSeason: Int
     public var tvShow: String
     public var tvShowSort: String
-    /// Lossy compatibility convenience. Setting `false` records a clean advisory;
-    /// use `explicitAdvisory` to distinguish absence, not-explicit, and clean.
-    public var isExplicit: Bool {
-        get { explicitAdvisory == .explicit }
-        @available(*, deprecated, message: "Assign explicitAdvisory so unspecified, not-explicit, and clean remain distinct.")
-        set { explicitAdvisory = newValue ? .explicit : .clean }
-    }
+    /// Read-only projection. Mutations use the four-state explicitAdvisory.
+    public var isExplicit: Bool { explicitAdvisory == .explicit }
     public var duration: Double
     public var bitrate: Int
     public var sampleRate: Double
@@ -721,11 +716,9 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
     case hardLinkedFile
     case unsupportedFormat
     case unsupportedWritePolicy(String)
-    @available(*, deprecated, message: "Use failedToReadWithUnderlying(_:) for throwing read failures.")
-    case failedToRead
     case failedToReadWithUnderlying(String)
     case verificationFailed([String])
-    /// Compatibility case for callers constructing a message-only failure.
+    /// Operation failure described by a caller-supplied message.
     case operationFailed(String)
     /// A pre-commit native or filesystem failure, retaining domain, code, and
     /// nested causes for recovery decisions.
@@ -746,7 +739,6 @@ public enum TagLibManagerError: Error, Sendable, LocalizedError {
         case .hardLinkedFile: "Atomic metadata replacement would split a hard-linked file. No metadata was committed."
         case .unsupportedFormat: "This audio format does not support the requested operation."
         case .unsupportedWritePolicy(let detail): "The requested metadata write policy is unsupported: \(detail)"
-        case .failedToRead: "The audio metadata could not be read."
         case .failedToReadWithUnderlying(let detail): "The audio metadata could not be read: \(detail)"
         case .verificationFailed(let details): "Metadata verification failed before commit: \(details.joined(separator: "; "))"
         case .operationFailed(let detail): "The metadata operation failed: \(detail)"

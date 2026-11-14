@@ -61,7 +61,7 @@ try TagLibMetadataManager.applyRawMetadataPatch(
 
 Both guarded overloads require non-optional guards. They hash the staged copy before mutating it, under the same-entry transaction coordinator. Mismatches throw `MetadataAudioContentError.changed`; unavailable layouts throw `MetadataAudioContentError.unavailable`. Neither failure publishes the staged copy. The original exact-version checks before staging and immediately before commit remain in force.
 
-Empty patches remain no-ops and do not validate audio or version guards. Other write surfaces (Basic replacement, whole-map raw replacement, structured writes, and public bridge writes) have no audio guard; use the typed or raw delta overloads for rebasing. The deprecated typed `applyMetadataPatch(_:to:expectedVersion:failurePolicy:)` overload forwards to the unguarded path and cannot check `expectedAudioContent`.
+Empty patches remain no-ops and do not validate audio or version guards. Other write surfaces (Basic replacement, whole-map raw replacement, structured writes, and public bridge writes) have no audio guard; use the typed or raw delta overloads for rebasing. The obsolete `failurePolicy` overloads have been removed; use the current signature with `expectedAudioContent` when rebasing.
 
 Never retry a conflict by dropping a guard. An explicit reload discards or reviews the old draft and establishes a new baseline. Run synchronous reads and writes away from latency-sensitive UI work using the application's concurrency architecture.
 

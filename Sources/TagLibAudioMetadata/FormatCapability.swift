@@ -17,8 +17,6 @@ public enum FormatSupportLevel: String, Hashable, Sendable {
     /// The repository includes a fixture and regression tests for this extension.
     /// This does not assert that all metadata surfaces or files are verified.
     case fixtureCovered
-    @available(*, deprecated, message: "Use fixtureCovered. A configured support label is not empirical verification.")
-    case verified
     /// Available for evaluation, but container-specific field behavior is incomplete.
     case experimental
     /// TagLib exposes the operation, but this package has no round-trip fixture for it.
@@ -155,23 +153,47 @@ public struct FormatCapability: Hashable, Sendable, Identifiable {
     }
 }
 
+// These are build-time descriptors, not evidence about any concrete file.
+// Swift static initialization is synchronized; callers receive value copies.
+private enum DeclaredFormatCapabilities {
+    nonisolated static let families: [FormatCapability] =
+        TagLibMetadataExtractor.formatCapabilities().compactMap(FormatCapability.init(bridgeDictionary:))
+
+    nonisolated static let byExtension: [String: FormatCapability] = {
+        var result: [String: FormatCapability] = [:]
+        for family in families {
+            for fileExtension in family.extensions {
+                // Alias extensions can have a different coverage level from
+                // their family's primary extension. Retain the exact descriptor.
+                if let dictionary = TagLibMetadataExtractor.formatCapability(for: fileExtension),
+                   let capability = FormatCapability(bridgeDictionary: dictionary) {
+                    result[fileExtension.lowercased()] = capability
+                }
+            }
+        }
+        return result
+    }()
+}
+
 public extension TagLibMetadataManager {
     nonisolated static var formatCapabilities: [FormatCapability] {
-        TagLibMetadataExtractor.formatCapabilities().compactMap(FormatCapability.init(bridgeDictionary:))
+        let cached = DeclaredFormatCapabilities.families
+        // An exceptional bridge failure must not become a permanent empty
+        // capability universe. Valid descriptors retain the immutable fast path.
+        return cached.isEmpty
+            ? TagLibMetadataExtractor.formatCapabilities().compactMap(FormatCapability.init(bridgeDictionary:))
+            : cached
     }
 
     /// Returns declared capability for an extension. This does not inspect a file.
     nonisolated static func capability(forExtension fileExtension: String) -> FormatCapability? {
-        guard let dictionary = TagLibMetadataExtractor.formatCapability(for: fileExtension) else {
-            return nil
-        }
+        if let cached = DeclaredFormatCapabilities.byExtension[fileExtension.lowercased()] { return cached }
+        // Includes a transiently failed initial descriptor load; unknown inputs
+        // still use the bridge's normal nil result, without caching that failure.
+        guard let dictionary = TagLibMetadataExtractor.formatCapability(for: fileExtension) else { return nil }
         return FormatCapability(bridgeDictionary: dictionary)
     }
 
-    @available(*, deprecated, renamed: "capability(forExtension:)")
-    nonisolated static func formatCapability(for fileExtension: String) -> FormatCapability? {
-        capability(forExtension: fileExtension)
-    }
 
     /// Opens and reads a concrete file before returning its extension capability.
     ///

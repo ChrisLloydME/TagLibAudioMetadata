@@ -51,8 +51,8 @@ A registered location never proves round-trip behavior. Native codec tests, veri
 YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent stored fields and independent edit intents. No field is synthesized from, reconciled with, truncated to, or automatically cleared because another changes.
 
 - `.year` is the canonical YEAR identity.
-- `.date` is a legacy YEAR-slot spelling retained for source compatibility. It writes the same native target as `.year`; supplying both in one `MetadataPatch` throws `MetadataPatchValidationError.conflictingYearRepresentations`.
-- `.standaloneDate` is the independent DATE identity. `BasicMetadata.date` carries this standalone DATE projection; it is not the typed `.date` legacy YEAR alias.
+- The typed `.date` YEAR alias is removed in the unreleased API. Use `.year` for YEAR; the old serialized `date` field key is rejected rather than reinterpreted.
+- `.standaloneDate` is the independent DATE identity. `BasicMetadata.date` carries this standalone DATE projection.
 - `.releaseDate` is RELEASEDATE.
 - `.originalReleaseDate` is ORIGINALDATE.
 

@@ -186,6 +186,15 @@ static bool SameTagLibFileVersion(const struct stat &lhs, const struct stat &rhs
         lhs.st_ctimespec.tv_nsec == rhs.st_ctimespec.tv_nsec;
 }
 
+// Same parser and accurate-audio validity policy as full extraction, without
+// constructing discarded raw frame and structured collections.
+static BOOL ValidateTagLibAudioFile(NSURL *fileURL, NSError **error)
+{
+    NSDictionary *projections = [TagLibMetadataExtractor metadataProjectionsForURL:fileURL
+        options:TagLibMetadataExtractionOptionBasic error:error];
+    return [projections[@"basic"] isKindOfClass:[TagLibAudioMetadata class]];
+}
+
 static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
                                                       NSError * _Nullable * _Nullable error,
                                                       NSString *operation,
@@ -245,7 +254,7 @@ static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
     }
 
     NSError *validationError = nil;
-    if (![TagLibMetadataExtractor extractMetadataFromURL:targetURL error:&validationError]) {
+    if (!ValidateTagLibAudioFile(targetURL, &validationError)) {
         if (error) {
             NSMutableDictionary *userInfo = [@{
                 NSLocalizedDescriptionKey : @"The metadata destination is not a readable, valid audio file",
@@ -318,7 +327,7 @@ static BOOL PerformAtomicTagLibMutationUncoordinated(NSURL * _Nullable fileURL,
     }
 
     NSError *postMutationValidationError = nil;
-    if (![TagLibMetadataExtractor extractMetadataFromURL:temporaryURL error:&postMutationValidationError]) {
+    if (!ValidateTagLibAudioFile(temporaryURL, &postMutationValidationError)) {
         [fileManager removeItemAtURL:temporaryURL error:nil];
         if (error) {
             NSMutableDictionary *userInfo = [@{

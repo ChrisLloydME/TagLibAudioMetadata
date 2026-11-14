@@ -172,7 +172,6 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
     case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
     case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
     case ambiguousNumberRecovery(field: String, identities: [String])
-    case conflictingYearRepresentations
 
     public var errorDescription: String? {
         switch self {
@@ -207,8 +206,6 @@ public enum MetadataPatchValidationError: Error, Equatable, Sendable, LocalizedE
             return "\(field.rawValue) requires a positive number when its paired total is present for \(format); set the number or remove both components."
         case .ambiguousNumberRecovery(let field, let identities):
             return "\(field) has ambiguous legacy numbering recovery; resolve the exact identities explicitly: \(identities.joined(separator: ", "))."
-        case .conflictingYearRepresentations:
-            return "Use either the deprecated .date YEAR spelling or .year in one patch, not both."
         }
     }
 }
@@ -299,9 +296,6 @@ extension TagLibMetadataManager {
     }
 
     nonisolated private static func validate(_ patch: MetadataPatch) throws -> ValidatedMetadataPatch {
-        if patch.fields[.date] != nil && patch.fields[.year] != nil {
-            throw MetadataPatchValidationError.conflictingYearRepresentations
-        }
         var normalizedFields: [MetadataFieldKey: MetadataPatchValue] = [:]
         for (field, value) in patch.fields {
             guard field != .artwork, field != .custom, field != .explicitContent,
@@ -482,7 +476,7 @@ extension TagLibMetadataManager {
             let before = try readSnapshot(from: mutationURL)
             if before.structured.id3v2MajorVersion == 3,
                let field = validatedPatch.fields.keys.first(where: {
-                   [.year, .date, .standaloneDate, .releaseDate, .originalReleaseDate].contains($0)
+                   [.year, .standaloneDate, .releaseDate, .originalReleaseDate].contains($0)
                }) {
                 throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
             }
@@ -784,7 +778,7 @@ extension TagLibMetadataManager {
             // Engine DATE can project YEAR or standalone DATE depending on tag
             // contents. Native ownership is verified below, so that projection
             // must not make an independent DATE removal fail spuriously.
-            if validatedPatch.fields[.year] != nil || validatedPatch.fields[.date] != nil
+            if validatedPatch.fields[.year] != nil
                 || validatedPatch.fields[.standaloneDate] != nil {
                 intentionallyChangedKeys.insert("DATE")
             }
@@ -826,7 +820,6 @@ extension TagLibMetadataManager {
                 for (field, key) in [(MetadataFieldKey.year, "YEAR"), (.standaloneDate, "DATE"),
                                      (.releaseDate, "RELEASEDATE"), (.originalReleaseDate, "ORIGINALDATE")] {
                     let changed = validatedPatch.fields[field] != nil
-                        || (field == .year && validatedPatch.fields[.date] != nil)
                     guard !changed else { continue }
                     let old = before.structured.properties.filter { $0.key.uppercased() == key }
                     let new = afterStructured.properties.filter { $0.key.uppercased() == key }
@@ -841,7 +834,6 @@ extension TagLibMetadataManager {
                 + (identifier == "mp4" ? [.movementNumber, .movementCount] : [])
             for field in independentNativeFields {
                 guard validatedPatch.fields[field] == nil,
-                      !(field == .year && validatedPatch.fields[.date] != nil),
                       let schema = MetadataFieldRegistry.schema(for: field) else { continue }
                 if identifier == "mp4" {
                     let keys = Set(schema.targets(for: .mp4).map { target in
@@ -960,8 +952,7 @@ extension TagLibMetadataManager {
                             }?.values ?? []
                     }
                 }
-                if field != .date,
-                   MetadataFieldRegistry.schema(for: field)?.acceptedPatchValueKinds.contains(.text) == true,
+                if MetadataFieldRegistry.schema(for: field)?.acceptedPatchValueKinds.contains(.text) == true,
                    let semantic = basicProjectionValue(for: field, metadata: afterBasic) {
                     switch value {
                     case .text(let expected) where semantic != expected:
@@ -1042,14 +1033,5 @@ extension TagLibMetadataManager {
         }
     }
 
-    @available(*, deprecated, message: "Verification mismatches always throw. Omit failurePolicy.")
-    @discardableResult
-    public nonisolated static func applyMetadataPatch(
-        _ patch: MetadataPatch,
-        to url: URL,
-        expectedVersion: MetadataFileVersion? = nil,
-        failurePolicy: VerificationFailurePolicy
-    ) throws -> MetadataWriteResult {
-        try applyMetadataPatch(patch, to: url, expectedVersion: expectedVersion)
-    }
+
 }

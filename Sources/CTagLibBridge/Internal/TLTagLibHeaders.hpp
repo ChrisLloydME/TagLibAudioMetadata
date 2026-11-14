@@ -4,15 +4,10 @@
 #include <memory>
 #include <vector>
 
-// The public package currently consumes the legacy TagLib.framework release,
-// while the next binary revision uses a namespaced framework to avoid host-app
-// collisions. Keep the bridge source compatible with both binary layouts
-// during that migration.
-#if __has_include(<TagLibAudioMetadataTagLib/taglib.h>)
+// Package.swift pins the namespaced TagLib 2.3.1-r2 binary. Do not silently
+// compile against an unrelated legacy framework from the host application's
+// search paths.
 #define TL_TAGLIB_HEADER(name) <TagLibAudioMetadataTagLib/name>
-#else
-#define TL_TAGLIB_HEADER(name) <TagLib/name>
-#endif
 
 #include TL_TAGLIB_HEADER(fileref.h)
 #include TL_TAGLIB_HEADER(tag.h)

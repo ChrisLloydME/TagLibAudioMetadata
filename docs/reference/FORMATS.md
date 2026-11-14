@@ -102,14 +102,13 @@ The registry contains 22 families and 37 extensions. R/W means a declared save p
 | Semantic field | ID3v2.3 | ID3v2.4 | MP4 | Xiph/APE | ASF | RIFF INFO |
 | --- | --- | --- | --- | --- | --- | --- |
 | `.year` (canonical YEAR) | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `WM/Year` | `ICRD` |
-| `.date` (legacy YEAR spelling) | `TYER (read)` | `TDRC` | `©day` | `YEAR` | `WM/Year` | `ICRD` |
 | `.standaloneDate` | `TDAT (read)` | `TXXX(DATE)` | `DATE` freeform | `DATE` | `DATE` extension | — |
 | `.releaseDate` | `EXTFRAME(TDRL) (read)` | `TDRL` | `RELEASEDATE` freeform | `RELEASEDATE` | — | — |
 | `.originalReleaseDate` | `TORY` (read; year only) | `TDOR` | `ORIGINALDATE` freeform | `ORIGINALDATE` | `WM/OriginalReleaseYear` | — |
 
 YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent. `BasicMetadata.year` is complete stored text, not a four-character projection. MP4 `©day` is the YEAR slot; a release date lives in the `RELEASEDATE` freeform, never `©day`. Changing or clearing one date field never rewrites another. `MetadataValidationError.conflictingMP4Date` remains only for source compatibility and is not thrown by current writers.
 
-`.date` writes the same YEAR targets as `.year` where that target is writable; it is a legacy API spelling, not a standalone DATE and not an `@available`-deprecated enum case. Do not supply both in one patch. Existing ID3v2.3 tags are read-only for all independent date writes: typed patches reject before staging, and a Basic replacement rejects when a date value changes. Read `StructuredMetadata.id3v2MajorVersion` before presenting date editability for a concrete file; an extension-level ID3v2 capability may reflect the verified v2.4 codec. RIFF INFO has no native DATE key; WAV and AIFF/AIFF-C can still write `.standaloneDate` through their ID3v2 surface, but the value is not stored in INFO.
+The ambiguous typed `.date` YEAR alias has been removed; use `.year` or `.standaloneDate` explicitly. Existing ID3v2.3 tags are read-only for all independent date writes: typed patches reject before staging, and a Basic replacement rejects when a date value changes. Read `StructuredMetadata.id3v2MajorVersion` before presenting date editability for a concrete file; an extension-level ID3v2 capability may reflect the verified v2.4 codec. RIFF INFO has no native DATE key; WAV and AIFF/AIFF-C can still write `.standaloneDate` through their ID3v2 surface, but the value is not stored in INFO.
 
 ### Advisory
 

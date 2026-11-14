@@ -172,46 +172,11 @@ extension TagLibMetadataManager {
         return RawMetadataDump(properties: properties, id3v2Frames: id3v2Frames)
     }
 
-    /// Return a single plain-text dump of metadata as TagLib sees it.
-    ///
-    /// Preferred path: call the ObjC++ bridge API directly (Swift `throws`).
-    /// Fallback path: attempt older single-argument selector names via `perform` for compatibility.
+    /// The facade and bundled bridge use one compile-time API contract.
     nonisolated static func bridgeTextDumpIfAvailable(for url: URL) -> String? {
-        // Newer bridge (preferred): `dumpMetadataText(from:)` is exposed as a Swift-throwing method.
-        if let text = try? TagLibMetadataExtractor.dumpMetadataText(from: url) {
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty { return trimmed }
-        }
-
-        // Older bridge variants: try a small set of single-argument selector names at runtime.
-        let candidates = [
-            "rawMetadataTextFor:",
-            "rawMetadataTextForURL:",
-            "dumpMetadataTextFor:",
-            "dumpMetadataTextFrom:",
-            "dumpMetadataTextFromURL:",
-            "dumpMetadataTextForURL:"
-        ]
-
-        for name in candidates {
-            let sel = NSSelectorFromString(name)
-            guard TagLibMetadataExtractor.responds(to: sel) else { continue }
-
-            // perform(_:with:) only supports single-argument selectors.
-            if let unmanaged = TagLibMetadataExtractor.perform(sel, with: url) {
-                let any = unmanaged.takeUnretainedValue()
-                if let s = any as? String {
-                    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty { return trimmed }
-                }
-                if let s = any as? NSString {
-                    let trimmed = (s as String).trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty { return trimmed }
-                }
-            }
-        }
-
-        return nil
+        guard let text = try? TagLibMetadataExtractor.dumpMetadataText(from: url) else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     nonisolated static func basicMetadata(
@@ -220,13 +185,24 @@ extension TagLibMetadataManager {
         fileExtension: String? = nil,
         structured: StructuredMetadata = StructuredMetadata()
     ) -> BasicMetadata {
+        // Most native keys are ASCII. Index that common case once per read
+        // rather than repeatedly performing Foundation comparisons over every
+        // custom field. Keep the original comparison for Unicode keys, whose
+        // case-insensitive equivalence is broader than uppercased equality.
+        let rawKeysAreASCII = rawDump.properties.allSatisfy { $0.key.utf8.allSatisfy { $0 < 128 } }
+        let rawByKey: [String: RawPropertyEntry] = rawKeysAreASCII
+            ? Dictionary(rawDump.properties.map { ($0.key.uppercased(), $0) }, uniquingKeysWith: { first, _ in first })
+            : [:]
+        let mp4ByKey = Dictionary(structured.mp4Atoms.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+        func rawEntry(for key: String) -> RawPropertyEntry? {
+            if rawKeysAreASCII && key.utf8.allSatisfy({ $0 < 128 }) {
+                return rawByKey[key.uppercased()]
+            }
+            return rawDump.properties.first { $0.key.caseInsensitiveCompare(key) == .orderedSame }
+        }
         func firstRawValue(for keys: [String]) -> String? {
             for key in keys {
-                if let value = rawDump.properties.first(where: {
-                    $0.key.caseInsensitiveCompare(key) == .orderedSame
-                })?.values.first {
-                    return value
-                }
+                if let value = rawEntry(for: key)?.values.first { return value }
             }
             return nil
         }
@@ -275,7 +251,7 @@ extension TagLibMetadataManager {
         }
 
         func mp4Text(_ key: String) -> String? {
-            guard let atom = structured.mp4Atoms.first(where: { $0.key == key }) else { return nil }
+            guard let atom = mp4ByKey[key] else { return nil }
             if !atom.values.isEmpty {
                 return nonEmpty(atom.values.joined(separator: "; "))
             }
@@ -283,17 +259,17 @@ extension TagLibMetadataManager {
         }
 
         func mp4TextList(_ key: String) -> [String] {
-            structured.mp4Atoms.first(where: { $0.key == key })?.values ?? []
+            mp4ByKey[key]?.values ?? []
         }
 
         func mp4Integer(_ key: String) -> Int? {
-            guard let atom = structured.mp4Atoms.first(where: { $0.key == key }) else { return nil }
+            guard let atom = mp4ByKey[key] else { return nil }
             if let first = atom.first, atom.type == "intPair" { return first }
             return Int(atom.value)
         }
 
         func mp4Bool(_ key: String) -> Bool? {
-            guard let atom = structured.mp4Atoms.first(where: { $0.key == key }) else { return nil }
+            guard let atom = mp4ByKey[key] else { return nil }
             switch atom.value.lowercased() {
             case "1", "true": return true
             case "0", "false": return false
@@ -475,9 +451,7 @@ extension TagLibMetadataManager {
         }
         let customFields = meta.customFields ?? [:]
         let customFieldValues = customFields.reduce(into: [String: [String]]()) { result, field in
-            let rawValues = rawDump.properties.first {
-                $0.key.caseInsensitiveCompare(field.key) == .orderedSame
-            }?.values ?? []
+            let rawValues = rawEntry(for: field.key)?.values ?? []
             result[field.key] = rawValues.isEmpty ? [field.value] : rawValues
         }
         var originalStandardFieldValues: [String: [String]] = [:]
@@ -548,9 +522,7 @@ extension TagLibMetadataManager {
             subtitle: meta.subtitle ?? "",
             grouping: grouping ?? "",
             contentGroup: contentGroup ?? "",
-            artists: asfArtists ?? rawDump.properties.first {
-                $0.key.caseInsensitiveCompare("ARTISTS") == .orderedSame
-            }?.values.joined(separator: "; ") ?? "",
+            artists: asfArtists ?? rawEntry(for: "ARTISTS")?.values.joined(separator: "; ") ?? "",
             movement: meta.movement ?? "",
             mood: meta.mood ?? "",
             language: meta.language ?? "",
@@ -625,6 +597,21 @@ extension TagLibMetadataManager {
         )
     }
 
+    /// A transaction validity check needs the same parser/audio credibility
+    /// result, not the raw/frame/Swift projections used for semantic reads.
+    nonisolated static func validateReadableAudioFile(at url: URL) throws {
+        guard let identity = regularFileIdentity(at: url) else {
+            throw TagLibManagerError.invalidFile
+        }
+        let projections = try bridgeMetadataProjectionDictionary(from: url, options: .basic)
+        guard projections["basic"] is TagLibAudioMetadata else {
+            throw TagLibManagerError.failedToReadWithUnderlying("The bridge returned no Basic readability evidence.")
+        }
+        guard identity.hasSameReadableContents(as: regularFileIdentity(at: url)) else {
+            throw TagLibManagerError.failedToReadWithUnderlying("The audio file changed while readability was being checked.")
+        }
+    }
+
     nonisolated static func readBasicMetadataAndRaw(
         from url: URL
     ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump) {
@@ -635,10 +622,9 @@ extension TagLibMetadataManager {
     nonisolated static func readBasicMetadataRawAndStructured(
         from url: URL
     ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata) {
-        guard regularFileIdentity(at: url) != nil else {
+        guard let identityBeforeRead = regularFileIdentity(at: url) else {
             throw TagLibManagerError.invalidFile
         }
-        let identityBeforeRead = regularFileIdentity(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: .all)
         guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
               let bridgeRaw = projections["raw"] as? [String: NSObject] else {
@@ -646,7 +632,7 @@ extension TagLibMetadataManager {
                 "The bridge returned an incomplete Basic metadata projection set."
             )
         }
-        guard identityBeforeRead?.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
+        guard identityBeforeRead.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while metadata was being read."
             )
@@ -719,11 +705,6 @@ extension TagLibMetadataManager {
         try? readMetadataResult(from: url)
     }
 
-    @available(*, deprecated, renamed: "bestEffortMetadata(from:)")
-    public nonisolated static func readMetadata(from url: URL) -> BasicMetadata? {
-        bestEffortMetadata(from: url)
-    }
-
     // MARK: - Write / Erase
 
     @discardableResult
@@ -731,23 +712,17 @@ extension TagLibMetadataManager {
         try? rawMetadataResult(from: url)
     }
 
-    @available(*, deprecated, renamed: "bestEffortRawMetadata(from:)")
-    public nonisolated static func rawMetadata(from url: URL) -> RawMetadataDump? {
-        bestEffortRawMetadata(from: url)
-    }
-
     public nonisolated static func rawMetadataResult(from url: URL) throws -> RawMetadataDump {
-        guard regularFileIdentity(at: url) != nil else {
+        guard let identityBeforeRead = regularFileIdentity(at: url) else {
             throw TagLibManagerError.invalidFile
         }
-        let identityBeforeRead = regularFileIdentity(at: url)
         let projections = try bridgeMetadataProjectionDictionary(from: url, options: .raw)
         guard let bridgeRaw = projections["raw"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The bridge returned an incomplete raw metadata projection set."
             )
         }
-        guard identityBeforeRead?.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
+        guard identityBeforeRead.hasSameReadableContents(as: regularFileIdentity(at: url)) == true else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while raw metadata was being read."
             )
@@ -823,8 +798,5 @@ extension TagLibMetadataManager {
         return lines.joined(separator: "\n")
     }
 
-    @available(*, deprecated, renamed: "bestEffortRawMetadataText(from:)")
-    public nonisolated static func rawMetadataText(from url: URL) -> String? {
-        bestEffortRawMetadataText(from: url)
-    }
+
 }
