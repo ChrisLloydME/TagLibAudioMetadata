@@ -261,3 +261,9 @@ Preservation and verification happen on a sibling staging copy. The destination 
 - [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent matrices and coverage limits.
 - [Testing](../operations/TESTING.md) — commands, gate policy, and evidence interpretation.
 - [Migration](../operations/MIGRATION.md) — release-specific ownership and bounds changes.
+
+## Advisory absence and unknown-code preservation
+
+Known advisory values 0/1/2, absence, and unknown raw codes remain distinct. An exact `.unspecified` verification expectation requires `explicitAdvisoryRawValue == nil`; supplying `expectedExplicitAdvisoryRawValue` instead requests exact unknown-code preservation. Basic automatically carries the existing unknown code into verification. Unchanged unknown ASF attributes, ID3 user-text frames and Xiph/APE values are restored through their native owners; their `.unspecified` enum projection does not authorize deletion. MP4 retains its existing native-atom preservation.
+
+Erase checks the final staged state after Basic clearing, raw clearing and native wipe. Transient aliases that will be removed later must not cause a false failure. Native ASF residual attributes and raw residual fields remain checked before commit; stale versions and all existing atomic/durability guards remain active.

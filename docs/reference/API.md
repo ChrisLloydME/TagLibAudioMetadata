@@ -15,24 +15,24 @@
 | [`bestEffortRawMetadata`](#besteffortrawmetadata) | — | [TagLibMetadataManager+Read.swift:710](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L710) |
 | [`bestEffortRawMetadataText`](#besteffortrawmetadatatext) | — | [TagLibMetadataManager+Read.swift:739](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L739) |
 | [`bestEffortStructuredMetadata`](#besteffortstructuredmetadata) | — | [TagLibMetadataManager+Structured.swift:474](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift#L474) |
-| [`capability`](#capability) | — | [FormatCapability.swift:184](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L184) |
-| [`eraseAllMetadata`](#eraseallmetadata) | — | [TagLibMetadataManager+Write.swift:1147](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1147) |
+| [`capability`](#capability) | — | [FormatCapability.swift:189](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L189) |
+| [`eraseAllMetadata`](#eraseallmetadata) | — | [TagLibMetadataManager+Write.swift:1153](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1153) |
 | [`eraseAllMetadataWithVerification`](#eraseallmetadatawithverification) | — | [TagLibMetadataManager+Write.swift:517](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L517) |
 | [`fileVersion`](#fileversion) | — | [MetadataSnapshotPatch.swift:286](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L286) |
-| [`formatSupportLevel`](#formatsupportlevel) | — | [FormatCapability.swift:205](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L205) |
-| [`isReadableExtension`](#isreadableextension) | — | [TagLibMetadataManager.swift:485](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L485) |
-| [`isWritableExtension`](#iswritableextension) | — | [TagLibMetadataManager.swift:489](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L489) |
+| [`formatSupportLevel`](#formatsupportlevel) | — | [FormatCapability.swift:214](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L214) |
+| [`isReadableExtension`](#isreadableextension) | — | [TagLibMetadataManager.swift:491](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L491) |
+| [`isWritableExtension`](#iswritableextension) | — | [TagLibMetadataManager.swift:495](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L495) |
 | [`numberingInventory`](#numberinginventory) | — | [MetadataNumberInventory.swift:263](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L263) |
 | [`planNumberNormalization`](#plannumbernormalization) | — | [MetadataNumberInventory.swift:397](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L397) |
-| [`probeFile`](#probefile) | — | [FormatCapability.swift:197](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L197) |
+| [`probeFile`](#probefile) | — | [FormatCapability.swift:206](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L206) |
 | [`rawMetadataResult`](#rawmetadataresult) | — | [TagLibMetadataManager+Read.swift:715](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L715) |
 | [`readBasicSnapshot`](#readbasicsnapshot) | — | [TagLibMetadataManager+Read.swift:662](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L662) |
 | [`readMetadataResult`](#readmetadataresult) | — | [TagLibMetadataManager+Read.swift:656](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L656) |
 | [`readSnapshot`](#readsnapshot) | — | [MetadataSnapshotPatch.swift:362](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L362) |
 | [`readStructuredMetadataResult`](#readstructuredmetadataresult) | — | [TagLibMetadataManager+Structured.swift:478](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift#L478) |
-| [`replaceBasicMetadata`](#replacebasicmetadata) | — | [TagLibMetadataManager+Write.swift:631](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L631) |
-| [`updateBasicMetadata`](#updatebasicmetadata) | — | [TagLibMetadataManager+Write.swift:1107](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1107) |
-| [`writeRawMetadataPropertyMap`](#writerawmetadatapropertymap) | — | [TagLibMetadataManager+Write.swift:1122](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1122) |
+| [`replaceBasicMetadata`](#replacebasicmetadata) | — | [TagLibMetadataManager+Write.swift:633](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L633) |
+| [`updateBasicMetadata`](#updatebasicmetadata) | — | [TagLibMetadataManager+Write.swift:1113](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1113) |
+| [`writeRawMetadataPropertyMap`](#writerawmetadatapropertymap) | — | [TagLibMetadataManager+Write.swift:1128](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1128) |
 | [`writeRawMetadataPropertyMapValuesWithVerification`](#writerawmetadatapropertymapvalueswithverification) | — | [TagLibMetadataManager+Write.swift:401](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L401) |
 | [`writeRawMetadataPropertyMapWithVerification`](#writerawmetadatapropertymapwithverification) | — | [TagLibMetadataManager+Write.swift:341](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L341) |
 | [`writeStructuredMetadataWithVerification`](#writestructuredmetadatawithverification) | — | [TagLibMetadataManager+Structured.swift:583](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Structured.swift#L583) |
@@ -183,7 +183,7 @@ func capability(
 
 > Returns declared capability for an extension. This does not inspect a file.
 
-Source: [FormatCapability.swift:184](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L184)
+Source: [FormatCapability.swift:189](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L189)
 
 ## `eraseAllMetadata`
 
@@ -200,7 +200,7 @@ func eraseAllMetadata(
 > Implementation strategy: write an empty `TagLibAudioMetadata` object.
 > This should clear the common tag fields and reset numeric fields to 0.
 
-Source: [TagLibMetadataManager+Write.swift:1147](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1147)
+Source: [TagLibMetadataManager+Write.swift:1153](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1153)
 
 ## `eraseAllMetadataWithVerification`
 
@@ -239,7 +239,7 @@ func formatSupportLevel(
 ) -> FormatSupportLevel
 ```
 
-Source: [FormatCapability.swift:205](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L205)
+Source: [FormatCapability.swift:214](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L214)
 
 ## `isReadableExtension`
 
@@ -251,7 +251,7 @@ func isReadableExtension(
 ) -> Bool
 ```
 
-Source: [TagLibMetadataManager.swift:485](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L485)
+Source: [TagLibMetadataManager.swift:491](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L491)
 
 ## `isWritableExtension`
 
@@ -263,7 +263,7 @@ func isWritableExtension(
 ) -> Bool
 ```
 
-Source: [TagLibMetadataManager.swift:489](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L489)
+Source: [TagLibMetadataManager.swift:495](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L495)
 
 ## `numberingInventory`
 
@@ -310,7 +310,7 @@ func probeFile(
 > permission, ACLs, disk space, or sandbox access; attempt a write or check
 > those separately when an editability decision depends on them.
 
-Source: [FormatCapability.swift:197](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L197)
+Source: [FormatCapability.swift:206](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L206)
 
 ## `rawMetadataResult`
 
@@ -417,7 +417,7 @@ func replaceBasicMetadata(
 ) throws -> MetadataWriteResult
 ```
 
-Source: [TagLibMetadataManager+Write.swift:631](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L631)
+Source: [TagLibMetadataManager+Write.swift:633](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L633)
 
 ## `updateBasicMetadata`
 
@@ -433,7 +433,7 @@ func updateBasicMetadata(
 > Reads the current Basic projection, applies an in-memory edit, and replaces
 > it only if the file still matches the captured version.
 
-Source: [TagLibMetadataManager+Write.swift:1107](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1107)
+Source: [TagLibMetadataManager+Write.swift:1113](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1113)
 
 ## `writeRawMetadataPropertyMap`
 
@@ -448,7 +448,7 @@ func writeRawMetadataPropertyMap(
 ) throws -> Bool
 ```
 
-Source: [TagLibMetadataManager+Write.swift:1122](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1122)
+Source: [TagLibMetadataManager+Write.swift:1128](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift#L1128)
 
 ## `writeRawMetadataPropertyMapValuesWithVerification`
 
@@ -555,7 +555,7 @@ Source: [FormatCapability.swift:179](../../Sources/TagLibAudioMetadata/FormatCap
 var readableExtensions: [String]
 ```
 
-Source: [TagLibMetadataManager.swift:493](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L493)
+Source: [TagLibMetadataManager.swift:499](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L499)
 
 ### `function`
 
@@ -563,7 +563,7 @@ Source: [TagLibMetadataManager.swift:493](../../Sources/TagLibAudioMetadata/TagL
 var writableExtensions: [String]
 ```
 
-Source: [TagLibMetadataManager.swift:497](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L497)
+Source: [TagLibMetadataManager.swift:503](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L503)
 
 ## Nested manager types
 
@@ -586,7 +586,7 @@ case absent
 
 ## `MetadataCommitStatus`
 
-Source: [TagLibMetadataManager.swift:447](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L447)
+Source: [TagLibMetadataManager.swift:453](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L453)
 
 ```swift
 enum MetadataCommitStatus: Equatable, Sendable
@@ -607,7 +607,7 @@ case durabilityUncertain(String)
 
 ## `RawPropertyMapWriteMode`
 
-Source: [TagLibMetadataManager.swift:472](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L472)
+Source: [TagLibMetadataManager.swift:478](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L478)
 
 ```swift
 enum RawPropertyMapWriteMode: Sendable
@@ -629,7 +629,7 @@ case merge
 
 ## `MetadataWriteResult`
 
-Source: [TagLibMetadataManager.swift:459](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L459)
+Source: [TagLibMetadataManager.swift:465](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L465)
 
 ```swift
 struct MetadataWriteResult: Sendable
@@ -668,7 +668,15 @@ var expectedTrackNumberText: String?
 var expectedDiscNumber: Int?
 var expectedDiscTotal: Int?
 var expectedDiscNumberText: String?
+
+/// `.unspecified` requires native absence unless an expected unknown
+/// raw code is also supplied below. Nil skips the semantic comparison.
 var expectedExplicitAdvisory: ExplicitAdvisory?
+
+/// Exact unknown-code provenance. Together with `.unspecified`, this
+/// verifies preservation rather than absence. A non-nil value is also
+/// an independent verification request when the semantic state is nil.
+var expectedExplicitAdvisoryRawValue: String?
 var artworkExpectation: ArtworkVerificationExpectation
 
 /// Optional exact artwork expectations, independent of the legacy presence check.

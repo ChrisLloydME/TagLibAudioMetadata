@@ -113,3 +113,7 @@ The AudioMator source migration uses current canonical identities without changi
 No tag, push, release publication, dependency version bump, binary change or manual application launch occurred. Sanitizers, minimum-platform/device runtime and broad storage/large-artwork performance remain unmeasured. The candidate intentionally breaks the old source interface and must be adopted as an explicitly breaking release with its migration guide.
 
 Both final gates are accepted with all required named matrix/oracle/cache/lookup evidence and no unexpected skips or failed tests. The candidate meets this campaign's API cleanup, package correctness, repeatable performance evaluation and real-consumer integration criteria. It is ready for review and deliberate breaking-version adoption, not an automatic patch publication.
+
+## Later evidence boundary
+
+This record's `4dd2a60` / 162-XCTest final verification is final for the API-cleanup phase described here. The subsequent [write-preparation campaign](REM-2026-11-12-write-concurrency.md) records production `bbf64c3`, 164 XCTest / 179 Swift Testing and both later full gate citations. The [independent-review repairs](REM-2026-11-14-independent-review-repairs.md) supersede both for current advisory erase/preservation behavior. Historical counts are not current-HEAD acceptance. Commit `9e16ccc` itself failed to compile because of argument ordering; `4dd2a60` fixed it. The original phase wording must not be read as a guarantee that every intermediate commit compiles independently; history has not been rewritten.

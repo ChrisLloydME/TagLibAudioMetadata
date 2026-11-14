@@ -20,6 +20,12 @@ Existing native-file aliases and the legacy numbering inventory/explicit recover
 
 This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Tagged-release sections below are historical migration instructions; the unreleased cleanup above supersedes their retained-alias advice. Review the behavioral changes that apply to your starting version.
 
+### Registry introspection and exact advisory verification
+
+Removing `.date` also changes still-compiling registry introspection: `propertyMapKeyOwners["DATE"]` and `["YEAR"]` each contain only `.year`; `sharedPropertyMapKeyOwners` and `preferredSharedPropertyMapKeyOwner` are empty. `canonicalSchemas` equals `allSchemas` for built-in entries. Engine lookup still resolves DATE/YEAR to YEAR; standalone DATE remains its own semantic field. Do not infer native storage from these formatless engine spellings. The public schema's canonical-owner flag remains meaningful for caller-created descriptions and is not a live YEAR alias.
+
+`expectedExplicitAdvisory = .unspecified` now verifies absence of both the known state and unknown raw-code provenance. To verify preservation of an unknown existing code, also set `expectedExplicitAdvisoryRawValue` to that exact code. A non-nil raw expectation can be used on its own. Basic replacement supplies this expectation automatically for an unchanged unknown state and restores its native owners. An unrelated save must not turn an unknown code into absence. Erase verifies the final staged file after all clearing/wiping steps.
+
 ## Compatibility promises
 
 - **Source compatibility:** breaking API removals require an explicitly breaking release and migration instructions. Compatibility-only aliases that contradict current field meanings are removed in this candidate.

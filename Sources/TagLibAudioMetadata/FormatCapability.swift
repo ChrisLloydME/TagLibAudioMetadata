@@ -177,12 +177,21 @@ private enum DeclaredFormatCapabilities {
 
 public extension TagLibMetadataManager {
     nonisolated static var formatCapabilities: [FormatCapability] {
-        DeclaredFormatCapabilities.families
+        let cached = DeclaredFormatCapabilities.families
+        // An exceptional bridge failure must not become a permanent empty
+        // capability universe. Valid descriptors retain the immutable fast path.
+        return cached.isEmpty
+            ? TagLibMetadataExtractor.formatCapabilities().compactMap(FormatCapability.init(bridgeDictionary:))
+            : cached
     }
 
     /// Returns declared capability for an extension. This does not inspect a file.
     nonisolated static func capability(forExtension fileExtension: String) -> FormatCapability? {
-        DeclaredFormatCapabilities.byExtension[fileExtension.lowercased()]
+        if let cached = DeclaredFormatCapabilities.byExtension[fileExtension.lowercased()] { return cached }
+        // Includes a transiently failed initial descriptor load; unknown inputs
+        // still use the bridge's normal nil result, without caching that failure.
+        guard let dictionary = TagLibMetadataExtractor.formatCapability(for: fileExtension) else { return nil }
+        return FormatCapability(bridgeDictionary: dictionary)
     }
 
 

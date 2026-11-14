@@ -586,6 +586,14 @@ extension TagLibMetadataManager {
 
         var warnings: [String] = []
         try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
+
+
+        try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
+
+        if shouldWipeNativeMetadataContainer(for: url) {
+            try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
+        }
+
         warnings.append(
             contentsOf: metadataWriteWarnings(
                 for: url,
@@ -602,12 +610,6 @@ extension TagLibMetadataManager {
                 )
             )
         )
-
-        try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
-
-        if shouldWipeNativeMetadataContainer(for: url) {
-            try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
-        }
 
         if capability(forExtension: url.pathExtension)?.identifier == "asf",
            !(try readStructuredMetadataResult(from: url)).asfAttributes.isEmpty {
@@ -867,6 +869,8 @@ extension TagLibMetadataManager {
                 customFieldValues: meta.customFields
             )
 
+        verification.expectedExplicitAdvisoryRawValue = meta.explicitAdvisory == .unspecified
+            ? meta.explicitAdvisoryRawValue : nil
         verification.expectedArtworkData = meta.artworkData
         verification.expectedArtworkMIMEType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
         let exactVerification = verification
@@ -1096,6 +1100,8 @@ extension TagLibMetadataManager {
                 try throwOnVerificationFailures(nativeVerification.failures)
             }
             try restoreUneditedBasicNativeValues(requested: meta, before: .init(basic: current.metadata, raw: current.raw, structured: current.structured), at: mutationURL)
+            try restoreUneditedBasicUnknownAdvisory(requested: meta,
+                before: .init(basic: current.metadata, raw: current.raw, structured: current.structured), at: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: adjustedVerification)
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)

@@ -5,6 +5,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Independent-review fixes
+
+- Verify advisory absence after the final erase stages, fixing false failures for ASF/WMA read aliases. Distinguish unknown raw codes from absence in exact verification.
+- Preserve unchanged unknown advisory owners during Basic edits across native text, ID3 and ASF paths, with native readback checks.
+- Retry failed initial capability-descriptor loads, remove an unused dump parser, correct read-only advisory documentation and document changed registry introspection.
+
 ### Breaking API cleanup
 
 - Remove the typed `.date` YEAR alias, obsolete facade read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters/verification expectations, and outdated capability/error aliases. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking).

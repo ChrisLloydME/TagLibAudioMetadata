@@ -13,6 +13,10 @@ This page is a snapshot of the latest known validation state for the current sou
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
+## Independent-review repair candidate
+
+The advisory erase/verification review found real regressions and a further unknown-code preservation defect. Focused repairs pass; full acceptance is pending. Prior passing gates below do not certify these new changes. See [review adjudication and repair evidence](../records/remediation/REM-2026-11-14-independent-review-repairs.md).
+
 ## Write-preparation follow-up
 
 Production `bbf64c3` narrows discarded readability projections and reuses same-open-file property evidence. Both full strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, all required native matrices and preflight/cache/lookup evidence. All 27 gate-policy tests and both independent consumer executables pass. There are 55 checked Markdown files. Evidence: `.build/test-evidence/debug-20261112-135450-25050/` and `.build/test-evidence/release-20261112-135822-25044/`.

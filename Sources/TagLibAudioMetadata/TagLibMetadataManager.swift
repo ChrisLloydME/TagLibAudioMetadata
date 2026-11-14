@@ -389,7 +389,13 @@ public struct TagLibMetadataManager {
         public var expectedDiscNumber: Int?
         public var expectedDiscTotal: Int?
         public var expectedDiscNumberText: String?
+        /// `.unspecified` requires native absence unless an expected unknown
+        /// raw code is also supplied below. Nil skips the semantic comparison.
         public var expectedExplicitAdvisory: ExplicitAdvisory?
+        /// Exact unknown-code provenance. Together with `.unspecified`, this
+        /// verifies preservation rather than absence. A non-nil value is also
+        /// an independent verification request when the semantic state is nil.
+        public var expectedExplicitAdvisoryRawValue: String? = nil
         public var artworkExpectation: ArtworkVerificationExpectation
         /// Optional exact artwork expectations, independent of the legacy presence check.
         public var expectedArtworkData: Data? = nil
