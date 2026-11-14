@@ -43,6 +43,20 @@ swift_skips = [line for line in log.splitlines()
 failed_named_tests = sorted(set(re.findall(r'\bTest ([A-Za-z_]\w*)\([^)]*\) failed\b', log)))
 failed_xctest = sorted(set(re.findall(r"Test Case '(-\[[^']+\])' failed", log)))
 required_xctest = {
+    ('RemediationPreservationTests', 'testLegacyDateIdentityUsesDescriptionsAndExactArrays'),
+    ('RemediationPreservationTests', 'testAllFacadeMutationSurfacesProtectStandaloneDates'),
+    ('RemediationPreservationTests', 'testLowLevelModelReadsAndPreservesContentGroupArtistsAndPeaks'),
+    ('RemediationPreservationTests', 'testASFLowLevelWritesUpdateExistingCanonicalAttributes'),
+    ('RemediationPreservationTests', 'testLowLevelWritesPreserveUnknownAdvisoryRawCode'),
+    ('RemediationPreservationTests', 'testAPEReleaseTypeAndStatusAreWritableThroughTypedAndBasic'),
+    ('RemediationPreservationTests', 'testBasicNumberTextMismatchRejectsAndMixedPairsCommit'),
+    ('RemediationPreservationTests', 'testASFLowLevelAdvisoryEditRemovesAliases'),
+    ('RemediationPreservationTests', 'testV23StandaloneTDATSurvivesBasicAndStructuredUnrelatedWrites'),
+    ('RemediationPreservationTests', 'testDirectBridgeV23WritesRejectWithoutMutation'),
+    ('RemediationPreservationTests', 'testV23DateWritesRejectBeforeMutation'),
+    ('RemediationPreservationTests', 'testV23RawDeltaPreservesCanonicalDatesAndRejectsStandaloneLoss'),
+    ('RemediationPreservationTests', 'testV23ConflictingTORYAndTDORRejectWithoutMutation'),
+
     ('SelectiveExtractionTests', 'testLegacyID3ProjectionOptionsHaveLiteralDateOwners'),
     ('SelectiveExtractionTests', 'testSelectiveViewsMatchFullExtractionAcrossNativeFixtures'),
     ('SelectiveExtractionTests', 'testRichSelectiveViewsPreserveNativeValuesAndArtwork'),
@@ -178,7 +192,7 @@ summary = {'source_inventory_errors': inventory_errors, 'runner_exit_status': st
            'failed_named_tests': failed_named_tests,
            'failed_xctest_names': failed_xctest,
            'missing_required_xctest': missing_xctest}
-ok = (not inventory_errors and status == 0 and bool(xctest) and int(xctest[-1][0]) >= 168 and int(xctest[-1][2]) == 0
+ok = (not inventory_errors and status == 0 and bool(xctest) and int(xctest[-1][0]) >= 181 and int(xctest[-1][2]) == 0
       and bool(swift) and int(swift[-1][0]) >= 198 and swift[-1][2] == 'passed'
       and not unexpected and not swift_skips and not missing_suites and not missing_tests
       and not failed_named_tests and not failed_xctest and not missing_xctest
