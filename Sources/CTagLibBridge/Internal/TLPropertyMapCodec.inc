@@ -394,6 +394,10 @@ static NSString * _Nullable SerializedExplicitAdvisoryValue(TagLibExplicitAdviso
 
 static NSString * _Nullable SerializedExplicitAdvisory(TagLibAudioMetadata *metadata)
 {
+    if (metadata.explicitAdvisory == TagLibExplicitAdvisoryUnspecified) {
+        NSString *raw = TrimmedStringOrNil(metadata.explicitAdvisoryRawValue);
+        if (raw) return raw;
+    }
     return SerializedExplicitAdvisoryValue(metadata.explicitAdvisory);
 }
 
@@ -635,6 +639,28 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
 
     if ([normalizedKey isEqualToString:@"GROUPING"]) {
         metadata.grouping = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"CONTENTGROUP"] ||
+        [normalizedKey isEqualToString:@"WM/CONTENTGROUPDESCRIPTION"]) {
+        metadata.contentGroup = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"ARTISTS"] ||
+        [normalizedKey isEqualToString:@"WM/ARTISTS"]) {
+        metadata.artists = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"REPLAYGAIN_TRACK_PEAK"]) {
+        metadata.replayGainTrackPeak = trimmedValue;
+        return true;
+    }
+
+    if ([normalizedKey isEqualToString:@"REPLAYGAIN_ALBUM_PEAK"]) {
+        metadata.replayGainAlbumPeak = trimmedValue;
         return true;
     }
 
@@ -1159,7 +1185,10 @@ static void ExtractASFCustomAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadat
                 SetExplicitAdvisoryFromRawValue(metadata, attribute.toString());
                 continue;
             }
-            if ([normalized hasPrefix:@"WM/"]) continue;
+            if ([normalized hasPrefix:@"WM/"]) {
+                ApplyKnownCustomMetadataField(key, value, metadata);
+                continue;
+            }
             // FFmpeg and other writers may duplicate common fields as custom
             // attributes. They are semantic aliases, not editable custom keys.
             if ([normalized isEqualToString:@"TITLE"]) { if (!metadata.title.length) metadata.title = value; continue; }
@@ -1356,6 +1385,67 @@ static void SetNativeID3NumberPair(TagLib::ID3v2::Tag *tag, const char *frameID,
     }
 }
 
+static void ApplyASFCanonicalAttributes(TagLib::ASF::Tag *tag, TagLibAudioMetadata *metadata)
+{
+    if (!tag || !metadata) return;
+    auto setNative = [&](const char *key, NSString * _Nullable value) {
+        const TagLib::String tagKey(key, TagLib::String::Latin1);
+        NSString *trimmed = TrimmedStringOrNil(value);
+        if (!trimmed) {
+            tag->removeItem(tagKey);
+            return;
+        }
+        TagLib::ASF::AttributeList values = tag->attribute(tagKey);
+        TagLib::ASF::Attribute attribute(NSStringToTagString(trimmed));
+        if (values.isEmpty()) {
+            values.append(attribute);
+        } else {
+            values.front() = attribute;
+        }
+        tag->setAttribute(tagKey, values);
+    };
+    setNative("WM/Year", metadata.year);
+    setNative("DATE", metadata.standaloneDate);
+    setNative("WM/OriginalReleaseYear", metadata.originalReleaseDate);
+    setNative("WM/ContentGroupDescription", metadata.contentGroup);
+    setNative("WM/EncodedBy", metadata.encodedBy);
+    setNative("WM/EncodingSettings", metadata.encoderSettings);
+    setNative("WM/ARTISTS", metadata.artists);
+    setNative("REPLAYGAIN_TRACK_PEAK", metadata.replayGainTrackPeak);
+    setNative("REPLAYGAIN_ALBUM_PEAK", metadata.replayGainAlbumPeak);
+    setNative("MusicBrainz/Album Type", metadata.releaseType);
+    setNative("MusicBrainz/Album Status", metadata.releaseStatus);
+    setNative("MusicBrainz/Album Release Country", metadata.releaseCountry);
+    setNative("MusicBrainz/Artist Id", metadata.musicBrainzArtistId);
+    setNative("MusicBrainz/Album Id", metadata.musicBrainzAlbumId);
+    setNative("MusicBrainz/Album Artist Id", metadata.musicBrainzAlbumArtistId);
+    setNative("MusicBrainz/Track Id", metadata.musicBrainzTrackId);
+    setNative("MusicBrainz/Release Group Id", metadata.musicBrainzReleaseGroupId);
+    setNative("MusicBrainz/Release Track Id", metadata.musicBrainzReleaseTrackId);
+    setNative("MusicBrainz/Work Id", metadata.musicBrainzWorkId);
+    setNative("Acoustid/Id", metadata.acoustId);
+    setNative("Acoustid/Fingerprint", metadata.acoustIdFingerprint);
+    setNative("MusicIP/PUID", metadata.musicIpPuid);
+    setNative("WM/Media", metadata.mediaType);
+
+    const auto attributes = tag->attributeListMap();
+    for (const auto &entry : attributes) {
+        const auto key = entry.first.upper();
+        if (key == TagLib::String("ITUNESADVISORY") ||
+            key == TagLib::String("ADVISORY") ||
+            key == TagLib::String("EXPLICITCONTENT") ||
+            key == TagLib::String("EXPLICIT")) {
+            tag->removeItem(entry.first);
+        }
+    }
+    NSString *advisory = SerializedExplicitAdvisory(metadata);
+    if (advisory) {
+        TagLib::ASF::AttributeList values;
+        values.append(TagLib::ASF::Attribute(NSStringToTagString(advisory)));
+        tag->setAttribute("ITUNESADVISORY", values);
+    }
+}
+
 template <typename FileType>
 static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *metadata)
 {
@@ -1365,7 +1455,22 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
     if (nativeID3) {
         for (const char *key : { "YEAR", "DATE", "RELEASEDATE", "ORIGINALDATE" }) properties.erase(key);
     }
-    if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
+    if (dynamic_cast<TagLib::ASF::File *>(&file)) {
+        CombineASFNumberTotals(properties);
+        // ASF's generic PropertyMap replay does not reliably replace existing
+        // native attributes whose names differ from the PropertyMap keys.
+        // Those fields are written below with setAttribute on the ASF tag.
+        for (const char *key : {
+            "RELEASETYPE", "RELEASESTATUS", "RELEASECOUNTRY",
+            "MUSICBRAINZ_ARTISTID", "MUSICBRAINZ_ALBUMID",
+            "MUSICBRAINZ_ALBUMARTISTID", "MUSICBRAINZ_TRACKID",
+            "MUSICBRAINZ_RELEASEGROUPID", "MUSICBRAINZ_RELEASETRACKID",
+            "MUSICBRAINZ_WORKID", "ACOUSTID_ID", "ACOUSTID_FINGERPRINT",
+            "MUSICIP_PUID"
+        }) {
+            properties.erase(key);
+        }
+    }
     if (auto *asf = dynamic_cast<TagLib::ASF::File *>(&file)) {
         struct Field { const char *key; TagLib::String current; NSString *desired; };
         const Field fields[] = {
@@ -1433,26 +1538,7 @@ static void ApplyGenericPropertyMapToFile(FileType &file, TagLibAudioMetadata *m
             ? [NSString stringWithFormat:@"%ld", (long)metadata.totalDiscs] : nil);
     }
     if (auto *asfFile = dynamic_cast<TagLib::ASF::File *>(&file)) {
-        TagLib::ASF::Tag *tag = asfFile->tag();
-        auto setNative = [&](const char *key, NSString * _Nullable value) {
-            tag->removeItem(key);
-            NSString *trimmed = TrimmedStringOrNil(value);
-            if (trimmed) {
-                tag->addAttribute(
-                    key,
-                    TagLib::ASF::Attribute(NSStringToTagString(trimmed))
-                );
-            }
-        };
-        setNative("WM/Year", metadata.year);
-        setNative("DATE", metadata.standaloneDate);
-        setNative("WM/OriginalReleaseYear", metadata.originalReleaseDate);
-        setNative("WM/ContentGroupDescription", metadata.contentGroup);
-        setNative("WM/EncodedBy", metadata.encodedBy);
-        setNative("WM/EncodingSettings", metadata.encoderSettings);
-        setNative("WM/ARTISTS", metadata.artists);
-        setNative("REPLAYGAIN_TRACK_PEAK", metadata.replayGainTrackPeak);
-        setNative("REPLAYGAIN_ALBUM_PEAK", metadata.replayGainAlbumPeak);
+        ApplyASFCanonicalAttributes(asfFile->tag(), metadata);
     }
     if (auto *id3 = nativeID3) {
         SetVersionedID3v2TextFrames(id3, metadata.year, @"TYER", @"TDRC");

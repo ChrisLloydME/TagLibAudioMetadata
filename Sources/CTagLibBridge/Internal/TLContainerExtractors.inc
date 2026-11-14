@@ -157,6 +157,9 @@ static void ExtractID3v2Metadata(TagLib::ID3v2::Tag* tag, TagLibAudioMetadata* m
                 metadata.subtitle = TagStringToNSString(value);
             }
             else if (frameIDStr == "TIT1") {
+                metadata.contentGroup = TagStringToNSString(value);
+            }
+            else if (frameIDStr == "GRP1") {
                 metadata.grouping = TagStringToNSString(value);
             }
             else if (frameIDStr == "TLAN") {
@@ -330,9 +333,14 @@ static void ExtractMP4Metadata(TagLib::MP4::Tag* tag, TagLibAudioMetadata* metad
         metadata.sortComposer = TagStringToNSString(items["soco"].toStringList().toString());
     }
 
-    // Grouping
-    if (items.contains("©grp")) {
-        metadata.grouping = TagStringToNSString(items["©grp"].toStringList().toString());
+    // Content Group owns ©grp. Grouping is the independent iTunes freeform.
+    if (items.contains("\xA9" "grp")) {
+        metadata.contentGroup = MP4TextItemValue(items, "\xA9" "grp") ?: @"";
+    }
+    if (items.contains("----:com.apple.iTunes:GROUPING")) {
+        metadata.grouping = TagStringToNSString(
+            items["----:com.apple.iTunes:GROUPING"].toStringList().toString()
+        );
     }
 
     // Copyright
