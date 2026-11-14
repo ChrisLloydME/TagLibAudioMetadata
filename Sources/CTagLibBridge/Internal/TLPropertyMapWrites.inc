@@ -813,6 +813,10 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
 
     NSString *groupingValue = FirstStringFromProperty(properties, {"GROUPING"}, true);
     if (groupingValue.length > 0) metadata.grouping = groupingValue;
+    NSString *contentGroupValue = FirstStringFromProperty(properties, {"CONTENTGROUP"});
+    if (contentGroupValue.length > 0) metadata.contentGroup = contentGroupValue;
+    NSString *artistsValue = FirstStringFromProperty(properties, {"ARTISTS"}, true);
+    if (artistsValue.length > 0) metadata.artists = artistsValue;
 
     NSString *subtitleValue = FirstStringFromProperty(properties, {"SUBTITLE"});
     if (subtitleValue.length > 0) metadata.subtitle = subtitleValue;
@@ -897,6 +901,10 @@ static void ApplyGenericPropertyMapMetadata(const TagLib::PropertyMap &propertie
     if (replayGainTrackValue.length > 0) metadata.replayGainTrack = replayGainTrackValue;
     NSString *replayGainAlbumValue = FirstStringFromProperty(properties, {"REPLAYGAIN_ALBUM_GAIN"});
     if (replayGainAlbumValue.length > 0) metadata.replayGainAlbum = replayGainAlbumValue;
+    NSString *replayGainTrackPeakValue = FirstStringFromProperty(properties, {"REPLAYGAIN_TRACK_PEAK"});
+    if (replayGainTrackPeakValue.length > 0) metadata.replayGainTrackPeak = replayGainTrackPeakValue;
+    NSString *replayGainAlbumPeakValue = FirstStringFromProperty(properties, {"REPLAYGAIN_ALBUM_PEAK"});
+    if (replayGainAlbumPeakValue.length > 0) metadata.replayGainAlbumPeak = replayGainAlbumPeakValue;
 
     NSString *mediaTypeValue = FirstStringFromProperty(properties, {"MEDIATYPE", "MEDIA", "MEDIA TYPE"});
     if (mediaTypeValue.length > 0) metadata.mediaType = mediaTypeValue;

@@ -694,64 +694,96 @@
             return NO;
         }
     } else if (format == TLTagFileFormatASF) {
-        TagLib::ASF::File asfFile(filePath);
+        {
+            TagLib::ASF::File asfFile(filePath);
 
-        if (!asfFile.isValid()) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:154
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open ASF/WMA file for writing metadata" }];
+            if (!asfFile.isValid()) {
+                if (error) {
+                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                 code:154
+                                             userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open ASF/WMA file for writing metadata" }];
+                }
+                TLog(@"Failed to open ASF/WMA '%@' for writing", fileURL.lastPathComponent);
+                return NO;
             }
-            TLog(@"Failed to open ASF/WMA '%@' for writing", fileURL.lastPathComponent);
-            return NO;
-        }
 
-        ApplyGenericPropertyMapToFile(asfFile, metadata);
-        if (TagLib::ASF::Tag *asfTag = asfFile.tag()) {
-            // TagLib's ASF PropertyMap path does not persist arbitrary custom
-            // keys or the package's advisory key. Write those as native ASF
-            // attributes so Basic writes remain preservation-safe.
-            for (NSString *key in metadata.customFields ?: @{}) {
-                NSString *trimmedKey = TrimmedStringOrNil(key);
-                if (!trimmedKey) continue;
-                NSString *value = TrimmedStringOrNil(metadata.customFields[key]);
-                if (value) {
+            ApplyGenericPropertyMapToFile(asfFile, metadata);
+            if (TagLib::ASF::Tag *asfTag = asfFile.tag()) {
+                // TagLib's ASF PropertyMap path does not persist arbitrary custom
+                // keys or the package's advisory key. Write those as native ASF
+                // attributes so Basic writes remain preservation-safe.
+                for (NSString *key in metadata.customFields ?: @{}) {
+                    NSString *trimmedKey = TrimmedStringOrNil(key);
+                    if (!trimmedKey) continue;
+                    NSString *value = TrimmedStringOrNil(metadata.customFields[key]);
+                    if (value) {
+                        asfTag->setAttribute(
+                            NSStringToTagString(trimmedKey),
+                            TagLib::ASF::Attribute(NSStringToTagString(value))
+                        );
+                    } else {
+                        asfTag->removeItem(NSStringToTagString(trimmedKey));
+                    }
+                }
+                const auto attributes = asfTag->attributeListMap();
+                for (const auto &entry : attributes) {
+                    const auto key = entry.first.upper();
+                    if (key == TagLib::String("ITUNESADVISORY") ||
+                        key == TagLib::String("ADVISORY") ||
+                        key == TagLib::String("EXPLICITCONTENT") ||
+                        key == TagLib::String("EXPLICIT")) {
+                        asfTag->removeItem(entry.first);
+                    }
+                }
+                NSString *advisory = SerializedExplicitAdvisory(metadata);
+                if (advisory) {
                     asfTag->setAttribute(
-                        NSStringToTagString(trimmedKey),
-                        TagLib::ASF::Attribute(NSStringToTagString(value))
+                        "ITUNESADVISORY",
+                        TagLib::ASF::Attribute(NSStringToTagString(advisory))
                     );
-                } else {
-                    asfTag->removeItem(NSStringToTagString(trimmedKey));
                 }
             }
-            NSString *advisory = SerializedExplicitAdvisory(metadata);
-            if (advisory) {
-                asfTag->setAttribute(
-                    "ITUNESADVISORY",
-                    TagLib::ASF::Attribute(NSStringToTagString(advisory))
-                );
-            } else {
-                asfTag->removeItem("ITUNESADVISORY");
+            if (!ApplyPictureComplexProperties(asfFile.tag(),
+                                               metadata,
+                                               error,
+                                               156,
+                                               @"Unable to clear artwork from the ASF/WMA tag",
+                                               157,
+                                               @"Unable to write artwork into the ASF/WMA tag",
+                                               [NSString stringWithFormat:@"ASF/WMA '%@'", fileURL.lastPathComponent])) {
+                return NO;
             }
-        }
-        if (!ApplyPictureComplexProperties(asfFile.tag(),
-                                           metadata,
-                                           error,
-                                           156,
-                                           @"Unable to clear artwork from the ASF/WMA tag",
-                                           157,
-                                           @"Unable to write artwork into the ASF/WMA tag",
-                                           [NSString stringWithFormat:@"ASF/WMA '%@'", fileURL.lastPathComponent])) {
-            return NO;
+
+            if (!asfFile.save()) {
+                if (error) {
+                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                 code:155
+                                             userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to ASF/WMA file" }];
+                }
+                TLog(@"TagLib save() failed for ASF/WMA '%@'", fileURL.lastPathComponent);
+                return NO;
+            }
         }
 
-        if (!asfFile.save()) {
+        // The generic PropertyMap replay above can leave existing ASF
+        // attributes at their old values. Re-open the staged file and apply
+        // the canonical native attributes as a second, independent pass.
+        TagLib::ASF::File nativeASF(filePath);
+        if (!nativeASF.isValid() || !nativeASF.tag()) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
-                                             code:155
-                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save metadata to ASF/WMA file" }];
+                                             code:163
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"Unable to reopen ASF/WMA file for canonical native metadata" }];
             }
-            TLog(@"TagLib save() failed for ASF/WMA '%@'", fileURL.lastPathComponent);
+            return NO;
+        }
+        ApplyASFCanonicalAttributes(nativeASF.tag(), metadata);
+        if (!nativeASF.save()) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:164
+                                         userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save canonical ASF/WMA metadata" }];
+            }
             return NO;
         }
     } else if (format == TLTagFileFormatDSF) {
