@@ -420,7 +420,7 @@ case unsupported
 
 ## `MetadataArtworkPatch`
 
-Source: [MetadataSnapshotPatch.swift:132](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L132)
+Source: [MetadataSnapshotPatch.swift:135](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L135)
 
 ```swift
 enum MetadataArtworkPatch: Hashable, Sendable
@@ -1386,7 +1386,7 @@ case replace(number: Int?, total: Int?)
 
 ## `MetadataNumberTextPatch`
 
-Source: [MetadataSnapshotPatch.swift:141](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L141)
+Source: [MetadataSnapshotPatch.swift:144](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L144)
 
 ```swift
 struct MetadataNumberTextPatch: Hashable, Sendable
@@ -1444,7 +1444,7 @@ init(
 
 ## `MetadataPatch`
 
-Source: [MetadataSnapshotPatch.swift:157](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L157)
+Source: [MetadataSnapshotPatch.swift:160](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L160)
 
 ```swift
 struct MetadataPatch: Hashable, Sendable
@@ -1500,6 +1500,7 @@ case emptyText(location: String)
 case emptyValueList(location: String)
 case emptyValue(location: String, index: Int)
 case conflictingNumberRepresentations
+case numberTextMismatch(field: String, text: String)
 case roleQualifiedFieldRequiresRawAPI(MetadataFieldKey)
 case unsupportedPartialPairRemoval(field: MetadataFieldKey, format: String)
 case ambiguousNumberRecovery(field: String, identities: [String])

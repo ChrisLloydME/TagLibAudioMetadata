@@ -5,6 +5,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Preserve low-level Content Group, ARTISTS, ReplayGain peaks and unknown advisory codes; apply native ASF updates and retire advisory aliases.
+- Verify APE release fields through their engine projection and reject inconsistent Basic number text per pair while allowing total-only updates.
+- Fail closed on concrete ID3v2.3 date edits and unpreservable layouts across mutation entry points. Bind structured preservation to its observed version; preserve independent TXXX identities and exact date arrays.
+- Remove the MP4 `covr` owner on explicit artwork clear. Require every diagnostic remediation regression in the strict gate.
+
 ### Independent-review fixes
 
 - Verify advisory absence after the final erase stages, fixing false failures for ASF/WMA read aliases. Distinguish unknown raw codes from absence in exact verification.

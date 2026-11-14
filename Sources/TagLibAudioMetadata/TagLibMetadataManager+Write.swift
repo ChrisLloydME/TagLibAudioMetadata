@@ -464,7 +464,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
-        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion, allowLegacyDateRemoval: true) { mutationURL in
             try eraseAllMetadataInPlaceWithVerification(from: mutationURL)
         }
     }

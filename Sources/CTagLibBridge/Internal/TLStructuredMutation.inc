@@ -873,6 +873,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"structured metadata", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"structured metadata", mutationError)) return NO;
             return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
         });
     }
@@ -1114,6 +1115,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:243 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to apply structured MP4 artwork" }];
             return NO;
         }
+        if (artwork && artwork.count == 0) file.tag()->removeItem("covr");
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:239 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MP4 metadata" }];
             return NO;

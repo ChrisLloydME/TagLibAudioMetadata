@@ -24,7 +24,7 @@ The short version: a write stages a sibling copy, mutates and (for verified faca
    - `COPYFILE_ACL` requests ACL preservation.
    - The temporary file must be a regular file.
 4. **Mutate.** Run the write operation on the temporary file. Nested in-place bridge operations detect the active transaction depth and do not create a second staging copy.
-5. **Verify.** Verified facade APIs compare requested metadata and preservation expectations on the temporary file. Direct bridge mutators validate that the staged file remains readable; they do not perform semantic readback.
+5. **Verify.** Every facade metadata transaction checks unchanged concrete ID3v2.3 date owners on the staged copy, except explicit erase-all. This invariant remains active when optional semantic verification is disabled. Structured preservation plans carry the version observed by their preflight read. Verified facade APIs compare requested metadata and preservation expectations on the temporary file. Direct bridge mutators validate that the staged file remains readable; they do not perform semantic readback.
 6. **Flush the staged file.** Open the temporary file and request `F_FULLFSYNC`; on `EINVAL`, `ENOTSUP`, or `ENOTTY`, fall back to `fsync`. Other failures abort before rename.
 7. **Open the parent directory.** Open it with `O_RDONLY | O_DIRECTORY` before the final identity check. A failure here aborts before commit.
 8. **Final identity check.** Compare the destination identity to the captured identity. A change throws `fileChanged` and leaves the staged copy unpublished.

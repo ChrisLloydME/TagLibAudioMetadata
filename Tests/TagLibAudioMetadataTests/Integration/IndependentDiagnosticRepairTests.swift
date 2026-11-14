@@ -69,6 +69,7 @@ struct IndependentDiagnosticRepairTests {
                 try TagLibMetadataManager.applyMetadataPatch(.init(artwork: .replace([.init(mimeType: "image/jpeg", data: Data(contentsOf: image))])), to: url)
                 try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.artworkData = nil; $0.artworkMIMEType = nil }
                 #expect(try TagLibMetadataManager.readSnapshot(from: url).structured.artwork.isEmpty)
+                if ext == "m4a" { #expect(try IndependentMP4Probe.read(url).items["covr"] == nil) }
             }
         }
     }

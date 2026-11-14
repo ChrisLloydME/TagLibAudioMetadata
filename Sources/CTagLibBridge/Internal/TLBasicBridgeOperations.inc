@@ -143,6 +143,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"track-number", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Track-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"track-number", mutationError)) return NO;
             return [self writeTrackNumber:trackNumber
                               totalTracks:totalTracks
                                  padWidth:padWidth

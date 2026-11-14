@@ -13,6 +13,7 @@
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"raw PropertyMap", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"raw PropertyMap", mutationError)) return NO;
             return [self writeRawPropertyMap:properties toURL:temporaryURL error:mutationError];
         });
     }
@@ -313,6 +314,7 @@
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"raw multi-value PropertyMap", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Raw multi-value property-map write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"raw multi-value PropertyMap", mutationError)) return NO;
             return [self writeRawPropertyMapValues:properties toURL:temporaryURL error:mutationError];
         });
     }
@@ -495,6 +497,7 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"track/disc-number", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Track/disc-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"track/disc-number", mutationError)) return NO;
             return [self writeTrackNumberText:trackNumberText
                                discNumberText:discNumberText
                                         toURL:temporaryURL
