@@ -6,6 +6,20 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = (
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLegacyDateIdentityUsesDescriptionsAndExactArrays]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testAllFacadeMutationSurfacesProtectStandaloneDates]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLowLevelModelReadsAndPreservesContentGroupArtistsAndPeaks]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testASFLowLevelWritesUpdateExistingCanonicalAttributes]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLowLevelWritesPreserveUnknownAdvisoryRawCode]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testAPEReleaseTypeAndStatusAreWritableThroughTypedAndBasic]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testBasicNumberTextMismatchRejectsAndMixedPairsCommit]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testASFLowLevelAdvisoryEditRemovesAliases]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23StandaloneTDATSurvivesBasicAndStructuredUnrelatedWrites]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testDirectBridgeV23WritesRejectWithoutMutation]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23DateWritesRejectBeforeMutation]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23RawDeltaPreservesCanonicalDatesAndRejectsStandaloneLoss]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23ConflictingTORYAndTDORRejectWithoutMutation]' passed (0.001 seconds).\n"
+
     "Test legacyDateFlagsRetainLiteralOwners() with 4 test cases passed after 1 second.\n"
     "Suite IndependentDiagnosticRepairTests passed.\n"
     "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testLegacyID3ProjectionOptionsHaveLiteralDateOwners]' passed (0.001 seconds).\n"
@@ -55,7 +69,7 @@ PASS = (
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityMatchesFullReaderAcrossFixtures]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n"
-    "Executed 168 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
+    "Executed 181 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
     "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.\n"
     "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.\n"
     "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
@@ -158,7 +172,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'everyFieldPreservesAllSiblingDateStates' not in line)))
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
-        self.assertFalse(self.accepted(PASS.replace('Executed 168 tests', 'Executed 167 tests')))
+        self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
         self.assertFalse(self.accepted(PASS.replace('run with 198 tests', 'run with 197 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
@@ -233,6 +247,12 @@ class TestGatePolicy(unittest.TestCase):
     def test_audit_regression_and_malformed_mp4_oracle_are_required(self):
         for name in ['mp4PairUpperBound65535RoundTrips', 'malformedMP4LengthsAndFreeformsThrowRatherThanGuess']:
             self.assertFalse(self.accepted(PASS.replace(f'Test {name}() passed after 1 second.\n', '')))
+
+    def test_every_remediation_method_is_required(self):
+        names = ['testLegacyDateIdentityUsesDescriptionsAndExactArrays', 'testAllFacadeMutationSurfacesProtectStandaloneDates', 'testLowLevelModelReadsAndPreservesContentGroupArtistsAndPeaks', 'testASFLowLevelWritesUpdateExistingCanonicalAttributes', 'testLowLevelWritesPreserveUnknownAdvisoryRawCode', 'testAPEReleaseTypeAndStatusAreWritableThroughTypedAndBasic', 'testBasicNumberTextMismatchRejectsAndMixedPairsCommit', 'testASFLowLevelAdvisoryEditRemovesAliases', 'testV23StandaloneTDATSurvivesBasicAndStructuredUnrelatedWrites', 'testDirectBridgeV23WritesRejectWithoutMutation', 'testV23DateWritesRejectBeforeMutation', 'testV23RawDeltaPreservesCanonicalDatesAndRejectsStandaloneLoss', 'testV23ConflictingTORYAndTDORRejectWithoutMutation']
+        for name in names:
+            with self.subTest(name=name):
+                self.assertFalse(self.accepted("\n".join(line for line in PASS.splitlines() if name not in line)))
 
     def test_runner_rejects_extra_filter_arguments(self):
         runner = SCRIPT.with_name('validate-tests.sh')
