@@ -20,6 +20,10 @@ Existing native-file aliases and the legacy numbering inventory/explicit recover
 
 This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Tagged-release sections below are historical migration instructions; the unreleased cleanup above supersedes their retained-alias advice. Review the behavioral changes that apply to your starting version.
 
+### Diagnostic repair follow-up
+
+Basic replacement now diffs a versioned snapshot and uses the typed native planner. Nil artwork removes the collection; MP4-exclusive changes use typed targets or reject when unsupported. Existing v2.3 dates are literal owners, not synthesized timestamps. Full low-level Basic replacements of v2.3 files reject safely; use Basic updates/typed deltas or explicit native structured writes. Versioned text verification resolves the selected native identity. Unsupported MP4/ASF structured Comment/Lyrics collections reject before staging. Empty structured writes validate the file/version without rewriting it. All Swift transactions validate staged readability even when semantic verification is disabled.
+
 ### Further architecture cleanup (same unreleased breaking candidate)
 
 The unused facade `MetadataExtractionOptions` type is removed. No public facade operation accepted it; direct bridge clients retain `TagLibMetadataExtractionOptions` through the low-level product.

@@ -94,7 +94,7 @@ The facade transaction coordinator performs:
 2. destination validation and optional `expectedVersion` check;
 3. one sibling copy (`copyfile` with clone request and ACL preservation);
 4. in-place bridge mutation on the copy;
-5. format-specific preservation of unedited native owners, including `restoreUneditedBasicNativeValues` for Basic replacement, exact MP4 item retention and detached ID3 date-frame restoration during PropertyMap replay, unchanged MP4 custom-field arrays, and native ASF custom attributes;
+5. format-specific preservation of unedited native owners, including omission of unchanged Basic fields in the common typed delta, exact MP4 item retention and detached ID3 date-frame restoration during PropertyMap replay, unchanged MP4 custom-field arrays, and native ASF custom attributes;
 6. semantic verification for the verified facade APIs;
 7. `F_FULLFSYNC`/`fsync` of the copy;
 8. final destination identity check;
@@ -132,7 +132,7 @@ Track/disc integers begin at one; movement and BPM begin at zero. Native `trkn`/
 
 `BasicMetadata` has replacement semantics only for fields the Basic replacement path actually writes. It preserves untouched multi-value arrays through exact native collections, restores unchanged native ID3 comment/lyric collections, and carries Xiph/APE text keys through their exact physical spelling. Other opaque or unmodeled data may survive because TagLib saves the native tag, but it is not reconstructed from the Basic model. `BasicMetadata` multi-value scalars are display strings with format-dependent separators and are not a lossless array representation. Removing a custom dictionary key does not request deletion; callers use `MetadataPatchValue.remove`.
 
-The MP4-exclusive Basic properties (`director`, store IDs, TV fields, and related Booleans) are readable through `BasicMetadata` but are not written by `replaceBasicMetadata`: the bridge writer model has no corresponding properties. Use `MetadataPatch` or structured writes for those fields; see [Write semantics](PRESERVATION.md#basic-preservation-rules).
+Basic replacement uses the same native planner as typed patches, including the MP4-exclusive fields; unsupported edits reject. Its diff is version-checked and preserves omitted native structures. See [Write semantics](PRESERVATION.md#basic-preservation-rules).
 
 Structured ID3v2 text mutation uses TagLib string-list APIs, preserving ordered value cardinality. `TXXX` descriptions identify frames and are kept separate from their payload arrays. Structured verification compares those arrays element by element; an empty text/user-text payload is a removal request and is verified as absence. DSF/DSDIFF route native ID3 frame upserts through the structured writer while rejecting comment/lyric collection replacement. `StructuredID3v2Frame.fields` is merged into the bridge payload dictionary; it is reserved for future frame-specific fields and can collide with `id`, `type`, `value`, or `values`, so callers should leave it empty.
 
@@ -180,7 +180,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `.../TagLibMetadataManager+Write.swift` | Basic replacement/update, bridge-model write, raw whole-map writes, erase, number text. |
 | `.../TagLibMetadataManager+Structured.swift` | Structured conversion, validation, write, verification. |
 | `.../TagLibMetadataManager+Verification.swift` | Verification helpers, warning construction, raw normalization, explicit provenance. |
-| `.../BasicNativePreservation.swift` | Restores untouched Basic native dates, MP4 owners/aliases, and absence before verification. |
+| `.../Reads/LegacyID3DateEvidence.swift` | Reads literal legacy v2.3 date slots before engine synthesis. |
 | `.../MetadataSnapshotPatch.swift` | `MetadataPatch`, typed patch validation and application. |
 | `.../RawMetadataPatch.swift` | Exact raw delta validation, application, and verification. |
 | `.../MetadataNativePlanning.swift` | Semantic patch value to exact native target translation. |

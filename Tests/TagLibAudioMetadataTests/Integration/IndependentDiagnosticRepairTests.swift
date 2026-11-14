@@ -77,13 +77,109 @@ struct IndependentDiagnosticRepairTests {
             }
         }
     }
+    @Test(arguments: ["mp3", "m4a", "flac", "aac", "ogg", "oga", "wav"])
+    func basicMixedNumbersAndText(_ ext: String) throws {
+        try Self.withCopy(ext) { url in
+            var metadata = BasicMetadata.empty
+            metadata.title = "Joint edit"
+            metadata.track = 1; metadata.trackTotal = 10
+            metadata.disc = 1; metadata.discTotal = 2
+            metadata.trackNumberText = "01/10"; metadata.discNumberText = "01/02"
+            try TagLibMetadataManager.replaceBasicMetadata(metadata, to: url)
+            let after = try TagLibMetadataManager.readSnapshot(from: url)
+            #expect(after.basic.trackTotal == 10)
+            #expect(after.basic.discTotal == 2)
+            var cleared = BasicMetadata.empty
+            cleared.trackNumberText = ""; cleared.discNumberText = ""
+            try TagLibMetadataManager.replaceBasicMetadata(cleared, to: url)
+            #expect(try TagLibMetadataManager.readSnapshot(from: url).basic.trackTotal == 0)
+            #expect(try TagLibMetadataManager.readSnapshot(from: url).basic.discTotal == 0)
+        }
+    }
+    @Test func lowLevelLegacyReplacementRejectsWithoutMutation() throws {
+        try Self.withCopy("mp3") { url in
+            try Self.legacy(url)
+            let bytes = try Data(contentsOf: url)
+            let metadata = TagLibAudioMetadata()
+            metadata.title = "Unsafe replacement"
+            metadata.year = "2004-11-22"
+            #expect(throws: (any Error).self) { try TagLibMetadataManager.writeTagMetadata(metadata, to: url) }
+            #expect(throws: (any Error).self) { try TagLibMetadataExtractor.writeMetadata(metadata, to: url) }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+    @Test func basicMusicBrainzUsesCanonicalUFIDAndClearsIt() throws {
+        try Self.withCopy("mp3") { url in
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.musicBrainzTrackID: .text("11111111-1111-1111-1111-111111111111")]), to: url)
+            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.musicBrainzTrackID = "22222222-2222-2222-2222-222222222222" }
+            let bytes = try Data(contentsOf: url)
+            #expect(bytes.range(of: Data("http://musicbrainz.org".utf8)) != nil)
+            #expect(bytes.range(of: Data("MusicBrainz Track Id".utf8)) == nil)
+            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.musicBrainzTrackID = "" }
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).musicBrainzTrackID.isEmpty)
+        }
+    }
+    @Test func emptyStructuredWritesAndUnsupportedCollectionsDoNotCommit() throws {
+        for ext in ["mp3", "m4a", "flac", "wma"] {
+            try Self.withCopy(ext) { url in
+                let bytes = try Data(contentsOf: url)
+                let version = try TagLibMetadataManager.fileVersion(at: url)
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(), to: url, expectedVersion: version)
+                #expect(try Data(contentsOf: url) == bytes)
+                #expect(try TagLibMetadataManager.fileVersion(at: url) == version)
+                if ["m4a", "wma"].contains(ext) {
+                    #expect(throws: TagLibManagerError.self) {
+                        try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(), to: url, replacingCollections: [.comments])
+                    }
+                    #expect(try TagLibMetadataManager.fileVersion(at: url) == version)
+                }
+            }
+        }
+    }
+    @Test func everyTransactionRejectsUnreadableStagedOutput() throws {
+        try Self.withCopy("mp3") { url in
+            let bytes = try Data(contentsOf: url)
+            #expect(throws: (any Error).self) {
+                try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url) { temporary in
+                    try Data("corrupt output".utf8).write(to: temporary)
+                    return .init(warnings: [])
+                }
+            }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+    }
+    @Test func lowLevelMP4WritableTextOwnersMatchCatalog() throws {
+        let cases: [(MetadataFieldKey, String)] = [
+            (.albumArtist, "albumArtist"), (.composer, "composer"), (.sortTitle, "sortTitle"),
+            (.sortArtist, "sortArtist"), (.sortAlbum, "sortAlbum"), (.sortAlbumArtist, "sortAlbumArtist"),
+            (.sortComposer, "sortComposer"), (.conductor, "conductor"), (.encodedBy, "encodedBy"),
+            (.encoderSettings, "encoderSettings"), (.copyright, "copyright"), (.contentGroup, "contentGroup"),
+            (.movement, "movement"), (.publisher, "label"), (.work, "work")
+        ]
+        for (field, property) in cases {
+            try Self.withCopy("m4a") { url in
+                let before = try IndependentMP4Probe.read(url)
+                let target = try #require(MetadataFieldRegistry.schema(for: field)?.writeTarget(for: .mp4))
+                try TagLibMetadataManager.applyMetadataPatch(.init(fields: [field: .text("Typed")]), to: url)
+                let metadata = TagLibAudioMetadata()
+                metadata.setValue("Lowlevel", forKey: property)
+                _ = try TagLibMetadataManager.writeTagMetadata(metadata, to: url)
+                let native = try IndependentMP4Probe.read(url)
+                #expect(native.values[target.nativeIdentity] == [Data("Lowlevel".utf8)], "\(field)")
+                #expect(native.audio == before.audio)
+            }
+        }
+    }
     @Test func versionedTextWritesAndRemovalsVerify() throws {
         for v3 in [false, true] {
             try Self.withCopy("mp3") { url in
                 if v3 { try Self.legacy(url) }
-                let frame = StructuredID3v2Frame(frameID: "TDRC", type: "versionedText", values: ["2011"], v23ID: "TYER", v24ID: "TDRC")
+                var frame = StructuredID3v2Frame(frameID: "TDRC", type: "versionedText", values: ["2011"], v23ID: "TYER", v24ID: "TDRC")
                 try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [frame]), to: url)
                 #expect(try TagLibMetadataManager.readMetadataResult(from: url).year == "2011")
+                frame.values = []
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [frame]), to: url)
+                #expect(try TagLibMetadataManager.readMetadataResult(from: url).year.isEmpty)
             }
         }
     }

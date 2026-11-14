@@ -9,6 +9,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from test_inventory import validate as validate_test_inventory
 
 log = Path(sys.argv[1]).read_text()
 status = int(sys.argv[2])
@@ -62,6 +63,18 @@ missing_suites = [suite for suite in required_suites if suite not in completed_s
 # that the frozen matrices must execute. Counts may grow when the coverage
 # inventory grows; they may not silently shrink.
 required_tests = {
+    'lowLevelMP4WritableTextOwnersMatchCatalog': 1,
+    'legacyDatesAreIndependentAndBasicEditsPreserveThem': 1,
+    'basicClearArtworkRemovesNativeCollections': 1,
+    'movementAndReleaseOwnersAgreeAcrossEntrypoints': 1,
+    'typedASFAdvisoryPersistsNativeAttribute': 1,
+    'basicMixedNumbersAndText': 7,
+    'lowLevelLegacyReplacementRejectsWithoutMutation': 1,
+    'basicMusicBrainzUsesCanonicalUFIDAndClearsIt': 1,
+    'emptyStructuredWritesAndUnsupportedCollectionsDoNotCommit': 1,
+    'everyTransactionRejectsUnreadableStagedOutput': 1,
+    'versionedTextWritesAndRemovalsVerify': 1,
+
     'asfAdvisoryAliasEraseVerifiesFinalNativeState': 24,
     'unknownAdvisoryDoesNotSatisfyExactAbsence': 4,
     'unrelatedBasicEditPreservesUnknownAdvisory': 16,
@@ -148,7 +161,8 @@ for name, minimum in required_tests.items():
     elif actual < minimum:
         missing_tests.append({'test': name, 'expected_cases': minimum, 'actual_cases': actual})
 
-summary = {'runner_exit_status': status, 'xctest_executed': int(xctest[-1][0]) if xctest else None,
+inventory_errors = validate_test_inventory()
+summary = {'source_inventory_errors': inventory_errors, 'runner_exit_status': status, 'xctest_executed': int(xctest[-1][0]) if xctest else None,
            'xctest_skipped': int(xctest[-1][1] or 0) if xctest else None,
            'xctest_failures': int(xctest[-1][2]) if xctest else None,
            'swift_testing_declarations': int(swift[-1][0]) if swift else None,
@@ -162,8 +176,8 @@ summary = {'runner_exit_status': status, 'xctest_executed': int(xctest[-1][0]) i
            'failed_named_tests': failed_named_tests,
            'failed_xctest_names': failed_xctest,
            'missing_required_xctest': missing_xctest}
-ok = (status == 0 and bool(xctest) and int(xctest[-1][0]) >= 167 and int(xctest[-1][2]) == 0
-      and bool(swift) and int(swift[-1][0]) >= 186 and swift[-1][2] == 'passed'
+ok = (not inventory_errors and status == 0 and bool(xctest) and int(xctest[-1][0]) >= 167 and int(xctest[-1][2]) == 0
+      and bool(swift) and int(swift[-1][0]) >= 197 and swift[-1][2] == 'passed'
       and not unexpected and not swift_skips and not missing_suites and not missing_tests
       and not failed_named_tests and not failed_xctest and not missing_xctest
       and all(int(result[2]) == 0 for result in xctest)
