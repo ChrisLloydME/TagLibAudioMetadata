@@ -62,14 +62,12 @@ extension TagLibMetadataManager {
 
     nonisolated static func semanticStorage(
         for field: MetadataFieldKey,
-        fileExtension: String
+        formatIdentifier identifier: String,
+        formats: Set<MetadataFieldFormat>
     ) throws -> SemanticPropertyStorage {
         guard let schema = MetadataFieldRegistry.schema(for: field) else {
             throw MetadataPatchValidationError.unsupportedField(field)
         }
-        let capability = Self.capability(forExtension: fileExtension)
-        let formats = capability?.metadataFieldFormats ?? []
-        let identifier = capability?.identifier ?? fileExtension.lowercased()
         let engineKey = schema.propertyMapKeys.first
 
         // ID3 comments/lyrics are qualified collections. MP4 instead owns
@@ -214,7 +212,7 @@ extension TagLibMetadataManager {
             guard let frame = id3Frame(for: field, schema: schema) else {
                 throw MetadataPatchValidationError.unsupportedFieldForFormat(
                     field: field,
-                    format: capability?.identifier ?? fileExtension
+                    format: identifier
                 )
             }
             return SemanticPropertyStorage(
@@ -227,7 +225,7 @@ extension TagLibMetadataManager {
         guard let engineKey, let target = schema.writeTarget(for: family(for: formats)) else {
             throw MetadataPatchValidationError.unsupportedFieldForFormat(
                 field: field,
-                format: capability?.identifier ?? fileExtension
+                format: identifier
             )
         }
         var removals = Set(schema.propertyMapKeys.map { $0.uppercased() })

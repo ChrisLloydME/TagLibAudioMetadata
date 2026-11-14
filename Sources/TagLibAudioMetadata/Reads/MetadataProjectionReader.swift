@@ -13,13 +13,33 @@ internal enum MetadataProjectionReader {
         }
 
         do {
-            return try TagLibMetadataExtractor.metadataProjections(
-                for: url,
-                options: options
-            )
+            // Bound native NSString/NSData/collection temporaries per extraction.
+            // The returned dictionary strongly owns every value that escapes.
+            return try autoreleasepool {
+                try TagLibMetadataExtractor.metadataProjections(
+                    for: url,
+                    options: options
+                )
+            }
         } catch {
             throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
         }
+    }
+
+    /// Complete reads fail closed if any required native view is missing.
+    /// Callers decode this one extraction rather than probing independent reads.
+    nonisolated static func complete(
+        from url: URL
+    ) throws -> (basic: TagLibAudioMetadata, raw: [String: NSObject], structured: [String: NSObject]) {
+        let projections = try extract(from: url, options: .all)
+        guard let basic = projections["basic"] as? TagLibAudioMetadata,
+              let raw = projections["raw"] as? [String: NSObject],
+              let structured = projections["structured"] as? [String: NSObject] else {
+            throw TagLibManagerError.failedToReadWithUnderlying(
+                "The bridge returned an incomplete metadata projection set."
+            )
+        }
+        return (basic, raw, structured)
     }
 
     /// A transaction validity check needs the same parser/audio credibility
