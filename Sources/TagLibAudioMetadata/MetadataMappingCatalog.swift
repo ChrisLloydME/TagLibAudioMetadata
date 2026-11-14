@@ -614,6 +614,7 @@ public enum MetadataMappingCatalog {
                 MetadataNativeTarget(family: .vorbisComment, storage: .textKey, nativeIdentity: "ITUNESADVISORY", shape: .advisory, preferredWrite: true),
                 MetadataNativeTarget(family: .apev2, storage: .textKey, nativeIdentity: "ITUNESADVISORY", shape: .advisory, preferredWrite: true),
                 MetadataNativeTarget(family: .mp4, storage: .mp4Integer, nativeIdentity: "rtng", shape: .advisory, preferredWrite: true),
+                MetadataNativeTarget(family: .asf, storage: .asfAttribute, nativeIdentity: "ITUNESADVISORY", shape: .advisory, preferredWrite: true),
             ],
         ),
         MetadataTargetProfile(

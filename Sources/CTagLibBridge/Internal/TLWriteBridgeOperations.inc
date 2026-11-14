@@ -50,6 +50,14 @@
         return NO;
     }
 
+    NSDictionary *evidence = [self metadataProjectionsForURL:fileURL options:TagLibMetadataExtractionOptionStructured error:error];
+    if (!evidence) return NO;
+    NSDictionary *structured = (NSDictionary *)evidence[@"structured"];
+    if ([(NSNumber *)structured[@"id3v2MajorVersion"] intValue] == 3) {
+        if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:9261
+            userInfo:@{NSLocalizedDescriptionKey: @"ID3v2.3 Basic bridge replacement is unsupported; use typed field deltas"}];
+        return NO;
+    }
     // Log the incoming values so we can verify the bridge from Swift is correct
     TLog(@"[WRITE-IN] '%@' title=%@ artist=%@ album=%@ composer=%@ genre=%@ comment=%@ albumArtist=%@ year=%@ track=%ld/%ld disc=%ld/%ld",
          fileURL.lastPathComponent,
@@ -81,6 +89,11 @@
             return NO;
         }
 
+        if (auto *existing = mpegFile.ID3v2Tag(false); existing && existing->header()->majorVersion() == 3) {
+            if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:9261
+                userInfo:@{NSLocalizedDescriptionKey: @"ID3v2.3 Basic replacement is unsupported; use typed field deltas to preserve legacy dates"}];
+            return NO;
+        }
         {
             TagLib::Tag *tag = mpegFile.tag();
             if (!tag) {

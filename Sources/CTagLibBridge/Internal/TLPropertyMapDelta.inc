@@ -685,6 +685,15 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         if (error) *error = PropertyMapDeltaError(9276, @"Unable to open audio file for advisory mutation");
         return NO;
     }
+    if (auto *asf = dynamic_cast<TagLib::ASF::File *>(file)) {
+        for (const char *key : { "ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT" }) asf->tag()->removeItem(key);
+        if (serialized) asf->tag()->setAttribute("ITUNESADVISORY", TagLib::ASF::Attribute(NSStringToTagString(serialized)));
+        if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
+            if (error) *error = PropertyMapDeltaError(9277, @"Could not save native ASF advisory");
+            return NO;
+        }
+        return YES;
+    }
     TagLib::PropertyMap properties = file->properties();
     for (const char *key : { "ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT", "RTNG" }) {
         properties.erase(key);

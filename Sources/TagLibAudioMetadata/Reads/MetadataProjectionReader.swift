@@ -39,7 +39,9 @@ internal enum MetadataProjectionReader {
                 "The bridge returned an incomplete metadata projection set."
             )
         }
-        return (basic, raw, structured)
+        let corrected = try LegacyID3DateEvidence.correcting(projections, at: url)
+        return (basic, corrected["raw"] as? [String: NSObject] ?? raw,
+                corrected["structured"] as? [String: NSObject] ?? structured)
     }
 
     /// A transaction validity check needs the same parser/audio credibility

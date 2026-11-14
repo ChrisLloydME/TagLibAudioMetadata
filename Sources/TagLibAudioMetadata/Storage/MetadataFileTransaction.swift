@@ -238,6 +238,7 @@ internal enum MetadataFileTransaction {
         }
 
         let result = try operation(temporaryURL)
+        try MetadataProjectionReader.validateReadableAudioFile(at: temporaryURL)
         let temporaryDescriptor = temporaryURL.path.withCString { temporaryPath in
             Darwin.open(temporaryPath, O_RDONLY)
         }

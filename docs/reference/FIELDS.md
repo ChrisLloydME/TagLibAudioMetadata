@@ -203,7 +203,7 @@ Column meanings:
 
 | Key | Display name | Semantic key | PropertyMap keys | ID3v2.3 | ID3v2.4 | MP4 | Vorbis | APE | ASF | RIFF | Flags |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `explicitContent` | Explicit Content | `ITUNESADVISORY` | `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT` | `TXXX:ITUNESADVISORY` | `TXXX:ITUNESADVISORY` | `rtng` | `ITUNESADVISORY` | `ITUNESADVISORY` | — | — | — |
+| `explicitContent` | Explicit Content | `ITUNESADVISORY` | `ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT` | `TXXX:ITUNESADVISORY` | `TXXX:ITUNESADVISORY` | `rtng` | `ITUNESADVISORY` | `ITUNESADVISORY` | `ITUNESADVISORY` | — | — |
 | `itunesAlbumID` | iTunes Album ID | `ITUNESALBUMID` | `ITUNESALBUMID` | `TXXX:ITUNESALBUMID` | `TXXX:ITUNESALBUMID` | `plID` | `ITUNESALBUMID` | `ITUNESALBUMID` | — | — | — |
 | `itunesArtistID` | iTunes Artist ID | `ITUNESARTISTID` | `ITUNESARTISTID` | `TXXX:ITUNESARTISTID` | `TXXX:ITUNESARTISTID` | `atID` | `ITUNESARTISTID` | `ITUNESARTISTID` | — | — | — |
 | `itunesCatalogID` | iTunes Catalog ID | `ITUNESCATALOGID` | `ITUNESCATALOGID` | `TXXX:ITUNESCATALOGID` | `TXXX:ITUNESCATALOGID` | `cnID` | `ITUNESCATALOGID` | `ITUNESCATALOGID` | — | — | — |

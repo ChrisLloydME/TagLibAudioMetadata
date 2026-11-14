@@ -860,8 +860,8 @@ static TagLib::PropertyMap BuildGenericPropertyMap(
     SetPropertyMapString(properties, "MOOD", metadata.mood);
     SetPropertyMapString(properties, "LANGUAGE", metadata.language);
     SetPropertyMapString(properties, "INITIALKEY", metadata.musicalKey);
-    SetPropertyMapString(properties, "MUSICBRAINZ_ALBUMTYPE", metadata.releaseType);
-    SetPropertyMapString(properties, "MUSICBRAINZ_ALBUMSTATUS", metadata.releaseStatus);
+    SetPropertyMapString(properties, "RELEASETYPE", metadata.releaseType);
+    SetPropertyMapString(properties, "RELEASESTATUS", metadata.releaseStatus);
     SetPropertyMapString(properties, "BARCODE", metadata.barcode);
     SetPropertyMapString(properties, "CATALOGNUMBER", metadata.catalogNumber);
     SetPropertyMapString(properties, "RELEASECOUNTRY", metadata.releaseCountry);

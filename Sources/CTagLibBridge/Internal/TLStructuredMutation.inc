@@ -593,10 +593,11 @@ static void UpsertID3v2StructuredFrames(TagLib::ID3v2::Tag *tag,
         if ([type isEqualToString:@"ufid"]) {
             NSString *owner = TrimmedStringOrNil((NSString *)entry[@"owner"]);
             NSData *data = DataValueFromObject(entry[@"data"]);
-            if (!owner || data.length == 0) continue;
+            if (!owner) continue;
             TagLib::ID3v2::UniqueFileIdentifierFrame *existing =
                 TagLib::ID3v2::UniqueFileIdentifierFrame::findByOwner(tag, NSStringToTagString(owner));
             if (existing) tag->removeFrame(existing);
+            if (data.length == 0) continue;
             tag->addFrame(new TagLib::ID3v2::UniqueFileIdentifierFrame(
                 NSStringToTagString(owner),
                 TagLib::ByteVector((const char *)data.bytes, (unsigned int)data.length)

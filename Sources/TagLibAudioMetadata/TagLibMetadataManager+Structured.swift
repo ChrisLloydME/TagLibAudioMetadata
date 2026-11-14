@@ -183,7 +183,8 @@ extension TagLibMetadataManager {
         _ expected: StructuredID3v2Frame,
         _ actual: StructuredID3v2Frame
     ) -> Bool {
-        guard expected.frameID == actual.frameID, expected.type == actual.type else { return false }
+        func identity(_ id: String) -> String { id == "TYER" ? "TDRC" : id == "TORY" ? "TDOR" : id }
+        guard identity(expected.frameID) == identity(actual.frameID), expected.type == actual.type else { return false }
 
         let expectedValues = expected.values.isEmpty && !expected.value.isEmpty
             ? [expected.value]
@@ -294,7 +295,21 @@ extension TagLibMetadataManager {
         }
 
         var unmatchedFrames = after.id3v2Frames
-        for frame in expected.id3v2Frames {
+        for input in expected.id3v2Frames {
+            var frame = input
+            if frame.type == "versionedText" {
+                let v3 = after.id3v2MajorVersion == 3
+                frame.frameID = (v3 ? frame.v23ID : frame.v24ID) ?? frame.frameID
+                if let description = v3 ? frame.v23Description : frame.v24Description {
+                    frame.frameID = "TXXX"
+                    frame.description = description
+                    frame.type = "userText"
+                } else { frame.type = "text" }
+            }
+            // TagLib canonicalizes these legacy frame identities on extraction.
+            if frame.frameID == "TYER" { frame.frameID = "TDRC" }
+            if frame.frameID == "TORY" { frame.frameID = "TDOR" }
+
             // Empty text is the structured removal operation. Verify absence,
             // rather than searching for a frame the writer correctly removed.
             if ["text", "userText"].contains(frame.type), frame.values.isEmpty, frame.value.isEmpty {
@@ -480,7 +495,7 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.invalidFile
         }
         let identityBeforeRead = MetadataFileIdentity.read(at: url)
-        let projections = try MetadataProjectionReader.extract(from: url, options: .structured)
+        let projections = try LegacyID3DateEvidence.correcting(MetadataProjectionReader.extract(from: url, options: .structured), at: url)
         guard let bridgeStructured = projections["structured"] as? [String: NSObject] else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The bridge returned an incomplete structured metadata projection set."
@@ -602,6 +617,12 @@ extension TagLibMetadataManager {
             )
         }
 
+        let family = capability(forExtension: ext)?.identifier
+        if ["mp4", "asf"].contains(family ?? ""),
+           !metadata.comments.isEmpty || !metadata.lyrics.isEmpty ||
+           replacingCollections.contains(.comments) || replacingCollections.contains(.lyrics) {
+            throw TagLibManagerError.unsupportedWritePolicy("This format requires semantic Comment/Lyrics fields, not ID3 comment/lyric collections.")
+        }
         try validateStructuredMetadataForWrite(metadata, includeProperties: includeProperties)
         for atom in metadata.mp4Atoms where !atom.remove {
             if let value = Int(atom.value), atom.key == "©mvi" || atom.key == "©mvc" {

@@ -249,7 +249,9 @@ extension TagLibMetadataManager {
         } else if isID3 {
             // TDRC/TYER are the YEAR slots; the engine DATE projection is
             // ambiguous across TDAT/TXXX(DATE) and is not a fallback.
-            storedYear = frameValue("TDRC") ?? frameValue("TYER")
+            storedYear = structured.id3v2MajorVersion == 3
+                ? frameValue("TYER") ?? frameValue("TDRC")
+                : frameValue("TDRC") ?? frameValue("TYER")
         } else if isASF {
             storedYear = asfText("WM/Year")
         } else {

@@ -1041,7 +1041,7 @@ func profile(
 ) -> MetadataTargetProfile?
 ```
 
-Source: [MetadataMappingCatalog.swift:1126](../../Sources/TagLibAudioMetadata/MetadataMappingCatalog.swift#L1126)
+Source: [MetadataMappingCatalog.swift:1127](../../Sources/TagLibAudioMetadata/MetadataMappingCatalog.swift#L1127)
 
 ## `MetadataNativeFamily`
 

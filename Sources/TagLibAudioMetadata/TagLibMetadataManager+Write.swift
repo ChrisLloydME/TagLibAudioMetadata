@@ -183,6 +183,16 @@ extension TagLibMetadataManager {
         }
 
         return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+            let before = try readSnapshot(from: mutationURL)
+            if before.structured.id3v2MajorVersion == 3 {
+                for (field, value) in [(MetadataFieldKey.year, metadata.year ?? ""), (.standaloneDate, metadata.standaloneDate ?? ""),
+                    (.releaseDate, metadata.releaseDate ?? ""), (.originalReleaseDate, metadata.originalReleaseDate ?? "")] {
+                    if value != basicProjectionValue(for: field, metadata: before.basic) {
+                        throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+                    }
+                }
+                throw TagLibManagerError.unsupportedWritePolicy("Use version-checked Basic updates or typed patches to preserve ID3v2.3 dates.")
+            }
             try TagLibMetadataExtractor.writeMetadataInPlace(metadata, to: mutationURL)
             let warnings = metadataWriteWarnings(for: mutationURL, verification: verification)
             try throwOnVerificationFailures(warnings)
@@ -513,7 +523,9 @@ extension TagLibMetadataManager {
         meta.customFields = nil
 
         var warnings: [String] = []
-        try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
+        if try readSnapshot(from: url).structured.id3v2MajorVersion != 3 {
+            try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
+        }
 
 
         try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
@@ -576,6 +588,28 @@ extension TagLibMetadataManager {
             ))
         }
         let originalSnapshot = try readSnapshot(from: url)
+        if originalSnapshot.structured.id3v2MajorVersion == 3 {
+            for field in basicDateFields where basicProjectionValue(for: field, metadata: meta) != basicProjectionValue(for: field, metadata: originalSnapshot.basic) {
+                throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+            }
+            var fields: [MetadataFieldKey: MetadataPatchValue] = [:]
+            for field in BasicMetadata.editableFieldKeys.subtracting(Set(basicDateFields)).subtracting([.artwork, .explicitContent]) {
+                guard let value = basicProjectionValue(for: field, metadata: meta),
+                      value != basicProjectionValue(for: field, metadata: originalSnapshot.basic),
+                      let schema = MetadataFieldRegistry.schema(for: field) else { continue }
+                if value.isEmpty { fields[field] = .remove }
+                else if schema.acceptedPatchValueKinds.contains(.integer), let integer = Int(value) {
+                    fields[field] = integer == 0 && [.track, .trackTotal, .disc, .discTotal].contains(field) ? .remove : .integer(integer)
+                } else if schema.acceptedPatchValueKinds.contains(.boolean) { fields[field] = .boolean(value == "1") }
+                else { fields[field] = .text(value) }
+            }
+            let custom = meta.customFields.filter { originalSnapshot.basic.customFields[$0.key] != $0.value }.mapValues { MetadataPatchValue.text($0) }
+            let artwork: MetadataArtworkPatch = meta.artworkData == originalSnapshot.basic.artworkData ? .unchanged
+                : meta.artworkData.map { .replace([.init(mimeType: meta.artworkMIMEType ?? "image/jpeg", data: $0)]) } ?? .removeAll
+            return try applyMetadataPatch(.init(fields: fields, customFields: custom,
+                explicitAdvisory: meta.explicitAdvisory == originalSnapshot.basic.explicitAdvisory ? nil : meta.explicitAdvisory,
+                artwork: artwork), to: url, expectedVersion: expectedVersion ?? originalSnapshot.fileVersion)
+        }
         var validation = meta
         if meta.year == originalSnapshot.basic.year { validation.year = "" }
         try validateBasicMetadataForWrite(validation)
@@ -696,6 +730,7 @@ extension TagLibMetadataManager {
             return originalProjection != value
         }
         m.customFields = explicitlyChangedCustomFields.isEmpty ? nil : explicitlyChangedCustomFields
+        m.removeArtwork = meta.artworkData == nil
         m.artworkData = meta.artworkData
         m.artworkMimeType = normalizedArtworkMIMEType(meta.artworkMIMEType, data: meta.artworkData)
 
@@ -719,7 +754,7 @@ extension TagLibMetadataManager {
                 expectedDiscNumber: meta.disc,
                 expectedDiscTotal: meta.discTotal,
                 expectedDiscNumberText: expectedDiscNumberText,
-                artworkExpectation: meta.artworkData == nil ? .skip : .present,
+                artworkExpectation: meta.artworkData == nil ? .absent : .present,
                 customFieldKeys: Array(meta.customFields.keys),
                 expectedTextFields: [
                     "title": meta.title,
