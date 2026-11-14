@@ -409,7 +409,7 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { "TKEY", nullptr, nullptr, "INITIALKEY", GetMusicalKey },
     { "TMOO", nullptr, nullptr, "MOOD", GetMood },
     { "TMED", nullptr, nullptr, "MEDIA", GetMediaType },
-    { "MVNM", nullptr, nullptr, "MOVEMENT", GetMovement },
+    { "MVNM", nullptr, "\xA9" "mvn", nullptr, GetMovement },
     { "MVIN", nullptr, nullptr, nullptr, GetMovementNumberPair },
     { nullptr, nullptr, "\xA9" "mvi", nullptr, GetMovementNumber },
     { nullptr, nullptr, "\xA9" "mvc", nullptr, GetMovementCount },
@@ -441,7 +441,7 @@ static const TLWritableTextMapping kWritableTextMappings[] = {
     { nullptr, "MusicBrainz Artist Id", nullptr, "MusicBrainz Artist Id", GetMusicBrainzArtistId },
     { nullptr, "MusicBrainz Album Id", nullptr, "MusicBrainz Album Id", GetMusicBrainzAlbumId },
     { nullptr, "MusicBrainz Album Artist Id", nullptr, "MusicBrainz Album Artist Id", GetMusicBrainzAlbumArtistId },
-    { nullptr, "MusicBrainz Track Id", nullptr, "MusicBrainz Track Id", GetMusicBrainzTrackId },
+    { nullptr, nullptr, nullptr, "MusicBrainz Track Id", GetMusicBrainzTrackId },
     { nullptr, "MusicBrainz Release Group Id", nullptr, "MusicBrainz Release Group Id", GetMusicBrainzReleaseGroupId },
     { nullptr, "MusicBrainz Release Track Id", nullptr, "MusicBrainz Release Track Id", GetMusicBrainzReleaseTrackId },
     { nullptr, "MusicBrainz Work Id", nullptr, "MusicBrainz Work Id", GetMusicBrainzWorkId },
@@ -543,6 +543,16 @@ static void ApplyWritableTextMappingsToID3v2Tag(TagLib::ID3v2::Tag *tag,
             SetID3v2UserTextFrame(tag, mapping.id3v2UserTextDescription, value);
         }
     }
+    RemoveID3v2UserTextFrames(tag, @[ @"MusicBrainz Track Id" ]);
+    auto *ufid = TagLib::ID3v2::UniqueFileIdentifierFrame::findByOwner(tag, "http://musicbrainz.org");
+    if (ufid) tag->removeFrame(ufid);
+    NSString *identifier = TrimmedStringOrNil(metadata.musicBrainzTrackId);
+    if (identifier) {
+        NSData *bytes = [identifier dataUsingEncoding:NSUTF8StringEncoding];
+        tag->addFrame(new TagLib::ID3v2::UniqueFileIdentifierFrame("http://musicbrainz.org",
+            TagLib::ByteVector((const char *)bytes.bytes, (unsigned int)bytes.length)));
+    }
+
 }
 
 static void ApplyWritableTextMappingsToMP4Tag(TagLib::MP4::Tag *tag,

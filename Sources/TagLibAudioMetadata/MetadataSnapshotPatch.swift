@@ -357,15 +357,14 @@ extension TagLibMetadataManager {
         let formatCapability = capability(forExtension: ext)
         let formatIdentifier = formatCapability?.identifier ?? ext
         let fieldFormats = formatCapability?.metadataFieldFormats ?? []
-        if let capability = formatCapability,
-           let writableFields = capability.writableFields {
+        if let capability = formatCapability {
             let requestedFields = Set(validatedPatch.fields.keys)
                 .union(patch.explicitAdvisory == nil ? [] : [.explicitContent])
                 .union(patch.artwork == .unchanged ? [] : [.artwork])
                 .union(patch.numberText?.trackNumberText == nil ? [] : [.track, .trackTotal])
                 .union(patch.numberText?.discNumberText == nil ? [] : [.disc, .discTotal])
             if let unsupported = requestedFields
-                .filter({ !writableFields.contains($0) })
+                .filter({ capability.writeSupport(for: $0) == .unsupported })
                 .sorted(by: { $0.rawValue < $1.rawValue })
                 .first {
                 throw MetadataPatchValidationError.unsupportedFieldForFormat(
