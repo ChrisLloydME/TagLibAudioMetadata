@@ -6,6 +6,10 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = (
+    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testSelectiveViewsMatchFullExtractionAcrossNativeFixtures]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testRichSelectiveViewsPreserveNativeValuesAndArtwork]' passed (0.001 seconds).\n"
+    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testValidationOnlyRejectsInvalidInputsWithoutMutation]' passed (0.001 seconds).\n"
+
     "Test asfAdvisoryAliasEraseVerifiesFinalNativeState() with 24 test cases passed after 1 second.\n"
     "Test unknownAdvisoryDoesNotSatisfyExactAbsence() with 4 test cases passed after 1 second.\n"
     "Test unrelatedBasicEditPreservesUnknownAdvisory() with 16 test cases passed after 1 second.\n"
@@ -36,7 +40,7 @@ PASS = (
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityMatchesFullReaderAcrossFixtures]' passed (0.001 seconds).\n"
     "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n"
-    "Executed 164 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
+    "Executed 167 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
     "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.\n"
     "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.\n"
     "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
@@ -95,6 +99,12 @@ PASS = (
 )
 
 class TestGatePolicy(unittest.TestCase):
+    def test_every_selective_projection_contract_is_required(self):
+        for name in ['testSelectiveViewsMatchFullExtractionAcrossNativeFixtures', 'testRichSelectiveViewsPreserveNativeValuesAndArtwork', 'testValidationOnlyRejectsInvalidInputsWithoutMutation']:
+            with self.subTest(name=name):
+                modified = "\n".join(line for line in PASS.splitlines() if name not in line)
+                self.assertFalse(self.accepted(modified))
+
     def accepted(self, log, status=0):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -133,7 +143,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(line for line in PASS.splitlines() if 'everyFieldPreservesAllSiblingDateStates' not in line)))
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
-        self.assertFalse(self.accepted(PASS.replace('Executed 164 tests', 'Executed 163 tests')))
+        self.assertFalse(self.accepted(PASS.replace('Executed 167 tests', 'Executed 163 tests')))
         self.assertFalse(self.accepted(PASS.replace('run with 186 tests', 'run with 185 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):

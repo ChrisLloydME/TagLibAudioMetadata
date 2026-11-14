@@ -719,7 +719,7 @@ static void AppendStructuredComplexPictures(ComplexPropertyTarget *target,
                                                                       error:(NSError **)error
 {
     try {
-    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL error:error];
+    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL options:TagLibMetadataExtractionOptionStructured error:error];
     return projections ? (NSDictionary<NSString *, NSObject *> *)projections[@"structured"] : nil;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Structured metadata extraction", nil)
 }

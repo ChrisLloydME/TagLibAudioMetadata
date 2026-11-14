@@ -28,10 +28,9 @@ internal enum MetadataProjectionReader {
         guard let identity = MetadataFileIdentity.read(at: url) else {
             throw TagLibManagerError.invalidFile
         }
-        let projections = try extract(from: url, options: .basic)
-        guard projections["basic"] is TagLibAudioMetadata else {
-            throw TagLibManagerError.failedToReadWithUnderlying("The bridge returned no Basic readability evidence.")
-        }
+        // A successful zero-mask extraction already establishes the concrete
+        // parser and Accurate audio credibility; no discarded tag view is needed.
+        _ = try extract(from: url, options: .init(rawValue: 0))
         guard identity.hasSameReadableContents(as: MetadataFileIdentity.read(at: url)) else {
             throw TagLibManagerError.failedToReadWithUnderlying("The audio file changed while readability was being checked.")
         }

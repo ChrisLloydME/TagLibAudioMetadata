@@ -33,3 +33,11 @@ Removed four uncalled Swift helpers, one uncalled C++ number helper, Bool-only w
 ## Ownership split accepted in focused checks
 
 Moved file identity and the existing complete transaction implementation into internal Storage services; moved snapshot values and public nested write contracts into Models/Contracts. Native extraction/readability now has a single internal reader boundary shared by facade reads and storage. Removed the unused public Swift extraction-options type: no public facade operation accepted it; the native low-level option type remains supported. Snapshot tokens no longer depend on a facade-nested POSIX type. Updated API generation to recurse and retain relative source paths. Strict API, identity, transaction, read-lookup, durability and audio-identity checks passed (`/tmp/taglib-architecture-split-fixed.log`).
+
+## Selective extraction accepted in focused checks
+
+Native format branches now skip unrequested Basic/custom/artwork/date projection work; the common PropertyMap is materialized only when needed. Full extraction preserves its prior ordering. Direct bridge Basic/raw/structured readers request their own view. Swift and native transaction readability use the existing zero-mask path with the same parser and Accurate audio credibility; global parser locking, version checks and durability remain intact.
+
+All 32 option combinations match full extraction across 19 native fixtures (including tracker, Ogg and DSD) and three rich temporary copies; every declared Basic carrier property is enumerated. Invalid zero-mask/parser-mismatch inputs and direct native writes fail without file changes. All three regressions are gate-required; all 30 policy checks pass. Existing focused native-state/fixture/transaction checks passed (93 XCTest functions).
+
+The [first optimized run](ARCHITECTURE_IO_OPTIMIZED_2026-11-14.json) and [repeat preserving full-read order](ARCHITECTURE_IO_OPTIMIZED_REPEAT_2026-11-14.json) retain all 48 rows. Raw/structured and readability work are consistently faster, but full snapshots and durable writes vary; the first run has 12–33% slower heavy snapshots and 2–7% slower several writes. The repeat reduces that difference but does not establish a universal snapshot or write improvement. Results are local warmed batch averages; no result is discarded or promoted to a throughput guarantee.

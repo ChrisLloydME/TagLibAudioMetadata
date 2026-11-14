@@ -76,7 +76,7 @@ The bridge supports five option bits: `basic`, `raw`, `structured`, `propertyMap
 
 The unified extractor also clears any engine-provided date projection before populating the bridge Basic model. ID3 reads clear all four date slots and repopulate them from `TDRC`/`TYER`, `TDAT`/`TXXX(DATE)`, `TDRL`, and `TDOR`/`TORY`; MP4 reads use the native atom map and preserve absence; ASF reads its Unicode attributes; and Xiph/APE read YEAR and DATE from their visible native properties. This keeps an inferred or cross-owner projection from becoming a low-level date value.
 
-The unified bridge still constructs its internal Basic carrier during a structured-only traversal; removing that allocation requires a wider format-extractor split. This is an implementation detail, not a public contract.
+Selective native reads skip unrequested Basic tag/custom-field/artwork extraction, native date overrides and structured collections. A small internal carrier still holds audio properties for the same parser-credibility policy. A zero option mask performs readability validation and returns an empty dictionary; it does not build a PropertyMap or metadata views. Successful extraction still requires the exact selected parser and credible Accurate audio properties (tracker formats retain their channel-only policy). Direct bridge Basic/raw/structured readers now request only their own view. Facade Basic reads continue to request all views because exact native owner resolution needs them.
 
 `updateBasicMetadata(at:_:)` reads a focused Basic snapshot, applies the closure, and passes the captured version to the version-checked replacement.
 

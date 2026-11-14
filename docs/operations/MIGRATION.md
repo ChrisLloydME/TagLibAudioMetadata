@@ -22,6 +22,8 @@ This guide describes source-compatibility expectations and the changes a consume
 
 ### Further architecture cleanup (same unreleased breaking candidate)
 
+The unused facade `MetadataExtractionOptions` type is removed. No public facade operation accepted it; direct bridge clients retain `TagLibMetadataExtractionOptions` through the low-level product.
+
 - Use `allSchemas`; `canonicalSchemas`, `isCanonicalSemanticOwner` and the public shared/preferred/property-owner tables are removed. Every field schema now represents one canonical identity. `schema(forPropertyMapKey:)` keeps explicit engine/qualified aliases in a private single-owner index, and `canonicalSchema(forSemanticKey:)` remains the semantic lookup.
 - `readSnapshot(from:includingAudioContent:)` and `readBasicSnapshot(from:includingAudioContent:)` are single functions with a default false flag. Full current function references include the Bool argument. Ordinary one-argument calls still compile through the default.
 - Snapshot and Structured constructors have one current signature with default optional provenance/version values; old arity-only forwarding initializers are removed.

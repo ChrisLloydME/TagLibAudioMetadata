@@ -136,7 +136,13 @@ TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
 
 The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, verified write batches, and flush samples. It also measures MP3/M4A/FLAC ordinary and 64-key metadata-heavy Basic/snapshot reads, typed/Basic/raw title writes, and declared-capability lookups. Each profile reports five batch-average latencies: `medianMs` is their median and `p95Ms` is their maximum (the nearest-rank 95th percentile of five samples), not a per-operation tail percentile. Reads assert byte immutability; writes include actual staging, verification and durability. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises. Baseline and optimized evidence are in the [API/performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
-The current gate requires at least 164 XCTest and 186 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the three per-read lookup preservation regressions and two transaction-readability regressions. An unchanged total count cannot substitute for those tests.
+The current gate requires at least 167 XCTest and 186 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the three per-read lookup preservation regressions and two transaction-readability regressions. An unchanged total count cannot substitute for those tests.
+
+### Selective extraction profile and mandatory contracts
+
+`TAGLIB_BENCHMARK=1 TAGLIB_BENCHMARK_PROFILE=projections` selects a separate 48-row workload: three containers, two metadata densities and eight APIs. Each row is the median of three warmed batch-average latencies, not a per-operation percentile. Setup and preservation assertions are outside timing. See the [architecture record](../records/remediation/REM-2026-11-14-package-architecture.md) for baseline/optimized artifacts, variability and exact scope.
+
+`SelectiveExtractionTests` is mandatory in the strict gate: all 32 option combinations are compared against full extraction on 19 committed fixtures and three rich temporary copies. Every Objective-C Basic property, exact raw/structured collections, direct single-view readers and whole-file immutability are checked. Zero-mask invalid/parser-mismatch inputs and direct low-level writes must fail without mutation. These are projection-equivalence checks; the existing independent native byte matrices continue to establish mapping correctness.
 
 ## Independent evidence used in the repository
 

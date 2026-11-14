@@ -42,6 +42,10 @@ swift_skips = [line for line in log.splitlines()
 failed_named_tests = sorted(set(re.findall(r'\bTest ([A-Za-z_]\w*)\([^)]*\) failed\b', log)))
 failed_xctest = sorted(set(re.findall(r"Test Case '(-\[[^']+\])' failed", log)))
 required_xctest = {
+    ('SelectiveExtractionTests', 'testSelectiveViewsMatchFullExtractionAcrossNativeFixtures'),
+    ('SelectiveExtractionTests', 'testRichSelectiveViewsPreserveNativeValuesAndArtwork'),
+    ('SelectiveExtractionTests', 'testValidationOnlyRejectsInvalidInputsWithoutMutation'),
+
     ('ReadLookupPreservationTests', 'testTransactionReadabilityMatchesFullReaderAcrossFixtures'),
     ('ReadLookupPreservationTests', 'testTransactionReadabilityRejectsInvalidFilesBeforeMutation'),
     ('FormatCapabilityTests', 'testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies'),
@@ -158,7 +162,7 @@ summary = {'runner_exit_status': status, 'xctest_executed': int(xctest[-1][0]) i
            'failed_named_tests': failed_named_tests,
            'failed_xctest_names': failed_xctest,
            'missing_required_xctest': missing_xctest}
-ok = (status == 0 and bool(xctest) and int(xctest[-1][0]) >= 164 and int(xctest[-1][2]) == 0
+ok = (status == 0 and bool(xctest) and int(xctest[-1][0]) >= 167 and int(xctest[-1][2]) == 0
       and bool(swift) and int(swift[-1][0]) >= 186 and swift[-1][2] == 'passed'
       and not unexpected and not swift_skips and not missing_suites and not missing_tests
       and not failed_named_tests and not failed_xctest and not missing_xctest

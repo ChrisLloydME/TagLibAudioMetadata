@@ -1,7 +1,7 @@
 + (nullable TagLibAudioMetadata *)extractMetadataFromURL:(NSURL *)fileURL
                                                    error:(NSError **)error {
     try {
-    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL error:error];
+    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL options:TagLibMetadataExtractionOptionBasic error:error];
     return projections ? (TagLibAudioMetadata *)projections[@"basic"] : nil;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Metadata extraction", nil)
 }

@@ -105,10 +105,14 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
     bool commonUsesBaseFile = false;
     TagLib::PropertyMap commonProperties;
     auto applyCommon = [&](TagLib::File *file) {
-        ApplyBasicTagMetadata(file->tag(), basic);
+        // Preserve full extraction order; unrequested views skip their work.
+        if (wantsBasic) ApplyBasicTagMetadata(file->tag(), basic);
         commonUsesBaseFile = file == baseFile;
-        commonProperties = VisibleMetadataProperties(file);
-        ApplyGenericPropertyMapMetadata(commonProperties, basic);
+        if (wantsBasic || wantsPropertyMap) {
+            commonProperties = VisibleMetadataProperties(file);
+        }
+        if (wantsBasic) ApplyGenericPropertyMapMetadata(commonProperties, basic);
+        // Audio credibility is mandatory even when no metadata view is requested.
         ApplyAudioPropertiesMetadata(file->audioProperties(), basic);
         if (wantsPropertyMap) AppendRawPropertyEntries(propertiesOut, commonProperties);
     };
@@ -119,14 +123,14 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = format == TLTagFileFormatMPEGAAC ? @"AAC" : ([extension isEqualToString:@"mp2"] ? @"MP2" : @"MP3");
             if (format == TLTagFileFormatMPEGID3) {
-                if (file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
-                if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
-                if (file->ID3v1Tag()) ApplyBasicTagMetadata(file->ID3v1Tag(), basic);
+                if (wantsBasic && file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
+                if (wantsBasic && file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
+                if (wantsBasic && file->ID3v1Tag()) ApplyBasicTagMetadata(file->ID3v1Tag(), basic);
                 if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
                 if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
             } else if (file->ID3v2Tag()) {
                 // Raw AAC carries ID3v2 metadata through TagLib's MPEG parser.
-                ExtractID3v2Metadata(file->ID3v2Tag(), basic);
+                if (wantsBasic) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
                 if (wantsStructured) {
                     AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
                 }
@@ -148,7 +152,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
                 }
             }
             if (file->tag()) {
-                ExtractMP4Metadata(file->tag(), basic);
+                if (wantsBasic) ExtractMP4Metadata(file->tag(), basic);
                 if (wantsStructured) AppendStructuredMP4(file->tag(), mp4AtomsOut, artworkOut);
             }
         }
@@ -157,9 +161,9 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"FLAC";
-            if (file->xiphComment()) ExtractXiphCommentMetadata(file->xiphComment(), basic);
+            if (wantsBasic && file->xiphComment()) ExtractXiphCommentMetadata(file->xiphComment(), basic);
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
-            ExtractFLACPicture(file, basic);
+            if (wantsBasic) ExtractFLACPicture(file, basic);
             if (wantsStructured) AppendStructuredComplexPictures(file, @"flac", artworkOut);
         }
     } else if (format == TLTagFileFormatOggVorbis) {
@@ -170,8 +174,8 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = @"Vorbis";
             if (file->tag()) {
-                ExtractXiphCommentMetadata(file->tag(), basic);
-                ExtractArtworkFromComplexProperties(file->tag(), basic);
+                if (wantsBasic) ExtractXiphCommentMetadata(file->tag(), basic);
+                if (wantsBasic) ExtractArtworkFromComplexProperties(file->tag(), basic);
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
@@ -183,8 +187,8 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = @"Opus";
             if (file->tag()) {
-                ExtractXiphCommentMetadata(file->tag(), basic);
-                ExtractArtworkFromComplexProperties(file->tag(), basic);
+                if (wantsBasic) ExtractXiphCommentMetadata(file->tag(), basic);
+                if (wantsBasic) ExtractArtworkFromComplexProperties(file->tag(), basic);
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
@@ -197,8 +201,8 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             basic.codec = @"OGG FLAC";
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (file->tag()) {
-                ExtractXiphCommentMetadata(file->tag(), basic);
-                ExtractArtworkFromComplexProperties(file->tag(), basic);
+                if (wantsBasic) ExtractXiphCommentMetadata(file->tag(), basic);
+                if (wantsBasic) ExtractArtworkFromComplexProperties(file->tag(), basic);
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
@@ -210,8 +214,8 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = @"Speex";
             if (file->tag()) {
-                ExtractXiphCommentMetadata(file->tag(), basic);
-                ExtractArtworkFromComplexProperties(file->tag(), basic);
+                if (wantsBasic) ExtractXiphCommentMetadata(file->tag(), basic);
+                if (wantsBasic) ExtractArtworkFromComplexProperties(file->tag(), basic);
                 if (wantsStructured) AppendStructuredComplexPictures(file->tag(), @"xiph", artworkOut);
             }
         }
@@ -221,7 +225,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = @"APE";
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
-            if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
+            if (wantsBasic && file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
             if (wantsStructured) AppendStructuredAPEPictures(file->APETag(), artworkOut);
         }
     } else if (format == TLTagFileFormatWavPack) {
@@ -230,7 +234,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = @"WavPack";
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
-            if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
+            if (wantsBasic && file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
             if (wantsStructured) AppendStructuredAPEPictures(file->APETag(), artworkOut);
         }
     } else if (format == TLTagFileFormatMPC) {
@@ -238,7 +242,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"Musepack";
-            if (file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
+            if (wantsBasic && file->APETag()) ExtractAPEMetadata(file->APETag(), basic);
             if (wantsStructured) AppendStructuredAPEPictures(file->APETag(), artworkOut);
         }
     } else if (format == TLTagFileFormatWAV) {
@@ -246,7 +250,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"WAV";
-            if (file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
+            if (wantsBasic && file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
             if (wantsStructured) {
@@ -259,7 +263,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"AIFF";
-            if (file->tag()) ExtractID3v2Metadata(file->tag(), basic);
+            if (wantsBasic && file->tag()) ExtractID3v2Metadata(file->tag(), basic);
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->tag(), rawFramesOut);
             if (wantsStructured) {
@@ -272,8 +276,8 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             openedExpectedType = true;
             applyCommon(file);
             basic.codec = @"TrueAudio";
-            if (file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
-            if (file->ID3v1Tag()) ApplyBasicTagMetadata(file->ID3v1Tag(), basic);
+            if (wantsBasic && file->ID3v2Tag()) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
+            if (wantsBasic && file->ID3v1Tag()) ApplyBasicTagMetadata(file->ID3v1Tag(), basic);
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (wantsRawFrames) AppendUnifiedRawID3v2Frames(file->ID3v2Tag(), rawFramesOut);
             if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
@@ -285,19 +289,21 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             basic.codec = @"WMA";
             if (file->audioProperties()) basic.bitDepth = file->audioProperties()->bitsPerSample();
             if (file->tag()) {
-                ExtractASFPicture(file->tag(), basic);
-                ExtractASFCustomAttributes(file->tag(), basic);
-                auto nativeText = [&](const char *key) -> NSString * {
-                    TagLib::StringList values;
-                    for (const auto &attribute : file->tag()->attributeListMap()[key]) {
-                        if (attribute.type() == TagLib::ASF::Attribute::UnicodeType) values.append(attribute.toString());
-                    }
-                    return values.isEmpty() ? nil : TagStringToNSString(values.toString(", "));
-                };
-                basic.year = nativeText("WM/Year");
-                basic.standaloneDate = nativeText("DATE");
-                basic.originalReleaseDate = nativeText("WM/OriginalReleaseYear");
-                ExtractArtworkFromComplexProperties(file->tag(), basic);
+                if (wantsBasic) ExtractASFPicture(file->tag(), basic);
+                if (wantsBasic) ExtractASFCustomAttributes(file->tag(), basic);
+                if (wantsBasic) {
+                    auto nativeText = [&](const char *key) -> NSString * {
+                        TagLib::StringList values;
+                        for (const auto &attribute : file->tag()->attributeListMap()[key]) {
+                            if (attribute.type() == TagLib::ASF::Attribute::UnicodeType) values.append(attribute.toString());
+                        }
+                        return values.isEmpty() ? nil : TagStringToNSString(values.toString(", "));
+                    };
+                    basic.year = nativeText("WM/Year");
+                    basic.standaloneDate = nativeText("DATE");
+                    basic.originalReleaseDate = nativeText("WM/OriginalReleaseYear");
+                }
+                if (wantsBasic) ExtractArtworkFromComplexProperties(file->tag(), basic);
                 if (wantsStructured) AppendStructuredASF(file->tag(), asfAttributesOut, artworkOut);
             }
         }
@@ -307,7 +313,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = @"DSF";
             if (auto *tag = dynamic_cast<TagLib::ID3v2::Tag *>(file->tag())) {
-                ExtractID3v2Metadata(tag, basic);
+                if (wantsBasic) ExtractID3v2Metadata(tag, basic);
                 if (wantsStructured) AppendStructuredID3v2(tag, structuredFramesOut, artworkOut, lyricsOut, commentsOut);
             }
         }
@@ -317,7 +323,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
             applyCommon(file);
             basic.codec = @"DSDIFF";
             if (file->hasID3v2Tag()) {
-                ExtractID3v2Metadata(file->ID3v2Tag(), basic);
+                if (wantsBasic) ExtractID3v2Metadata(file->ID3v2Tag(), basic);
                 if (wantsStructured) AppendStructuredID3v2(file->ID3v2Tag(), structuredFramesOut, artworkOut, lyricsOut, commentsOut);
             }
         }
@@ -346,7 +352,7 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
         }
     }
 
-    if (NativeXiphComment(baseFile) || NativeAPETag(baseFile)) {
+    if (wantsBasic && (NativeXiphComment(baseFile) || NativeAPETag(baseFile))) {
         // Tag::year() may derive a four-digit year from native DATE. The
         // low-level model must expose the independent native owners instead.
         // Reuse only evidence from this exact open file. Explicitly selected
@@ -375,28 +381,30 @@ static NSError *UnifiedExtractionError(NSInteger code, NSString *description)
         @"properties": propertiesOut,
         @"id3v2Frames": rawFramesOut,
     };
-    TagLib::ID3v2::Tag *primaryID3 = nullptr;
-    if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(baseFile)) primaryID3 = mpeg->ID3v2Tag(false);
-    else if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(baseFile)) primaryID3 = wav->ID3v2Tag();
-    else if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(baseFile)) primaryID3 = aiff->tag();
-    else if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(baseFile)) primaryID3 = tta->ID3v2Tag(false);
-    else if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(baseFile)) primaryID3 = dsf->tag();
-    else if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(baseFile)) primaryID3 = dff->ID3v2Tag(false);
-    NSDictionary<NSString *, NSObject *> *structured = @{
-        @"properties": propertiesOut,
-        @"id3v2Frames": structuredFramesOut,
-        @"id3v2MajorVersion": primaryID3 && primaryID3->header() ? @(primaryID3->header()->majorVersion()) : @0,
-        @"mp4Atoms": mp4AtomsOut,
-        @"asfAttributes": asfAttributesOut,
-        @"artwork": artworkOut,
-        @"lyrics": lyricsOut,
-        @"comments": commentsOut,
-        @"warnings": warningsOut,
-    };
     NSMutableDictionary<NSString *, NSObject *> *result = [NSMutableDictionary dictionary];
     if (wantsBasic) result[@"basic"] = basic;
     if (wantsRaw || explicitlyWantsPropertyMap || explicitlyWantsRawFrames) result[@"raw"] = raw;
-    if (wantsStructured) result[@"structured"] = structured;
+    if (wantsStructured) {
+        TagLib::ID3v2::Tag *primaryID3 = nullptr;
+        if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(baseFile)) primaryID3 = mpeg->ID3v2Tag(false);
+        else if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(baseFile)) primaryID3 = wav->ID3v2Tag();
+        else if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(baseFile)) primaryID3 = aiff->tag();
+        else if (auto *tta = dynamic_cast<TagLib::TrueAudio::File *>(baseFile)) primaryID3 = tta->ID3v2Tag(false);
+        else if (auto *dsf = dynamic_cast<TagLib::DSF::File *>(baseFile)) primaryID3 = dsf->tag();
+        else if (auto *dff = dynamic_cast<TagLib::DSDIFF::File *>(baseFile)) primaryID3 = dff->ID3v2Tag(false);
+        NSDictionary<NSString *, NSObject *> *structured = @{
+            @"properties": propertiesOut,
+            @"id3v2Frames": structuredFramesOut,
+            @"id3v2MajorVersion": primaryID3 && primaryID3->header() ? @(primaryID3->header()->majorVersion()) : @0,
+            @"mp4Atoms": mp4AtomsOut,
+            @"asfAttributes": asfAttributesOut,
+            @"artwork": artworkOut,
+            @"lyrics": lyricsOut,
+            @"comments": commentsOut,
+            @"warnings": warningsOut,
+        };
+        result[@"structured"] = structured;
+    }
     return result;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Unified metadata extraction", nil)
 }
