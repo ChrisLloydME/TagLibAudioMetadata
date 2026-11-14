@@ -624,28 +624,23 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedWritePolicy("This format requires semantic Comment/Lyrics fields, not ID3 comment/lyric collections.")
         }
         try validateStructuredMetadataForWrite(metadata, includeProperties: includeProperties)
-        let legacyIDs: Set<String> = ["TYER", "TDAT", "TORY", "TDRL"]
-        if metadata.id3v2Frames.contains(where: { $0.type == "versionedText" || legacyIDs.contains($0.frameID) }),
-           try readStructuredMetadataResult(from: url).id3v2MajorVersion == 3 {
-            for frame in metadata.id3v2Frames {
-                let id = frame.type == "versionedText" ? frame.v23ID ?? frame.frameID : frame.frameID
-                let values = frame.values.isEmpty && !frame.value.isEmpty ? [frame.value] : frame.values
-                if values.isEmpty { continue }
-                if ["TYER", "TORY", "TDAT"].contains(id) {
-                    guard values.count == 1, let value = values.first, value.utf8.count == 4,
-                          value.utf8.allSatisfy({ (48...57).contains($0) }) else {
-                        throw TagLibManagerError.unsupportedWritePolicy("Legacy \(id) requires one four-digit native value.")
-                    }
-                    if id == "TDAT" {
-                        let day = Int(value.prefix(2)) ?? 0, month = Int(value.suffix(2)) ?? 0
-                        guard (1...31).contains(day), (1...12).contains(month) else {
-                            throw TagLibManagerError.unsupportedWritePolicy("Legacy TDAT requires DDMM; no year/date conversion is performed.")
-                        }
-                    }
-                } else if id == "TDRL" {
-                    throw TagLibManagerError.unsupportedWritePolicy("ID3v2.3 has no verified release-time codec.")
-                }
+        let beforeStructured = try readStructuredMetadataResult(from: url)
+        let isID3v23 = beforeStructured.id3v2MajorVersion == 3
+        if isID3v23 {
+            if ID3v23DateSafety.isDateEdit(metadata, includeProperties: includeProperties) {
+                throw TagLibManagerError.unsupportedWritePolicy(
+                    "ID3v2.3 date frames are read-only through structured writes."
+                )
             }
+            if let reason = ID3v23DateSafety.unpreservableReason(in: beforeStructured.id3v2Frames) {
+                throw TagLibManagerError.unsupportedWritePolicy(reason)
+            }
+        }
+        var effectiveMetadata = metadata
+        if isID3v23 {
+            effectiveMetadata.id3v2Frames.append(
+                contentsOf: ID3v23DateSafety.preservationFrames(in: beforeStructured.id3v2Frames)
+            )
         }
         for atom in metadata.mp4Atoms where !atom.remove {
             if let value = Int(atom.value), atom.key == "©mvi" || atom.key == "©mvc" {
@@ -667,16 +662,24 @@ extension TagLibMetadataManager {
             var verificationFailures: [String] = []
 
             let payload = bridgePayload(
-                from: metadata,
+                from: effectiveMetadata,
                 includeProperties: includeProperties,
                 replacingCollections: replacingCollections,
                 riffPolicy: riffPolicy
             )
             try TagLibMetadataExtractor.writeStructuredMetadataInPlace(payload, to: mutationURL)
 
+            if isID3v23 {
+                let afterStructured = try readStructuredMetadataResult(from: mutationURL)
+                verificationFailures.append(contentsOf: ID3v23DateSafety.unexpectedChanges(
+                    before: beforeStructured.id3v2Frames,
+                    after: afterStructured.id3v2Frames
+                ))
+            }
+
             if verifyAfterWrite {
                 let verification = structuredWriteVerification(
-                    expected: metadata,
+                    expected: effectiveMetadata,
                     includeProperties: includeProperties,
                     replacingCollections: replacingCollections,
                     for: mutationURL

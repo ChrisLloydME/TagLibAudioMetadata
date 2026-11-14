@@ -61,9 +61,23 @@ extension TagLibMetadataManager {
         for key in removals { expected.removeValue(forKey: key) }
         for (key, entries) in replacements { expected[key] = entries }
 
+        let beforeStructured = try? readStructuredMetadataResult(from: url)
+        let touchesV23Dates = Set(replacements.keys).union(removals).contains {
+            ID3v23DateSafety.datePropertyKeys.contains($0.uppercased())
+        }
+
         try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
             replacements, removingKeys: Array(removals), to: url
         )
+
+        if let beforeStructured, beforeStructured.id3v2MajorVersion == 3, !touchesV23Dates {
+            let afterStructured = try readStructuredMetadataResult(from: url)
+            let changes = ID3v23DateSafety.unexpectedChanges(
+                before: beforeStructured.id3v2Frames,
+                after: afterStructured.id3v2Frames
+            )
+            if !changes.isEmpty { throw TagLibManagerError.verificationFailed(changes) }
+        }
 
         guard verify else { return }
         let actual = exactPropertyValues(try rawMetadataResult(from: url))

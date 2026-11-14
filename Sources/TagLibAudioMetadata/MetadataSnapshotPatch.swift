@@ -399,11 +399,15 @@ extension TagLibMetadataManager {
                 try requireAudioContent(at: mutationURL, matching: expectedAudioContent)
             }
             let before = try readSnapshot(from: mutationURL)
-            if before.structured.id3v2MajorVersion == 3,
-               let field = validatedPatch.fields.keys.first(where: {
-                   [.year, .standaloneDate, .releaseDate, .originalReleaseDate].contains($0)
-               }) {
-                throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+            if before.structured.id3v2MajorVersion == 3 {
+                if let field = validatedPatch.fields.keys.first(where: {
+                    [.year, .standaloneDate, .releaseDate, .originalReleaseDate].contains($0)
+                }) {
+                    throw MetadataPatchValidationError.unsupportedFieldForFormat(field: field, format: "ID3v2.3 independent dates (read-only)")
+                }
+                if let reason = ID3v23DateSafety.unpreservableReason(in: before.structured.id3v2Frames) {
+                    throw TagLibManagerError.unsupportedWritePolicy(reason)
+                }
             }
             var warnings: [String] = []
             var propertyValues: [String: [String]] = [:]
@@ -649,6 +653,12 @@ extension TagLibMetadataManager {
                 }
             }
 
+            if before.structured.id3v2MajorVersion == 3 {
+                id3Frames.append(contentsOf: ID3v23DateSafety.preservationFrames(
+                    in: before.structured.id3v2Frames
+                ))
+            }
+
             if !nativeAtoms.isEmpty || !id3Frames.isEmpty {
                 try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
                     bridgePayload(
@@ -688,6 +698,12 @@ extension TagLibMetadataManager {
             let projections = try MetadataProjectionReader.complete(from: mutationURL)
             let afterRaw = rawMetadataDump(fromBridgeDictionary: projections.raw)
             let afterStructured = structuredMetadata(fromBridgeDictionary: projections.structured)
+            if before.structured.id3v2MajorVersion == 3 {
+                warnings.append(contentsOf: ID3v23DateSafety.unexpectedChanges(
+                    before: before.structured.id3v2Frames,
+                    after: afterStructured.id3v2Frames
+                ))
+            }
             let afterBasic = basicMetadata(
                 fromBridgeMetadata: projections.basic,
                 rawDump: afterRaw,
