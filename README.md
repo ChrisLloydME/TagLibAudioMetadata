@@ -10,6 +10,8 @@ The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xip
 
 The [write-concurrency follow-up](docs/records/remediation/REM-2026-11-12-write-concurrency.md) measures bounded durable writes and reduces discarded transaction projections. Its package strict Debug/Release and real AudioMator local-candidate gates pass; timings remain local workload observations.
 
+The later [independent-review repairs](docs/records/remediation/REM-2026-11-14-independent-review-repairs.md) fix advisory erase/unknown-code preservation and distinguish confirmed defects from intentional breaking design. Current acceptance belongs to that record and [Status](docs/operations/STATUS.md).
+
 ## At a glance
 
 | Topic | Summary |

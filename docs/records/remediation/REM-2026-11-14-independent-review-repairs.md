@@ -33,4 +33,19 @@ The MP4 oracle keeps its strict default; its explicit erased-metadata mode permi
 
 Focused strict checks pass: the six advisory functions exercise 24 + 4 + 16 + 6 + 4 + 64 cases, and seven independent-probe contract tests execute. Existing focused fixture/capability checks pass. The mixed-framework gate now requires every advisory function and its minimum case count plus the erased-MP4 oracle contract; declaration floor is 186 Swift Testing / 164 XCTest. All 29 gate-policy tests pass, including missing advisory evidence and shrunken-case tampering.
 
-Full final gates, sanitizer observations, consumers and application follow-up will be appended after execution. Minimum-platform/device runtime is not claimed.
+Final production implementation is `a93c2f0`; later campaign changes are documentation only.
+
+| Check | Observed result | Evidence |
+| --- | --- | --- |
+| Strict Debug | Accepted: 164 XCTest declarations (162 passed, two original opt-in skips); 186 Swift Testing declarations in 42 suites; all mandatory named matrices | `.build/test-evidence/debug-20261114-111016-13278/` |
+| Strict Release | Accepted with the same counts and required evidence | `.build/test-evidence/release-20261114-111355-13265/` |
+| Gate policy | 29 tests passed | `python3 -m unittest discover -s scripts/tests` |
+| Independent consumers | Facade and low-level products compiled strictly and ran successfully | `/tmp/taglib-review-facade-consumer.log`, `/tmp/taglib-review-lowlevel-consumer.log` |
+| ASan, targeted | Exit 0; 13 tests in two suites passed; no sanitizer report | `/tmp/taglib-review-asan.log` |
+| TSan, targeted | Exit 0; 13 tests in two suites passed; no sanitizer report | `/tmp/taglib-review-tsan.log` |
+| Real AudioMator local override | 62 core and 580 serial app-hosted tests passed; unsigned Release build and macOS artifact validation passed | App `.deriveddata-codex/Validation/20261114-111021-13368/` |
+| Documentation/generators | 56 Markdown files checked; generated references match source | `python3 scripts/check-docs.py` |
+
+Sanitizer commands use `swift test --disable-sandbox --disable-keychain --disable-netrc -Xswiftc -warnings-as-errors -Xcc -Werror --sanitize=address|thread --filter 'AdvisoryEraseRegressionTests|NativeProbeContractTests'`. These are targeted checks of the package/bridge code compiled with instrumentation. The checksum-pinned prebuilt TagLib binary was not rebuilt with instrumentation, and the entire suite was not run under sanitizers. No minimum-platform/device/hosted-CI runtime is claimed. No app was manually launched; no dependency pin, version, tag or publication changed.
+
+The confirmed active defects are repaired and their regressions are mandatory. Intentional API/validation/binary boundaries remain in place; the source remains an explicitly breaking candidate, not a 0.7.4-compatible patch.
