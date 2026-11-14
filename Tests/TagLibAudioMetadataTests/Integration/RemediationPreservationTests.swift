@@ -138,6 +138,7 @@ final class RemediationPreservationTests: XCTestCase {
                 (.contentGroup, "Keep Group"),
                 (.artists, "Keep Artist"),
                 (.replayGainTrackPeak, "0.987"),
+                (.replayGainAlbumPeak, "0.876"),
             ]
             for (field, value) in fields {
                 guard supports(field, ext) else { continue }
@@ -151,6 +152,8 @@ final class RemediationPreservationTests: XCTestCase {
                     XCTAssertEqual(low.artists, value, "\(ext) low artists")
                 case .replayGainTrackPeak:
                     XCTAssertEqual(low.replayGainTrackPeak, value, "\(ext) low track peak")
+                case .replayGainAlbumPeak:
+                    XCTAssertEqual(low.replayGainAlbumPeak, value, "\(ext) low album peak")
                 default:
                     XCTFail("unexpected field")
                 }
@@ -168,6 +171,9 @@ final class RemediationPreservationTests: XCTestCase {
             }
             if supports(.replayGainTrackPeak, ext) {
                 XCTAssertEqual(after.replayGainTrackPeak, "0.987", "\(ext) peak after low-level write")
+            }
+            if supports(.replayGainAlbumPeak, ext) {
+                XCTAssertEqual(after.replayGainAlbumPeak, "0.876", "\(ext) album peak after low-level write")
             }
         }
     }
@@ -199,6 +205,17 @@ final class RemediationPreservationTests: XCTestCase {
             try TagLibMetadataManager.applyMetadataPatch(.init(fields: [item.field: .text(item.first)]), to: url)
             XCTAssertEqual(item.basic(try TagLibMetadataManager.readMetadataResult(from: url)), item.first)
 
+            let nativeKey: String
+            switch item.field {
+            case .releaseType: nativeKey = "MusicBrainz/Album Type"
+            case .releaseStatus: nativeKey = "MusicBrainz/Album Status"
+            case .releaseCountry: nativeKey = "MusicBrainz/Album Release Country"
+            case .musicBrainzTrackID: nativeKey = "MusicBrainz/Track Id"
+            case .musicBrainzAlbumID: nativeKey = "MusicBrainz/Album Id"
+            default: return XCTFail("Unexpected ASF owner")
+            }
+            let seeded = try IndependentASF.attributes(Data(contentsOf: url)).filter { $0.name == nativeKey }
+            XCTAssertEqual(seeded.map(\.value), [IndependentASF.text(item.first)])
             let low = try XCTUnwrap(TagLibMetadataExtractor.extractMetadata(from: url))
             XCTAssertEqual(item.basic(try TagLibMetadataManager.readMetadataResult(from: url)), item.first)
             item.set(low, item.second)
@@ -208,6 +225,8 @@ final class RemediationPreservationTests: XCTestCase {
                 item.second,
                 "ASF low-level update for \(item.field.rawValue)"
             )
+            let saved = try IndependentASF.attributes(Data(contentsOf: url)).filter { $0.name == nativeKey }
+            XCTAssertEqual(saved.map(\.value), [IndependentASF.text(item.second)])
         }
     }
 
