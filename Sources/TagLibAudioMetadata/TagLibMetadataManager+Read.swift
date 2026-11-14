@@ -91,26 +91,6 @@ nonisolated private func bridgeProjectionValue(
 extension TagLibMetadataManager {
     // MARK: - Bridge Dump API
 
-    nonisolated static func bridgeMetadataProjections(
-        from url: URL
-    ) throws -> (basic: TagLibAudioMetadata, raw: [String: NSObject], structured: [String: NSObject]) {
-        do {
-            let projections = try MetadataProjectionReader.extract(from: url, options: .all)
-            guard let basic = projections["basic"] as? TagLibAudioMetadata,
-                  let raw = projections["raw"] as? [String: NSObject],
-                  let structured = projections["structured"] as? [String: NSObject] else {
-                throw TagLibManagerError.failedToReadWithUnderlying(
-                    "The bridge returned an incomplete metadata projection set."
-                )
-            }
-            return (basic, raw, structured)
-        } catch let managerError as TagLibManagerError {
-            throw managerError
-        } catch {
-            throw TagLibManagerError.failedToReadWithUnderlying(String(describing: error))
-        }
-    }
-
     nonisolated static func rawMetadataDump(fromBridgeDictionary dict: [String: NSObject]) -> RawMetadataDump {
         let propsAny = dict["properties"] as? [Any] ?? []
         let framesAny = dict["id3v2Frames"] as? [Any] ?? []
@@ -565,38 +545,23 @@ extension TagLibMetadataManager {
         )
     }
 
-    nonisolated static func readBasicMetadataAndRaw(
-        from url: URL
-    ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump) {
-        let result = try readBasicMetadataRawAndStructured(from: url)
-        return (result.metadata, result.raw)
-    }
-
     nonisolated static func readBasicMetadataRawAndStructured(
         from url: URL
     ) throws -> (metadata: BasicMetadata, raw: RawMetadataDump, structured: StructuredMetadata) {
         guard let identityBeforeRead = MetadataFileIdentity.read(at: url) else {
             throw TagLibManagerError.invalidFile
         }
-        let projections = try MetadataProjectionReader.extract(from: url, options: .all)
-        guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
-              let bridgeRaw = projections["raw"] as? [String: NSObject] else {
-            throw TagLibManagerError.failedToReadWithUnderlying(
-                "The bridge returned an incomplete Basic metadata projection set."
-            )
-        }
+        let projections = try MetadataProjectionReader.complete(from: url)
         guard identityBeforeRead.hasSameReadableContents(as: MetadataFileIdentity.read(at: url)) == true else {
             throw TagLibManagerError.failedToReadWithUnderlying(
                 "The audio file changed while metadata was being read."
             )
         }
-        let raw = rawMetadataDump(fromBridgeDictionary: bridgeRaw)
-        let structured = (projections["structured"] as? [String: NSObject]).map {
-            structuredMetadata(fromBridgeDictionary: $0)
-        } ?? StructuredMetadata()
+        let raw = rawMetadataDump(fromBridgeDictionary: projections.raw)
+        let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
         return (
             basicMetadata(
-                fromBridgeMetadata: bridgeBasic,
+                fromBridgeMetadata: projections.basic,
                 rawDump: raw,
                 fileExtension: url.pathExtension,
                 structured: structured
@@ -607,7 +572,7 @@ extension TagLibMetadataManager {
     }
 
     public nonisolated static func readMetadataResult(from url: URL) throws -> BasicMetadata {
-        try readBasicMetadataAndRaw(from: url).metadata
+        try readBasicMetadataRawAndStructured(from: url).metadata
     }
 
     /// Reads normalized Basic metadata and the exact file version captured with it.
@@ -625,24 +590,16 @@ extension TagLibMetadataManager {
         from url: URL, includingAudioContent: Bool = false, afterExtraction: () throws -> Void
     ) throws -> BasicMetadataSnapshot {
         let version = try fileVersion(at: url)
-        let projections = try MetadataProjectionReader.extract(from: url, options: .all)
+        let projections = try MetadataProjectionReader.complete(from: url)
         try afterExtraction()
         let audioIdentity = includingAudioContent ? try audioContentIdentity(at: url, version: version) : nil
-        guard let bridgeBasic = projections["basic"] as? TagLibAudioMetadata,
-              let bridgeRaw = projections["raw"] as? [String: NSObject] else {
-            throw TagLibManagerError.failedToReadWithUnderlying(
-                "The bridge returned an incomplete Basic metadata projection set."
-            )
-        }
         guard version == (try? fileVersion(at: url)) else {
             throw TagLibManagerError.fileChanged
         }
-        let structured = (projections["structured"] as? [String: NSObject]).map {
-            structuredMetadata(fromBridgeDictionary: $0)
-        } ?? StructuredMetadata()
+        let structured = structuredMetadata(fromBridgeDictionary: projections.structured)
         let metadata = basicMetadata(
-            fromBridgeMetadata: bridgeBasic,
-            rawDump: rawMetadataDump(fromBridgeDictionary: bridgeRaw),
+            fromBridgeMetadata: projections.basic,
+            rawDump: rawMetadataDump(fromBridgeDictionary: projections.raw),
             fileExtension: url.pathExtension,
             structured: structured
         )

@@ -297,7 +297,7 @@ def check_public_api_index(errors: list[str]) -> None:
     declarations = api + "\n" + models
     names: set[str] = set()
     types: set[str] = set()
-    for path in (ROOT / "Sources/TagLibAudioMetadata").glob("*.swift"):
+    for path in (ROOT / "Sources/TagLibAudioMetadata").rglob("*.swift"):
         source = path.read_text(encoding="utf-8")
         for match in re.finditer(r"public\s+nonisolated\s+static\s+func\s+(\w+)", source):
             names.add(match.group(1))

@@ -27,7 +27,7 @@ The public `TagLibMetadataManager` is a namespace for operations and format disc
 
 - `Models/MetadataSnapshot.swift` owns opaque version and snapshot values. It has no dependency on the file transaction or native bridge.
 - `Contracts/MetadataWriteContract.swift` owns the facade's public verification/result types, retaining their nested public names.
-- `Reads/MetadataProjectionReader.swift` owns native extraction and transaction readability, including consistent bridge error translation and observed-file checks.
+- `Reads/MetadataProjectionReader.swift` owns native extraction and transaction readability, including consistent bridge error translation and observed-file checks. Complete reads require all three views through one contract; an incomplete result cannot silently become an empty structured model. Each native extraction has a local autorelease pool, while the returned dictionary retains its escaping values.
 - `Storage/MetadataFileIdentity.swift` owns regular-file identity observations and conversion to the opaque version token.
 - `Storage/MetadataFileTransaction.swift` owns coordination, staging, metadata preservation, final validation, sync and atomic rename. Both generic internal mutations and facade result-bearing writes use this implementation.
 
@@ -108,6 +108,8 @@ A complex `MetadataPatch` can open and save the staged file separately for numbe
 ## Metadata model and write semantics
 
 `MetadataPatch` expresses omission explicitly: absent fields are unchanged, `.remove` clears a property, `explicitAdvisory` retains all four advisory states, and artwork distinguishes unchanged, replacement, and removal. Typed fields are validated for kind and numeric range against `MetadataFieldRegistry` before staging. Schema-known keys are rejected from `customFields`, including aliases and case variants. Role-qualified fields such as `.performer` are rejected by the typed Patch API; use `RawMetadataPatch` or `StructuredMetadata` when roles are part of the key.
+
+The semantic storage planner receives the resolved format identifier and format-family set as explicit inputs, rather than reaching back through the facade for capability lookup. A patch resolves that immutable descriptor once and reuses it through planning and verification.
 
 Most property changes are applied as a bridge delta to the current `PropertyMap`; MP4 track/disc pairs, movement, and advisory data use native `trkn`, `disk`, `©mvi`/`©mvc`, and `rtng` mutation, while ID3 advisory uses the supported `TXXX` representation. Track/disc components are normalized from the engine's signed projection to their unsigned 16-bit storage; movement remains bounded to `0...32767`. TagLib still saves the affected native tag, so the guarantee is semantic omission rather than byte-for-byte container preservation.
 

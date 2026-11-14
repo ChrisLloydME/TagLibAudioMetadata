@@ -166,15 +166,15 @@ extension TagLibMetadataManager {
         guard hasVerificationExpectations(verification) else { return [] }
 
         var warnings: [String] = []
-        let projections = try? MetadataProjectionReader.extract(from: url, options: .all)
-        let rawDump = (projections?["raw"] as? [String: NSObject]).map {
-            rawMetadataDump(fromBridgeDictionary: $0)
+        let projections = try? MetadataProjectionReader.complete(from: url)
+        let rawDump = projections.map {
+            rawMetadataDump(fromBridgeDictionary: $0.raw)
         }
-        let structured = (projections?["structured"] as? [String: NSObject]).map {
-            structuredMetadata(fromBridgeDictionary: $0)
+        let structured = projections.map {
+            structuredMetadata(fromBridgeDictionary: $0.structured)
         } ?? StructuredMetadata()
         let afterWrite: BasicMetadata? = {
-            guard let bridgeBasic = projections?["basic"] as? TagLibAudioMetadata,
+            guard let bridgeBasic = projections?.basic,
                   let rawDump else { return nil }
             return basicMetadata(
                 fromBridgeMetadata: bridgeBasic,

@@ -34,6 +34,13 @@ final class SelectiveExtractionTests: XCTestCase {
         return result as NSDictionary
     }
 
+    private func facadeValues(_ metadata: BasicMetadata) throws -> [String: AnyHashable] {
+        try Dictionary(uniqueKeysWithValues: Mirror(reflecting: metadata).children.map { child in
+            (try XCTUnwrap(child.label), try XCTUnwrap(child.value as? AnyHashable,
+                "Add an exact comparator for a new non-Hashable Basic property"))
+        })
+    }
+
     private func checkAllOptions(_ url: URL) throws {
         let bytes = try Data(contentsOf: url)
         let full = try TagLibMetadataExtractor.metadataProjections(for: url)
@@ -68,6 +75,13 @@ final class SelectiveExtractionTests: XCTestCase {
         XCTAssertEqual(try basicValues(TagLibMetadataExtractor.extractMetadata(from: url)), basic)
         XCTAssertEqual(try TagLibMetadataExtractor.rawMetadata(for: url) as NSDictionary, raw)
         XCTAssertEqual(try TagLibMetadataExtractor.structuredMetadata(for: url) as NSDictionary, structured)
+        // Retained Swift projections must stay valid after extraction pools drain
+        // and agree across the facade's independent public read entry points.
+        let snapshot = try autoreleasepool { try TagLibMetadataManager.readSnapshot(from: url) }
+        XCTAssertEqual(try facadeValues(autoreleasepool { try TagLibMetadataManager.readMetadataResult(from: url) }), try facadeValues(snapshot.basic))
+        XCTAssertEqual(try facadeValues(autoreleasepool { try TagLibMetadataManager.readBasicSnapshot(from: url).metadata }), try facadeValues(snapshot.basic))
+        XCTAssertEqual(try autoreleasepool { try TagLibMetadataManager.rawMetadataResult(from: url) }, snapshot.raw)
+        XCTAssertEqual(try autoreleasepool { try TagLibMetadataManager.readStructuredMetadataResult(from: url) }, snapshot.structured)
         XCTAssertEqual(try Data(contentsOf: url), bytes, "Every read must leave the entire file untouched")
     }
 
