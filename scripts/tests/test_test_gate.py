@@ -6,6 +6,13 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
 PASS = (
+    "Test asfAdvisoryAliasEraseVerifiesFinalNativeState() with 24 test cases passed after 1 second.\n"
+    "Test unknownAdvisoryDoesNotSatisfyExactAbsence() with 4 test cases passed after 1 second.\n"
+    "Test unrelatedBasicEditPreservesUnknownAdvisory() with 16 test cases passed after 1 second.\n"
+    "Test unrelatedBasicEditPreservesUnknownASFAliasOwners() with 6 test cases passed after 1 second.\n"
+    "Test advisoryBearingEraseClearsKnownAndUnknownCodes() with 64 test cases passed after 1 second.\n"
+    "Test exactUnknownAdvisoryVerificationRequiresMatchingRawCode() with 4 test cases passed after 1 second.\n"
+    "Test erasedMP4OracleAllowsMissingMetadataWithoutAcceptingBrokenContainers() passed after 1 second.\n"
     "Test asfPublicWriteSurfacesPreserveSparseDateOwners() with 80 test cases passed after 1 second.\n"
     "Test asfCustomFieldLifecycleOwnsOnlyItsCaseAliases() with 24 test cases passed after 1 second.\n"
     "Test asfContentDescriptionVectorAndMalformedBounds() passed after 1 second.\n"
@@ -84,7 +91,7 @@ PASS = (
     "Suite ID3ContainerLifecycleTests passed.\n"
     "Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.\n"
     "Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.\n"
-    "Test run with 179 tests in 41 suites passed after 8 seconds.\n"
+    "Test run with 186 tests in 41 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -96,6 +103,15 @@ class TestGatePolicy(unittest.TestCase):
             accepted = json.loads((root / 'summary').read_text())['accepted']
             self.assertEqual(run.returncode == 0, accepted)
             return accepted
+
+    def test_missing_advisory_erase_regression_cannot_pass(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            "Test asfAdvisoryAliasEraseVerifiesFinalNativeState() with 24 test cases passed after 1 second.\n", "")))
+
+    def test_advisory_matrix_case_count_cannot_shrink(self):
+        self.assertFalse(self.accepted(PASS.replace(
+            'advisoryBearingEraseClearsKnownAndUnknownCodes() with 64 test cases',
+            'advisoryBearingEraseClearsKnownAndUnknownCodes() with 63 test cases')))
 
     def test_missing_readability_preflight_evidence_is_rejected(self):
         self.assertFalse(self.accepted(PASS.replace(
@@ -118,7 +134,7 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 164 tests', 'Executed 163 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 179 tests', 'run with 178 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 186 tests', 'run with 185 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))

@@ -205,6 +205,8 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
     /// Explicit native read/write targets from the mapping catalog.
     public var nativeTargets: [MetadataNativeTarget]
     /// Exactly one schema owns a semantic key for canonical enumeration.
+    /// All built-in entries are canonical after alias removal. Custom schema
+    /// descriptions may still mark an alias with false.
     public var isCanonicalSemanticOwner: Bool
     public var isMultiValue: Bool
     public var isPeopleField: Bool

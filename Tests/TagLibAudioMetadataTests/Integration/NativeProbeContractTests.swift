@@ -2,6 +2,25 @@ import Foundation
 import Testing
 
 struct NativeProbeContractTests {
+    @Test func erasedMP4OracleAllowsMissingMetadataWithoutAcceptingBrokenContainers() throws {
+        func atom(_ name: String, _ payload: Data = Data()) -> Data {
+            HardeningFixture.number(UInt64(payload.count + 8), bytes: 4) + Data(name.utf8) + payload
+        }
+        let media = atom("mdat", Data([1, 2, 3]))
+        try withBytes(atom("moov") + media) { url in
+            #expect(throws: IndependentMP4Probe.Invalid.self) { try IndependentMP4Probe.read(url) }
+            let probe = try IndependentMP4Probe.read(url, allowingAbsentMetadata: true)
+            #expect(probe.items.isEmpty && probe.audio == [Data([1, 2, 3])])
+        }
+        for malformed in [media, HardeningFixture.number(999, bytes: 4) + Data("moov".utf8) + media] {
+            try withBytes(malformed) { url in
+                #expect(throws: IndependentMP4Probe.Invalid.self) {
+                    try IndependentMP4Probe.read(url, allowingAbsentMetadata: true)
+                }
+            }
+        }
+    }
+
     private func withBytes(_ data: Data, _ check: (URL) throws -> Void) throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }

@@ -156,7 +156,7 @@ extension TagLibMetadataManager {
             return true
         }
 
-        if verification.expectedExplicitAdvisory != nil {
+        if verification.expectedExplicitAdvisory != nil || verification.expectedExplicitAdvisoryRawValue != nil {
             return true
         }
 
@@ -277,6 +277,12 @@ extension TagLibMetadataManager {
                     "Explicit advisory differs after save (expected \(expectedAdvisory.rawValue), got \(afterWrite.explicitAdvisory.rawValue))."
                 )
             }
+        }
+
+        if verification.expectedExplicitAdvisory != nil || verification.expectedExplicitAdvisoryRawValue != nil,
+           let afterWrite,
+           verification.expectedExplicitAdvisoryRawValue != afterWrite.explicitAdvisoryRawValue {
+            warnings.append("Explicit advisory raw code differs after save (expected \(String(describing: verification.expectedExplicitAdvisoryRawValue)), got \(String(describing: afterWrite.explicitAdvisoryRawValue))).")
         }
 
         if let afterWrite {
@@ -601,55 +607,6 @@ extension TagLibMetadataManager {
         return merged
     }
 
-    nonisolated static func parsedPropertyEntries(fromDumpText text: String) -> [RawPropertyEntry] {
-        var isInPropertiesSection = false
-        var properties: [RawPropertyEntry] = []
 
-        for rawLine in text.components(separatedBy: .newlines) {
-            let trimmedLine = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if trimmedLine.hasPrefix("[") && trimmedLine.hasSuffix("]") {
-                if isInPropertiesSection {
-                    break
-                }
-
-                isInPropertiesSection = (trimmedLine == "[TagLib Properties]")
-                continue
-            }
-
-            guard isInPropertiesSection else { continue }
-            guard !trimmedLine.isEmpty else { continue }
-
-            if trimmedLine == "(none)" || trimmedLine.hasPrefix("(unable to open") {
-                break
-            }
-
-            guard let separatorRange = trimmedLine.range(of: " = ") else { continue }
-
-            let key = String(trimmedLine[..<separatorRange.lowerBound])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let value = String(trimmedLine[separatorRange.upperBound...])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            guard !isHiddenInternalRawFieldKey(key) else { continue }
-            guard !key.isEmpty, !value.isEmpty else { continue }
-
-            let values = value
-                .components(separatedBy: "; ")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-
-            properties.append(
-                RawPropertyEntry(
-                    key: key,
-                    value: value,
-                    values: values,
-                    count: values.count
-                )
-            )
-        }
-
-        return properties.sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
-    }
 
 }
