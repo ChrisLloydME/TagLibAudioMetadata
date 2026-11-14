@@ -286,7 +286,8 @@ final class RemediationPreservationTests: XCTestCase {
 
     func testV23StandaloneTDATSurvivesBasicAndStructuredUnrelatedWrites() throws {
         for surface in ["basic", "structured"] {
-            let url = try makeV23Tag([("TDAT", "0304")])
+            for extra in [[], [("TORY", "1999")]] {
+            let url = try makeV23Tag([("TDAT", "0304")] + extra)
             if surface == "basic" {
                 try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Edited" }
             } else {
@@ -298,6 +299,10 @@ final class RemediationPreservationTests: XCTestCase {
             let frames = try v23Frames(url)
             XCTAssertEqual(frames["TDAT"], ["0304"], surface)
             XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).date, "0304", surface)
+            if !extra.isEmpty {
+                XCTAssertEqual(frames["TORY"], ["1999"], surface)
+            }
+            }
         }
     }
 
