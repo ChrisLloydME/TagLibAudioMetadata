@@ -2,7 +2,7 @@
                                                               error:(NSError *_Nullable *_Nullable)error
 {
     try {
-    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL error:error];
+    NSDictionary<NSString *, NSObject *> *projections = [self metadataProjectionsForURL:fileURL options:TagLibMetadataExtractionOptionRaw error:error];
     return projections ? (NSDictionary<NSString *, NSObject *> *)projections[@"raw"] : nil;
     TAGLIB_BRIDGE_CATCH_WITH_ERROR(error, @"Raw metadata extraction", nil)
 }

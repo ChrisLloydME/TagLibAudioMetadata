@@ -69,3 +69,7 @@ Gate evidence must include these named functions and their complete minimum case
 This finite suite does not establish every field × format × tag version × malformed input × API combination. Unsupported layouts must reject safely; unexercised codecs, encodings and operating systems remain explicit limits. Sanitizers, external decoders, device/minimum-OS runtime and embedding-app acceptance are separate evidence.
 
 Each state matrix verifies its seed through the independent native reader before invoking the writer. Presence, literal date values and all-present MP4 sibling values must match the test-owned input; a silently incomplete fixture is a failed case. The gate JSON retains actual and minimum named case counts for review.
+
+## Unreleased selective-extraction acceptance
+
+The architecture candidate retains every prior matrix and requires all three `SelectiveExtractionTests` methods by exact class/name. All 32 option masks must match full extraction across 19 fixtures and three rich copies, with every Basic carrier property, raw/structured values, direct single-view APIs and complete read immutability checked. Zero-mask invalid inputs and low-level mutation rejection are mandatory. Declaration floors are 167 XCTest and 186 Swift Testing; the gate has 30 policy regressions. Projection equivalence does not replace independent native mapping or transaction evidence.

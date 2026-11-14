@@ -1,0 +1,392 @@
+{
+  "configuration": "release",
+  "cpu": "Apple M1",
+  "metric": "median of three warmed batch-average milliseconds per operation; fixtures/setup/assertions excluded; metadata-and-artwork is 64 multivalue custom keys plus a 1 MiB JPEG payload",
+  "rows": [
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "bridge-basic",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.09471183333333333"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "bridge-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.06670141666666667"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "bridge-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.07539233333333333"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "bridge-validation",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.0736285"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "facade-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.08491666666666665"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "facade-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.095118"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "snapshot",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.15069441666666666"
+    },
+    {
+      "format": "mp3",
+      "density": "ordinary",
+      "api": "typed-title",
+      "iterations": "3",
+      "samples": "3",
+      "medianMs": "9.970666666666666"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "bridge-basic",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.4687743333333334"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "bridge-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.8958541666666666"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "bridge-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.736566"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "bridge-validation",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.3540694166666667"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "facade-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.2001319166666666"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "facade-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.7977673333333335"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "snapshot",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "3.885513916666667"
+    },
+    {
+      "format": "mp3",
+      "density": "metadata-and-artwork",
+      "api": "typed-title",
+      "iterations": "3",
+      "samples": "3",
+      "medianMs": "21.124430666666665"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "bridge-basic",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.20078125"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "bridge-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.12814241666666668"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "bridge-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.12948958333333332"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "bridge-validation",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.12255558333333333"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "facade-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.14407641666666668"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "facade-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.14569091666666667"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "snapshot",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.2325104166666667"
+    },
+    {
+      "format": "m4a",
+      "density": "ordinary",
+      "api": "typed-title",
+      "iterations": "3",
+      "samples": "3",
+      "medianMs": "10.340680333333333"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "bridge-basic",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "3.1927291666666666"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "bridge-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.0476284166666667"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "bridge-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.4186180833333333"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "bridge-validation",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.6989444166666666"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "facade-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.196184"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "facade-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "2.2996944166666666"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "snapshot",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "4.76375"
+    },
+    {
+      "format": "m4a",
+      "density": "metadata-and-artwork",
+      "api": "typed-title",
+      "iterations": "3",
+      "samples": "3",
+      "medianMs": "23.35166666666667"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "bridge-basic",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.122"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "bridge-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.06628125"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "bridge-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.06745483333333334"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "bridge-validation",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.0633785"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "facade-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.08229166666666667"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "facade-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.08566666666666667"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "snapshot",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.15125"
+    },
+    {
+      "format": "flac",
+      "density": "ordinary",
+      "api": "typed-title",
+      "iterations": "3",
+      "samples": "3",
+      "medianMs": "10.663291666666668"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "bridge-basic",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.618257"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "bridge-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.7238506666666668"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "bridge-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.8121389166666666"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "bridge-validation",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.37765975"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "facade-raw",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "1.1929583333333333"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "facade-structured",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "0.9673575833333333"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "snapshot",
+      "iterations": "12",
+      "samples": "3",
+      "medianMs": "2.5710208333333333"
+    },
+    {
+      "format": "flac",
+      "density": "metadata-and-artwork",
+      "api": "typed-title",
+      "iterations": "3",
+      "samples": "3",
+      "medianMs": "18.664958333333335"
+    }
+  ],
+  "candidateBase": "f5acf5c plus selective extraction, preserving full-read ordering"
+}
