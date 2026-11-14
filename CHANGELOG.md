@@ -11,6 +11,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Preserve unchanged unknown advisory owners during Basic edits across native text, ID3 and ASF paths, with native readback checks.
 - Retry failed initial capability-descriptor loads, remove an unused dump parser, correct read-only advisory documentation and document changed registry introspection.
 
+### Architecture and selective I/O
+
+- Separate facade contracts, snapshot values, native projection reads, regular-file identity and atomic transactions into explicit internal ownership boundaries. Require complete native views for full reads and verification; make storage planning accept explicit format evidence.
+- Skip unrequested native Basic/custom/artwork/date projections, use validation-only reads for transaction preflight, and request only the needed view from direct bridge Basic/raw/structured readers. Bound facade native-read temporaries with a local autorelease pool.
+- Remove uncalled retention/verification helpers, redundant constructor/read arities, Bool-only write wrappers, the unused facade extraction mask, and obsolete canonical-alias/collision registry shapes. Native-file aliases and explicit numbering recovery remain supported.
+- Require all selective-projection contracts in the strict gate, including all 32 masks across 19 fixtures and three rich copies, facade value lifetime, and invalid-input atomicity. Retain all 48 baseline/final I/O measurements and observed regressions; see the [architecture record](docs/records/remediation/REM-2026-11-14-package-architecture.md).
+
 ### Breaking API cleanup
 
 - Remove the typed `.date` YEAR alias, obsolete facade read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters/verification expectations, and outdated capability/error aliases. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking).

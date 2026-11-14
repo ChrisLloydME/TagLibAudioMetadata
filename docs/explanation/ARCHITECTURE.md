@@ -146,7 +146,7 @@ If rename succeeds but the final parent-directory sync fails, the new file is al
 
 ## Schema, capabilities, and generated documentation
 
-`MetadataFieldRegistry` is the Swift source of public field semantics. `MetadataMappingCatalog` is the checked-in declarative target table; it is not generated from Markdown. `MetadataFieldSchema` joins that catalog to display, category, patch-kind, and integer-constraint policy. `mappings` is derived from `nativeTargets`, so the legacy compatibility view cannot drift. The bridge retains a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
+`MetadataFieldRegistry` is the Swift source of public field semantics. `MetadataMappingCatalog` is the checked-in declarative target table; it is not generated from Markdown. `MetadataFieldSchema` joins that catalog to display, category, patch-kind, and integer-constraint policy. `mappings` is derived from `nativeTargets`, so the format-summary view cannot drift. The bridge retains a parallel ordered mapping table exposed through `metadataFieldMappings()` and `knownMetadataPropertyKeys()`; consistency tests compare every schema key and container mapping across the language boundary.
 
 Adding a production schema requires updating the semantic registry and, where the bridge must address the native target directly, the bridge mapping, then running the parity and codec tests. The documentation pipeline consumes the Swift sources:
 
@@ -170,14 +170,18 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | Path | Responsibility |
 | --- | --- |
 | `Package.swift` | Products, targets, platform minimums, binary pin, C++20. |
-| `Sources/TagLibAudioMetadata/TagLibMetadataManager.swift` | Static facade entry points, nested write/result types, transaction coordinator, file identity. |
+| `Sources/TagLibAudioMetadata/TagLibMetadataManager.swift` | Facade namespace, format discovery and hidden private-field identities. |
+| `.../Contracts/MetadataWriteContract.swift` | Public nested write verification/result contracts. |
+| `.../Models/MetadataSnapshot.swift` | Opaque version and snapshot values. |
+| `.../Reads/MetadataProjectionReader.swift` | Native extraction, complete-view contract and readability validation. |
+| `.../Storage/MetadataFileIdentity.swift` | POSIX regular-file observations and version conversion. |
+| `.../Storage/MetadataFileTransaction.swift` | Coordinated staging, guards, validation, sync and atomic rename. |
 | `.../TagLibMetadataManager+Read.swift` | Basic/raw/snapshot reads, bridge projection conversion, diagnostic dump. |
 | `.../TagLibMetadataManager+Write.swift` | Basic replacement/update, bridge-model write, raw whole-map writes, erase, number text. |
 | `.../TagLibMetadataManager+Structured.swift` | Structured conversion, validation, write, verification. |
 | `.../TagLibMetadataManager+Verification.swift` | Verification helpers, warning construction, raw normalization, explicit provenance. |
 | `.../BasicNativePreservation.swift` | Restores untouched Basic native dates, MP4 owners/aliases, and absence before verification. |
-| `.../TagLibMetadataManager+Compatibility.swift` | Deprecated-signature and pre-`expectedVersion` forwarding overloads. |
-| `.../MetadataSnapshotPatch.swift` | Snapshot/version models, `MetadataPatch`, typed patch validation and application. |
+| `.../MetadataSnapshotPatch.swift` | `MetadataPatch`, typed patch validation and application. |
 | `.../RawMetadataPatch.swift` | Exact raw delta validation, application, and verification. |
 | `.../MetadataNativePlanning.swift` | Semantic patch value to exact native target translation. |
 | `.../MetadataNumberInventory.swift` | Number inventory, recovery, normalization plans, and application. |
@@ -191,7 +195,7 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `Sources/CTagLibBridge/TagLibMetadataExtractor.mm` | Objective-C++ implementation; includes the subsystem `.inc` files. |
 | `Sources/CTagLibBridge/TLBridgeTransactions.mm` | Bridge transaction coordinator, same-entry locks, process mutex, logging. |
 | `Sources/CTagLibBridge/TLFormatRegistry.mm` | Format descriptor table and extension lookup. |
-| `Sources/CTagLibBridge/Internal/*.hpp` | Private C++/Objective-C++ declarations and TagLib header compatibility. |
+| `Sources/CTagLibBridge/Internal/*.hpp` | Private C++/Objective-C++ declarations and pinned namespaced TagLib imports. |
 | `Sources/CTagLibBridge/Internal/*.inc` | Bridge subsystems compiled into the extractor translation unit. |
 | `Sources/CTagLibBridgeInternalAPI/` | Non-product in-place mutation and coordination declarations used by the facade/tests. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |

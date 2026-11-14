@@ -146,7 +146,7 @@ The bridge exposes `basic`, `raw`, `structured`, `propertyMap`, and `rawFrames` 
 | `rawMetadataResult` | raw | Visible PropertyMap and raw frame summaries. |
 | `readStructuredMetadataResult` | structured | Structured collections. |
 
-Direct bridge clients can pass a custom mask to `TagLibMetadataExtractor.metadataProjections(for:options:)`. The bridge `All` option is `NSUIntegerMax`; the Swift `MetadataExtractionOptions.all` is the union of its five known bits. Requesting `.propertyMap` alone returns `raw` with properties; `.rawFrames` alone returns `raw` with frames; `.raw` includes both. See [Bridge reference](../reference/BRIDGE.md).
+Direct bridge clients can pass a custom mask to `TagLibMetadataExtractor.metadataProjections(for:options:)`. The bridge `All` option is `NSUIntegerMax`. There is no separate public facade options type. A zero mask validates the same parser/audio credibility and returns no views for a valid file; invalid inputs still fail. Requesting `.propertyMap` alone returns `raw` with properties; `.rawFrames` alone returns `raw` with frames; `.raw` includes both. See [Bridge reference](../reference/BRIDGE.md).
 
 ## Audio-content continuity
 
