@@ -52,8 +52,10 @@ enum ID3v23DateSafety {
         if ids.contains(where: { ["TDRL", "TDOR", "TDRC"].contains($0) }) {
             return "ID3v2.3 contains a date owner (TDRL/TDOR/TDRC) that TagLib cannot preserve on save."
         }
-        for id in Set(ids) where ids.filter({ $0 == id }).count > 1 {
-            return "ID3v2.3 contains duplicate \(id) date owners."
+        let identities = dates.map { $0.frameID.uppercased() == "TXXX"
+            ? "TXXX:" + ($0.description?.uppercased() ?? "") : $0.frameID.uppercased() }
+        for identity in Set(identities) where identities.filter({ $0 == identity }).count > 1 {
+            return "ID3v2.3 contains duplicate \(identity) date owners."
         }
         if ids.contains("TORY") && ids.contains("TDOR") {
             return "ID3v2.3 contains conflicting TORY and TDOR owners."
@@ -77,15 +79,33 @@ enum ID3v23DateSafety {
         return [StructuredID3v2Frame(frameID: "TDAT", type: "text", values: values)]
     }
 
-    static func signature(of frames: [StructuredID3v2Frame]) -> [String] {
-        dateFrames(in: frames).map { frame -> String in
+    struct DateOwner: Hashable {
+        let id: String
+        let description: String?
+        let values: [String]
+    }
+
+    static func signature(of frames: [StructuredID3v2Frame]) -> [DateOwner: Int] {
+        dateFrames(in: frames).reduce(into: [:]) { result, frame in
             let values = frame.values.isEmpty && !frame.value.isEmpty ? [frame.value] : frame.values
-            return [
-                frame.frameID.uppercased(),
-                frame.description?.uppercased() ?? "",
-                values.joined(separator: "\u{1f}"),
-            ].joined(separator: "\u{1e}")
-        }.sorted()
+            result[DateOwner(id: frame.frameID, description: frame.description, values: values), default: 0] += 1
+        }
+    }
+
+    /// A prefix check avoids materializing structured/artwork views for modern
+    /// ID3 files. Container-backed/unknown layouts use the normal native reader.
+    static func baseline(at url: URL) throws -> [StructuredID3v2Frame]? {
+        guard TagLibMetadataManager.capability(forExtension: url.pathExtension)?.metadataFieldFormats.contains(.id3v2) == true else { return nil }
+        let file = try FileHandle(forReadingFrom: url)
+        defer { try? file.close() }
+        let prefix = try file.read(upToCount: 4) ?? Data()
+        if prefix.count == 4, prefix.prefix(3) == Data("ID3".utf8), prefix[3] != 3 { return nil }
+        let structured = try TagLibMetadataManager.readStructuredMetadataResult(from: url)
+        guard structured.id3v2MajorVersion == 3 else { return nil }
+        if let reason = unpreservableReason(in: structured.id3v2Frames) {
+            throw TagLibManagerError.unsupportedWritePolicy(reason)
+        }
+        return structured.id3v2Frames
     }
 
     static func unexpectedChanges(

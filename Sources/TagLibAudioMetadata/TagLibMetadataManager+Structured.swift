@@ -624,7 +624,19 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedWritePolicy("This format requires semantic Comment/Lyrics fields, not ID3 comment/lyric collections.")
         }
         try validateStructuredMetadataForWrite(metadata, includeProperties: includeProperties)
+        if metadata.id3v2Frames.isEmpty && metadata.mp4Atoms.isEmpty && metadata.asfAttributes.isEmpty &&
+            metadata.artwork.isEmpty && metadata.comments.isEmpty && metadata.lyrics.isEmpty &&
+            (!includeProperties || metadata.properties.isEmpty) && replacingCollections.isEmpty && riffPolicy == .preserveInfo {
+            let version = try fileVersion(at: url)
+            if let expectedVersion, version != expectedVersion { throw TagLibManagerError.fileChanged }
+            try MetadataProjectionReader.validateReadableAudioFile(at: url)
+            guard version == (try? fileVersion(at: url)) else { throw TagLibManagerError.fileChanged }
+            return MetadataWriteResult(warnings: [])
+        }
+        let observedVersion = try fileVersion(at: url)
+        if let expectedVersion, expectedVersion != observedVersion { throw TagLibManagerError.fileChanged }
         let beforeStructured = try readStructuredMetadataResult(from: url)
+        guard observedVersion == (try? fileVersion(at: url)) else { throw TagLibManagerError.fileChanged }
         let isID3v23 = beforeStructured.id3v2MajorVersion == 3
         if isID3v23 {
             if ID3v23DateSafety.isDateEdit(metadata, includeProperties: includeProperties) {
@@ -648,16 +660,7 @@ extension TagLibMetadataManager {
             }
         }
 
-        if metadata.id3v2Frames.isEmpty && metadata.mp4Atoms.isEmpty && metadata.asfAttributes.isEmpty &&
-            metadata.artwork.isEmpty && metadata.comments.isEmpty && metadata.lyrics.isEmpty &&
-            (!includeProperties || metadata.properties.isEmpty) && replacingCollections.isEmpty && riffPolicy == .preserveInfo {
-            let version = try fileVersion(at: url)
-            if let expectedVersion, version != expectedVersion { throw TagLibManagerError.fileChanged }
-            try MetadataProjectionReader.validateReadableAudioFile(at: url)
-            guard version == (try? fileVersion(at: url)) else { throw TagLibManagerError.fileChanged }
-            return MetadataWriteResult(warnings: [])
-        }
-        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion ?? observedVersion) { mutationURL in
             var warnings: [String] = []
             var verificationFailures: [String] = []
 

@@ -93,6 +93,36 @@ final class RemediationPreservationTests: XCTestCase {
         return result
     }
 
+    func testLegacyDateIdentityUsesDescriptionsAndExactArrays() {
+        let date = StructuredID3v2Frame(frameID: "TXXX", type: "userText", values: ["0304"], description: "DATE")
+        let original = StructuredID3v2Frame(frameID: "TXXX", type: "userText", values: ["1999"], description: "ORIGINALDATE")
+        XCTAssertNil(ID3v23DateSafety.unpreservableReason(in: [date, original]))
+        XCTAssertNotNil(ID3v23DateSafety.unpreservableReason(in: [date, date]))
+        let array = StructuredID3v2Frame(frameID: "TYER", type: "text", values: ["a", "b"])
+        let joined = StructuredID3v2Frame(frameID: "TYER", type: "text", values: ["a\u{1f}b"])
+        XCTAssertFalse(ID3v23DateSafety.unexpectedChanges(before: [array], after: [joined]).isEmpty)
+    }
+
+    func testAllFacadeMutationSurfacesProtectStandaloneDates() throws {
+        let operations: [(URL) throws -> Void] = [
+            { _ = try TagLibMetadataManager.writeTrackNumberText("2/10", discNumberText: nil, to: $0, verifyAfterWrite: false) },
+            { _ = try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(["TITLE": "Replacement"], to: $0, mode: .replace, verifyAfterWrite: false) },
+            { _ = try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(["TITLE": ["Replacement"]], to: $0, mode: .replace, verifyAfterWrite: false) }
+        ]
+        for operation in operations {
+            let url = try makeV23Tag([("TDAT", "0304")])
+            let bytes = try Data(contentsOf: url)
+            do {
+                try operation(url)
+                XCTAssertEqual(try v23Frames(url)["TDAT"], ["0304"])
+            } catch {
+                XCTAssertEqual(try Data(contentsOf: url), bytes)
+            }
+            try TagLibMetadataManager.eraseAllMetadataWithVerification(from: url)
+            XCTAssertTrue(try TagLibMetadataManager.readMetadataResult(from: url).date.isEmpty)
+        }
+    }
+
     func testLowLevelModelReadsAndPreservesContentGroupArtistsAndPeaks() throws {
         let cases: [(ext: String, name: String)] = [
             ("mp3", "testAudioFile"),
@@ -374,6 +404,8 @@ final class RemediationPreservationTests: XCTestCase {
     func testV23ConflictingTORYAndTDORRejectWithoutMutation() throws {
         let url = try makeV23Tag([("TYER", "2004"), ("TDAT", "0304"), ("TORY", "1999"), ("TDOR", "2000")])
         let before = try Data(contentsOf: url)
+        try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(), to: url)
+        XCTAssertEqual(try Data(contentsOf: url), before)
         XCTAssertThrowsError(try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Edited" }) { error in
             guard case TagLibManagerError.unsupportedWritePolicy = error else {
                 return XCTFail("Expected unsupportedWritePolicy, got \(error)")

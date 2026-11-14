@@ -60,6 +60,7 @@ internal enum MetadataFileTransaction {
     nonisolated static func withAtomicMetadataWriteMutation(
         at url: URL,
         expectedVersion: MetadataFileVersion? = nil,
+        allowLegacyDateRemoval: Bool = false,
         directorySync: @escaping (Int32) -> Int32 = MetadataFileTransaction.fullSync,
         _ operation: @escaping (URL) throws -> TagLibMetadataManager.MetadataWriteResult
     ) throws -> TagLibMetadataManager.MetadataWriteResult {
@@ -67,7 +68,16 @@ internal enum MetadataFileTransaction {
             at: url,
             expectedVersion: expectedVersion,
             directorySync: directorySync,
-            operation
+            { temporary in
+                let dates = allowLegacyDateRemoval ? nil : try ID3v23DateSafety.baseline(at: temporary)
+                let result = try operation(temporary)
+                if let dates {
+                    let after = try TagLibMetadataManager.readStructuredMetadataResult(from: temporary)
+                    let failures = ID3v23DateSafety.unexpectedChanges(before: dates, after: after.id3v2Frames)
+                    if !failures.isEmpty { throw TagLibManagerError.verificationFailed(failures) }
+                }
+                return result
+            }
         )
         var result = outcome.result
         switch outcome.durability {
