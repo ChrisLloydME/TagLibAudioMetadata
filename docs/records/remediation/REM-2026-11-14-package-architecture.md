@@ -60,3 +60,21 @@ All full facade reads and verification now use one complete native-view contract
 | flac / metadata-and-artwork | 1.937 → 0.876 ms (-54.8%) | 2.026 → 0.940 ms (-53.6%) | 2.300 → 2.559 ms (+11.3%) | 19.700 → 17.184 ms (-12.8%) |
 
 The consistent benefit is selective extraction and metadata-heavy verified writes. Ordinary MP3/M4A writes are slower in this final run; heavy FLAC full snapshots are also slower. Full snapshots still need all views and are not universally faster. Explicit pools move temporary-object cleanup into the native read interval instead of deferring it to an outer pool; this bounds the lifetime of native temporaries but changes where cleanup cost is paid. Total process memory was not measured. Durability flushes and complete native verification remain in the write timing. No parser-concurrency increase, reduced verification, or universal write-speed claim is made.
+
+## Final automated acceptance
+
+Production source: `f2ac9adb9cd842f268e65285225c65ce7c815acc`. Subsequent campaign commits contain documentation, measurement artifacts and the policy-test lower-bound assertion only. No production/test Swift or native source changed after the accepted candidate.
+
+| Check | Actual result / evidence |
+| --- | --- |
+| `TAGLIB_DISABLE_MANIFEST_SANDBOX=1 bash scripts/validate-tests.sh debug` | Accepted, exit 0: 167 XCTest (165 passed, two original opt-in skips), 186 Swift Testing in 42 suites; all mandatory named native matrices and selective contracts. `.build/test-evidence/debug-20261114-182100-6841/` |
+| Same full strict Release gate | Accepted, exit 0, same counts and mandatory evidence. `.build/test-evidence/release-20261114-182604-7715/` |
+| Policy / documentation / generators | 30 Python policy tests, 57 Markdown files, API/field/format/mapping checks passed. A one-declaration shrink below the new XCTest floor is rejected. |
+| Independent consumers | Both facade and low-level products compiled with strict Swift/C warnings and ran successfully (37 readable extensions / low-level consumer OK). `/tmp/taglib-architecture-consumer.log`, `/tmp/taglib-architecture-lowlevel-consumer.log` |
+| Targeted Address Sanitizer | Exit 0, 15 XCTest plus 17 Swift Testing passed, no report. `/tmp/taglib-architecture-asan.log` |
+| Targeted Thread Sanitizer | Exit 0, same 15 + 17 passed, no report. `/tmp/taglib-architecture-tsan.log` |
+| AudioMator local candidate | Unchanged app source `0e739d982520127d7ee5a2962cb5e7afab4f12f3`, clean package candidate `f2ac9ad` captured in `source.txt`; 13 policy checks, 62 core tests and 580 serial app-hosted tests passed, followed by unsigned Release and artifact validation. App evidence `.deriveddata-codex/Validation/20261114-182135-7046/`. No additional app migration code was required. |
+
+Sanitizers used `swift test --disable-sandbox --disable-keychain --disable-netrc -Xswiftc -warnings-as-errors -Xcc -Werror --sanitize=address|thread --filter 'SelectiveExtractionTests|ReadLookupPreservationTests|SameFileTransactionTests|ConcurrentFormatOperationTests|ConcurrentM4AReadTests|AudioContentIdentityTests'`. This exercises package/bridge instrumentation, not the prebuilt TagLib binary or the complete parameterized suite. All facade native views remain valid after local/nested pool drainage. Full gates retain the host privilege precondition; no mandatory test was skipped, weakened or made optional.
+
+The manifest sandbox override and filesystem/cache access were needed in this host environment. Existing app MainActor/XCTest initializer warnings remain outside the package cleanup; they were not suppressed. No minimum-platform runtime, device, hosted CI, full-suite sanitizer or manual UI acceptance was performed. No app was manually launched. Published versions, package/binary pins, tags and remote branches were not changed. This remains an explicitly breaking candidate, not a 0.7.x patch.
