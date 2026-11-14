@@ -25,3 +25,7 @@ Reproduce with `TAGLIB_BENCHMARK=1 TAGLIB_BENCHMARK_PROFILE=projections swift te
 - Raw/structured/zero-mask native reads build discarded Basic/custom/artwork projections. Public bridge single-view readers request all views. Readability checks still materialize full Basic tags for a parser/audio-credibility decision.
 
 Implementation and final evidence will be appended as each phase passes.
+
+## API consolidation accepted in focused checks
+
+Removed four uncalled Swift helpers, one uncalled C++ number helper, Bool-only write wrappers, redundant read-function arities and three forwarding model constructors. The schema registry now has one canonical collection and a private single-owner engine-key index; the old alias flag and empty collision/preferred-owner tables are removed deliberately under the new cleanup request. Native targets, qualified keys and recovery are unchanged. Current result-bearing consumer calls and full function references compile strictly; capability/registry/audit-remediation tests pass. No failed intermediate compile was committed.

@@ -82,21 +82,6 @@ extension TagLibMetadataManager {
         }
     }
 
-    nonisolated static func rawContainsCustomKey(_ key: String, dump: RawMetadataDump) -> Bool {
-        let expected = key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !expected.isEmpty else { return true }
-
-        let acceptedKeys = normalizedRawKeyAliases(for: expected)
-        for property in dump.properties {
-            let candidate = property.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            if acceptedKeys.contains(candidate) {
-                return true
-            }
-        }
-
-        return false
-    }
-
     nonisolated static func normalizedRawKeyAliases(for key: String) -> Set<String> {
         var aliases: Set<String> = [key]
 
@@ -411,70 +396,6 @@ extension TagLibMetadataManager {
         case "isCompilation": String(metadata.isCompilation)
         default: ""
         }
-    }
-
-    nonisolated static func rawPropertyMapWriteWarnings(
-        requestedProperties: [String: String],
-        for url: URL
-    ) -> [String] {
-        guard !requestedProperties.isEmpty else { return [] }
-        guard let rawDump = bestEffortRawMetadata(from: url) else {
-            return ["Could not verify raw metadata write after save."]
-        }
-
-        var warnings: [String] = []
-        let lookup = rawPropertiesLookup(rawDump)
-        let riskyNumberKeys = Set([
-            "TRACKNUMBER", "TRACK", "TRACKTOTAL", "TOTALTRACKS",
-            "DISCNUMBER", "DISC", "DISCTOTAL", "TOTALDISCS"
-        ])
-        let riskyExplicitKeys = Set(["ITUNESADVISORY", "ADVISORY", "EXPLICITCONTENT", "EXPLICIT"])
-
-        for (rawKey, rawValue) in requestedProperties {
-            let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !key.isEmpty else { continue }
-
-            if value.isEmpty {
-                if lookup.keys.contains(where: { normalizedRawKeyAliases(for: key).contains($0) }) {
-                    warnings.append("Raw key \"\(rawKey)\" was expected to be removed after save.")
-                }
-                continue
-            }
-
-            let aliasKeys = normalizedRawKeyAliases(for: key)
-            let persistedValues = aliasKeys
-                .compactMap { lookup[$0] }
-                .flatMap { $0 }
-
-            guard !persistedValues.isEmpty else {
-                warnings.append("Raw key \"\(rawKey)\" was not found after save.")
-                continue
-            }
-
-            if riskyNumberKeys.contains(key) {
-                let expectedPair = parseNumberPair(value)
-                let pairMatched = persistedValues.contains { parseNumberPair($0) == expectedPair }
-                if !pairMatched {
-                    warnings.append("Raw number key \"\(rawKey)\" differs after save.")
-                }
-                continue
-            }
-
-            if riskyExplicitKeys.contains(key) {
-                let normalizedPersisted = persistedValues.map { $0.uppercased() }
-                if !normalizedPersisted.contains(value.uppercased()) {
-                    warnings.append("Raw explicit key \"\(rawKey)\" differs after save.")
-                }
-                continue
-            }
-
-            if !persistedValues.contains(where: { $0.caseInsensitiveCompare(value) == .orderedSame }) {
-                warnings.append("Raw key \"\(rawKey)\" value changed after save.")
-            }
-        }
-
-        return warnings
     }
 
     nonisolated static func rawPropertyMapReplacementWarnings(
