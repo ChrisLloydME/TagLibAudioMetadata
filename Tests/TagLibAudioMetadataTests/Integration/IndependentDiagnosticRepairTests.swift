@@ -224,21 +224,32 @@ struct IndependentDiagnosticRepairTests {
         }
     }
     @Test func versionedTextWritesAndRemovalsVerify() throws {
-        for v3 in [false, true] {
-            try Self.withCopy("mp3") { url in
-                if v3 { try Self.legacy(url) }
-                var frame = StructuredID3v2Frame(frameID: "TDRC", type: "versionedText", values: ["2011"], v23ID: "TYER", v24ID: "TDRC")
-                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [frame]), to: url)
-                #expect(try TagLibMetadataManager.readMetadataResult(from: url).year == "2011")
-                frame.values = []
-                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [frame]), to: url)
-                #expect(try TagLibMetadataManager.readMetadataResult(from: url).year.isEmpty)
-                if !v3 {
-                    let date = StructuredID3v2Frame(frameID: "TDAT", type: "versionedText", values: ["2017-06-09"], v23ID: "TDAT", v24Description: "DATE")
-                    try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [date]), to: url)
-                    #expect(try TagLibMetadataManager.readMetadataResult(from: url).date == "2017-06-09")
-                }
+        try Self.withCopy("mp3") { url in
+            var frame = StructuredID3v2Frame(frameID: "TDRC", type: "versionedText", values: ["2011"], v23ID: "TYER", v24ID: "TDRC")
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [frame]), to: url)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).year == "2011")
+            frame.values = []
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [frame]), to: url)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).year.isEmpty)
+            let date = StructuredID3v2Frame(frameID: "TDAT", type: "versionedText", values: ["2017-06-09"], v23ID: "TDAT", v24Description: "DATE")
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [date]), to: url)
+            #expect(try TagLibMetadataManager.readMetadataResult(from: url).date == "2017-06-09")
+        }
+        try Self.withCopy("mp3") { url in
+            try Self.legacy(url)
+            let before = try Data(contentsOf: url)
+            let year = StructuredID3v2Frame(frameID: "TDRC", type: "versionedText", values: ["2011"], v23ID: "TYER", v24ID: "TDRC")
+            #expect(throws: TagLibManagerError.self) {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [year]), to: url)
             }
+            let date = StructuredID3v2Frame(frameID: "TDAT", type: "versionedText", values: ["0506"], v23ID: "TDAT", v24Description: "DATE")
+            #expect(throws: TagLibManagerError.self) {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(.init(id3v2Frames: [date]), to: url)
+            }
+            #expect(try Data(contentsOf: url) == before)
+            let after = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(after.year == "2004")
+            #expect(after.date == "0906")
         }
     }
 }

@@ -22,6 +22,77 @@ final class RemediationPreservationTests: XCTestCase {
         TagLibMetadataManager.capability(forExtension: ext)?.writeSupport(for: field) != .unsupported
     }
 
+
+    private func makeV23Tag(_ frames: [(String, String)]) throws -> URL {
+        let source = try XCTUnwrap(
+            Bundle.module.url(forResource: "testAudioFile", withExtension: "mp3", subdirectory: "Audio")
+                ?? Bundle.module.url(forResource: "testAudioFile", withExtension: "mp3")
+        )
+        var audio = try Data(contentsOf: source)
+        if audio.starts(with: Data("ID3".utf8)) {
+            let size = audio[6..<10].reduce(0) { ($0 << 7) | Int($1) }
+            audio = Data(audio.dropFirst(10 + size))
+        }
+        var body = Data()
+        for (id, value) in frames {
+            let payload = Data([0]) + Data(value.utf8)
+            body.append(Data(id.utf8))
+            body.append(Data([
+                UInt8((payload.count >> 24) & 0xFF),
+                UInt8((payload.count >> 16) & 0xFF),
+                UInt8((payload.count >> 8) & 0xFF),
+                UInt8(payload.count & 0xFF),
+                0, 0,
+            ]))
+            body.append(payload)
+        }
+        let header = Data([0x49, 0x44, 0x33, 3, 0, 0])
+            + Data([
+                UInt8((body.count >> 21) & 0x7F),
+                UInt8((body.count >> 14) & 0x7F),
+                UInt8((body.count >> 7) & 0x7F),
+                UInt8(body.count & 0x7F),
+            ])
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RemediationV23-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("fixture.mp3")
+        try (header + body + audio).write(to: url)
+        return url
+    }
+
+    private func v23Frames(_ url: URL) throws -> [String: [String]] {
+        let data = try Data(contentsOf: url)
+        let size = data[6..<10].reduce(0) { ($0 << 7) | Int($1) }
+        var offset = 10
+        let end = 10 + size
+        var result: [String: [String]] = [:]
+        while offset + 10 <= end, data[offset] != 0 {
+            let id = String(decoding: data[offset..<(offset + 4)], as: UTF8.self)
+            let frameSize = data[(offset + 4)..<(offset + 8)].reduce(0) { ($0 << 8) | Int($1) }
+            let payloadStart = offset + 10
+            let payloadEnd = payloadStart + frameSize
+            if payloadEnd <= data.count, frameSize >= 2 {
+                let encoding = data[payloadStart]
+                let textData = Data(data[(payloadStart + 1)..<payloadEnd])
+                let textEncoding: String.Encoding? = switch encoding {
+                case 0: .isoLatin1
+                case 1: .utf16
+                case 3: .utf8
+                default: nil
+                }
+                if let textEncoding,
+                   let text = String(data: textData, encoding: textEncoding)?
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\0")) {
+                    result[id, default: []].append(text)
+                }
+            }
+            offset = payloadEnd
+        }
+        return result
+    }
+
     func testLowLevelModelReadsAndPreservesContentGroupArtistsAndPeaks() throws {
         let cases: [(ext: String, name: String)] = [
             ("mp3", "testAudioFile"),
@@ -211,5 +282,82 @@ final class RemediationPreservationTests: XCTestCase {
             "ASF low-level advisory edit must retire the case-variant alias"
         )
         XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).explicitAdvisory, .notExplicit)
+    }
+
+    func testV23StandaloneTDATSurvivesBasicAndStructuredUnrelatedWrites() throws {
+        for surface in ["basic", "structured"] {
+            let url = try makeV23Tag([("TDAT", "0304")])
+            if surface == "basic" {
+                try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Edited" }
+            } else {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    .init(id3v2Frames: [.init(frameID: "TIT2", type: "text", values: ["Edited"])]),
+                    to: url
+                )
+            }
+            let frames = try v23Frames(url)
+            XCTAssertEqual(frames["TDAT"], ["0304"], surface)
+            XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).date, "0304", surface)
+        }
+    }
+
+    func testV23DateWritesRejectBeforeMutation() throws {
+        let url = try makeV23Tag([("TYER", "2004"), ("TDAT", "0304")])
+        let before = try Data(contentsOf: url)
+        let yearWrite = StructuredMetadata(id3v2Frames: [
+            .init(frameID: "TDRC", type: "versionedText", values: ["2011"], v23ID: "TYER", v24ID: "TDRC"),
+        ])
+        XCTAssertThrowsError(try TagLibMetadataManager.writeStructuredMetadataWithVerification(yearWrite, to: url)) { error in
+            guard case TagLibManagerError.unsupportedWritePolicy = error else {
+                return XCTFail("Expected unsupportedWritePolicy, got \(error)")
+            }
+        }
+        let tdatWrite = StructuredMetadata(id3v2Frames: [
+            .init(frameID: "TDAT", type: "versionedText", values: ["0506"], v23ID: "TDAT", v24Description: "DATE"),
+        ])
+        XCTAssertThrowsError(try TagLibMetadataManager.writeStructuredMetadataWithVerification(tdatWrite, to: url)) { error in
+            guard case TagLibManagerError.unsupportedWritePolicy = error else {
+                return XCTFail("Expected unsupportedWritePolicy, got \(error)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: url), before)
+        let frames = try v23Frames(url)
+        XCTAssertEqual(frames["TYER"], ["2004"])
+        XCTAssertEqual(frames["TDAT"], ["0304"])
+    }
+
+    func testV23RawDeltaPreservesCanonicalDatesAndRejectsStandaloneLoss() throws {
+        let canonical = try makeV23Tag([("TYER", "2004"), ("TDAT", "0304"), ("TORY", "1999")])
+        try TagLibMetadataManager.applyRawMetadataPatch(.init(valuesToSet: ["TITLE": ["Raw"]]), to: canonical)
+        let canonicalFrames = try v23Frames(canonical)
+        XCTAssertEqual(canonicalFrames["TYER"], ["2004"])
+        XCTAssertEqual(canonicalFrames["TDAT"], ["0304"])
+        XCTAssertEqual(canonicalFrames["TORY"], ["1999"])
+
+        let standalone = try makeV23Tag([("TDAT", "0304")])
+        let before = try Data(contentsOf: standalone)
+        XCTAssertThrowsError(
+            try TagLibMetadataManager.applyRawMetadataPatch(.init(valuesToSet: ["TITLE": ["Raw"]]), to: standalone)
+        )
+        XCTAssertEqual(try Data(contentsOf: standalone), before)
+        XCTAssertEqual(try v23Frames(standalone)["TDAT"], ["0304"])
+    }
+
+    func testV23ConflictingTORYAndTDORRejectWithoutMutation() throws {
+        let url = try makeV23Tag([("TYER", "2004"), ("TDAT", "0304"), ("TORY", "1999"), ("TDOR", "2000")])
+        let before = try Data(contentsOf: url)
+        XCTAssertThrowsError(try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.title = "Edited" }) { error in
+            guard case TagLibManagerError.unsupportedWritePolicy = error else {
+                return XCTFail("Expected unsupportedWritePolicy, got \(error)")
+            }
+        }
+        XCTAssertThrowsError(try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+            .init(id3v2Frames: [.init(frameID: "TIT2", type: "text", values: ["Edited"])]),
+            to: url
+        ))
+        XCTAssertEqual(try Data(contentsOf: url), before)
+        let frames = try v23Frames(url)
+        XCTAssertEqual(frames["TORY"], ["1999"])
+        XCTAssertEqual(frames["TDOR"], ["2000"])
     }
 }
