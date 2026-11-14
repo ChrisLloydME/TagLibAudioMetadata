@@ -27,6 +27,31 @@ static void AppendNativeTextKey(TagLib::PropertyMap &properties,
     properties.replace(key, values);
 }
 
+// Direct bridge writes bypass the facade's v2.3 date preservation layer.
+// Reject direct (non-in-place) mutations of concrete v2.3 tags so a raw or
+// structured low-level caller cannot silently lose date owners. The facade's
+// in-place entry points are called under a TagLibAtomicMutationScope and
+// perform their own preservation checks.
+static BOOL RejectDirectID3v23Write(NSURL * _Nullable fileURL,
+                                   NSString *operation,
+                                   NSError **error)
+{
+    if (!fileURL || !fileURL.isFileURL) return YES;
+    NSDictionary *projections = [TagLibMetadataExtractor metadataProjectionsForURL:fileURL
+                                                                           options:TagLibMetadataExtractionOptionStructured
+                                                                             error:error];
+    if (!projections) return NO;
+    NSDictionary *structured = (NSDictionary *)projections[@"structured"];
+    if ([(NSNumber *)structured[@"id3v2MajorVersion"] intValue] != 3) return YES;
+    if (error) {
+        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                     code:9290
+                                 userInfo:@{ NSLocalizedDescriptionKey :
+            [NSString stringWithFormat:@"Direct %@ writes to ID3v2.3 are rejected; use the facade or a typed/raw merge path to preserve dates.", operation] }];
+    }
+    return NO;
+}
+
 // WAV has independent RIFF INFO and ID3v2 surfaces. TagLib's File::properties()
 // switches wholesale to ID3v2 once a tag exists, hiding unrelated INFO fields.
 // Present their union, with explicit ID3v2 values taking precedence per key.
