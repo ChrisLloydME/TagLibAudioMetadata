@@ -62,6 +62,6 @@ The precompiled TagLib binary is not sanitizer-instrumented. Sanitizers are focu
 ## References
 
 - [Prior handoff record](../remediation/REM-2026-11-15-public-write-contract.md).
-- [Original remediation plan](../../plans/DIAGNOSTIC_REMEDIATION_PLAN_2026-11-15.md).
+- [Original remediation plan](../assignments/DIAGNOSTIC_REMEDIATION_PLAN_2026-11-15.md).
 - [Pinned engine encoding implementation](https://github.com/taglib/taglib/blob/v2.3.1/taglib/mp4/mp4itemfactory.cpp); the adapter calls the supplied public/protected factory interface, without copying the engine's dispatch table or vendoring its implementation.
 - `ReleaseAcceptanceTests.swift`, `PublicWriteContractRepairTests.swift`, `scripts/summarize-test-run.py`, `scripts/required-test-inventory.json` and `scripts/tests/test_test_gate.py`.

@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current API pages describe the unreleased breaking API/performance candidate based on published `0.7.3` (2026-11-12). Read the `0.7.3` tag for its retained compatibility interface, and [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking) for removals in this branch. Mapping contract 2.2 behavior was introduced in `0.7.0`; `0.7.1` and `0.7.2` added the preceding date/ownership and mapping repairs. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe the unreleased source on `main`, which builds on published `0.7.3` (2026-11-12). That source contains the breaking API/performance cleanup, the 2026-11-15 public write-contract repairs, and the independent package contract test system. Read the `0.7.3` tag for its retained compatibility interface, and [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking) for removals in the current source. Mapping contract 2.2 behavior was introduced in `0.7.0`; `0.7.1` and `0.7.2` added the preceding date/ownership and mapping repairs. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 
@@ -9,13 +9,14 @@ The source code, `Package.swift`, and the test target are the final authority fo
 | Item | State |
 | --- | --- |
 | Current release | `0.7.3`, declared 2026-11-12 |
-| Source | Unreleased `codex/api-mapping-performance`, based on published `0.7.3` |
+| Source | Unreleased `main` at `05416aa`, based on published `0.7.3` |
 | Later tag | None |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.2` |
+| Latest accepted source | `959d688` (package-only gates, sanitizers, consumers, and five minimum-platform builds); the `05416aa` merge adds documentation and evidence only |
 | Documentation scope | Current source API; tagged-release changes are identified in [Migration](operations/MIGRATION.md) |
 | Install target | `0.7.3` for production |
 
-Version `0.7.3` adds state-preservation repairs, not a new public mapping contract. The contract remains `AM-TLAM-MAPPING-2.2`. See [Migration](operations/MIGRATION.md) for the consumer-visible delta and [Status](operations/STATUS.md) for the recorded evidence. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
+Version `0.7.3` adds state-preservation repairs, not a new public mapping contract. The contract remains `AM-TLAM-MAPPING-2.2`. The unreleased source keeps that contract and native target layouts but adds consumer-visible validation and preservation changes; see [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking) and [Status](operations/STATUS.md) for the recorded evidence. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
 
 ## Reading paths
 
@@ -28,13 +29,13 @@ Version `0.7.3` adds state-preservation repairs, not a new public mapping contra
 5. [Capabilities](guide/CAPABILITIES.md) — declared format and field support.
 6. [Formats](reference/FORMATS.md) — generated matrix and container limits.
 
-### I am updating from 0.7.2
+### I am updating from a tagged release
 
-1. [Migration](operations/MIGRATION.md) — the 0.7.2-to-0.7.3 change list and migration actions.
-2. [Status](operations/STATUS.md) — recorded gates and the limits of that evidence.
+1. [Migration](operations/MIGRATION.md) — tagged-release deltas, the unreleased cleanup, and migration actions.
+2. [Status](operations/STATUS.md) — the current release boundary, recorded gates, and the limits of that evidence.
 3. [Write semantics](explanation/PRESERVATION.md) — native-owner and PropertyMap replay rules.
-4. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — gate requirements and current evidence.
-5. [Engineering records](records/README.md) — the state-coverage campaign evidence.
+4. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — contract-gate requirements and current evidence.
+5. [Engineering records](records/README.md) — the 2026-11-15 write-contract and contract-system campaigns.
 
 ### I am implementing an editor
 
@@ -52,18 +53,22 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 1. [Architecture](explanation/ARCHITECTURE.md) — modules, flows, invariants, source and test layout.
 2. [Development](operations/DEVELOPMENT.md) — change workflow, documentation pipeline, release, binary maintenance.
 3. [Testing](operations/TESTING.md) — commands, CI, opt-ins, evidence limits.
-4. [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — lifecycle and sparse-state matrices, gate policy, coverage limits.
+4. [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — lifecycle and sparse-state matrices, contract inventory, gate policy, coverage limits.
 5. [Status](operations/STATUS.md) — latest observed validation state.
 6. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
 7. [Engineering records](records/README.md) — past investigations and open findings.
 
-## Current diagnostic repair handoff
+## Current source status
 
-The [2026-11-15 adjudication and remediation plan](plans/DIAGNOSTIC_REMEDIATION_PLAN_2026-11-15.md) distinguishes confirmed defects, source-supported hypotheses and intentional behavior at production baseline `903fa69`. The [startup prompt](plans/DIAGNOSTIC_REMEDIATION_AGENT_PROMPT_2026-11-15.md) directs a package-only agent to create a new repair branch and implement the plan. These documents describe authorized future work; they do not claim that those repairs or their acceptance gates have run.
+The current source contains three unreleased, package-only changes. They are merged on `main` but not part of any tagged release.
 
-## Package-only test-system upgrade assignment
+| Campaign | State at this revision | Evidence |
+| --- | --- | --- |
+| Breaking API cleanup and selective I/O | Unreleased candidate; publish only as an explicitly breaking release after consumer migration | [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking), [architecture record](records/remediation/REM-2026-11-14-package-architecture.md) |
+| Public write-contract repairs (F-01…F-15) | Repaired and merged; package-only gates accepted at `c3c655e` | [Remediation record](records/remediation/REM-2026-11-15-public-write-contract.md), [acceptance record](records/verification/VER-2026-11-15-public-write-release-acceptance.md) |
+| Independent contract test system | Repaired and merged; final package-only acceptance at `959d688` | [Implementation record](records/verification/VER-2026-11-15-package-test-system.md), [acceptance record](records/remediation/REM-2026-11-15-test-system-acceptance.md) |
 
-The [2026-11-15 implementation plan](plans/PACKAGE_TEST_SYSTEM_UPGRADE_PLAN_2026-11-15.md) specifies public-surface coverage, independent native contracts, defect-detection calibration and fail-closed evidence. Its [startup prompt](plans/PACKAGE_TEST_SYSTEM_AGENT_PROMPT_2026-11-15.md) requires a new implementation branch and package-only acceptance. These documents are future work, not a claim that the upgrade has passed.
+The assignment plans that authorized this work, including the 2026-11-15 write-contract and contract-system assignments, are preserved under [assignments](records/assignments/README.md). They are historical instructions, not current contracts or a live backlog.
 
 ## Document map
 
@@ -87,8 +92,8 @@ The [2026-11-15 implementation plan](plans/PACKAGE_TEST_SYSTEM_UPGRADE_PLAN_2026
 | Audio-content continuity | [explanation/AUDIO_CONTENT_CONTINUITY.md](explanation/AUDIO_CONTENT_CONTINUITY.md) | Identity availability, algorithm, guarded rebases, cost, limitations. | General snapshot semantics. |
 | Implementation architecture | [explanation/ARCHITECTURE.md](explanation/ARCHITECTURE.md) | Modules, read/write flows, invariants, source map, test layout. | Consumer recipes. |
 | Installation and distribution | [operations/INSTALLATION.md](operations/INSTALLATION.md) | Products, binary identity, slices, embedding, offline builds, diagnostics. | Format behavior. |
-| Testing | [operations/TESTING.md](operations/TESTING.md) | Test layers, commands, CI jobs, opt-ins, independent oracles, gate application, evidence limits. | Release verdicts or campaign narratives. |
-| Mapping test acceptance | [operations/MAPPING_TEST_STRATEGY.md](operations/MAPPING_TEST_STRATEGY.md) | Required lifecycle matrices, independent oracles, mixed-framework gate, minimum case counts, coverage limits. | General test commands or current status. |
+| Testing | [operations/TESTING.md](operations/TESTING.md) | Test layers, contract lane, calibration, commands, CI jobs, opt-ins, independent oracles, evidence limits. | Release verdicts or campaign narratives. |
+| Mapping test acceptance | [operations/MAPPING_TEST_STRATEGY.md](operations/MAPPING_TEST_STRATEGY.md) | Required lifecycle matrices, contract inventory, independent oracles, contract gate, minimum case counts, coverage limits. | General test commands or current status. |
 | Validation status | [operations/STATUS.md](operations/STATUS.md) | Latest observed run, environment, counts, skips, known failures, release boundary, limitations. | Historical campaigns. |
 | Development | [operations/DEVELOPMENT.md](operations/DEVELOPMENT.md) | Repository layout, source-of-truth rules, documentation pipeline, release, binary maintenance. | Application usage. |
 | Compatibility and migration | [operations/MIGRATION.md](operations/MIGRATION.md) | Release boundary, consumer-visible changes, deprecation map, migration actions. | Release notes for every version. |
@@ -140,9 +145,10 @@ A passing test establishes that the executed assertions passed in that environme
 - State the scope of a guarantee: which formats, which surfaces, which environment.
 - Do not describe a configured CI job as a passing result for a revision that did not run it.
 - Do not present `fixtureCovered` as universal format support.
-- Distinguish the latest published tag from the current source branch. Never describe unreleased behavior as part of a tagged release.
+- Distinguish the latest published tag from the current source. Never describe unreleased behavior as part of a tagged release.
 - Update [Status](operations/STATUS.md) only after a validation campaign that changes the latest known state. Put the campaign narrative in a record.
 - Update [Migration](operations/MIGRATION.md) when a public API is deprecated, its semantics change, or a post-release branch adds a consumer-visible behavior change.
+- Once an assignment is implemented, move its plan and startup prompt under [records/assignments](records/assignments/README.md) and link the resulting record. Do not leave completed work in the hub as pending.
 - Regenerate the API, model, field, format, and mapping pages after a source change; do not edit their generated sections by hand.
 
 ## Documentation checks
@@ -168,4 +174,4 @@ python3 scripts/generate-mapping-matrix.py --write
 
 Current documents use the present tense and describe behavior at the revision you are reading. Historical records keep their original dates, revisions, findings, verdicts, and counts.
 
-Do not silently rewrite a historical record to match current code. Add an addendum or a superseding record and update the [records index](records/README.md). Repair relative links after a move, but do not change the record's substantive claims. The 2026-10-19 and 2026-10-21 documentation reports are retained as [DOC-2026-10-19](records/documentation/DOC-2026-10-19-documentation-restructure.md) and [DOC-2026-10-21](records/documentation/DOC-2026-10-21-documentation-reconstruction.md); do not treat their remaining-work lists as a live backlog.
+Do not silently rewrite a historical record to match current code. Add an addendum or a superseding record and update the [records index](records/README.md). Repair relative links after a move, but do not change the record's substantive claims. Completed assignment prompts live in [records/assignments](records/assignments/README.md). The 2026-10-19 and 2026-10-21 documentation reports are retained as [DOC-2026-10-19](records/documentation/DOC-2026-10-19-documentation-restructure.md) and [DOC-2026-10-21](records/documentation/DOC-2026-10-21-documentation-reconstruction.md); do not treat their remaining-work lists as a live backlog.

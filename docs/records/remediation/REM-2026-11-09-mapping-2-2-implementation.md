@@ -4,7 +4,7 @@
 - **Date:** 2026-11-09
 - **Type:** Remediation / implementation
 - **Contract:** `AM-TLAM-MAPPING-2.2` in [METADATA_MAPPING_SPEC.md](../../reference/MAPPING_SPEC.md)
-- **Assignment:** [MAPPING_REFACTOR_AGENT_PROMPT.md](../../plans/MAPPING_REFACTOR_AGENT_PROMPT.md)
+- **Assignment:** [MAPPING_REFACTOR_AGENT_PROMPT.md](../assignments/MAPPING_REFACTOR_AGENT_PROMPT.md)
 - **Branch:** `codex/metadata-mapping-spec`
 - **Implementation commits:** `67031a3` (`Implement AM-TLAM-MAPPING-2.2 package semantics`) and `73f8d9c` (`Add native ASF independent date attributes`)
 - **Documentation commit:** the commit containing this record
