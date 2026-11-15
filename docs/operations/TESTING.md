@@ -65,7 +65,7 @@ that copy, and applies each anchored mutant only inside the copy. The active
 working tree, dependency binary and fixtures are never patched. A mutant counts
 as killed only when it compiles, the required test witnesses the intended bad behavior
 and the expected behavioral assertion fails; compile errors, timeouts, missing
-fixtures and unrelated failures are inconclusive. The current set covers:
+fixtures and unrelated failures are inconclusive. The current set has 13 independently activated faults and covers:
 omitted exported numeric validation; trimmed-versus-untrimmed MP4 key
 normalization; pre-range numeric truncation; formatter `nil` as deletion;
 schema-known retention filtering; lost ID3v2.3 version; restored stale MP4
