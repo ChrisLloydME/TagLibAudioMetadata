@@ -229,3 +229,40 @@ The evidence gate checks both, so neither can substitute for the other.
   builds, tests and diagnostics used shell, Git, Swift, Xcode toolchain and
   Python as available; no invented tool or broad model-assisted diagnostic was
   substituted for implementation.
+
+## 8. Final acceptance addendum
+
+The implementation was frozen at `714710d` with a clean tree and both complete
+contract lanes accepted. The documentation/evidence addendum is the only later
+change; the tested Swift/Objective-C sources, tests, inventories, catalog,
+adapters, oracles and calibration definitions are unchanged from `714710d`.
+
+Stable evidence directories:
+
+| Lane | Evidence | Result |
+| --- | --- | --- |
+| Debug | `.build/test-evidence/debug-final-20261115/` | `accepted: true`; 181 XCTest executed (179 passed, 2 reviewed skips), 272 Swift Testing declarations in 51 suites passed, 73/73 scenarios, 0 failures |
+| Release | `.build/test-evidence/release-final-20261115/` | `accepted: true`; 181 XCTest executed (179 passed, 2 reviewed skips), 272 Swift Testing declarations in 51 suites passed, 73/73 scenarios, 0 failures |
+| Calibration | `.build/test-calibration/20261115T063441Z/calibration.json` | `accepted`; all 12 mutants compiled, activated and were killed; every source restored and hash-checked |
+
+Both lanes re-ran the policy suite (76 regressions), inventory/catalog
+reconciliation and the bounded calibration set before the complete framework
+gate. The two final summaries bind the same campaign manifest commit
+`714710d` and the same source hash
+`802d170118965142b2520b937527ddfb97d0553275f63e7e84f0cd3138cf51ab`.
+The two XCTest skips are exactly the reviewed opt-in identities:
+`ExternalCorpusPreservationTests.testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus`
+and
+`SnapshotThroughputBenchmarkTests.testOptInIndependentFileSnapshotThroughput`.
+No additional skip, expected failure, filter, shard or conditional pass was
+used.
+
+Focused sanitizer evidence (current HEAD source, separate scratch paths):
+
+| Lane | Command focus | Result |
+| --- | --- | --- |
+| AddressSanitizer | `ContractBuilderOracleSelfTests` + `contractMP4TypedVertical` + `contractNormalizationPlan` | 9 tests in 3 suites passed |
+| ThreadSanitizer | `contractMP4PublicSequence` + `contractV23FlaggedPreservation` + `contractBridgeReadsRegistry` | 3 tests in 3 suites passed |
+
+Minimum-platform builds are recorded in the final report; unexecuted builds are
+not inferred green.
