@@ -57,6 +57,10 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 6. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
 7. [Engineering records](records/README.md) — past investigations and open findings.
 
+## Current diagnostic repair handoff
+
+The [2026-11-15 adjudication and remediation plan](plans/DIAGNOSTIC_REMEDIATION_PLAN_2026-11-15.md) distinguishes confirmed defects, source-supported hypotheses and intentional behavior at production baseline `903fa69`. The [startup prompt](plans/DIAGNOSTIC_REMEDIATION_AGENT_PROMPT_2026-11-15.md) directs a package-only agent to create a new repair branch and implement the plan. These documents describe authorized future work; they do not claim that those repairs or their acceptance gates have run.
+
 ## Document map
 
 | Topic | Canonical document | Owns | Does not cover |

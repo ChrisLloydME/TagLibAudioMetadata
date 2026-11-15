@@ -455,6 +455,37 @@ static void ParseNumberPairFromNSString(NSString *text,
     }
 }
 
+// Destination-aware checks for the public number-text writer. These run
+// before the atomic staging copy, not only after the destination is open.
+static BOOL ValidateNumberPairTextForDestination(NSString * _Nullable text,
+                                                 TLTagFileFormat format,
+                                                 NSString *fieldName,
+                                                 NSError **error)
+{
+    NSString *trimmed = TrimmedStringOrNil(text);
+    if (!trimmed) return YES;
+    NSArray<NSString *> *parts = [trimmed componentsSeparatedByString:@"/"];
+    if (parts.count == 0 || parts.count > 2) return YES; // base validator owns this error
+    unsigned long long number = 0;
+    unsigned long long total = 0;
+    if (!ParseUnsignedDecimalString(parts[0], std::numeric_limits<unsigned long long>::max(), number)) return YES;
+    if (parts.count == 2 &&
+        !ParseUnsignedDecimalString(parts[1], std::numeric_limits<unsigned long long>::max(), total)) return YES;
+    if (format == TLTagFileFormatMP4 && (number > 65535 || total > 65535)) {
+        return SetNumericValidationError(
+            error,
+            [NSString stringWithFormat:@"%@ components must be unsigned 16-bit values between 0 and 65535 for MP4", fieldName]
+        );
+    }
+    if (format == TLTagFileFormatASF && number == 0 && total > 0) {
+        return SetNumericValidationError(
+            error,
+            [NSString stringWithFormat:@"%@ cannot store a zero number with a positive total for ASF", fieldName]
+        );
+    }
+    return YES;
+}
+
 static BOOL ValidateNumberPairTextForWrite(NSString *text,
                                            NSString *fieldName,
                                            NSError **error)
@@ -493,6 +524,13 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
     if (!ValidateNumberPairTextForWrite(trackNumberText, @"Track number text", error) ||
         !ValidateNumberPairTextForWrite(discNumberText, @"Disc number text", error)) {
         return NO;
+    }
+    if (fileURL && fileURL.isFileURL) {
+        const TLTagFileFormat requestedFormat = DetectTagFileFormat(fileURL);
+        if (!ValidateNumberPairTextForDestination(trackNumberText, requestedFormat, @"Track number text", error) ||
+            !ValidateNumberPairTextForDestination(discNumberText, requestedFormat, @"Disc number text", error)) {
+            return NO;
+        }
     }
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"track/disc-number", error)) return NO;
@@ -751,7 +789,7 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
             SetID3v2TextFrame(id3v2Tag, "TPOS", TrimmedStringOrNil(discNumberText));
             RemoveID3v2UserTextFrames(id3v2Tag, @[ @"DISCTOTAL", @"TOTALDISCS" ]);
         }
-        if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (!SaveWAVPreservingID3Version(&wavFile, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:65

@@ -33,6 +33,7 @@
 #include TL_TAGLIB_HEADER(mp4properties.h)
 #include TL_TAGLIB_HEADER(mp4tag.h)
 #include TL_TAGLIB_HEADER(mp4item.h)
+#include TL_TAGLIB_HEADER(mp4itemfactory.h)
 #include TL_TAGLIB_HEADER(mp4coverart.h)
 
 #include TL_TAGLIB_HEADER(flacfile.h)

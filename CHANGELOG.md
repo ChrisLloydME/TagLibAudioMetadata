@@ -5,6 +5,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Close public native numeric codec/range bypasses across structured, scalar, whole-model and raw writes. Reject unsupported inherited padding without deleting number owners, preserve protected legacy date evidence, and validate numberText intent before staging.
+
+- Reject incompatible structured write payloads before mutation: MP4 reserved-atom codecs/ranges, noncanonical or unknown ASF types, and collections the destination does not consume. Bound generated number padding to 64 and preflight numberText ranges under the captured version.
+- Preserve legal ID3v2.3 frame-status flags and bounded grouping while keeping compression/encryption fail-closed; locate DSDIFF ID3 only through declared `PROP` children.
+- Preserve schema-known but unmodeled owners and private numbering provenance in whole-model writes, while keeping modeled nil as replacement removal.
+- Normalize MusicBrainz TXXX alias cleanup and canonical-key MP4 freeform raw edits; pass observed ID3 versions through every WAV/AIFF save.
+- Align XM tracker-name execution with capability, correct role value kinds, MP4 total intPair descriptors and semantic dictionary normalization, and document best-available aggregate capability.
 - Preserve low-level Content Group, ARTISTS, ReplayGain peaks and unknown advisory codes; apply native ASF updates and retire advisory aliases.
 - Verify APE release fields through their engine projection and reject inconsistent Basic number text per pair while allowing total-only updates.
 - Fail closed on concrete ID3v2.3 date edits and unpreservable layouts across mutation entry points. Bind structured preservation to its observed version; preserve independent TXXX identities and exact date arrays.

@@ -117,11 +117,11 @@ for warning in result.warnings {
 }
 ```
 
-Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. Do not mix typed track/disc fields with `numberText` in one patch. Verification mismatches throw before commit; a successful result carries only residual container advisories.
+Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. `numberText` and typed track/disc fields may be mixed only across different pairs; both representations for the same pair are rejected. Number-text pairs are resolved and range-checked against the captured version before staging. Verification mismatches throw before commit; a successful result carries only residual container advisories.
 
 Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` is the YEAR field; `.standaloneDate` is the independent DATE field. The unreleased API removes the ambiguous typed `.date` alias. `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension. Existing ID3v2.3 tags are read-only for independent date edits; inspect `StructuredMetadata.id3v2MajorVersion` before offering them.
 
-For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The unreleased API removes the older `writeMetadata` and `writeMetadataWithVerification` aliases; see [migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking). The MP4-exclusive Basic properties are read into the model but are not written by `replaceBasicMetadata`; use `MetadataPatch` for them.
+For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The unreleased API removes the older `writeMetadata` and `writeMetadataWithVerification` aliases; see [migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking). `replaceBasicMetadata` uses the typed planner for every editable Basic field, including MP4-exclusive properties such as director and the TV/movement atoms. `.rate` remains read-only because no verified native rating scale exists. Unsupported fields/values still fail through the same capability and validation rules as `MetadataPatch`.
 
 Check capability evidence before enabling controls:
 
@@ -131,7 +131,7 @@ print(capability.supportLevel)
 print(capability.writeSupport(for: .artwork))
 ```
 
-`probeFile` validates readability with the selected parser; it does not test POSIX write permission, ACLs, disk space, or sandbox access. `writeSupport` is a coarse declared check, not a typed-write promise. Use `capability(forExtension:)` only for declared-format discovery when no file exists yet.
+`probeFile` validates readability with the selected parser; it does not test POSIX write permission, ACLs, disk space, or sandbox access. `writeSupport` is a coarse declared check, not a typed-write promise; `MetadataFieldRegistry.schemas(storableIn:)` uses that same destination-aware policy (so XM lists title, comment and tracker name, and role-qualified fields are not advertised). Field-level `aggregateCapability` is a best-available summary across families, not a portability guarantee. Use `capability(forExtension:)` only for declared-format discovery when no file exists yet.
 
 ## What the write APIs guarantee
 
@@ -145,6 +145,8 @@ Verified facade writes:
 A failure before rename leaves the original path and bytes unchanged and removes the temporary copy. If the final directory sync fails after rename, the write has already committed; high-level APIs report `MetadataWriteResult.commitStatus == .durabilityUncertain(...)`. `.durable` means the requested OS-level flush completed, not a hardware or power-loss guarantee.
 
 Snapshot reads capture a `MetadataFileVersion`; pass it as `expectedVersion` to reject a stale edit. TagLib parser and mutation work is serialized by a process-wide recursive mutex, and same-entry transactions are serialized by a directory-identity/name lock shared by the facade and bridge. This is **process-local coordination, not cross-process exclusion**. An external writer can still race the final identity check and rename. See [Transactions and concurrency](docs/explanation/TRANSACTIONS.md).
+
+Ordinary compatibility aliases of a track/disc pair (for example MP4 `TRACKTOTAL`/`DISCTOTAL` freeforms) may retire after an explicit edit of that pair, once their values are recovered into native `trkn`/`disk`. That cleanup is pair-scoped: untouched groups and both private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` namespaces survive ordinary writes. Private provenance is retired only by the explicit, version-guarded normalization plan; no default surface creates or renames it.
 
 `MetadataPatch` and `RawMetadataPatch` are omission-safe deltas. Raw APIs use prefixless TagLib `PropertyMap` keys; native MP4 `----:` atom identifiers must go through `StructuredMetadata.mp4Atoms`. Unchanged native date owners are restored across PropertyMap replay, including native absence, and a scalar projection does not authorize collapsing an existing native array. Neither delta comparison is a lossless oracle for opaque native metadata that TagLib does not expose. See [Write semantics](docs/explanation/PRESERVATION.md).
 

@@ -226,7 +226,11 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
 
     /// Value representations accepted by the high-level typed patch API.
     public var acceptedPatchValueKinds: Set<MetadataPatchValueKind> {
-        switch key {
+        // The typed planner has no verified role codec. Inspection, raw and
+        // native access remain available; withholding the high-level kinds
+        // keeps the advertised contract aligned with executable writes.
+        if isRoleQualified { return Set<MetadataPatchValueKind>() }
+        let kinds: [MetadataPatchValueKind] = switch key {
         case .track, .trackTotal, .disc, .discTotal, .movementNumber, .movementCount, .bpm,
              .itunesAlbumID, .itunesArtistID, .itunesCatalogID, .itunesGenreID,
              .itunesComposerID, .itunesCountryID, .itunesMediaType, .rate,
@@ -239,6 +243,7 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         default:
             isMultiValue ? [.text, .values] : [.text]
         }
+        return Set(kinds)
     }
 
     /// Numeric limits shared with the Objective-C++ bridge's integer validation.
@@ -331,6 +336,9 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         return .unsupported
     }
 
+    /// Best-available summary across all families, not a portability promise.
+    /// A native target in any family is reported as native; use
+    /// `capability(for:)` for destination-specific decisions.
     public var aggregateCapability: MetadataMappingCapability {
         let states = MetadataNativeFamily.allCases.map { capability(for: $0) }
         if states.contains(.native) { return .native }
@@ -521,7 +529,7 @@ public enum MetadataFieldRegistry {
 
     /// One semantic owner for each semantic key; there are no YEAR aliases.
     public nonisolated static let schemasBySemanticKey: [String: MetadataFieldSchema] =
-        Dictionary(uniqueKeysWithValues: allSchemas.map { ($0.semanticKey, $0) })
+        Dictionary(uniqueKeysWithValues: allSchemas.map { ($0.semanticKey.uppercased(), $0) })
 
     public nonisolated static let canonicalPropertyMapKeys: Set<String> =
         Set(allSchemas.flatMap(\.propertyMapKeys).map(normalizePropertyMapKey))
@@ -577,18 +585,15 @@ public enum MetadataFieldRegistry {
         }
     }
 
+    /// Fields whose high-level value kinds are executable for this declared
+    /// destination. This deliberately uses the same `writeSupport` policy as
+    /// typed writes, including property-map-only tracker allowlists; it is not
+    /// a union of every registered native target.
     public nonisolated static func schemas(storableIn capability: FormatCapability) -> [MetadataFieldSchema] {
         guard capability.isWritable else { return [] }
         return allSchemas.filter { schema in
-            if let writableFields = capability.writableFields, !writableFields.contains(schema.key) {
-                return false
-            }
-            if schema.isArtworkField, !capability.canWriteArtwork {
-                return false
-            }
-            return capability.metadataFieldFormats.contains { format in
-                schema.capability(for: format).isWritable
-            }
+            schema.key != .custom && !schema.isRoleQualified &&
+                capability.writeSupport(for: schema.key) != .unsupported
         }
     }
 

@@ -61,7 +61,7 @@ extension frame, `F(...)` is an exact MP4 freeform description, and
 | `DIRECTOR` | `textArray` | — | — | **©dir** | — | — | — | — | — |
 | `DISCNUMBER` | `integer` | **TPOS#number** | **TPOS#number** | **disk#number** | **DISCNUMBER** | **DISC** | **WM/PartOfSet#number** | — | — |
 | `DISCSUBTITLE` | `text` | **TXXX(DISCSUBTITLE)** | **TSST** | **F(DISCSUBTITLE)** | **DISCSUBTITLE** | **DISCSUBTITLE** | **WM/SetSubTitle** | — | — |
-| `DISCTOTAL` | `integer` | **TPOS#total** | **TPOS#total** | **disk#total** | **DISCTOTAL** | **DISCTOTAL** | **WM/PartOfSet#total** | — | — |
+| `DISCTOTAL` | `intPair` | **TPOS#total** | **TPOS#total** | **disk#total** | **DISCTOTAL** | **DISCTOTAL** | **WM/PartOfSet#total** | — | — |
 | `ENCODEDBY` | `text` | **TENC** | **TENC** | **©enc** | **ENCODEDBY** | **ENCODEDBY** | **WM/EncodedBy** | — | — |
 | `ENCODING` | `text` | **TSSE** | **TSSE** | **©too** | **ENCODING** | **ENCODING** | **WM/EncodingSettings** | — | — |
 | `ENGINEER` | `textArray` | **TXXX(ENGINEER)** | **TXXX(ENGINEER)** | **F(ENGINEER)** | **ENGINEER** | **ENGINEER** | — | — | — |
@@ -128,7 +128,7 @@ extension frame, `F(...)` is an exact MP4 freeform description, and
 | `TITLESORT` | `text` | **EXT(TSOT)** | **TSOT** | **sonm** | **TITLESORT** | **TITLESORT** | **WM/TitleSortOrder** | — | — |
 | `TRACKERNAME` | `text` | — | — | — | — | — | — | — | — |
 | `TRACKNUMBER` | `integer` | **TRCK#number** | **TRCK#number** | **trkn#number** | **TRACKNUMBER** | **TRACK** | **WM/TrackNumber#number** | **ITRK** | — |
-| `TRACKTOTAL` | `integer` | **TRCK#total** | **TRCK#total** | **trkn#total** | **TRACKTOTAL** | **TRACKTOTAL** | **WM/TrackNumber#total** | — | — |
+| `TRACKTOTAL` | `intPair` | **TRCK#total** | **TRCK#total** | **trkn#total** | **TRACKTOTAL** | **TRACKTOTAL** | **WM/TrackNumber#total** | — | — |
 | `TVEPISODE` | `integer` | — | — | **tves** | — | — | — | — | PART_NUMBER@50 (read) |
 | `TVEPISODEID` | `text` | — | — | **tven** | — | — | — | — | — |
 | `TVNETWORK` | `text` | — | — | **tvnn** | — | — | — | — | — |
