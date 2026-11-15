@@ -13,6 +13,12 @@ static NSString * _Nullable BuildTRCKString(NSInteger trackNumber, NSInteger tot
     if (trackNumber <= 0 && totalTracks <= 0) {
         return nil;
     }
+    // Never hand an unbounded dynamic width to Foundation. Callers that accept
+    // caller-supplied padding validate the same limit before staging; this
+    // guard also protects indirect formatter callers that reuse existing text.
+    if (padWidth < 0 || padWidth > kMaximumGeneratedNumberPaddingWidth) {
+        return nil;
+    }
 
     NSString *trackPart = nil;
     if (trackNumber > 0) {
@@ -139,6 +145,13 @@ static BOOL StripAllTagsAndSave(FileType &file,
         !ValidateNonnegativeIntValue(totalTracks, @"Total tracks", error) ||
         !ValidateNonnegativeIntValue(padWidth, @"Track-number padding width", error)) {
         return NO;
+    }
+    if (padWidth > kMaximumGeneratedNumberPaddingWidth) {
+        return SetNumericValidationError(
+            error,
+            [NSString stringWithFormat:@"Track-number padding width must be between 0 and %ld",
+                                       (long)kMaximumGeneratedNumberPaddingWidth]
+        );
     }
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"track-number", error)) return NO;
@@ -346,7 +359,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
         TagLib::ID3v2::Tag *id3v2Tag = wavFile.ID3v2Tag();
         SetID3v2TextFrame(id3v2Tag, "TRCK", BuildTRCKString(trackNumber, totalTracks, padWidth));
         RemoveID3v2UserTextFrames(id3v2Tag, @[ @"TRACKTOTAL", @"TOTALTRACKS" ]);
-        if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (!SaveWAVPreservingID3Version(&wavFile, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:61

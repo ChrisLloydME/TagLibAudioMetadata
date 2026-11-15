@@ -154,8 +154,9 @@ public struct MetadataTargetProfile: Hashable, Sendable {
         return .conventionalExtension
     }
 
-    /// Lowest capability across the entire profile, used by capability views
-    /// that cannot know the destination family.
+    /// Best-available capability across the entire profile, used by views that
+    /// cannot know the destination family. This is a summary, not a
+    /// portability guarantee; destination-aware checks remain authoritative.
     public var aggregateCapability: MetadataMappingCapability {
         let states = MetadataNativeFamily.allCases.map(capability(for:))
         if states.contains(.native) { return .native }

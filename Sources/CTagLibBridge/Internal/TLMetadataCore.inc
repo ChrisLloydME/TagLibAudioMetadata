@@ -178,12 +178,40 @@ static TagLib::ID3v2::Version ID3v2SaveVersion(TagLib::ID3v2::Tag * _Nullable ta
     return TagLib::ID3v2::v4;
 }
 
+// One documented maximum for API-generated zero padding on track/disc text.
+// Reject wider requests instead of formatting or clamping them.
+static constexpr NSInteger kMaximumGeneratedNumberPaddingWidth = 64;
+
+// WAV and AIFF store an ID3v2 tag, but their save overloads default to
+// ID3v2.4. Always pass the observed major version so an unrelated edit cannot
+// silently rewrite a v2.3 chunk. TagLib's WAV overload takes the ID3 version
+// as its third argument; AIFF has a dedicated version overload.
+static bool SaveWAVPreservingID3Version(
+    TagLib::RIFF::WAV::File *file,
+    TagLib::RIFF::WAV::File::TagTypes tags,
+    TagLib::File::StripTags strip)
+{
+    if (!file) return false;
+    return file->save(tags, strip, ID3v2SaveVersion(file->ID3v2Tag()));
+}
+
+static bool SaveAIFFPreservingID3Version(TagLib::RIFF::AIFF::File *file)
+{
+    if (!file) return false;
+    return file->save(ID3v2SaveVersion(file->tag()));
+}
+
 static bool SaveMetadataPreservingOtherTagSurfaces(TagLib::File *file)
 {
     ValidateWritablePrimaryTagSurface(file);
     if (auto *wav = dynamic_cast<TagLib::RIFF::WAV::File *>(file)) {
-        // WAV's default save may strip INFO while writing ID3v2.
-        return wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
+        // WAV's default save may strip INFO while writing ID3v2, and its
+        // default ID3 version is v2.4.
+        return SaveWAVPreservingID3Version(
+            wav, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
+    }
+    if (auto *aiff = dynamic_cast<TagLib::RIFF::AIFF::File *>(file)) {
+        return SaveAIFFPreservingID3Version(aiff);
     }
     if (auto *mpeg = dynamic_cast<TagLib::MPEG::File *>(file)) {
         // A delta must not duplicate the ID3v2 projection into ID3v1.

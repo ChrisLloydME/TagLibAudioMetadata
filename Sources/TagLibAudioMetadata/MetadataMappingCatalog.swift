@@ -133,14 +133,14 @@ public enum MetadataMappingCatalog {
         ),
         MetadataTargetProfile(
             semanticKey: "TRACKTOTAL",
-            shape: .integer,
+            shape: .intPair,
             targets: [
                 MetadataNativeTarget(family: .id3v23, storage: .textFrame, nativeIdentity: "TRCK", shape: .integer, preferredWrite: true, numberComponent: .total),
                 MetadataNativeTarget(family: .id3v24, storage: .textFrame, nativeIdentity: "TRCK", shape: .integer, preferredWrite: true, numberComponent: .total),
                 MetadataNativeTarget(family: .vorbisComment, storage: .textKey, nativeIdentity: "TRACKTOTAL", shape: .integer, preferredWrite: true),
                 MetadataNativeTarget(family: .apev2, storage: .textKey, nativeIdentity: "TRACKTOTAL", shape: .integer, preferredWrite: true),
                 MetadataNativeTarget(family: .asf, storage: .asfAttribute, nativeIdentity: "WM/TrackNumber", shape: .integer, preferredWrite: true, numberComponent: .total),
-                MetadataNativeTarget(family: .mp4, storage: .mp4Integer, nativeIdentity: "trkn", shape: .integer, preferredWrite: true, numberComponent: .total),
+                MetadataNativeTarget(family: .mp4, storage: .intPair, nativeIdentity: "trkn", shape: .intPair, preferredWrite: true, numberComponent: .total),
             ],
         ),
         MetadataTargetProfile(
@@ -157,14 +157,14 @@ public enum MetadataMappingCatalog {
         ),
         MetadataTargetProfile(
             semanticKey: "DISCTOTAL",
-            shape: .integer,
+            shape: .intPair,
             targets: [
                 MetadataNativeTarget(family: .id3v23, storage: .textFrame, nativeIdentity: "TPOS", shape: .integer, preferredWrite: true, numberComponent: .total),
                 MetadataNativeTarget(family: .id3v24, storage: .textFrame, nativeIdentity: "TPOS", shape: .integer, preferredWrite: true, numberComponent: .total),
                 MetadataNativeTarget(family: .vorbisComment, storage: .textKey, nativeIdentity: "DISCTOTAL", shape: .integer, preferredWrite: true),
                 MetadataNativeTarget(family: .apev2, storage: .textKey, nativeIdentity: "DISCTOTAL", shape: .integer, preferredWrite: true),
                 MetadataNativeTarget(family: .asf, storage: .asfAttribute, nativeIdentity: "WM/PartOfSet", shape: .integer, preferredWrite: true, numberComponent: .total),
-                MetadataNativeTarget(family: .mp4, storage: .mp4Integer, nativeIdentity: "disk", shape: .integer, preferredWrite: true, numberComponent: .total),
+                MetadataNativeTarget(family: .mp4, storage: .intPair, nativeIdentity: "disk", shape: .intPair, preferredWrite: true, numberComponent: .total),
             ],
         ),
         MetadataTargetProfile(
@@ -1121,8 +1121,11 @@ public enum MetadataMappingCatalog {
         ),
     ]
 
+    // Semantic identities are case-insensitive. Construction and lookup must
+    // normalize identically; otherwise the placeholder profile
+    // "<explicit key>" is registered under a spelling lookup can never reach.
     private static let bySemanticKey: [String: MetadataTargetProfile] =
-        Dictionary(uniqueKeysWithValues: profiles.map { ($0.semanticKey, $0) })
+        Dictionary(uniqueKeysWithValues: profiles.map { ($0.semanticKey.uppercased(), $0) })
 
     public static func profile(forSemanticKey key: String) -> MetadataTargetProfile? {
         bySemanticKey[key.uppercased()]

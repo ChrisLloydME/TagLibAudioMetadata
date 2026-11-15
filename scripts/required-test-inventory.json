@@ -35,6 +35,10 @@
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
   },
+  "asfNoncanonicalTypeIsCanonicalTextOrRejected": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "asfPublicWriteSurfacesPreserveSparseDateOwners": {
     "suite": "ASFNativeLifecycleTests",
     "path": "Integration/ASFNativeLifecycleTests.swift"
@@ -46,6 +50,10 @@
   "asfUnrelatedSemanticPatchPreservesNativeEncodingSettings": {
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
+  },
+  "asfZeroNumberTextPairRejectsBeforeStaging": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
   },
   "basicAPEDatesPreserveExactBytesAndAudio": {
     "suite": "BasicIntegrityMatrixTests",
@@ -119,6 +127,14 @@
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
   },
+  "crossFormatStructuredCollectionsRejectAtomically": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "dsdiffPropertyChildID3UsesBoundedTraversal": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "emptyStructuredWritesAndUnsupportedCollectionsDoNotCommit": {
     "suite": "IndependentDiagnosticRepairTests",
     "path": "Integration/IndependentDiagnosticRepairTests.swift"
@@ -158,6 +174,14 @@
   "flacKnownVectorKeepsDuplicateCommentEntriesAndAudio": {
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "fullModelPreservesUnmodeledOwners": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "generatedPaddingWidthRejectsBeforeFormatting": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
   },
   "id3EncodedByEditPreservesEncoderSettings": {
     "suite": "AuditProbeTests",
@@ -199,6 +223,14 @@
     "suite": "IndependentDiagnosticRepairTests",
     "path": "Integration/IndependentDiagnosticRepairTests.swift"
   },
+  "legacyV23GroupingFlagSkipsBoundedIdentifier": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "legacyV23StatusFlagsReadLiteralDates": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "lowLevelClearMustNotResurrectOldMP4Values": {
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
@@ -215,6 +247,10 @@
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
   },
+  "maximumGeneratedPaddingStillWrites": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "movementAndReleaseOwnersAgreeAcrossEntrypoints": {
     "suite": "IndependentDiagnosticRepairTests",
     "path": "Integration/IndependentDiagnosticRepairTests.swift"
@@ -222,6 +258,14 @@
   "mp4ExtendedAndZeroSizeAtomsKeepValuesAndAudio": {
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "mp4IntPairOverflowRejectsWithoutMutation": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "mp4KnownAtomCannotChangeCodec": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
   },
   "mp4LifecycleHasNativeOwnerAndPreservesSiblings": {
     "suite": "SemanticLifecycleMatrixTests",
@@ -239,6 +283,14 @@
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
   },
+  "mp4RawCanonicalFreeformSetAndRemove": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "musicBrainzAliasCleanupUsesCaseInsensitiveIdentity": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "nativeAttributeLifecycle": {
     "suite": "ASFNativeLifecycleTests",
     "path": "Integration/ASFNativeLifecycleTests.swift"
@@ -255,13 +307,37 @@
     "suite": "CrossContainerTextStateTests",
     "path": "Integration/CrossContainerTextStateTests.swift"
   },
+  "numberTextPreflightRunsBeforeStaging": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "oggNativeCommentLifecycle": {
     "suite": "AdditionalContainerLifecycleTests",
     "path": "Integration/AdditionalContainerLifecycleTests.swift"
   },
+  "ordinaryAliasRetiresOnlyForEditedPair": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "privateProvenanceSurvivesOrdinaryWrites": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "publicWriteSurfacesPreserveSparseNativeOwners": {
     "suite": "CrossContainerWriteSurfaceTests",
     "path": "Integration/CrossContainerWriteSurfaceTests.swift"
+  },
+  "rawAPIsStillRejectNativeMP4Keys": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "registrySemanticAndTotalProjectionsAreConsistent": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "roleQualifiedTypedPatchStillRejects": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
   },
   "semanticEncoderRemovalRetiresOnlyOwnedCompatibilityAlias": {
     "suite": "AuditProbeTests",
@@ -278,6 +354,10 @@
   "unavailableTypedMP4WritesRejectBeforeMutation": {
     "suite": "SemanticLifecycleMatrixTests",
     "path": "Integration/SemanticLifecycleMatrixTests.swift"
+  },
+  "undecodableV23FrameTransformsStillReject": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
   },
   "unknownAdvisoryDoesNotSatisfyExactAbsence": {
     "suite": "AdvisoryEraseRegressionTests",
@@ -303,6 +383,10 @@
     "suite": "BasicIntegrityMatrixTests",
     "path": "Integration/BasicIntegrityMatrixTests.swift"
   },
+  "v23ContainersPreserveVersionDatesAndAudio": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
   "versionedTextWritesAndRemovalsVerify": {
     "suite": "IndependentDiagnosticRepairTests",
     "path": "Integration/IndependentDiagnosticRepairTests.swift"
@@ -310,5 +394,13 @@
   "wrongValueKindCannotPartiallyCommitAnotherField": {
     "suite": "SemanticLifecycleMatrixTests",
     "path": "Integration/SemanticLifecycleMatrixTests.swift"
+  },
+  "xmTrackerNameTypedRouteWritesNativeBytes": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "yearPrefixFilterRemainsBasicSpecific": {
+    "suite": "PublicWriteContractRepairTests",
+    "path": "Integration/PublicWriteContractRepairTests.swift"
   }
 }

@@ -68,6 +68,26 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
     return YES;
 }
 
+// Version-preserving save overloads for container formats whose generic
+// save() default is ID3v2.4. The generic template below keeps the historical
+// behavior for every other TagLib file type.
+static bool SaveNumberTextFile(TagLib::RIFF::WAV::File &file)
+{
+    return SaveWAVPreservingID3Version(
+        &file, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone);
+}
+
+static bool SaveNumberTextFile(TagLib::RIFF::AIFF::File &file)
+{
+    return SaveAIFFPreservingID3Version(&file);
+}
+
+template <typename FileType>
+static bool SaveNumberTextFile(FileType &file)
+{
+    return file.save();
+}
+
 template <typename FileType>
 static bool WritePropertyMapNumberTextToFile(FileType &file,
                                              NSString * _Nullable trackNumberText,
@@ -176,7 +196,7 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
     if (dynamic_cast<TagLib::ASF::File *>(&file)) CombineASFNumberTotals(properties);
     SetPropertiesPreservingNativeDates(&file, properties);
 
-    if (!file.save()) {
+    if (!SaveNumberTextFile(file)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:saveErrorCode
