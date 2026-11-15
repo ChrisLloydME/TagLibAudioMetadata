@@ -17,7 +17,7 @@ static NSString * _Nullable BuildTRCKString(NSInteger trackNumber, NSInteger tot
     // caller-supplied padding validate the same limit before staging; this
     // guard also protects indirect formatter callers that reuse existing text.
     if (padWidth < 0 || padWidth > kMaximumGeneratedNumberPaddingWidth) {
-        return nil;
+        throw std::invalid_argument("Generated number padding exceeds the supported width");
     }
 
     NSString *trackPart = nil;

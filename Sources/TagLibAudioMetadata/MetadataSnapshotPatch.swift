@@ -365,8 +365,26 @@ extension TagLibMetadataManager {
                 identities: group.number.identities + group.total.identities
             )
         }
-        var trackPair = numberText.trackNumberText.map(parseNumberPair)
-        var discPair = numberText.discNumberText.map(parseNumberPair)
+        func inputPair(_ text: String, field: String) throws -> (number: Int, total: Int) {
+            let trimmed = normalizedTrimmed(text)
+            if trimmed.isEmpty { return (0, 0) }
+            let components = trimmed.split(separator: "/", omittingEmptySubsequences: false)
+            guard components.count <= 2 else {
+                throw MetadataPatchValidationError.numberTextMismatch(field: field, text: text)
+            }
+            var values: [Int] = []
+            for component in components {
+                let value = normalizedTrimmed(String(component))
+                if value.isEmpty { values.append(0); continue }
+                guard value.utf8.allSatisfy({ (48...57).contains($0) }), let integer = Int(value) else {
+                    throw MetadataPatchValidationError.numberTextMismatch(field: field, text: text)
+                }
+                values.append(integer)
+            }
+            return (values[0], values.count == 2 ? values[1] : 0)
+        }
+        var trackPair = try numberText.trackNumberText.map { try inputPair($0, field: "track") }
+        var discPair = try numberText.discNumberText.map { try inputPair($0, field: "disc") }
         if let pair = trackPair, pair.total == 0,
            numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
             trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")

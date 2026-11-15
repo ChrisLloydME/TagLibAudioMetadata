@@ -483,6 +483,16 @@ static BOOL ValidateBasicMetadataNumbers(TagLibAudioMetadata *metadata, NSError 
         }
     }
 
+    for (NSString *text in @[ metadata.trackNumberText ?: @"", metadata.discNumberText ?: @"" ]) {
+        NSString *number = [[text componentsSeparatedByString:@"/"] firstObject];
+        number = [number stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        // A requested formatting width comes from the first component. Reject
+        // oversized padding before any writer can interpret a nil format as deletion.
+        if (number.length > kMaximumGeneratedNumberPaddingWidth) {
+            return SetNumericValidationError(error, @"Generated number padding exceeds 64 characters");
+        }
+    }
+
     // YEAR is stored as text and may legitimately contain a complete date.
     // Explicit writes must still be representable: an all-digit value is an
     // unsigned 32-bit year, while a date form starts with a four-digit year and
