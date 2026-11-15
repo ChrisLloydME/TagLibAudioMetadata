@@ -61,6 +61,10 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 
 The [2026-11-15 adjudication and remediation plan](plans/DIAGNOSTIC_REMEDIATION_PLAN_2026-11-15.md) distinguishes confirmed defects, source-supported hypotheses and intentional behavior at production baseline `903fa69`. The [startup prompt](plans/DIAGNOSTIC_REMEDIATION_AGENT_PROMPT_2026-11-15.md) directs a package-only agent to create a new repair branch and implement the plan. These documents describe authorized future work; they do not claim that those repairs or their acceptance gates have run.
 
+## Package-only test-system upgrade assignment
+
+The [2026-11-15 implementation plan](plans/PACKAGE_TEST_SYSTEM_UPGRADE_PLAN_2026-11-15.md) specifies public-surface coverage, independent native contracts, defect-detection calibration and fail-closed evidence. Its [startup prompt](plans/PACKAGE_TEST_SYSTEM_AGENT_PROMPT_2026-11-15.md) requires a new implementation branch and package-only acceptance. These documents are future work, not a claim that the upgrade has passed.
+
 ## Document map
 
 | Topic | Canonical document | Owns | Does not cover |
