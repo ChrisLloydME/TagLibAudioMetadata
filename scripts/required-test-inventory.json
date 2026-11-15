@@ -131,6 +131,10 @@
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
   },
+  "directStructuredValidationPrecedesFileAccess": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
+  },
   "dsdiffPropertyChildID3UsesBoundedTraversal": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
@@ -166,6 +170,10 @@
   "exactUnknownAdvisoryVerificationRequiresMatchingRawCode": {
     "suite": "AdvisoryEraseRegressionTests",
     "path": "Integration/AdvisoryEraseRegressionTests.swift"
+  },
+  "excessiveInheritedPaddingDoesNotRemoveTrack": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
   },
   "explicitYearWritesOnlyTheYearSlot": {
     "suite": "AuditProbeTests",
@@ -223,6 +231,10 @@
     "suite": "IndependentDiagnosticRepairTests",
     "path": "Integration/IndependentDiagnosticRepairTests.swift"
   },
+  "legacyID3MustFitItsDeclaredContainerChunk": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
+  },
   "legacyV23GroupingFlagSkipsBoundedIdentifier": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
@@ -246,6 +258,10 @@
   "malformedMP4LengthsAndFreeformsThrowRatherThanGuess": {
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "malformedNumberTextCannotEraseExistingPairs": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
   },
   "maximumGeneratedPaddingStillWrites": {
     "suite": "PublicWriteContractRepairTests",
@@ -303,6 +319,10 @@
     "suite": "ID3SemanticLifecycleTests",
     "path": "Integration/ID3SemanticLifecycleTests.swift"
   },
+  "nativeMP4EncodersRetainValidBoundaryValues": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
+  },
   "nativeTextLifecycleAcrossSparseContainerStates": {
     "suite": "CrossContainerTextStateTests",
     "path": "Integration/CrossContainerTextStateTests.swift"
@@ -323,6 +343,10 @@
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
   },
+  "protectedDateFlagsSurviveOrRejectUnrelatedMutation": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
+  },
   "publicWriteSurfacesPreserveSparseNativeOwners": {
     "suite": "CrossContainerWriteSurfaceTests",
     "path": "Integration/CrossContainerWriteSurfaceTests.swift"
@@ -342,6 +366,14 @@
   "semanticEncoderRemovalRetiresOnlyOwnedCompatibilityAlias": {
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
+  },
+  "structuredMP4RejectsEncodingAndRangeBypasses": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
+  },
+  "structuredPayloadsRequireExplicitValues": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
   },
   "textLifecyclePreservesEveryDatePresenceState": {
     "suite": "MP4DateStateCoverageTests",

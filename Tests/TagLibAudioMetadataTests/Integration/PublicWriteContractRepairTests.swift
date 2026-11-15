@@ -178,7 +178,7 @@ enum RepairV23Seed {
 
     static func tag(_ frames: Data, tagFlags: UInt8 = 0) -> Data {
         Data([73, 68, 51, 3, 0, tagFlags])
-            + RepairNativeProbe.number(UInt64(frames.count), bytes: 4).map { $0 & 0x7f }
+            + Data((0..<4).map { UInt8((frames.count >> ((3 - $0) * 7)) & 0x7f) })
             + frames
     }
 

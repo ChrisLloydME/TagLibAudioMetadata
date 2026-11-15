@@ -148,7 +148,16 @@ PASS = (
     "Test roleQualifiedTypedPatchStillRejects() passed after 1 second.\n"
     "Test yearPrefixFilterRemainsBasicSpecific() passed after 1 second.\n"
     "Suite PublicWriteContractRepairTests passed.\n"
-    "Test run with 221 tests in 42 suites passed after 8 seconds.\n"
+    "Test structuredMP4RejectsEncodingAndRangeBypasses() passed after 1 second.\n"
+    "Test malformedNumberTextCannotEraseExistingPairs() passed after 1 second.\n"
+    "Test excessiveInheritedPaddingDoesNotRemoveTrack() passed after 1 second.\n"
+    "Test protectedDateFlagsSurviveOrRejectUnrelatedMutation() passed after 1 second.\n"
+    "Test structuredPayloadsRequireExplicitValues() passed after 1 second.\n"
+    "Test nativeMP4EncodersRetainValidBoundaryValues() passed after 1 second.\n"
+    "Test legacyID3MustFitItsDeclaredContainerChunk() passed after 1 second.\n"
+    "Test directStructuredValidationPrecedesFileAccess() passed after 1 second.\n"
+    "Suite ReleaseAcceptanceTests passed.\n"
+    "Test run with 229 tests in 42 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -197,7 +206,7 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 221 tests', 'run with 220 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 229 tests', 'run with 228 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -282,6 +291,13 @@ class TestGatePolicy(unittest.TestCase):
         ):
             with self.subTest(name=name):
                 self.assertFalse(self.accepted(PASS.replace(old, new)))
+
+    def test_release_acceptance_methods_are_required(self):
+        for name in ['structuredMP4RejectsEncodingAndRangeBypasses', 'malformedNumberTextCannotEraseExistingPairs', 'excessiveInheritedPaddingDoesNotRemoveTrack', 'protectedDateFlagsSurviveOrRejectUnrelatedMutation', 'structuredPayloadsRequireExplicitValues', 'nativeMP4EncodersRetainValidBoundaryValues', 'legacyID3MustFitItsDeclaredContainerChunk', 'directStructuredValidationPrecedesFileAccess']:
+            with self.subTest(name=name):
+                modified = "\n".join(line for line in PASS.splitlines() if name not in line)
+                self.assertFalse(self.accepted(modified))
+        self.assertFalse(self.accepted(PASS.replace('Suite ReleaseAcceptanceTests passed.\n', '')))
 
     def test_new_public_write_contract_suite_cannot_be_filtered(self):
         self.assertFalse(self.accepted(PASS.replace('Suite PublicWriteContractRepairTests passed.\n', '')))

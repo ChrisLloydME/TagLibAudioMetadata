@@ -124,7 +124,12 @@ static NSArray<NSDictionary<NSString *, NSObject *> *> *LiteralV23DateFrames(NSU
             if (!text) return fail();
             const unichar zero = 0;
             NSArray *values = [text componentsSeparatedByString:[NSString stringWithCharacters:&zero length:1]];
-            [dates addObject:@{@"id":identifier, @"type":@"text", @"value":[values componentsJoinedByString:@"; "], @"values":values}];
+            NSMutableDictionary *date = [@{@"id":identifier, @"type":@"text",
+                @"value":[values componentsJoinedByString:@"; "], @"values":values,
+                @"statusFlags":[NSString stringWithFormat:@"%u", statusFlags],
+                @"formatFlags":[NSString stringWithFormat:@"%u", formatFlags]} mutableCopy];
+            if (groupingPrefix) date[@"groupIdentifier"] = [NSString stringWithFormat:@"%u", bytes[offset + 10]];
+            [dates addObject:date];
         }
         offset += 10 + static_cast<size_t>(length);
     }
