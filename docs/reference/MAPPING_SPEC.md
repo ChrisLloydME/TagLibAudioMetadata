@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` adds native-owner state preservation without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` added native-owner state preservation; `0.8.0` adds destination-aware write validation and the contract test system without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -51,7 +51,7 @@ A registered location never proves round-trip behavior. Native codec tests, veri
 YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent stored fields and independent edit intents. No field is synthesized from, reconciled with, truncated to, or automatically cleared because another changes.
 
 - `.year` is the canonical YEAR identity.
-- The typed `.date` YEAR alias is removed in the unreleased API. Use `.year` for YEAR; the old serialized `date` field key is rejected rather than reinterpreted.
+- The typed `.date` YEAR alias is removed in `0.8.0`. Use `.year` for YEAR; the old serialized `date` field key is rejected rather than reinterpreted.
 - `.standaloneDate` is the independent DATE identity. `BasicMetadata.date` carries this standalone DATE projection.
 - `.releaseDate` is RELEASEDATE.
 - `.originalReleaseDate` is ORIGINALDATE.
@@ -177,9 +177,9 @@ ID3v2.3 date targets are registered read-only until a verified native codec exis
 
 Version `0.7.3` extends the same contract without new native identifiers. It preserves untouched MP4 item and ID3 frame date owners, including native absence, during raw, semantic-custom and structured PropertyMap replay; reads independent YEAR/DATE values from native owners in the low-level model on MP4, ID3, Xiph and APE; retains unchanged MP4 custom-field name spelling and arrays; routes MP4 `.comment`/`.lyrics` through `©cmt`/`©lyr`; and verifies ASF native absence and custom attributes. None of this makes an existing ID3v2.3 tag writable for independent date edits.
 
-### Unreleased source
+### 0.8.0 release
 
-The current unreleased source keeps contract 2.2 and the same native target registrations. The 2026-11-15 public write-contract repairs add destination-aware validation and preservation to existing targets and make previously advertised routes executable, including the XM tracker-name typed route and canonical-key MP4 freeform raw edits. They add no mapping-contract identity and no new writable family; native `----:` MP4 keys remain rejected at raw boundaries. See [Migration](../operations/MIGRATION.md#public-write-contract-repairs-2026-11-15) and the [remediation record](../records/remediation/REM-2026-11-15-public-write-contract.md).
+Version `0.8.0` keeps contract 2.2 and the same native target registrations. The 2026-11-15 public write-contract repairs add destination-aware validation and preservation to existing targets and make previously advertised routes executable, including the XM tracker-name typed route and canonical-key MP4 freeform raw edits. They add no mapping-contract identity and no new writable family; native `----:` MP4 keys remain rejected at raw boundaries. See [Migration](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) and the [remediation record](../records/remediation/REM-2026-11-15-public-write-contract.md).
 
 ## Related references
 

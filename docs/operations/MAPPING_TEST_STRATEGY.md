@@ -2,7 +2,7 @@
 
 Mapping conformance requires executable field-operation evidence. Registry membership, documentation agreement and a successful aggregate test count do not establish independent persistence.
 
-The current unreleased contract gate requires the sparse-state matrices below, the independent contract inventory and calibration described in [Testing](TESTING.md), at least **181 XCTest declarations** (179 passed and the two reviewed opt-in skips), **274 Swift Testing declarations in 51 suites**, 75 catalog scenarios (71 metadata and four audit), and **92 Python policy regressions**. Its latest recorded package-only run is in [Status](STATUS.md) and the [contract-system acceptance record](../records/remediation/REM-2026-11-15-test-system-acceptance.md).
+The `0.8.0` gate requires the sparse-state matrices below, the independent contract inventory and calibration described in [Testing](TESTING.md), at least **181 XCTest declarations** (179 passed and the two reviewed opt-in skips), **274 Swift Testing declarations in 51 suites**, 75 catalog scenarios (71 metadata and four audit), and **92 Python policy regressions**. Its latest recorded package-only run is in [Status](STATUS.md) and the [contract-system acceptance record](../records/remediation/REM-2026-11-15-test-system-acceptance.md); release preparation changes documentation only, and no gate was rerun on the `0.8.0` release commit.
 
 The tagged `0.7.3` gate was smaller: the sparse-state matrices below, all prior matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions. Its latest recorded run is in [Status](STATUS.md) and the [state-coverage record](../records/remediation/REM-2026-11-11-state-coverage.md). Those runs were on the pre-merge branch; release preparation changes documentation only, and no full accepted gate was rerun on the exact `0.7.3` release commit. For historical comparison, the repair line included in `0.7.2` recorded 158 XCTest declarations (156 passed, two existing opt-in skips) and 165 Swift Testing declarations in 36 suites, with both Debug and Release accepted under expanded filesystem access; that line had 22 policy regressions. Those release-line counts do not certify `0.7.3`. The environment-dependent privilege test remains mandatory.
 
@@ -72,9 +72,9 @@ This finite suite does not establish every field × format × tag version × mal
 
 Each state matrix verifies its seed through the independent native reader before invoking the writer. Presence, literal date values and all-present MP4 sibling values must match the test-owned input; a silently incomplete fixture is a failed case. The gate JSON retains actual and minimum named case counts for review.
 
-## Unreleased selective-extraction acceptance
+## Selective-extraction acceptance
 
-The architecture candidate retains every prior matrix and requires all three `SelectiveExtractionTests` methods by exact class/name. All 32 option masks must match full extraction across 19 fixtures and three rich copies, with every Basic carrier property, raw/structured values, direct single-view APIs and complete read immutability checked. Zero-mask invalid inputs and low-level mutation rejection are mandatory. The current declaration floors are 181 XCTest and 274 Swift Testing; the contract lane has 92 policy regressions and 13 calibration mutants. Projection equivalence does not replace independent native mapping or transaction evidence.
+The `0.8.0` source retains every prior matrix and requires all three `SelectiveExtractionTests` methods by exact class/name. All 32 option masks must match full extraction across 19 fixtures and three rich copies, with every Basic carrier property, raw/structured values, direct single-view APIs and complete read immutability checked. Zero-mask invalid inputs and low-level mutation rejection are mandatory. The current declaration floors are 181 XCTest and 274 Swift Testing; the contract lane has 92 policy regressions and 13 calibration mutants. Projection equivalence does not replace independent native mapping or transaction evidence.
 
 ## Diagnostic remediation gate
 

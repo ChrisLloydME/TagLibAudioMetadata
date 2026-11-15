@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe the unreleased source on `main`, which builds on published `0.7.3` (2026-11-12). That source contains the breaking API/performance cleanup, the 2026-11-15 public write-contract repairs, and the independent package contract test system. Read the `0.7.3` tag for its retained compatibility interface, and [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking) for removals in the current source. Mapping contract 2.2 behavior was introduced in `0.7.0`; `0.7.1` and `0.7.2` added the preceding date/ownership and mapping repairs. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe version `0.8.0` (2026-11-15), an explicitly breaking release with no native mapping-contract change. Mapping contract 2.2 behavior was introduced in `0.7.0`; `0.7.1` and `0.7.2` added the preceding date/ownership and mapping repairs; `0.7.3` added native-owner state preservation. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 
@@ -8,15 +8,15 @@ The source code, `Package.swift`, and the test target are the final authority fo
 
 | Item | State |
 | --- | --- |
-| Current release | `0.7.3`, declared 2026-11-12 |
-| Source | Unreleased `main` at `05416aa`, based on published `0.7.3` |
+| Current release | `0.8.0`, declared 2026-11-15 |
+| Source | `main` at the `0.8.0` release commit |
 | Later tag | None |
-| Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.2` |
-| Latest accepted source | `959d688` (package-only gates, sanitizers, consumers, and five minimum-platform builds); the `05416aa` merge adds documentation and evidence only |
-| Documentation scope | Current source API; tagged-release changes are identified in [Migration](operations/MIGRATION.md) |
-| Install target | `0.7.3` for production |
+| Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
+| Latest accepted source | `959d688` (package-only gates, sanitizers, consumers, and five minimum-platform builds); release preparation changes documentation only |
+| Documentation scope | Current pages describe `0.8.0`; release-specific behavior is called out in [Migration](operations/MIGRATION.md) |
+| Install target | `0.8.0` for production |
 
-Version `0.7.3` adds state-preservation repairs, not a new public mapping contract. The contract remains `AM-TLAM-MAPPING-2.2`. The unreleased source keeps that contract and native target layouts but adds consumer-visible validation and preservation changes; see [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking) and [Status](operations/STATUS.md) for the recorded evidence. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
+Version `0.8.0` is a breaking release. It removes compatibility-only API and adds stricter write validation, selective I/O and the independent contract test system, while keeping mapping contract `AM-TLAM-MAPPING-2.2` and every registered native target. See [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) for the removal table and migration actions, and [Status](operations/STATUS.md) for the recorded evidence. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
 
 ## Reading paths
 
@@ -29,10 +29,10 @@ Version `0.7.3` adds state-preservation repairs, not a new public mapping contra
 5. [Capabilities](guide/CAPABILITIES.md) — declared format and field support.
 6. [Formats](reference/FORMATS.md) — generated matrix and container limits.
 
-### I am updating from a tagged release
+### I am updating from 0.7.3
 
-1. [Migration](operations/MIGRATION.md) — tagged-release deltas, the unreleased cleanup, and migration actions.
-2. [Status](operations/STATUS.md) — the current release boundary, recorded gates, and the limits of that evidence.
+1. [Migration](operations/MIGRATION.md) — the 0.7.3-to-0.8.0 removals, behavior changes and migration actions.
+2. [Status](operations/STATUS.md) — release boundary, recorded gates, and the limits of that evidence.
 3. [Write semantics](explanation/PRESERVATION.md) — native-owner and PropertyMap replay rules.
 4. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — contract-gate requirements and current evidence.
 5. [Engineering records](records/README.md) — the 2026-11-15 write-contract and contract-system campaigns.
@@ -58,15 +58,15 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 6. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
 7. [Engineering records](records/README.md) — past investigations and open findings.
 
-## Current source status
+## Release contents
 
-The current source contains three unreleased, package-only changes. They are merged on `main` but not part of any tagged release.
+Version `0.8.0` packages three previously separate changes. Each links to its own evidence, and the migration guide owns the consumer-visible delta.
 
-| Campaign | State at this revision | Evidence |
+| Change | What it covers | Evidence |
 | --- | --- | --- |
-| Breaking API cleanup and selective I/O | Unreleased candidate; publish only as an explicitly breaking release after consumer migration | [Migration](operations/MIGRATION.md#unreleased-api-cleanup-breaking), [architecture record](records/remediation/REM-2026-11-14-package-architecture.md) |
-| Public write-contract repairs (F-01…F-15) | Repaired and merged; package-only gates accepted at `c3c655e` | [Remediation record](records/remediation/REM-2026-11-15-public-write-contract.md), [acceptance record](records/verification/VER-2026-11-15-public-write-release-acceptance.md) |
-| Independent contract test system | Repaired and merged; final package-only acceptance at `959d688` | [Implementation record](records/verification/VER-2026-11-15-package-test-system.md), [acceptance record](records/remediation/REM-2026-11-15-test-system-acceptance.md) |
+| Breaking API cleanup and selective I/O | Removed compatibility-only API, explicit storage/read/model boundaries, projection skipping and measured I/O profiles | [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0), [architecture record](records/remediation/REM-2026-11-14-package-architecture.md) |
+| Public write-contract repairs (F-01…F-15) | Shared destination validation, owner preservation, legacy-read and container-route repairs | [Remediation record](records/remediation/REM-2026-11-15-public-write-contract.md), [acceptance record](records/verification/VER-2026-11-15-public-write-release-acceptance.md) |
+| Independent contract test system | Public-surface inventory, contract catalog, adapters, native oracles, calibration and the canonical acceptance lane | [Implementation record](records/verification/VER-2026-11-15-package-test-system.md), [acceptance record](records/remediation/REM-2026-11-15-test-system-acceptance.md) |
 
 The assignment plans that authorized this work, including the 2026-11-15 write-contract and contract-system assignments, are preserved under [assignments](records/assignments/README.md). They are historical instructions, not current contracts or a live backlog.
 

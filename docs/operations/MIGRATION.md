@@ -1,8 +1,8 @@
 # Compatibility and migration
 
-## Unreleased API cleanup (breaking)
+## Migrating from 0.7.3 to 0.8.0
 
-The unreleased source intentionally removes compatibility-only API. It is not a patch-compatible replacement for the published 0.7.3 interface; publish it as an explicitly breaking release after consumer migration. Native target layouts and canonical mapping contract 2.2 are unchanged.
+Version `0.8.0` intentionally removes compatibility-only API. It is not a patch-compatible replacement for `0.7.3`; review the removals and the migration actions below before upgrading. Native target layouts and canonical mapping contract 2.2 are unchanged, and no user-file migration is automatic.
 
 | Removed surface | Current API |
 | --- | --- |
@@ -18,13 +18,13 @@ The unreleased source intentionally removes compatibility-only API. It is not a 
 Existing native-file aliases and the legacy numbering inventory/explicit recovery plan remain supported. They preserve user data and do not reintroduce removed API meanings. Raw engine `DATE` can still denote YEAR on MP4/ID3; typed native ownership must be obtained from the catalog, not inferred from that engine key. Bridge `metadataFieldMappings()` now lists YEAR as the canonical PropertyMap spelling and DATE as its engine alias; consumers inspecting ordered descriptors must use that order. This is not a native-file rewrite. Old runtime bridge-selector probing and contradictory ignored native-target hints have been removed.
 
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.7.3` (2026-11-12) is the current release. Tagged-release sections below are historical migration instructions; the unreleased cleanup above supersedes their retained-alias advice. Review the behavioral changes that apply to your starting version.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.8.0` (2026-11-15) is the current release. Sections are newest first; the `0.8.0` section above supersedes earlier retained-alias advice. Review the behavioral changes that apply to your starting version.
 
 ### Diagnostic repair follow-up
 
 Basic replacement now diffs a versioned snapshot and uses the typed native planner. Nil artwork removes the collection; MP4-exclusive changes use typed targets or reject when unsupported. Existing v2.3 dates are literal owners, not synthesized timestamps. Full low-level Basic replacements of v2.3 files reject safely; use Basic updates/typed deltas or non-date structured edits on preservable layouts. All facade mutation paths now guard the staged v2.3 date owners, even when optional readback verification is disabled. Structured date edits reject before staging; `versionedText` does not override this policy. Public direct raw, structured and number bridge writes to concrete v2.3 tags reject with code `9290`; full-model replacement rejects with `9261`. Explicit wipe remains intentional removal. Versioned text verification resolves the selected native identity for supported versions. Unsupported MP4/ASF structured Comment/Lyrics collections reject before staging. Empty structured writes validate the file/version without rewriting it. All Swift transactions validate staged readability even when semantic verification is disabled.
 
-### Further architecture cleanup (same unreleased breaking candidate)
+### Further architecture cleanup (same 0.8.0 release)
 
 The unused facade `MetadataExtractionOptions` type is removed. No public facade operation accepted it; direct bridge clients retain `TagLibMetadataExtractionOptions` through the low-level product.
 
@@ -36,7 +36,7 @@ The unused facade `MetadataExtractionOptions` type is removed. No public facade 
 
 ### Public write-contract repairs (2026-11-15)
 
-These behavior changes are part of the same unreleased source. They do not change public signatures, the binary pin, the mapping-contract ID, or the independent date model.
+These behavior changes are part of the same release. They do not change public signatures, the binary pin, the mapping-contract ID, or the independent date model.
 
 - **All public writers share native validation.** Scalar, whole-model, structured, and raw writes reject numeric input outside the destination's native representation, including MP4 pair, BPM, byte/media-kind, and store-ID limits. Structured atom validation uses the pinned engine's encoder class; a supplied type cannot override it, and missing scalar values are not implicit zero or empty writes. Explicit structured removals remain distinct.
 - **Whole-model writes preserve unmodeled owners.** Schema-known but unmodeled native owners, unknown owners, and private numbering provenance survive a whole-model write; modeled `nil` still removes the modeled value. Private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are retired only by the explicit normalization plan.
@@ -54,7 +54,7 @@ At the earlier alias-removal stage, removing `.date` changed registry introspect
 
 ## Compatibility promises
 
-- **Source compatibility:** breaking API removals require an explicitly breaking release and migration instructions. Compatibility-only aliases that contradict current field meanings are removed in this candidate.
+- **Source compatibility:** breaking API removals require an explicitly breaking release and migration instructions. Compatibility-only aliases that contradict current field meanings were removed in `0.8.0`.
 - **Behavioral compatibility:** native-file read aliases and explicit legacy recovery preserve data; they do not authorize ambiguous source-level aliases or verification bypasses.
 - **Binary compatibility:** the package does not promise a stable Swift ABI or a stable C++ ABI. Rebuild consumers against the package version they use.
 - **Dependency compatibility:** the TagLib binary is pinned by version, URL, and checksum. Substituting an arbitrary TagLib build at link time is unsupported.
@@ -235,7 +235,7 @@ let reader = TagLibMetadataManager.readSnapshot
 let reader: (URL) throws -> MetadataSnapshot = TagLibMetadataManager.readSnapshot
 ```
 
-The same caveat applied to `readBasicSnapshot`, `applyMetadataPatch`, `applyRawMetadataPatch`, and `BasicMetadataSnapshot.init` at that release. In the current unreleased source, `readSnapshot` and `readBasicSnapshot` have one public signature with a default flag; the remaining untyped-reference caveat applies to the guarded/unguarded patch overloads. Typed references and direct calls are supported; untyped references are not guaranteed across overload additions.
+The same caveat applied to `readBasicSnapshot`, `applyMetadataPatch`, `applyRawMetadataPatch`, and `BasicMetadataSnapshot.init` at that release. In `0.8.0`, `readSnapshot` and `readBasicSnapshot` have one public signature with a default flag; the remaining untyped-reference caveat applies to the guarded/unguarded patch overloads. Typed references and direct calls are supported; untyped references are not guaranteed across overload additions.
 
 ## Migrating from 0.4 to 0.5
 
@@ -254,7 +254,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 ## Migration checklist
 
 - [ ] Resolve the package at a tag or an explicit revision; do not rely on an unnamed branch state.
-- [ ] Pin production dependencies to `0.7.3` or an earlier tagged release; do not rely on an untagged `main` state.
+- [ ] Pin production dependencies to `0.8.0` or an earlier tagged release; do not rely on an untagged `main` state.
 - [ ] Add the low-level product only if you directly use bridge declarations.
 - [ ] Replace deprecated reads/writes with the named alternatives.
 - [ ] Remove `failurePolicy:` arguments and handle thrown verification failures.

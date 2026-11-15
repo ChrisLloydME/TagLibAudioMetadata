@@ -3,7 +3,13 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.8.0] - 2026-11-15
+
+### Breaking API cleanup
+
+- Remove the typed `.date` YEAR alias, obsolete facade read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters/verification expectations, and outdated capability/error aliases. See [Migration](docs/operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0).
+- Remove ignored, contradictory native-target hints and old bridge-selector probing. Native mapping contract 2.2, file read aliases, exact preservation and explicit legacy numbering recovery remain supported.
+- Compile production and tests without a deprecation-warning exception.
 
 ### Public write-contract repairs (2026-11-15)
 
@@ -35,12 +41,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Remove uncalled retention/verification helpers, redundant constructor/read arities, Bool-only write wrappers, the unused facade extraction mask, and obsolete canonical-alias/collision registry shapes. Native-file aliases and explicit numbering recovery remain supported.
 - Require all selective-projection contracts in the strict gate, including all 32 masks across 19 fixtures and three rich copies, facade value lifetime, and invalid-input atomicity. Retain all 48 baseline/final I/O measurements and observed regressions; see the [architecture record](docs/records/remediation/REM-2026-11-14-package-architecture.md).
 
-### Breaking API cleanup
-
-- Remove the typed `.date` YEAR alias, obsolete facade read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters/verification expectations, and outdated capability/error aliases. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking).
-- Remove ignored, contradictory native-target hints and old bridge-selector probing. Native mapping contract 2.2, file read aliases, exact preservation and explicit legacy numbering recovery remain supported.
-- Compile production and tests without a deprecation-warning exception.
-
 ### Performance and verification
 
 - Reduce discarded transaction-readability projections and reuse same-open-file Xiph/APE property evidence, retaining parser credibility, version guards and complete semantic verification. Add 1/2/4/8-worker durable-write profiles and required preflight regressions.
@@ -54,6 +54,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Replace the matrix-only acceptance gate with a five-layer package contract system: a 907-row public-surface inventory, 34 contracts and 75 scenarios, 62 public adapters, independent native builders and oracles, 13-mutant defect calibration, and source-bound fail-closed evidence. `scripts/validate-contracts.sh` is now the canonical Debug/Release lane. See the [acceptance record](docs/records/remediation/REM-2026-11-15-test-system-acceptance.md).
 - Require complete policy, inventory/catalog, scenario/adapter, manifest, and calibration evidence; reject filters, shards, stale or mixed logs, unexpected skips, unchanged placeholders, and partial calibration.
 - Strengthen both package-owned consumers to perform real writes through declared products and verify independent native metadata and encoded audio.
+
+### Documentation
+
+- Finalize the guide, reference, operations, and records pages for the `0.8.0` release boundary, including the breaking-removal table, the contract acceptance lane, and the archived assignments.
+- Refresh the README, documentation hub, installation, status, testing, mapping acceptance, migration, and records index for `0.8.0`.
 
 ## [0.7.3] - 2026-11-12
 
