@@ -1,0 +1,739 @@
+{
+  "capabilities" : [
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "AIFF",
+      "containers" : [
+        "id3v2",
+        "propertyMap",
+        "riffInfo",
+        "tag"
+      ],
+      "displayName" : "AIFF",
+      "extensions" : [
+        "afc",
+        "aif",
+        "aifc",
+        "aiff"
+      ],
+      "extensionSupportLevels" : {
+        "afc" : "upstreamSupported",
+        "aif" : "upstreamSupported",
+        "aifc" : "upstreamSupported",
+        "aiff" : "upstreamSupported"
+      },
+      "identifier" : "aiff",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Structured writes use ID3v2.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "aiff",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "upstreamSupported",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "APE",
+      "containers" : [
+        "ape",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "Monkey's Audio",
+      "extensions" : [
+        "ape"
+      ],
+      "extensionSupportLevels" : {
+        "ape" : "fixtureCovered"
+      },
+      "identifier" : "ape",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "APE item metadata is currently surfaced through PropertyMap values.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "ape",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "WMA",
+      "containers" : [
+        "asf",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "ASF \/ WMA",
+      "extensions" : [
+        "asf",
+        "wma"
+      ],
+      "extensionSupportLevels" : {
+        "asf" : "upstreamSupported",
+        "wma" : "fixtureCovered"
+      },
+      "identifier" : "asf",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "ASF attributes are exposed for structured editing.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "wma",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "DSDIFF",
+      "containers" : [
+        "id3v2",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "DSDIFF",
+      "extensions" : [
+        "dff",
+        "dsdiff"
+      ],
+      "extensionSupportLevels" : {
+        "dff" : "fixtureCovered",
+        "dsdiff" : "upstreamSupported"
+      },
+      "identifier" : "dsdiff",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "DSDIFF uses ID3v2 tags internally; structured editing supports ID3 frame upserts, PropertyMap deltas and artwork; comment\/lyric collection replacement is unsupported.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "dff",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "DSF",
+      "containers" : [
+        "id3v2",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "DSF",
+      "extensions" : [
+        "dsf"
+      ],
+      "extensionSupportLevels" : {
+        "dsf" : "fixtureCovered"
+      },
+      "identifier" : "dsf",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "DSF uses ID3v2 tags internally; structured editing supports ID3 frame upserts, PropertyMap deltas and artwork; comment\/lyric collection replacement is unsupported.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "dsf",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "FLAC",
+      "containers" : [
+        "id3v1",
+        "id3v2",
+        "propertyMap",
+        "tag",
+        "xiph"
+      ],
+      "displayName" : "FLAC",
+      "extensions" : [
+        "flac"
+      ],
+      "extensionSupportLevels" : {
+        "flac" : "fixtureCovered"
+      },
+      "identifier" : "flac",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Structured reads expose FLAC pictures; structured writes support PropertyMap deltas and complex-property artwork.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "flac",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : false,
+      "canWriteArtwork" : false,
+      "codecName" : "IT",
+      "containers" : [
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "Impulse Tracker Module",
+      "extensions" : [
+        "it"
+      ],
+      "extensionSupportLevels" : {
+        "it" : "experimental"
+      },
+      "identifier" : "it",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Writes are limited to title and comment; fixed-width tracker storage may normalize text.",
+      "preservesMultiValueProperties" : false,
+      "primaryExtension" : "it",
+      "readableFields" : [
+        "comment",
+        "title",
+        "trackerName"
+      ],
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "experimental",
+      "writableFields" : [
+        "comment",
+        "title"
+      ]
+    },
+    {
+      "canReadArtwork" : false,
+      "canWriteArtwork" : false,
+      "codecName" : "MOD",
+      "containers" : [
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "MOD Tracker Module",
+      "extensions" : [
+        "mod",
+        "module",
+        "nst",
+        "wow"
+      ],
+      "extensionSupportLevels" : {
+        "mod" : "readOnly",
+        "module" : "readOnly",
+        "nst" : "readOnly",
+        "wow" : "readOnly"
+      },
+      "identifier" : "mod",
+      "isReadable" : true,
+      "isWritable" : false,
+      "notes" : "MOD metadata is limited to title, comment, and a format-derived tracker name.",
+      "preservesMultiValueProperties" : false,
+      "primaryExtension" : "mod",
+      "readableFields" : [
+        "comment",
+        "title",
+        "trackerName"
+      ],
+      "readOnlyReason" : "TagLib exposes MOD metadata for reading but does not support saving it.",
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "none",
+      "supportLevel" : "readOnly",
+      "writableFields" : [
+
+      ]
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "AAC\/MP4",
+      "containers" : [
+        "mp4",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "MP4 \/ MPEG-4 Audio",
+      "extensions" : [
+        "3g2",
+        "m4a",
+        "m4b",
+        "m4p",
+        "m4r",
+        "m4v",
+        "mp4"
+      ],
+      "extensionSupportLevels" : {
+        "3g2" : "upstreamSupported",
+        "m4a" : "fixtureCovered",
+        "m4b" : "upstreamSupported",
+        "m4p" : "upstreamSupported",
+        "m4r" : "upstreamSupported",
+        "m4v" : "upstreamSupported",
+        "mp4" : "upstreamSupported"
+      },
+      "identifier" : "mp4",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "MP4 atoms and iTunes freeform atoms are exposed for structured editing.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "m4a",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "AAC",
+      "containers" : [
+        "id3v2",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "Raw AAC",
+      "extensions" : [
+        "aac"
+      ],
+      "extensionSupportLevels" : {
+        "aac" : "fixtureCovered"
+      },
+      "identifier" : "mpeg-aac",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Raw AAC uses MPEG ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "aac",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "MP3\/MP2",
+      "containers" : [
+        "ape",
+        "id3v1",
+        "id3v2",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "MPEG Audio \/ ID3",
+      "extensions" : [
+        "mp2",
+        "mp3"
+      ],
+      "extensionSupportLevels" : {
+        "mp2" : "upstreamSupported",
+        "mp3" : "fixtureCovered"
+      },
+      "identifier" : "mpeg-id3",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "ID3v2 is the preferred rich metadata container; ID3v1 is treated as a low-fidelity fallback.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "mp3",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "Musepack",
+      "containers" : [
+        "ape",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "Musepack",
+      "extensions" : [
+        "mpc"
+      ],
+      "extensionSupportLevels" : {
+        "mpc" : "fixtureCovered"
+      },
+      "identifier" : "musepack",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "APE item metadata is currently surfaced through PropertyMap values.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "mpc",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "Ogg FLAC",
+      "containers" : [
+        "propertyMap",
+        "xiph"
+      ],
+      "displayName" : "Ogg FLAC",
+      "extensions" : [
+        "oga"
+      ],
+      "extensionSupportLevels" : {
+        "oga" : "fixtureCovered"
+      },
+      "identifier" : "ogg-flac",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Xiph comments preserve repeated PropertyMap values.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "oga",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "Opus",
+      "containers" : [
+        "propertyMap",
+        "xiph"
+      ],
+      "displayName" : "Ogg Opus",
+      "extensions" : [
+        "opus"
+      ],
+      "extensionSupportLevels" : {
+        "opus" : "fixtureCovered"
+      },
+      "identifier" : "ogg-opus",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Xiph comments preserve repeated PropertyMap values.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "opus",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "Speex",
+      "containers" : [
+        "propertyMap",
+        "xiph"
+      ],
+      "displayName" : "Ogg Speex",
+      "extensions" : [
+        "spx"
+      ],
+      "extensionSupportLevels" : {
+        "spx" : "upstreamSupported"
+      },
+      "identifier" : "ogg-speex",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Xiph comments preserve repeated PropertyMap values.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "spx",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "upstreamSupported",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "Vorbis",
+      "containers" : [
+        "propertyMap",
+        "xiph"
+      ],
+      "displayName" : "Ogg Vorbis",
+      "extensions" : [
+        "ogg"
+      ],
+      "extensionSupportLevels" : {
+        "ogg" : "fixtureCovered"
+      },
+      "identifier" : "ogg-vorbis",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Xiph comments preserve repeated PropertyMap values.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "ogg",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : false,
+      "canWriteArtwork" : false,
+      "codecName" : "S3M",
+      "containers" : [
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "Scream Tracker 3 Module",
+      "extensions" : [
+        "s3m"
+      ],
+      "extensionSupportLevels" : {
+        "s3m" : "experimental"
+      },
+      "identifier" : "s3m",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Writes are limited to title and comment; fixed-width tracker storage may normalize text.",
+      "preservesMultiValueProperties" : false,
+      "primaryExtension" : "s3m",
+      "readableFields" : [
+        "comment",
+        "title",
+        "trackerName"
+      ],
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "experimental",
+      "writableFields" : [
+        "comment",
+        "title"
+      ]
+    },
+    {
+      "canReadArtwork" : false,
+      "canWriteArtwork" : false,
+      "codecName" : "Shorten",
+      "containers" : [
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "Shorten",
+      "extensions" : [
+        "shn"
+      ],
+      "extensionSupportLevels" : {
+        "shn" : "readOnly"
+      },
+      "identifier" : "shorten",
+      "isReadable" : true,
+      "isWritable" : false,
+      "notes" : "Read-only format.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "shn",
+      "readableFields" : null,
+      "readOnlyReason" : "TagLib 2.3.1 exposes Shorten metadata for reading but does not support saving it.",
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "none",
+      "supportLevel" : "readOnly",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "TrueAudio",
+      "containers" : [
+        "id3v1",
+        "id3v2",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "TrueAudio",
+      "extensions" : [
+        "tta"
+      ],
+      "extensionSupportLevels" : {
+        "tta" : "fixtureCovered"
+      },
+      "identifier" : "trueaudio",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Structured reads and writes support ID3v2 frames, comments, lyrics, artwork, and PropertyMap deltas.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "tta",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "WAV",
+      "containers" : [
+        "id3v2",
+        "propertyMap",
+        "riffInfo",
+        "tag"
+      ],
+      "displayName" : "WAV \/ RIFF",
+      "extensions" : [
+        "wav"
+      ],
+      "extensionSupportLevels" : {
+        "wav" : "fixtureCovered"
+      },
+      "identifier" : "wav",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Structured writes use ID3v2; preserveInfo keeps RIFF INFO, id3v2Only removes it.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "wav",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "container",
+      "structuredWriteSupport" : "container",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : true,
+      "canWriteArtwork" : true,
+      "codecName" : "WavPack",
+      "containers" : [
+        "ape",
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "WavPack",
+      "extensions" : [
+        "wv"
+      ],
+      "extensionSupportLevels" : {
+        "wv" : "fixtureCovered"
+      },
+      "identifier" : "wavpack",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "APE item metadata is currently surfaced through PropertyMap values.",
+      "preservesMultiValueProperties" : true,
+      "primaryExtension" : "wv",
+      "readableFields" : null,
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : null
+    },
+    {
+      "canReadArtwork" : false,
+      "canWriteArtwork" : false,
+      "codecName" : "XM",
+      "containers" : [
+        "propertyMap",
+        "tag"
+      ],
+      "displayName" : "FastTracker Module",
+      "extensions" : [
+        "xm"
+      ],
+      "extensionSupportLevels" : {
+        "xm" : "fixtureCovered"
+      },
+      "identifier" : "xm",
+      "isReadable" : true,
+      "isWritable" : true,
+      "notes" : "Writes are limited to title, comment, and tracker name; fixed-width instrument\/sample fields normalize comment text and may pad the tracker name.",
+      "preservesMultiValueProperties" : false,
+      "primaryExtension" : "xm",
+      "readableFields" : [
+        "comment",
+        "title",
+        "trackerName"
+      ],
+      "readOnlyReason" : null,
+      "structuredReadSupport" : "propertyMap",
+      "structuredWriteSupport" : "propertyMap",
+      "supportLevel" : "fixtureCovered",
+      "writableFields" : [
+        "comment",
+        "title",
+        "trackerName"
+      ]
+    }
+  ],
+  "capability_count" : 22,
+  "extensions" : [
+    "3g2",
+    "aac",
+    "afc",
+    "aif",
+    "aifc",
+    "aiff",
+    "ape",
+    "asf",
+    "dff",
+    "dsdiff",
+    "dsf",
+    "flac",
+    "it",
+    "m4a",
+    "m4b",
+    "m4p",
+    "m4r",
+    "m4v",
+    "mod",
+    "module",
+    "mp2",
+    "mp3",
+    "mp4",
+    "mpc",
+    "nst",
+    "oga",
+    "ogg",
+    "opus",
+    "s3m",
+    "shn",
+    "spx",
+    "tta",
+    "wav",
+    "wma",
+    "wow",
+    "wv",
+    "xm"
+  ],
+  "schema_version" : 1
+}

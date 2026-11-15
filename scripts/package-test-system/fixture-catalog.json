@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    {
+      "id": "fixture.m4a",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.m4a",
+      "extension": "m4a",
+      "format_family": "mp4",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "fresh copy is validated by ContractMP4Oracle before every operation",
+        "independent_seed": "trkn/disk freeform atoms are written by ContractMP4Seed"
+      },
+      "oracle": "IndependentMP4Probe"
+    },
+    {
+      "id": "fixture.m4a-alac",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile-alac.m4a",
+      "extension": "m4a",
+      "format_family": "mp4",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "independent MP4 atom builder",
+        "independent_seed": "codec identity retained"
+      },
+      "oracle": "IndependentMP4Probe"
+    },
+    {
+      "id": "fixture.mp3",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.mp3",
+      "extension": "mp3",
+      "format_family": "id3",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed tag plus independent v2.3/v2.4 tags",
+        "independent_seed": "ContractID3Seed writes complete v2.3 frames with flags"
+      },
+      "oracle": "ContractID3Oracle"
+    },
+    {
+      "id": "fixture.flac",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.flac",
+      "extension": "flac",
+      "format_family": "flac",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed Vorbis comment block; duplicate/whitespace entries added by ContractFLACSeed",
+        "independent_seed": "block lengths and audio payload verified by oracle"
+      },
+      "oracle": "IndependentFLACProbe"
+    },
+    {
+      "id": "fixture.wav",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.wav",
+      "extension": "wav",
+      "format_family": "wav",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed RIFF INFO tag plus independent ID3 chunk",
+        "independent_seed": "chunk size/alignment verified before use"
+      },
+      "oracle": "ContractRIFFOracle"
+    },
+    {
+      "id": "fixture.aiff",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/clean-room.aiff",
+      "extension": "aiff",
+      "format_family": "aiff",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed AIFF audio; ID3 chunk inserted by seed",
+        "independent_seed": "FORM size/alignment verified"
+      },
+      "oracle": "ContractRIFFOracle"
+    },
+    {
+      "id": "fixture.ape",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/hardening.ape",
+      "extension": "ape",
+      "format_family": "ape",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed APE tag; item flags preserved by builder",
+        "independent_seed": "APE footer sizes/counts bounded"
+      },
+      "oracle": "HardeningFixture.apeState"
+    },
+    {
+      "id": "fixture.wma",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.wma",
+      "extension": "wma",
+      "format_family": "asf",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed ASF header; advisory attributes seeded independently",
+        "independent_seed": "object sizes and attribute scopes bounded"
+      },
+      "oracle": "IndependentASF"
+    },
+    {
+      "id": "fixture.ogg",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.ogg",
+      "extension": "ogg",
+      "format_family": "ogg-vorbis",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed Ogg Vorbis comment pages",
+        "independent_seed": "packet/page bounds verified"
+      },
+      "oracle": "IndependentOggProbe"
+    },
+    {
+      "id": "fixture.opus",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/synthetic.opus",
+      "extension": "opus",
+      "format_family": "ogg-opus",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed Ogg Opus comment pages",
+        "independent_seed": "packet/page bounds verified"
+      },
+      "oracle": "IndependentOggProbe"
+    },
+    {
+      "id": "fixture.wv",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.wv",
+      "extension": "wv",
+      "format_family": "wavpack",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed APE tag",
+        "independent_seed": "item bounds verified"
+      },
+      "oracle": "bounded APE item reader"
+    },
+    {
+      "id": "fixture.mpc",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/hardening.mpc",
+      "extension": "mpc",
+      "format_family": "musepack",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed APE tag",
+        "independent_seed": "item bounds verified"
+      },
+      "oracle": "bounded APE item reader"
+    },
+    {
+      "id": "fixture.tta",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.tta",
+      "extension": "tta",
+      "format_family": "trueaudio",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed TTA audio; ID3 tag independent",
+        "independent_seed": "tag boundary verified"
+      },
+      "oracle": "ContractID3Oracle"
+    },
+    {
+      "id": "fixture.dsf",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/hardening.dsf",
+      "extension": "dsf",
+      "format_family": "dsf",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed DSD audio; ID3 offset updated by seed",
+        "independent_seed": "chunk sizes and metadata offset verified"
+      },
+      "oracle": "HardeningFixture.dsdState"
+    },
+    {
+      "id": "fixture.dff",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/hardening.dff",
+      "extension": "dff",
+      "format_family": "dsdiff",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed DSDIFF audio; PROP child written by seed",
+        "independent_seed": "nested chunk bounds verified"
+      },
+      "oracle": "HardeningFixture.dsdState"
+    },
+    {
+      "id": "fixture.aac",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.aac",
+      "extension": "aac",
+      "format_family": "mpeg-aac",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed ADTS audio with optional ID3 tag",
+        "independent_seed": "tag boundary/audio split verified"
+      },
+      "oracle": "ContractID3Oracle"
+    },
+    {
+      "id": "fixture.xm",
+      "source_path": "Tests/TagLibAudioMetadataTests/Audio/testAudioFile.xm",
+      "extension": "xm",
+      "format_family": "tracker",
+      "kind": "audio",
+      "native_seed": {
+        "seed": "committed XM module name/tracker bytes",
+        "independent_seed": "fixed offsets 17..37 and 38..58 verified"
+      },
+      "oracle": "RepairXMHeader"
+    },
+    {
+      "id": "fixture.artwork",
+      "source_path": "Tests/TagLibAudioMetadataTests/Artwork/testCover.jpg",
+      "extension": "jpg",
+      "format_family": "artwork",
+      "kind": "artwork",
+      "native_seed": {
+        "seed": "fixed JPEG payload read independently",
+        "independent_seed": "byte length and prefix verified"
+      },
+      "oracle": "byte comparison"
+    }
+  ]
+}

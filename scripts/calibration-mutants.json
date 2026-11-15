@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "mutants": [
+    {
+      "id": "exported-numeric-validation",
+      "description": "Remove pair-overflow validation from the exported writeTrackNumber bridge surface while the facade still validates.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLBasicBridgeOperations.inc",
+          "find": "    if (fileURL.isFileURL && !ValidateNativeNumberPair(trackNumber, totalTracks, DetectTagFileFormat(fileURL), error)) return NO;",
+          "replace": "    // calibration mutant: exported pair validation removed"
+        }
+      ],
+      "test_filter": "allPublicNumericWritersRejectNativeOverflow",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "key-normalization-mismatch",
+      "description": "Validate a trimmed MP4 key but execute with the untrimmed native key.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLStructuredMutation.inc",
+          "find": "    for (NSDictionary<NSString *, NSObject *> *entry in atoms) {\n        NSString *key = TrimmedStringOrNil((NSString *)entry[@\"key\"]);\n        NSString *type = CanonicalMP4AtomType((NSString *)entry[@\"type\"]);",
+          "replace": "    for (NSDictionary<NSString *, NSObject *> *entry in atoms) {\n        NSString *key = (NSString *)entry[@\"key\"];\n        NSString *type = CanonicalMP4AtomType((NSString *)entry[@\"type\"]);"
+        }
+      ],
+      "test_filter": "nativeMP4EncodersRetainValidBoundaryValues",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "numeric-truncation",
+      "description": "Cast a wide native pair component to short before its range check.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLStructuredMutation.inc",
+          "find": "    long long parsed = std::strtoll(utf8, &end, 10);",
+          "replace": "    long long parsed = (short)std::strtoll(utf8, &end, 10);"
+        }
+      ],
+      "test_filter": "structuredMP4RejectsEncodingAndRangeBypasses",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "formatter-nil-as-delete",
+      "description": "Bypass the generated-padding bound and treat the formatter failure as nil/removal.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "        if (number.length > kMaximumGeneratedNumberPaddingWidth) {",
+          "replace": "        if (false) {"
+        },
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLBasicBridgeOperations.inc",
+          "find": "        throw std::invalid_argument(\"Generated number padding exceeds the supported width\");",
+          "replace": "        return nil;"
+        }
+      ],
+      "test_filter": "excessiveInheritedPaddingDoesNotRemoveTrack",
+      "witness": "TRCK"
+    },
+    {
+      "id": "global-known-field-retention-filter",
+      "description": "Filter all schema-known fields out of full-model retention, dropping an unmodeled tracker-name owner.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapCodec.inc",
+          "find": "        if (IsGenericModelOwnedPropertyMapKey(fieldKey)) {",
+          "replace": "        if (IsKnownMetadataFieldKey(fieldKey)) {"
+        }
+      ],
+      "test_filter": "fullModelPreservesUnmodeledOwners",
+      "witness": "TRACKERNAME"
+    },
+    {
+      "id": "legacy-default-v4-save",
+      "description": "Ignore a legacy ID3v2.3 header and default every save to v4.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "    if (tag && tag->header() && tag->header()->majorVersion() == 3) {",
+          "replace": "    if (false) {"
+        }
+      ],
+      "test_filter": "v23ContainersPreserveVersionDatesAndAudio",
+      "witness": "verificationFailed"
+    },
+    {
+      "id": "restored-stale-mp4-freeform",
+      "description": "Restore the old MP4 compatibility freeform after a full-model canonical edit.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
+          "find": "            for (const auto &key : aliases) tag->removeItem(key);\n            SetMP4FreeformTextItem(tag, @(mapping.mp4FreeformDescription), value);",
+          "replace": "            for (const auto &key : aliases) tag->removeItem(key);\n            SetMP4FreeformTextItem(tag, @(mapping.mp4FreeformDescription), value);\n            if (!aliases.isEmpty()) SetMP4FreeformTextItem(tag, MP4FreeformDescriptionForItemKey(aliases.front()), existingValue);"
+        }
+      ],
+      "test_filter": "contractFullModelRetiresEditedReleaseAlias",
+      "witness": "release.alias.absent"
+    },
+    {
+      "id": "invalid-text-zero-coercion",
+      "description": "Coerce malformed number text to zero instead of rejecting before staging.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift",
+          "find": "                guard value.utf8.allSatisfy({ (48...57).contains($0) }), let integer = Int(value) else {\n                    throw MetadataPatchValidationError.numberTextMismatch(field: field, text: text)\n                }",
+          "replace": "                guard let integer = Int(value) else {\n                    values.append(0)\n                    continue\n                }"
+        }
+      ],
+      "test_filter": "malformedNumberTextCannotEraseExistingPairs",
+      "witness": "Malformed numberText must reject before staging"
+    },
+    {
+      "id": "explicit-zero-total-recovery",
+      "description": "Recover a deliberately zero total from the old pair instead of honoring explicit zero.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift",
+          "find": "           numberText.trackNumberText?.contains(\"/\") == false {",
+          "replace": "           numberText.trackNumberText?.contains(\"///\") == false {"
+        }
+      ],
+      "test_filter": "explicitZeroTotalIsNotRecoveredFromOldNumberText",
+      "witness": "after.trackTotal == 0"
+    },
+    {
+      "id": "advertised-unreachable-route",
+      "description": "Advertise the Matroska extension as writable while the planner rejects it.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/TagLibMetadataManager.swift",
+          "find": "        TagLibMetadataExtractor.isWritableFormat(fileExtension)",
+          "replace": "        fileExtension.lowercased() == \"mka\" || TagLibMetadataExtractor.isWritableFormat(fileExtension)"
+        }
+      ],
+      "test_filter": "contractUnsupportedRoutesReject",
+      "witness": "matroska.notWritable"
+    },
+    {
+      "id": "removed-adapter-invocation",
+      "description": "Remove the named public call from the facade adapter while retaining its output type.",
+      "patches": [
+        {
+          "file": "Tests/TagLibAudioMetadataTests/ContractSystem/PublicSurfaceAdapters.swift",
+          "find": "            guard case .patch(let patch) = input else {\n                throw ContractAdapterError.missingInput(id.rawValue)\n            }\n            return .write(try TagLibMetadataManager.applyMetadataPatch(patch, to: url))",
+          "replace": "            guard case .patch = input else {\n                throw ContractAdapterError.missingInput(id.rawValue)\n            }\n            return .write(TagLibMetadataManager.MetadataWriteResult(warnings: []))"
+        }
+      ],
+      "test_filter": "contractMP4TypedVertical",
+      "witness": "native.title"
+    },
+    {
+      "id": "removed-preservation-assertion",
+      "description": "Remove the untouched-owner assertion from a required scenario, leaving only labels/counts.",
+      "patches": [
+        {
+          "file": "Tests/TagLibAudioMetadataTests/ContractSystem/ContractMP4ScenarioTests.swift",
+          "find": "            evidence.check(\"native.untouched.unknown\", try after.text(\"----:com.apple.iTunes:CONTRACT_UNKNOWN\") == \"keep\")",
+          "replace": "            // calibrated missing canonical preservation assertion"
+        }
+      ],
+      "test_filter": "contractMP4TypedVertical",
+      "witness": "assertion identity mismatch"
+    },
+    {
+      "id": "oracle-vector-corruption",
+      "description": "Weaken the native MP4 oracle so invalid UTF-8 native text is accepted as evidence.",
+      "patches": [
+        {
+          "file": "Tests/TagLibAudioMetadataTests/ContractSystem/ContractNativeOracles.swift",
+          "find": "        guard let text = String(data: payload, encoding: .utf8) else {\n            throw ContractOracleError.malformed(\"MP4 item \\(key) is not UTF-8\")\n        }\n        return text",
+          "replace": "        return String(decoding: payload, as: UTF8.self)"
+        }
+      ],
+      "test_filter": "malformedNativeEvidenceIsRejected",
+      "witness": "an error was expected"
+    }
+  ]
+}

@@ -13,6 +13,17 @@ This page is a snapshot of the latest known validation state for the current sou
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
+## Current independent contract-system candidate
+
+The package-only contract-system upgrade on `codex/package-test-system-upgrade-20261115` is accepted at source commit `2cedf9e` (code unchanged from `714710d`; later documentation/evidence correction only). Both complete strict lanes re-ran the 76 policy regressions, the 12-mutant isolated calibration set, the five-layer inventory/catalog reconciliation and the full framework gate:
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Debug | Accepted: 181 XCTest executed (179 passed, two reviewed opt-in skips), 272 Swift Testing declarations in 51 suites passed, 73/73 catalog scenarios, zero failures | `.build/test-evidence/debug-final-20261115/` |
+| Release | Accepted: same counts and 73/73 scenarios, zero failures | `.build/test-evidence/release-final-20261115/` |
+
+All twelve calibration mutants compiled, activated and were killed with source restored. Focused ASan (9 tests/3 suites) and TSan (3 tests/3 suites) passed. All five minimum-platform builds (macOS 13 arm64/x86_64, iOS 16 arm64/simulator arm64/simulator x86_64) completed. Both declared consumers performed real writes with independent native and audio assertions. The unchanged privilege test passed under authorized host access; the workspace sandbox strips setuid/setgid bits. See [VER-2026-11-15-package-test-system](../records/verification/VER-2026-11-15-package-test-system.md) for the gap ledger, inventory/catalog counts and remaining limits.
+
 ## Current public write-contract repair candidate
 
 The adjudicated F-01…F-15 repairs on `codex/public-write-contract-repairs-20261115` are implemented with new public-surface
