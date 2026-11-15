@@ -7,7 +7,7 @@
 | Date | `2026-11-15` |
 | Status | Final, local acceptance |
 | Examined revision | `903fa69e66d892542bae277310baadf90c1e1b3e` production baseline; handoff documentation `84a2ddbb488f08e1bc075a3ac6950554d86ff8a0` |
-| Branch | `codex/public-write-contract-repairs-20261115` |
+| Branch | `codex/public-write-contract-repairs-20261115`; final tested source `76d0ac1`, evidence commit `63edacf` |
 | Environment | macOS 27.2.1 (arm64), Xcode 27.2 (27B52), Apple Swift 6.4.2; pinned TagLib 2.3.1-r2 |
 | Supersedes | `REM-2026-11-14-diagnostic-repairs` for the public write-contract findings below |
 | Superseded by | `none` |
@@ -133,7 +133,7 @@ All tests use fresh disposable copies and reconstruct seeds. "Native oracle" mea
 
 ## References
 
-- Branch: `codex/public-write-contract-repairs-20261115`, based on `84a2ddbb488f08e1bc075a3ac6950554d86ff8a0`.
+- Branch: `codex/public-write-contract-repairs-20261115`, based on `84a2ddbb488f08e1bc075a3ac6950554d86ff8a0`; final tested source `76d0ac1`, final evidence `63edacf` (documentation only).
 - Production baseline: `903fa69e66d892542bae277310baadf90c1e1b3e`.
 - Regression source: `Tests/TagLibAudioMetadataTests/Integration/PublicWriteContractRepairTests.swift`.
 - Current contracts: [Writing](../../guide/WRITING.md), [Preservation](../../explanation/PRESERVATION.md), [Mapping spec](../../reference/MAPPING_SPEC.md).
