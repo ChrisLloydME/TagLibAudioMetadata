@@ -49,6 +49,9 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+IGNORED_PARTS = {".build", ".git", ".swiftpm", "__pycache__", ".local", "DerivedData"}
+
+
 def _relevant_files() -> list[Path]:
     files: list[Path] = []
     for entry in RELEVANT_ROOTS:
@@ -56,7 +59,9 @@ def _relevant_files() -> list[Path]:
         if path.is_file():
             files.append(path)
         elif path.is_dir():
-            files.extend(Path(root, name) for root, _, names in os.walk(path) for name in names)
+            for root, names, filenames in os.walk(path):
+                names[:] = [name for name in names if name not in IGNORED_PARTS]
+                files.extend(Path(root, name) for name in filenames)
     return sorted({path.resolve() for path in files if path.is_file()})
 
 
