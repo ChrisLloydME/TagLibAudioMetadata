@@ -177,6 +177,10 @@ ID3v2.3 date targets are registered read-only until a verified native codec exis
 
 Version `0.7.3` extends the same contract without new native identifiers. It preserves untouched MP4 item and ID3 frame date owners, including native absence, during raw, semantic-custom and structured PropertyMap replay; reads independent YEAR/DATE values from native owners in the low-level model on MP4, ID3, Xiph and APE; retains unchanged MP4 custom-field name spelling and arrays; routes MP4 `.comment`/`.lyrics` through `©cmt`/`©lyr`; and verifies ASF native absence and custom attributes. None of this makes an existing ID3v2.3 tag writable for independent date edits.
 
+### Unreleased source
+
+The current unreleased source keeps contract 2.2 and the same native target registrations. The 2026-11-15 public write-contract repairs add destination-aware validation and preservation to existing targets and make previously advertised routes executable, including the XM tracker-name typed route and canonical-key MP4 freeform raw edits. They add no mapping-contract identity and no new writable family; native `----:` MP4 keys remain rejected at raw boundaries. See [Migration](../operations/MIGRATION.md#public-write-contract-repairs-2026-11-15) and the [remediation record](../records/remediation/REM-2026-11-15-public-write-contract.md).
+
 ## Related references
 
 - [Native mapping matrix](MAPPING_MATRIX.md) — generated from `MetadataMappingCatalog.swift`.

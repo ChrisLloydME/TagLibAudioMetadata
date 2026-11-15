@@ -5,13 +5,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Close public native numeric codec/range bypasses across structured, scalar, whole-model and raw writes. Reject unsupported inherited padding without deleting number owners, preserve protected legacy date evidence, and validate numberText intent before staging.
+### Public write-contract repairs (2026-11-15)
 
+- Close public native numeric codec/range bypasses across structured, scalar, whole-model and raw writes. Reject unsupported inherited padding without deleting number owners, preserve protected legacy date evidence, and validate numberText intent before staging.
 - Reject incompatible structured write payloads before mutation: MP4 reserved-atom codecs/ranges, noncanonical or unknown ASF types, and collections the destination does not consume. Bound generated number padding to 64 and preflight numberText ranges under the captured version.
 - Preserve legal ID3v2.3 frame-status flags and bounded grouping while keeping compression/encryption fail-closed; locate DSDIFF ID3 only through declared `PROP` children.
 - Preserve schema-known but unmodeled owners and private numbering provenance in whole-model writes, while keeping modeled nil as replacement removal.
 - Normalize MusicBrainz TXXX alias cleanup and canonical-key MP4 freeform raw edits; pass observed ID3 versions through every WAV/AIFF save.
 - Align XM tracker-name execution with capability, correct role value kinds, MP4 total intPair descriptors and semantic dictionary normalization, and document best-available aggregate capability.
+- See the [remediation record](docs/records/remediation/REM-2026-11-15-public-write-contract.md) and [acceptance record](docs/records/verification/VER-2026-11-15-public-write-release-acceptance.md).
+
+### Diagnostic repairs
+
 - Preserve low-level Content Group, ARTISTS, ReplayGain peaks and unknown advisory codes; apply native ASF updates and retire advisory aliases.
 - Verify APE release fields through their engine projection and reject inconsistent Basic number text per pair while allowing total-only updates.
 - Fail closed on concrete ID3v2.3 date edits and unpreservable layouts across mutation entry points. Bind structured preservation to its observed version; preserve independent TXXX identities and exact date arrays.
@@ -43,6 +48,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Cache immutable format descriptors while retaining per-extension support levels. Use per-read raw/MP4 indexes, including custom-field arrays, and remove a redundant pre-read identity lookup without caching concrete files.
 - Require named cache/lookup preservation regressions in the full gate, retain Unicode/first-owner/array behavior, and add repeatable multi-container warmed Release I/O profiles.
 - Require the checksum-pinned namespaced TagLib framework directly instead of silently accepting a legacy host framework.
+
+### Contract test system
+
+- Replace the matrix-only acceptance gate with a five-layer package contract system: a 907-row public-surface inventory, 34 contracts and 75 scenarios, 62 public adapters, independent native builders and oracles, 13-mutant defect calibration, and source-bound fail-closed evidence. `scripts/validate-contracts.sh` is now the canonical Debug/Release lane. See the [acceptance record](docs/records/remediation/REM-2026-11-15-test-system-acceptance.md).
+- Require complete policy, inventory/catalog, scenario/adapter, manifest, and calibration evidence; reject filters, shards, stale or mixed logs, unexpected skips, unchanged placeholders, and partial calibration.
+- Strengthen both package-owned consumers to perform real writes through declared products and verify independent native metadata and encoded audio.
 
 ## [0.7.3] - 2026-11-12
 

@@ -11,16 +11,16 @@ This document is for contributors and automated agents working on the package it
 | `Sources/CTagLibBridge/` | Public Objective-C bridge, Objective-C++ implementation, private headers, format registry, and transaction coordinator. |
 | `Sources/CTagLibBridgeInternalAPI/` | Package-internal in-place mutation declarations used by the facade. Not a library product. |
 | `Sources/CTagLibBridge/include/` | Public bridge header. Foundation-only; no C++ types. |
-| `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |
+| `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer, including `ContractSystem/`. |
 | `IntegrationTests/Consumer/` | Facade-only and low-level consumer packages. |
-| `scripts/` | Binary build, preservation-corpus generation, documentation generators/checks, the full-suite test gate, evidence summarizer, and gate-policy tests. |
+| `scripts/` | Binary build, preservation-corpus generation, documentation generators/checks, contract inventory/catalog reconciliation, calibration, the full-suite test gate, evidence summarizer, and gate-policy tests. |
 | `ThirdParty/TagLib/` | TagLib and utf8cpp license texts. |
 | `docs/guide/` | Task-based guides: getting started, reading, writing, capabilities. |
 | `docs/reference/` | API, models, fields, formats, bridge, mapping contract, generated matrix. |
 | `docs/explanation/` | Architecture, preservation, transactions, audio identity. |
 | `docs/operations/` | Installation, testing, mapping test acceptance, status, development, migration, third-party notices. |
 | `docs/records/` | Immutable historical evidence. |
-| `docs/plans/` | Retained historical assignments; not current contracts or a live backlog. |
+| `docs/records/assignments/` | Completed assignment plans and startup prompts; historical instructions, not current contracts or a live backlog. |
 | `.github/workflows/` | CI and binary-release workflows. |
 | `.local/` | Local-only working material, ignored by Git; not part of a clean clone. |
 
@@ -41,7 +41,7 @@ This document is for contributors and automated agents working on the package it
 2. Create a focused branch from the current development state. Do not rewrite existing history.
 3. Make logically coherent commits as work progresses. Do not accumulate an entire assignment into one commit.
 4. Keep production changes and documentation changes reviewable. Do not modify tests merely to make a documentation claim true.
-5. Run the relevant checks from [Testing](TESTING.md). Use `bash scripts/validate-tests.sh debug` (or `release`) for full-suite acceptance; a bare `swift test` count is not gate evidence.
+5. Run the relevant checks from [Testing](TESTING.md). Use `bash scripts/validate-contracts.sh debug` (or `release`) for complete acceptance; a bare `swift test` count is not gate evidence.
 6. Update the canonical document for any behavior change. If the change is an investigation or campaign, add a record.
 7. Run the documentation generators and `python3 scripts/check-docs.py`.
 8. Review the diff and internal links before committing.
@@ -83,7 +83,7 @@ docs/
     MIGRATION.md                           deprecations and release changes
     THIRD_PARTY_NOTICES.md                 licensing and provenance
   records/                                 immutable historical evidence
-  plans/                                   retained historical assignments
+    assignments/                           completed assignment plans and prompts
 ```
 
 ### Generated vs hand-written content
@@ -116,9 +116,9 @@ Do not hand-edit generated content. Change the source, run the generator with `-
 
 ### Test gate maintenance
 
-The full-suite entry point is `scripts/validate-tests.sh`; it accepts only `debug` or `release` and rejects filters, extra arguments and skips. It writes logs and a `summary.json` under `.build/test-evidence/`, then runs `scripts/summarize-test-run.py`. The summarizer fails closed on missing XCTest/Swift Testing summaries, unexpected skips, failed named tests, missing required suites, and parameterized case counts below the frozen minima. `scripts/tests/` exercises those policy rules without running the package suite.
+The canonical acceptance entry point is `scripts/validate-contracts.sh`; it accepts only `debug` or `release` and rejects filters or extra arguments, and its inner gate rejects claim-blessing mode. It runs `scripts/tests/`, reconciles the reviewed public-surface inventory against `scripts/package-test-system/`, requires a source-bound calibration result that killed all 13 review-defined faults, then calls `scripts/validate-tests.sh` for the complete framework gate. `validate-tests.sh` writes before/after manifests, logs, scenario records and a `summary.json` under `.build/test-evidence/`, and `scripts/summarize-test-run.py` fails closed on missing XCTest/Swift Testing summaries, changed source identity, unexpected skips, failed named tests, missing required suites/contracts/adapters, and parameterized case counts below the frozen minima.
 
-Do not weaken a gate minimum, allow a new skip, or make a matrix expectation match a broken implementation to obtain a green result. The matrix inventory and case minima are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md); test commands and evidence limits are owned by [Testing](TESTING.md).
+Do not weaken a gate minimum, allow a new skip, or make a matrix expectation match a broken implementation to obtain a green result. The matrix inventory and case minima are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md); contract-system details, commands, and evidence limits are owned by [Testing](TESTING.md).
 
 ### Documentation checks
 

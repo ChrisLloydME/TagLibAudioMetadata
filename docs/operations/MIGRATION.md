@@ -2,7 +2,7 @@
 
 ## Unreleased API cleanup (breaking)
 
-This source branch intentionally removes compatibility-only API. It is not a patch-compatible replacement for the published 0.7.3 interface; publish it as an explicitly breaking release after consumer migration. Native target layouts and canonical mapping contract 2.2 are unchanged.
+The unreleased source intentionally removes compatibility-only API. It is not a patch-compatible replacement for the published 0.7.3 interface; publish it as an explicitly breaking release after consumer migration. Native target layouts and canonical mapping contract 2.2 are unchanged.
 
 | Removed surface | Current API |
 | --- | --- |
@@ -33,6 +33,18 @@ The unused facade `MetadataExtractionOptions` type is removed. No public facade 
 - Snapshot and Structured constructors have one current signature with default optional provenance/version values; old arity-only forwarding initializers are removed.
 - Bool-only `eraseAllMetadata` and `writeRawMetadataPropertyMap` wrappers are removed. Use the verified result-bearing functions and inspect commit status, including committed-but-durability-uncertain outcomes.
 - Uncalled retention/verification functions and the unused synchronized-number helper are removed. Native-file read aliases and explicit number recovery remain active.
+
+### Public write-contract repairs (2026-11-15)
+
+These behavior changes are part of the same unreleased source. They do not change public signatures, the binary pin, the mapping-contract ID, or the independent date model.
+
+- **All public writers share native validation.** Scalar, whole-model, structured, and raw writes reject numeric input outside the destination's native representation, including MP4 pair, BPM, byte/media-kind, and store-ID limits. Structured atom validation uses the pinned engine's encoder class; a supplied type cannot override it, and missing scalar values are not implicit zero or empty writes. Explicit structured removals remain distinct.
+- **Whole-model writes preserve unmodeled owners.** Schema-known but unmodeled native owners, unknown owners, and private numbering provenance survive a whole-model write; modeled `nil` still removes the modeled value. Private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are retired only by the explicit normalization plan.
+- **Legacy readings are literal and protected.** Legal ID3v2.3 status/format/group flags are read literally, DSDIFF `ID3` is located only through declared `PROP` children, and WAV/AIFF saves retain the observed ID3 version. Reading legal protected dates remains supported; a write that cannot preserve them fails before commit. Independent date edits on a concrete v2.3 tag remain rejected.
+- **Number formatting is bounded and preflighted.** Unsupported generated padding, including inherited width above 64, rejects instead of removing the number owner. `numberText` rejects malformed components before staging, and an explicit zero total is retained as that intent; only number-only input recovers an existing total.
+- **Container-specific routes are explicit.** XM tracker names now use a narrowly allowlisted typed route, case-insensitive MusicBrainz TXXX alias cleanup writes the canonical UFID, and canonical-key MP4 freeform raw edits address the exact native item while native `----:` keys remain rejected at raw boundaries. Collections the destination does not consume reject before staging.
+
+API signatures, dependency identity, date independence, and the breaking-release boundary are unchanged. See [package acceptance](../records/verification/VER-2026-11-15-public-write-release-acceptance.md) and [remediation](../records/remediation/REM-2026-11-15-public-write-contract.md).
 
 ### Registry introspection and exact advisory verification
 
@@ -87,7 +99,7 @@ Version `0.7.2` contains audit-integrity, native-mapping follow-up, package test
 
 - `writeSupport(for:)` now requires a writable target in the primary write family. Secondary readable tags such as ID3 on FLAC or APE on MPEG do not authorize a semantic write. Formats with only a PropertyMap surface retain mapping and allowlist checks.
 - `StructuredMetadata.id3v2MajorVersion` is optional read evidence. It does not convert a tag or make ID3v2.3 dates writable.
-- Package acceptance uses `bash scripts/validate-tests.sh debug|release` and the gate-policy tests, not a bare aggregate `swift test` count. The test target demotes only `DeprecatedDeclaration` under strict compilation because compatibility tests deliberately reference obsolete API; production has no exception.
+- That release line used `bash scripts/validate-tests.sh debug|release` and the gate-policy tests, not a bare aggregate `swift test` count. Its test target demoted only `DeprecatedDeclaration` under strict compilation because compatibility tests deliberately referenced obsolete API; production had no exception. The current source instead uses `bash scripts/validate-contracts.sh debug|release` and has removed those compatibility APIs.
 
 ### Migration actions
 
@@ -223,7 +235,7 @@ let reader = TagLibMetadataManager.readSnapshot
 let reader: (URL) throws -> MetadataSnapshot = TagLibMetadataManager.readSnapshot
 ```
 
-The same caveat applies to `readBasicSnapshot`, `applyMetadataPatch`, `applyRawMetadataPatch`, and `BasicMetadataSnapshot.init`. Typed references and direct calls are supported; untyped references are not guaranteed across overload additions.
+The same caveat applied to `readBasicSnapshot`, `applyMetadataPatch`, `applyRawMetadataPatch`, and `BasicMetadataSnapshot.init` at that release. In the current unreleased source, `readSnapshot` and `readBasicSnapshot` have one public signature with a default flag; the remaining untyped-reference caveat applies to the guarded/unguarded patch overloads. Typed references and direct calls are supported; untyped references are not guaranteed across overload additions.
 
 ## Migrating from 0.4 to 0.5
 
@@ -267,9 +279,3 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - That a package update changes an application's conflict policy automatically.
 - That an untagged `main` state is a release.
 - That `replaceBasicMetadata` writes every property present on `BasicMetadata`.
-
-## Public write acceptance follow-up (2026-11-15)
-
-Direct scalar/whole-model/raw writes now reject numeric input outside the destination's native representation, including MP4 pair, BPM, byte/media-kind and store-ID limits. Structured atom validation uses the pinned engine's real encoder class; a supplied type cannot override it, and missing scalar values are not implicit zero/empty writes. Explicit structured removals remain distinct. Unsupported generated padding, including inherited width above 64, rejects instead of removing the number owner.
-
-Literal v2.3 status/format/group evidence participates in date preservation. Reading legal protected dates remains supported; a write that cannot preserve them fails before commit. numberText rejects malformed components before staging, and an explicit zero total is retained as that intent; only number-only input recovers an existing total. API signatures, dependency identity, date independence and the breaking-release boundary remain unchanged. See [package acceptance](../records/verification/VER-2026-11-15-public-write-release-acceptance.md).

@@ -200,8 +200,8 @@ A process-wide recursive mutex covers TagLib object lifetimes and Objective-C ob
 | `Sources/CTagLibBridgeInternalAPI/` | Non-product in-place mutation and coordination declarations used by the facade/tests. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer. |
 | `IntegrationTests/Consumer/` | Facade-only and low-level consumer packages. |
-| `scripts/` | Binary build, preservation-corpus generation, reference generators, documentation checks, full-suite gate and test evidence summarizer. |
-| `docs/` | Current documentation; historical records under `docs/records/`. |
+| `scripts/` | Binary build, preservation-corpus generation, reference generators, documentation checks, contract inventory/catalog reconciliation, calibration, full-suite gate and test evidence summarizer. |
+| `docs/` | Current documentation; historical records and completed assignments under `docs/records/`. |
 
 Public headers do not expose internal C++ declarations.
 
@@ -209,6 +209,7 @@ Public headers do not expose internal C++ declarations.
 
 The single SwiftPM test target is organized physically by layer:
 
+- `ContractSystem/` holds public-surface adapters, test-owned contract scenarios, fixture builders, independent native oracles, assertion budgets, and builder self-tests.
 - `Capabilities/` checks the public capability model and cross-language schema consistency.
 - `Integration/` owns real-fixture round trips, container projections, native parsers, and raw metadata behavior.
 - `Transactions/` covers stale versions, failure atomicity, preservation, same-entry coordination, privilege rejection, and audio identity.
@@ -217,7 +218,7 @@ The single SwiftPM test target is organized physically by layer:
 - `Performance/` contains opt-in, non-gating throughput experiments.
 - Root-level tests cover public Objective-C selectors, Swift nested types, current version-aware function references, and console-diagnostics hygiene.
 
-`scripts/validate-tests.sh` runs the complete Debug or Release suite with strict warnings and writes evidence under `.build/test-evidence/`; `scripts/summarize-test-run.py` fails closed on missing framework summaries, unexpected skips, missing named matrices/oracles, case-count shrinkage, or named failures. `scripts/tests/` holds the gate-policy regressions. This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](../operations/TESTING.md) and [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md).
+`scripts/validate-contracts.sh` is the canonical acceptance lane. It runs the policy regressions and public-surface/catalog reconciliation, requires a source-bound calibration result that killed the 13 review-defined faults, then runs the complete Debug or Release suite with strict warnings through `scripts/validate-tests.sh`. The resulting evidence under `.build/test-evidence/` includes before/after manifests, framework summaries, scenario records, and a summary; `scripts/summarize-test-run.py` fails closed on changed source identity, missing framework summaries, unexpected skips, missing matrices/oracles/adapters, case-count shrinkage, or named failures. `scripts/tests/` holds the gate-policy regressions. This hierarchy communicates failure semantics without multiplying XCTest targets or changing test discovery. See [Testing](../operations/TESTING.md) and [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md).
 
 ## Declared capabilities and read lookup costs
 
