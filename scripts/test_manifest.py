@@ -9,12 +9,16 @@ import os
 import platform
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEVANT_ROOTS = (
     "Package.swift",
+    "Package.resolved",
+    ".github",
+    ".gitignore",
     "Sources",
     "Tests",
     "scripts",
@@ -29,6 +33,9 @@ SYSTEM_FILES = (
     "scripts/package-test-system/field-schema-claims.json",
     "scripts/package-test-system/format-capability-claims.json",
     "scripts/required-test-inventory.json",
+    "scripts/package-test-system/scenario-assertions.json",
+    "scripts/package-test-system/runtime-invocations.json",
+    "scripts/calibration-mutants.json",
 )
 
 
@@ -84,12 +91,22 @@ def _source_state() -> dict:
     }
 
 
+def options(mode: str) -> list[str]:
+    flags = ["--disable-keychain", "--disable-netrc", "-c", mode,
+             "-Xswiftc", "-warnings-as-errors", "-Xcc", "-Werror"]
+    if os.environ.get("TAGLIB_DISABLE_MANIFEST_SANDBOX") == "1": flags.append("--disable-sandbox")
+    return flags
+
+
 def build(mode: str) -> dict:
     state = _source_state()
     system_hashes = {relative: _sha256(ROOT / relative) for relative in SYSTEM_FILES}
     return {
-        "schema_version": 1,
-        "run_id": f"{mode}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{os.getpid()}",
+        "schema_version": 2,
+        "run_id": os.environ.get("TAGLIB_CAMPAIGN_ID") or str(uuid.uuid4()),
+        "build_options": options(mode),
+        "sdk": _run(["xcrun", "--sdk", "macosx", "--show-sdk-path"], check=True),
+        "target": json.loads(_run(["swift", "-print-target-info"], check=True))["target"],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "mode": mode,
         "commit": _git("rev-parse", "HEAD"),
@@ -107,8 +124,8 @@ def build(mode: str) -> dict:
 
 
 def stable_manifest(manifest: dict) -> dict:
-    """Drop per-run timestamps/ids before comparing before/after snapshots."""
-    return {key: value for key, value in manifest.items() if key not in {"created_at", "run_id"}}
+    """Drop only timestamps; the campaign ID must match before and after."""
+    return {key: value for key, value in manifest.items() if key not in {"created_at"}}
 
 
 def current_source_hash() -> str:
@@ -117,11 +134,15 @@ def current_source_hash() -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["write", "check"])
+    parser.add_argument("action", choices=["write", "check", "options"])
     parser.add_argument("--mode", choices=["debug", "release"], required=True)
-    parser.add_argument("--file", required=True)
+    parser.add_argument("--file")
     parser.add_argument("--against", help="existing manifest to compare against")
     args = parser.parse_args()
+    if args.action == "options":
+        print("\n".join(options(args.mode)))
+        return 0
+    if not args.file: parser.error("--file is required")
     manifest = build(args.mode)
     if args.action == "write":
         Path(args.file).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

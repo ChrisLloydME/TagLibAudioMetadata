@@ -606,5 +606,13 @@
   "contractCatalogReconciliation": {
     "suite": "ContractFieldCoverageTests",
     "path": "ContractSystem/ContractFieldCoverageTests.swift"
+  },
+  "contractFullModelRetiresEditedReleaseAlias": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractPreviouslyUnobservedSurfaces": {
+    "suite": "ContractFieldCoverageTests",
+    "path": "ContractSystem/ContractFieldCoverageTests.swift"
   }
 }

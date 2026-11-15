@@ -1,0 +1,1381 @@
+{
+  "S-ADAPTER-GAPS-01": {
+    "runtime_test": "contractPreviouslyUnobservedSurfaces",
+    "adapter_label": "public.adapter.gaps",
+    "checks": [
+      "facade.applyRawPatchGuarded.seed",
+      "facade.applyRawPatchGuarded.title",
+      "facade.applyRawPatchGuarded.unknown",
+      "facade.applyRawPatchGuarded.audio",
+      "facade.replaceBasic.seed",
+      "facade.replaceBasic.title",
+      "facade.replaceBasic.unknown",
+      "facade.replaceBasic.audio",
+      "facade.updateBasic.seed",
+      "facade.updateBasic.title",
+      "facade.updateBasic.unknown",
+      "facade.updateBasic.audio",
+      "facade.writeRawMapStrings.seed",
+      "facade.writeRawMapStrings.title",
+      "facade.writeRawMapStrings.unknown",
+      "facade.writeRawMapStrings.audio",
+      "bridge.writeRawPropertyMapValues.seed",
+      "bridge.writeRawPropertyMapValues.title",
+      "bridge.writeRawPropertyMapValues.unknown",
+      "bridge.writeRawPropertyMapValues.audio"
+    ]
+  },
+  "S-AIFF-ID3-01": {
+    "runtime_test": "contractWAVAndAIFFID3",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "id3.title",
+      "container.declared.size",
+      "container.chunk.alignment",
+      "audio.unchanged",
+      "container.readable"
+    ]
+  },
+  "S-APE-01": {
+    "runtime_test": "contractNativeTextOtherFamilies",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "seed.items",
+      "seed.audio",
+      "native.title",
+      "untouched.items",
+      "audio.unchanged"
+    ]
+  },
+  "S-ART-01": {
+    "runtime_test": "contractArtworkAndQualifiedCollections",
+    "adapter_label": "facade.writeStructured",
+    "checks": [
+      "artwork.replaced",
+      "artwork.removed",
+      "audio.unchanged"
+    ]
+  },
+  "S-ART-02": {
+    "runtime_test": "contractArtworkAndQualifiedCollections",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "artwork.apic",
+      "artwork.apic.removed",
+      "audio.unchanged"
+    ]
+  },
+  "S-ASF-ADV-01": {
+    "runtime_test": "contractASFAdvisoryPreservation",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "unknown.raw.read",
+      "unknown.raw.preserved",
+      "unknown.semantic.unspecified",
+      "unknown.raw.reopen"
+    ]
+  },
+  "S-ASF-ADV-02": {
+    "runtime_test": "contractASFAdvisoryPreservation",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "known.semantic.clean",
+      "known.raw.cleared",
+      "native.attribute.present"
+    ]
+  },
+  "S-ASF-PAIR-01": {
+    "runtime_test": "contractASFPartialPairRejects",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "partial.pair",
+      "partial.pair.unchanged-bytes",
+      "native.pair.unchanged"
+    ]
+  },
+  "S-BRIDGE-READ-01": {
+    "runtime_test": "contractBridgeReadsRegistry",
+    "adapter_label": "facade reads+bridge reads",
+    "checks": [
+      "facade.basic.title",
+      "facade.basic.track",
+      "facade.snapshot.title",
+      "facade.snapshot.noAudio",
+      "facade.snapshot.audio.unavailable",
+      "facade.snapshot.audio.flac",
+      "facade.basicSnapshot.title",
+      "facade.raw.nonempty",
+      "facade.structured.atom",
+      "facade.bestBasic",
+      "facade.bestRaw",
+      "facade.bestText",
+      "facade.bestStructured",
+      "bridge.model.title",
+      "bridge.projections.keys",
+      "bridge.projections.basic.1",
+      "bridge.projections.raw.2",
+      "bridge.projections.structured.4",
+      "bridge.projections.raw.8",
+      "bridge.projections.raw.16",
+      "bridge.projections.zero",
+      "bridge.raw",
+      "bridge.structured",
+      "bridge.dump",
+      "facade.version",
+      "facade.probe",
+      "audio.unchanged"
+    ]
+  },
+  "S-BRIDGE-READ-02": {
+    "runtime_test": "contractBridgeReadsRegistry",
+    "adapter_label": "capability+registry queries",
+    "checks": [
+      "capability.m4a",
+      "support.m4a",
+      "isReadable.mp3",
+      "isWritable.mka",
+      "readableExtensions",
+      "writableExtensions",
+      "formatCapabilities",
+      "bridge.isSupportedFormat",
+      "bridge.isWritableFormat",
+      "bridge.supportedExtensions",
+      "bridge.writableExtensions",
+      "bridge.formatCapability",
+      "bridge.formatCapabilities",
+      "bridge.knownKeys",
+      "bridge.mappings",
+      "registry.schema",
+      "registry.propertySchema",
+      "registry.normalize",
+      "registry.schemas",
+      "registry.display",
+      "registry.profile",
+      "registry.contract"
+    ]
+  },
+  "S-BRIDGE-VALID-01": {
+    "runtime_test": "contractBridgeStructuredValidation",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "validation.domain",
+      "validation.code",
+      "validation.no-file"
+    ]
+  },
+  "S-BRIDGE-VALID-02": {
+    "runtime_test": "contractBridgeStructuredValidation",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "validation.domain",
+      "validation.code",
+      "validation.no-file"
+    ]
+  },
+  "S-BRIDGE-VALID-03": {
+    "runtime_test": "contractBridgeStructuredValidation",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "validation.domain",
+      "validation.code",
+      "validation.no-file"
+    ]
+  },
+  "S-BRIDGE-VALID-04": {
+    "runtime_test": "contractBridgeStructuredValidation",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "validation.domain",
+      "validation.code",
+      "validation.no-file"
+    ]
+  },
+  "S-BRIDGE-VALID-05": {
+    "runtime_test": "contractBridgeStructuredValidation",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "validation.domain",
+      "validation.code",
+      "validation.no-file"
+    ]
+  },
+  "S-BRIDGE-WIPE-01": {
+    "runtime_test": "contractBridgeWipe",
+    "adapter_label": "bridge.wipeMetadata",
+    "checks": [
+      "wipe.returned",
+      "wipe.metadata.absent",
+      "wipe.audio",
+      "wipe.reopen"
+    ]
+  },
+  "S-CATALOG-RECONCILIATION-01": {
+    "runtime_test": "contractCatalogReconciliation",
+    "adapter_label": "catalog+declarations",
+    "checks": [
+      "contract.C-MP4-TYPED-VERTICAL.id",
+      "contract.C-MP4-TYPED-VERTICAL.unique",
+      "contract.C-MP4-TYPED-VERTICAL.outcome",
+      "contract.C-MP4-TYPED-VERTICAL.adapters",
+      "scenario.S-MP4-TYPED-01.budget",
+      "contract.C-MP4-SEQUENCE.id",
+      "contract.C-MP4-SEQUENCE.unique",
+      "contract.C-MP4-SEQUENCE.outcome",
+      "contract.C-MP4-SEQUENCE.adapters",
+      "scenario.S-MP4-SEQ-01.budget",
+      "contract.C-MP4-FULL-MODEL.id",
+      "contract.C-MP4-FULL-MODEL.unique",
+      "contract.C-MP4-FULL-MODEL.outcome",
+      "contract.C-MP4-FULL-MODEL.adapters",
+      "scenario.S-MP4-FULL-01.budget",
+      "contract.C-MP4-RAW-VALUES-MODES.id",
+      "contract.C-MP4-RAW-VALUES-MODES.unique",
+      "contract.C-MP4-RAW-VALUES-MODES.outcome",
+      "contract.C-MP4-RAW-VALUES-MODES.adapters",
+      "scenario.S-MP4-RAW-01.budget",
+      "scenario.S-MP4-RAW-02.budget",
+      "contract.C-MP4-RAW-DELTA.id",
+      "contract.C-MP4-RAW-DELTA.unique",
+      "contract.C-MP4-RAW-DELTA.outcome",
+      "contract.C-MP4-RAW-DELTA.adapters",
+      "scenario.S-MP4-RAW-03.budget",
+      "scenario.S-MP4-RAW-04.budget",
+      "contract.C-MP4-NUMBER-TEXT.id",
+      "contract.C-MP4-NUMBER-TEXT.unique",
+      "contract.C-MP4-NUMBER-TEXT.outcome",
+      "contract.C-MP4-NUMBER-TEXT.adapters",
+      "scenario.S-MP4-NUMTEXT-01.budget",
+      "scenario.S-MP4-NUMTEXT-02.budget",
+      "scenario.S-MP4-NUMTEXT-03.budget",
+      "scenario.S-MP4-NUMTEXT-04.budget",
+      "contract.C-MP4-NUMERIC-BOUNDS.id",
+      "contract.C-MP4-NUMERIC-BOUNDS.unique",
+      "contract.C-MP4-NUMERIC-BOUNDS.outcome",
+      "contract.C-MP4-NUMERIC-BOUNDS.adapters",
+      "scenario.S-MP4-NUM-01.budget",
+      "scenario.S-MP4-NUM-04.budget",
+      "contract.C-MP4-NUMERIC-OVERFLOW-REJECT.id",
+      "contract.C-MP4-NUMERIC-OVERFLOW-REJECT.unique",
+      "contract.C-MP4-NUMERIC-OVERFLOW-REJECT.outcome",
+      "contract.C-MP4-NUMERIC-OVERFLOW-REJECT.adapters",
+      "scenario.S-MP4-NUM-02.budget",
+      "scenario.S-MP4-NUM-03.budget",
+      "contract.C-MP4-NUMBER-TEXT-INVALID.id",
+      "contract.C-MP4-NUMBER-TEXT-INVALID.unique",
+      "contract.C-MP4-NUMBER-TEXT-INVALID.outcome",
+      "contract.C-MP4-NUMBER-TEXT-INVALID.adapters",
+      "scenario.S-MP4-BADNUM-01.budget",
+      "scenario.S-MP4-BADNUM-02.budget",
+      "scenario.S-MP4-BADNUM-03.budget",
+      "scenario.S-MP4-BADNUM-04.budget",
+      "contract.C-MP4-VERIFICATION-DISABLED.id",
+      "contract.C-MP4-VERIFICATION-DISABLED.unique",
+      "contract.C-MP4-VERIFICATION-DISABLED.outcome",
+      "contract.C-MP4-VERIFICATION-DISABLED.adapters",
+      "scenario.S-MP4-VERIFYOFF-01.budget",
+      "contract.C-MP4-ERASE-REOPEN.id",
+      "contract.C-MP4-ERASE-REOPEN.unique",
+      "contract.C-MP4-ERASE-REOPEN.outcome",
+      "contract.C-MP4-ERASE-REOPEN.adapters",
+      "scenario.S-MP4-ERASE-01.budget",
+      "contract.C-MP4-STALE-GUARDS.id",
+      "contract.C-MP4-STALE-GUARDS.unique",
+      "contract.C-MP4-STALE-GUARDS.outcome",
+      "contract.C-MP4-STALE-GUARDS.adapters",
+      "scenario.S-MP4-STALE-01.budget",
+      "scenario.S-MP4-STALE-02.budget",
+      "contract.C-MP4-BATCH.id",
+      "contract.C-MP4-BATCH.unique",
+      "contract.C-MP4-BATCH.outcome",
+      "contract.C-MP4-BATCH.adapters",
+      "scenario.S-MP4-BATCH-01.budget",
+      "scenario.S-MP4-BATCH-03.budget",
+      "contract.C-MP4-BATCH-REJECT.id",
+      "contract.C-MP4-BATCH-REJECT.unique",
+      "contract.C-MP4-BATCH-REJECT.outcome",
+      "contract.C-MP4-BATCH-REJECT.adapters",
+      "scenario.S-MP4-BATCH-02.budget",
+      "contract.C-ID3-V23-FLAGS.id",
+      "contract.C-ID3-V23-FLAGS.unique",
+      "contract.C-ID3-V23-FLAGS.outcome",
+      "contract.C-ID3-V23-FLAGS.adapters",
+      "scenario.S-ID3-V23-FLAGS-01.budget",
+      "contract.C-ID3-V23-DATE-REJECT.id",
+      "contract.C-ID3-V23-DATE-REJECT.unique",
+      "contract.C-ID3-V23-DATE-REJECT.outcome",
+      "contract.C-ID3-V23-DATE-REJECT.adapters",
+      "scenario.S-ID3-V23-DATE-01.budget",
+      "scenario.S-ID3-V23-DATE-02.budget",
+      "scenario.S-ID3-V23-DATE-03.budget",
+      "contract.C-ID3-PRIVATE.id",
+      "contract.C-ID3-PRIVATE.unique",
+      "contract.C-ID3-PRIVATE.outcome",
+      "contract.C-ID3-PRIVATE.adapters",
+      "scenario.S-ID3-PRIVATE-01.budget",
+      "contract.C-FLAC-ARRAYS.id",
+      "contract.C-FLAC-ARRAYS.unique",
+      "contract.C-FLAC-ARRAYS.outcome",
+      "contract.C-FLAC-ARRAYS.adapters",
+      "scenario.S-FLAC-ARRAY-01.budget",
+      "contract.C-FLAC-REMOVAL.id",
+      "contract.C-FLAC-REMOVAL.unique",
+      "contract.C-FLAC-REMOVAL.outcome",
+      "contract.C-FLAC-REMOVAL.adapters",
+      "scenario.S-FLAC-REMOVE-01.budget",
+      "contract.C-WAV-AIFF-ID3.id",
+      "contract.C-WAV-AIFF-ID3.unique",
+      "contract.C-WAV-AIFF-ID3.outcome",
+      "contract.C-WAV-AIFF-ID3.adapters",
+      "scenario.S-WAV-ID3-01.budget",
+      "scenario.S-AIFF-ID3-01.budget",
+      "contract.C-ASF-ADVISORY.id",
+      "contract.C-ASF-ADVISORY.unique",
+      "contract.C-ASF-ADVISORY.outcome",
+      "contract.C-ASF-ADVISORY.adapters",
+      "scenario.S-ASF-ADV-01.budget",
+      "scenario.S-ASF-ADV-02.budget",
+      "contract.C-ASF-PARTIAL-PAIR-REJECT.id",
+      "contract.C-ASF-PARTIAL-PAIR-REJECT.unique",
+      "contract.C-ASF-PARTIAL-PAIR-REJECT.outcome",
+      "contract.C-ASF-PARTIAL-PAIR-REJECT.adapters",
+      "scenario.S-ASF-PAIR-01.budget",
+      "contract.C-BRIDGE-READS-REGISTRY.id",
+      "contract.C-BRIDGE-READS-REGISTRY.unique",
+      "contract.C-BRIDGE-READS-REGISTRY.outcome",
+      "contract.C-BRIDGE-READS-REGISTRY.adapters",
+      "scenario.S-BRIDGE-READ-01.budget",
+      "scenario.S-BRIDGE-READ-02.budget",
+      "contract.C-BRIDGE-STRUCTURED-VALIDATION.id",
+      "contract.C-BRIDGE-STRUCTURED-VALIDATION.unique",
+      "contract.C-BRIDGE-STRUCTURED-VALIDATION.outcome",
+      "contract.C-BRIDGE-STRUCTURED-VALIDATION.adapters",
+      "scenario.S-BRIDGE-VALID-01.budget",
+      "scenario.S-BRIDGE-VALID-02.budget",
+      "scenario.S-BRIDGE-VALID-03.budget",
+      "scenario.S-BRIDGE-VALID-04.budget",
+      "scenario.S-BRIDGE-VALID-05.budget",
+      "contract.C-BRIDGE-WIPE.id",
+      "contract.C-BRIDGE-WIPE.unique",
+      "contract.C-BRIDGE-WIPE.outcome",
+      "contract.C-BRIDGE-WIPE.adapters",
+      "scenario.S-BRIDGE-WIPE-01.budget",
+      "contract.C-NORMALIZATION-PLAN.id",
+      "contract.C-NORMALIZATION-PLAN.unique",
+      "contract.C-NORMALIZATION-PLAN.outcome",
+      "contract.C-NORMALIZATION-PLAN.adapters",
+      "scenario.S-NORM-01.budget",
+      "scenario.S-NORM-03.budget",
+      "scenario.S-NORM-04.budget",
+      "contract.C-NORMALIZATION-STALE-REJECT.id",
+      "contract.C-NORMALIZATION-STALE-REJECT.unique",
+      "contract.C-NORMALIZATION-STALE-REJECT.outcome",
+      "contract.C-NORMALIZATION-STALE-REJECT.adapters",
+      "scenario.S-NORM-02.budget",
+      "contract.C-ENCODING-FAMILIES.id",
+      "contract.C-ENCODING-FAMILIES.unique",
+      "contract.C-ENCODING-FAMILIES.outcome",
+      "contract.C-ENCODING-FAMILIES.adapters",
+      "scenario.S-ENC-01.budget",
+      "scenario.S-ENC-02.budget",
+      "scenario.S-ENC-03.budget",
+      "scenario.S-ENC-04.budget",
+      "scenario.S-ENC-05.budget",
+      "scenario.S-ENC-06.budget",
+      "scenario.S-ENC-07.budget",
+      "scenario.S-ENC-08.budget",
+      "scenario.S-ENC-09.budget",
+      "scenario.S-ENC-10.budget",
+      "contract.C-ARTWORK-QUALIFIED.id",
+      "contract.C-ARTWORK-QUALIFIED.unique",
+      "contract.C-ARTWORK-QUALIFIED.outcome",
+      "contract.C-ARTWORK-QUALIFIED.adapters",
+      "scenario.S-ART-01.budget",
+      "scenario.S-ART-02.budget",
+      "contract.C-TRACKER-ROUTE.id",
+      "contract.C-TRACKER-ROUTE.unique",
+      "contract.C-TRACKER-ROUTE.outcome",
+      "contract.C-TRACKER-ROUTE.adapters",
+      "scenario.S-TRACKER-01.budget",
+      "contract.C-NATIVE-TEXT-OTHER.id",
+      "contract.C-NATIVE-TEXT-OTHER.unique",
+      "contract.C-NATIVE-TEXT-OTHER.outcome",
+      "contract.C-NATIVE-TEXT-OTHER.adapters",
+      "scenario.S-OGG-01.budget",
+      "scenario.S-OPUS-01.budget",
+      "scenario.S-APE-01.budget",
+      "scenario.S-WV-01.budget",
+      "contract.C-UNSUPPORTED-ROUTES.id",
+      "contract.C-UNSUPPORTED-ROUTES.unique",
+      "contract.C-UNSUPPORTED-ROUTES.outcome",
+      "contract.C-UNSUPPORTED-ROUTES.adapters",
+      "scenario.S-UNSUP-01.budget",
+      "scenario.S-UNSUP-02.budget",
+      "scenario.S-UNSUP-03.budget",
+      "contract.C-MATROSKA-LIMITATION.id",
+      "contract.C-MATROSKA-LIMITATION.unique",
+      "contract.C-MATROSKA-LIMITATION.outcome",
+      "contract.C-MATROSKA-LIMITATION.adapters",
+      "scenario.declarations.unique",
+      "scenario.catalog.unique",
+      "scenario.set.equal",
+      "audit.scenarios",
+      "contract.count",
+      "contract.C-FULL-ALIAS.id",
+      "contract.C-FULL-ALIAS.unique",
+      "contract.C-FULL-ALIAS.outcome",
+      "contract.C-FULL-ALIAS.adapters",
+      "scenario.S-FULL-ALIAS-01.budget"
+    ]
+  },
+  "S-ENC-01": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "text.native",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-02": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "facade.writeRawMapValues",
+    "checks": [
+      "array.native",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-03": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "bool.native",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-04": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "byte.native",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-05": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "signed.native",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-06": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "unsigned.native",
+      "unsigned.type",
+      "read.unchanged"
+    ]
+  },
+  "S-ENC-07": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "intPair.native",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-08": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "identifier.owner",
+      "identifier.data",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-09": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "facade.writeStructured",
+    "checks": [
+      "artwork.native",
+      "audio.unchanged"
+    ]
+  },
+  "S-ENC-10": {
+    "runtime_test": "contractEncodingFamilies",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "qualified.count",
+      "qualified.language",
+      "qualified.description",
+      "qualified.text",
+      "audio.unchanged"
+    ]
+  },
+  "S-FIELD-COVERAGE-01": {
+    "runtime_test": "contractEveryFieldHasCoverageDecision",
+    "adapter_label": "catalog+field registry",
+    "checks": [
+      "field.acoustID.schema",
+      "field.acoustID.decision",
+      "field.acoustID.expressible-or-limited",
+      "field.acoustIDFingerprint.schema",
+      "field.acoustIDFingerprint.decision",
+      "field.acoustIDFingerprint.expressible-or-limited",
+      "field.album.schema",
+      "field.album.decision",
+      "field.album.expressible-or-limited",
+      "field.albumArtist.schema",
+      "field.albumArtist.decision",
+      "field.albumArtist.expressible-or-limited",
+      "field.artist.schema",
+      "field.artist.decision",
+      "field.artist.expressible-or-limited",
+      "field.artistType.schema",
+      "field.artistType.decision",
+      "field.artistType.expressible-or-limited",
+      "field.artists.schema",
+      "field.artists.decision",
+      "field.artists.expressible-or-limited",
+      "field.artwork.schema",
+      "field.artwork.decision",
+      "field.artwork.expressible-or-limited",
+      "field.asin.schema",
+      "field.asin.decision",
+      "field.asin.expressible-or-limited",
+      "field.barcode.schema",
+      "field.barcode.decision",
+      "field.barcode.expressible-or-limited",
+      "field.bpm.schema",
+      "field.bpm.decision",
+      "field.bpm.expressible-or-limited",
+      "field.catalogNumber.schema",
+      "field.catalogNumber.decision",
+      "field.catalogNumber.expressible-or-limited",
+      "field.comment.schema",
+      "field.comment.decision",
+      "field.comment.expressible-or-limited",
+      "field.compilation.schema",
+      "field.compilation.decision",
+      "field.compilation.expressible-or-limited",
+      "field.composer.schema",
+      "field.composer.decision",
+      "field.composer.expressible-or-limited",
+      "field.conductor.schema",
+      "field.conductor.decision",
+      "field.conductor.expressible-or-limited",
+      "field.contentGroup.schema",
+      "field.contentGroup.decision",
+      "field.contentGroup.expressible-or-limited",
+      "field.copyright.schema",
+      "field.copyright.decision",
+      "field.copyright.expressible-or-limited",
+      "field.custom.schema",
+      "field.custom.decision",
+      "field.custom.expressible-or-limited",
+      "field.director.schema",
+      "field.director.decision",
+      "field.director.expressible-or-limited",
+      "field.disc.schema",
+      "field.disc.decision",
+      "field.disc.expressible-or-limited",
+      "field.discSubtitle.schema",
+      "field.discSubtitle.decision",
+      "field.discSubtitle.expressible-or-limited",
+      "field.discTotal.schema",
+      "field.discTotal.decision",
+      "field.discTotal.expressible-or-limited",
+      "field.encodedBy.schema",
+      "field.encodedBy.decision",
+      "field.encodedBy.expressible-or-limited",
+      "field.encoderSettings.schema",
+      "field.encoderSettings.decision",
+      "field.encoderSettings.expressible-or-limited",
+      "field.engineer.schema",
+      "field.engineer.decision",
+      "field.engineer.expressible-or-limited",
+      "field.explicitContent.schema",
+      "field.explicitContent.decision",
+      "field.explicitContent.expressible-or-limited",
+      "field.genre.schema",
+      "field.genre.decision",
+      "field.genre.expressible-or-limited",
+      "field.grouping.schema",
+      "field.grouping.decision",
+      "field.grouping.expressible-or-limited",
+      "field.involvedPeople.schema",
+      "field.involvedPeople.decision",
+      "field.involvedPeople.expressible-or-limited",
+      "field.isrc.schema",
+      "field.isrc.decision",
+      "field.isrc.expressible-or-limited",
+      "field.itunesAccount.schema",
+      "field.itunesAccount.decision",
+      "field.itunesAccount.expressible-or-limited",
+      "field.itunesAlbumID.schema",
+      "field.itunesAlbumID.decision",
+      "field.itunesAlbumID.expressible-or-limited",
+      "field.itunesArtistID.schema",
+      "field.itunesArtistID.decision",
+      "field.itunesArtistID.expressible-or-limited",
+      "field.itunesCatalogID.schema",
+      "field.itunesCatalogID.decision",
+      "field.itunesCatalogID.expressible-or-limited",
+      "field.itunesComposerID.schema",
+      "field.itunesComposerID.decision",
+      "field.itunesComposerID.expressible-or-limited",
+      "field.itunesCountryID.schema",
+      "field.itunesCountryID.decision",
+      "field.itunesCountryID.expressible-or-limited",
+      "field.itunesGapless.schema",
+      "field.itunesGapless.decision",
+      "field.itunesGapless.expressible-or-limited",
+      "field.itunesGenreID.schema",
+      "field.itunesGenreID.decision",
+      "field.itunesGenreID.expressible-or-limited",
+      "field.itunesHDVideo.schema",
+      "field.itunesHDVideo.decision",
+      "field.itunesHDVideo.expressible-or-limited",
+      "field.itunesMediaType.schema",
+      "field.itunesMediaType.decision",
+      "field.itunesMediaType.expressible-or-limited",
+      "field.itunesNorm.schema",
+      "field.itunesNorm.decision",
+      "field.itunesNorm.expressible-or-limited",
+      "field.itunesOwner.schema",
+      "field.itunesOwner.decision",
+      "field.itunesOwner.expressible-or-limited",
+      "field.itunesPurchaseDate.schema",
+      "field.itunesPurchaseDate.decision",
+      "field.itunesPurchaseDate.expressible-or-limited",
+      "field.itunesSMPB.schema",
+      "field.itunesSMPB.decision",
+      "field.itunesSMPB.expressible-or-limited",
+      "field.language.schema",
+      "field.language.decision",
+      "field.language.expressible-or-limited",
+      "field.lyricist.schema",
+      "field.lyricist.decision",
+      "field.lyricist.expressible-or-limited",
+      "field.lyrics.schema",
+      "field.lyrics.decision",
+      "field.lyrics.expressible-or-limited",
+      "field.mediaType.schema",
+      "field.mediaType.decision",
+      "field.mediaType.expressible-or-limited",
+      "field.mood.schema",
+      "field.mood.decision",
+      "field.mood.expressible-or-limited",
+      "field.movement.schema",
+      "field.movement.decision",
+      "field.movement.expressible-or-limited",
+      "field.movementCount.schema",
+      "field.movementCount.decision",
+      "field.movementCount.expressible-or-limited",
+      "field.movementNumber.schema",
+      "field.movementNumber.decision",
+      "field.movementNumber.expressible-or-limited",
+      "field.musicBrainzAlbumArtistID.schema",
+      "field.musicBrainzAlbumArtistID.decision",
+      "field.musicBrainzAlbumArtistID.expressible-or-limited",
+      "field.musicBrainzAlbumID.schema",
+      "field.musicBrainzAlbumID.decision",
+      "field.musicBrainzAlbumID.expressible-or-limited",
+      "field.musicBrainzArtistID.schema",
+      "field.musicBrainzArtistID.decision",
+      "field.musicBrainzArtistID.expressible-or-limited",
+      "field.musicBrainzReleaseGroupID.schema",
+      "field.musicBrainzReleaseGroupID.decision",
+      "field.musicBrainzReleaseGroupID.expressible-or-limited",
+      "field.musicBrainzReleaseTrackID.schema",
+      "field.musicBrainzReleaseTrackID.decision",
+      "field.musicBrainzReleaseTrackID.expressible-or-limited",
+      "field.musicBrainzTrackID.schema",
+      "field.musicBrainzTrackID.decision",
+      "field.musicBrainzTrackID.expressible-or-limited",
+      "field.musicBrainzWorkID.schema",
+      "field.musicBrainzWorkID.decision",
+      "field.musicBrainzWorkID.expressible-or-limited",
+      "field.musicIPPUID.schema",
+      "field.musicIPPUID.decision",
+      "field.musicIPPUID.expressible-or-limited",
+      "field.musicalKey.schema",
+      "field.musicalKey.decision",
+      "field.musicalKey.expressible-or-limited",
+      "field.musicianCredits.schema",
+      "field.musicianCredits.decision",
+      "field.musicianCredits.expressible-or-limited",
+      "field.originalAlbum.schema",
+      "field.originalAlbum.decision",
+      "field.originalAlbum.expressible-or-limited",
+      "field.originalArtist.schema",
+      "field.originalArtist.decision",
+      "field.originalArtist.expressible-or-limited",
+      "field.originalReleaseDate.schema",
+      "field.originalReleaseDate.decision",
+      "field.originalReleaseDate.expressible-or-limited",
+      "field.performer.schema",
+      "field.performer.decision",
+      "field.performer.expressible-or-limited",
+      "field.producer.schema",
+      "field.producer.decision",
+      "field.producer.expressible-or-limited",
+      "field.publisher.schema",
+      "field.publisher.decision",
+      "field.publisher.expressible-or-limited",
+      "field.rate.schema",
+      "field.rate.decision",
+      "field.rate.expressible-or-limited",
+      "field.releaseCountry.schema",
+      "field.releaseCountry.decision",
+      "field.releaseCountry.expressible-or-limited",
+      "field.releaseDate.schema",
+      "field.releaseDate.decision",
+      "field.releaseDate.expressible-or-limited",
+      "field.releaseStatus.schema",
+      "field.releaseStatus.decision",
+      "field.releaseStatus.expressible-or-limited",
+      "field.releaseType.schema",
+      "field.releaseType.decision",
+      "field.releaseType.expressible-or-limited",
+      "field.remixer.schema",
+      "field.remixer.decision",
+      "field.remixer.expressible-or-limited",
+      "field.replayGainAlbumGain.schema",
+      "field.replayGainAlbumGain.decision",
+      "field.replayGainAlbumGain.expressible-or-limited",
+      "field.replayGainAlbumPeak.schema",
+      "field.replayGainAlbumPeak.decision",
+      "field.replayGainAlbumPeak.expressible-or-limited",
+      "field.replayGainTrackGain.schema",
+      "field.replayGainTrackGain.decision",
+      "field.replayGainTrackGain.expressible-or-limited",
+      "field.replayGainTrackPeak.schema",
+      "field.replayGainTrackPeak.decision",
+      "field.replayGainTrackPeak.expressible-or-limited",
+      "field.showMovement.schema",
+      "field.showMovement.decision",
+      "field.showMovement.expressible-or-limited",
+      "field.sortAlbum.schema",
+      "field.sortAlbum.decision",
+      "field.sortAlbum.expressible-or-limited",
+      "field.sortAlbumArtist.schema",
+      "field.sortAlbumArtist.decision",
+      "field.sortAlbumArtist.expressible-or-limited",
+      "field.sortArtist.schema",
+      "field.sortArtist.decision",
+      "field.sortArtist.expressible-or-limited",
+      "field.sortComposer.schema",
+      "field.sortComposer.decision",
+      "field.sortComposer.expressible-or-limited",
+      "field.sortTitle.schema",
+      "field.sortTitle.decision",
+      "field.sortTitle.expressible-or-limited",
+      "field.standaloneDate.schema",
+      "field.standaloneDate.decision",
+      "field.standaloneDate.expressible-or-limited",
+      "field.storeDescription.schema",
+      "field.storeDescription.decision",
+      "field.storeDescription.expressible-or-limited",
+      "field.subtitle.schema",
+      "field.subtitle.decision",
+      "field.subtitle.expressible-or-limited",
+      "field.title.schema",
+      "field.title.decision",
+      "field.title.expressible-or-limited",
+      "field.track.schema",
+      "field.track.decision",
+      "field.track.expressible-or-limited",
+      "field.trackTotal.schema",
+      "field.trackTotal.decision",
+      "field.trackTotal.expressible-or-limited",
+      "field.trackerName.schema",
+      "field.trackerName.decision",
+      "field.trackerName.expressible-or-limited",
+      "field.tvEpisode.schema",
+      "field.tvEpisode.decision",
+      "field.tvEpisode.expressible-or-limited",
+      "field.tvEpisodeID.schema",
+      "field.tvEpisodeID.decision",
+      "field.tvEpisodeID.expressible-or-limited",
+      "field.tvNetwork.schema",
+      "field.tvNetwork.decision",
+      "field.tvNetwork.expressible-or-limited",
+      "field.tvSeason.schema",
+      "field.tvSeason.decision",
+      "field.tvSeason.expressible-or-limited",
+      "field.tvShow.schema",
+      "field.tvShow.decision",
+      "field.tvShow.expressible-or-limited",
+      "field.tvShowSort.schema",
+      "field.tvShowSort.decision",
+      "field.tvShowSort.expressible-or-limited",
+      "field.work.schema",
+      "field.work.decision",
+      "field.work.expressible-or-limited",
+      "field.year.schema",
+      "field.year.decision",
+      "field.year.expressible-or-limited",
+      "field.count",
+      "field.duplicate.decisions",
+      "field.decision.set"
+    ]
+  },
+  "S-FLAC-ARRAY-01": {
+    "runtime_test": "contractFLACArrayPreservation",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "title.written",
+      "year.duplicates",
+      "unknown.whitespace",
+      "audiomator.namespace",
+      "taglibaudiometadata.namespace",
+      "audio.unchanged"
+    ]
+  },
+  "S-FLAC-REMOVE-01": {
+    "runtime_test": "contractFLACExplicitRemoval",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "date.removed",
+      "year.retained",
+      "unknown.retained",
+      "private.retained",
+      "audio.unchanged"
+    ]
+  },
+  "S-FORMAT-COVERAGE-01": {
+    "runtime_test": "contractEveryFormatHasCoverageDecision",
+    "adapter_label": "catalog+format claims",
+    "checks": [
+      "format.aiff.decision",
+      "format.aiff.coherent",
+      "format.ape.decision",
+      "format.ape.coherent",
+      "format.asf.decision",
+      "format.asf.coherent",
+      "format.dsdiff.decision",
+      "format.dsdiff.coherent",
+      "format.dsf.decision",
+      "format.dsf.coherent",
+      "format.flac.decision",
+      "format.flac.coherent",
+      "format.it.decision",
+      "format.it.coherent",
+      "format.mp4.decision",
+      "format.mp4.coherent",
+      "format.mpeg-aac.decision",
+      "format.mpeg-aac.coherent",
+      "format.mpeg-id3.decision",
+      "format.mpeg-id3.coherent",
+      "format.musepack.decision",
+      "format.musepack.coherent",
+      "format.ogg-flac.decision",
+      "format.ogg-flac.coherent",
+      "format.ogg-opus.decision",
+      "format.ogg-opus.coherent",
+      "format.ogg-speex.decision",
+      "format.ogg-speex.coherent",
+      "format.ogg-vorbis.decision",
+      "format.ogg-vorbis.coherent",
+      "format.s3m.decision",
+      "format.s3m.coherent",
+      "format.trueaudio.decision",
+      "format.trueaudio.coherent",
+      "format.wav.decision",
+      "format.wav.coherent",
+      "format.wavpack.decision",
+      "format.wavpack.coherent",
+      "format.xm.decision",
+      "format.xm.coherent",
+      "format.count",
+      "format.duplicate.decisions",
+      "format.decision.set"
+    ]
+  },
+  "S-ID3-PRIVATE-01": {
+    "runtime_test": "contractPrivateProvenance",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "private.both.namespaces",
+      "private.audiomator",
+      "private.taglibaudiometadata",
+      "private.track.text",
+      "audio.unchanged"
+    ]
+  },
+  "S-ID3-V23-DATE-01": {
+    "runtime_test": "contractV23DateRejections",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "typed.year",
+      "typed.year.unchanged-bytes"
+    ]
+  },
+  "S-ID3-V23-DATE-02": {
+    "runtime_test": "contractV23DateRejections",
+    "adapter_label": "facade.writeStructured",
+    "checks": [
+      "structured.year",
+      "structured.year.unchanged-bytes"
+    ]
+  },
+  "S-ID3-V23-DATE-03": {
+    "runtime_test": "contractV23DateRejections",
+    "adapter_label": "bridge.writeStructuredMetadata",
+    "checks": [
+      "bridge.structured.year",
+      "bridge.structured.year.unchanged-bytes"
+    ]
+  },
+  "S-ID3-V23-FLAGS-01": {
+    "runtime_test": "contractV23FlaggedPreservation",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "seed.version",
+      "seed.tyer.flags",
+      "seed.tdat.group",
+      "mutation.outcome",
+      "rejected.bytes.unchanged",
+      "rejected.version.unchanged",
+      "rejected.tyer.value",
+      "rejected.tdat.value",
+      "rejected.tyer.status.flag",
+      "rejected.tyer.group.identity",
+      "rejected.private.payloads",
+      "rejected.audio.unchanged"
+    ]
+  },
+  "S-MP4-BADNUM-01": {
+    "runtime_test": "contractInvalidNumberTextRejects",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "numberText",
+      "numberText.unchanged-bytes"
+    ]
+  },
+  "S-MP4-BADNUM-02": {
+    "runtime_test": "contractInvalidNumberTextRejects",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "numberText",
+      "numberText.unchanged-bytes"
+    ]
+  },
+  "S-MP4-BADNUM-03": {
+    "runtime_test": "contractInvalidNumberTextRejects",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "numberText",
+      "numberText.unchanged-bytes"
+    ]
+  },
+  "S-MP4-BADNUM-04": {
+    "runtime_test": "contractInvalidNumberTextRejects",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "numberText",
+      "numberText.unchanged-bytes"
+    ]
+  },
+  "S-MP4-BATCH-01": {
+    "runtime_test": "contractBatchPerFile",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "file0.title",
+      "file0.unknown",
+      "file0.audio"
+    ]
+  },
+  "S-MP4-BATCH-02": {
+    "runtime_test": "contractBatchPerFile",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "file1.overflow",
+      "file1.overflow.unchanged-bytes",
+      "file1.title.unchanged",
+      "file1.audio"
+    ]
+  },
+  "S-MP4-BATCH-03": {
+    "runtime_test": "contractBatchPerFile",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "file2.title",
+      "file2.unknown",
+      "file2.audio"
+    ]
+  },
+  "S-MP4-ERASE-01": {
+    "runtime_test": "contractEraseAndReopen",
+    "adapter_label": "facade.eraseAll",
+    "checks": [
+      "seed.container",
+      "seed.trkn",
+      "seed.\u00a9nam",
+      "seed.audio",
+      "erase.returned",
+      "native.metadata.absent",
+      "audio.unchanged",
+      "reopen.title",
+      "reopen.track"
+    ]
+  },
+  "S-MP4-FULL-01": {
+    "runtime_test": "contractFullModelRetention",
+    "adapter_label": "facade.writeTagMetadata+bridge.writeMetadata",
+    "checks": [
+      "seed.container",
+      "seed.----:com.apple.iTunes:CONTRACT_UNKNOWN",
+      "seed.\u00a9alb",
+      "seed.audio",
+      "facade.returned",
+      "facade.title",
+      "facade.unknown",
+      "facade.album",
+      "bridge.returned",
+      "bridge.title",
+      "bridge.unknown",
+      "bridge.album",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-NUM-01": {
+    "runtime_test": "contractMP4NumericBounds",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "write.returned",
+      "native.boundary"
+    ]
+  },
+  "S-MP4-NUM-02": {
+    "runtime_test": "contractMP4NumericBounds",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "track.65536",
+      "track.65536.unchanged-bytes"
+    ]
+  },
+  "S-MP4-NUM-03": {
+    "runtime_test": "contractMP4NumericBounds",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "track.negative",
+      "track.negative.unchanged-bytes"
+    ]
+  },
+  "S-MP4-NUM-04": {
+    "runtime_test": "contractMP4NumericBounds",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "movement.boundary.write",
+      "movement.boundary.atom",
+      "movement.overflow.reject",
+      "movement.overflow.unchanged"
+    ]
+  },
+  "S-MP4-NUMTEXT-01": {
+    "runtime_test": "contractNumberTextSurfaces",
+    "adapter_label": "facade.writeTrackNumberText",
+    "checks": [
+      "write.returned",
+      "native.trkn",
+      "reopen.track",
+      "reopen.text"
+    ]
+  },
+  "S-MP4-NUMTEXT-02": {
+    "runtime_test": "contractNumberTextSurfaces",
+    "adapter_label": "bridge.writeTrackNumber",
+    "checks": [
+      "write.returned",
+      "native.trkn",
+      "reopen.track",
+      "reopen.text"
+    ]
+  },
+  "S-MP4-NUMTEXT-03": {
+    "runtime_test": "contractNumberTextSurfaces",
+    "adapter_label": "bridge.writeTrackNumberText",
+    "checks": [
+      "write.returned",
+      "native.trkn",
+      "reopen.track"
+    ]
+  },
+  "S-MP4-NUMTEXT-04": {
+    "runtime_test": "contractNumberTextSurfaces",
+    "adapter_label": "facade.writeTrackNumberText",
+    "checks": [
+      "write.returned",
+      "native.trkn.removed",
+      "reopen.track",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-RAW-01": {
+    "runtime_test": "contractRawValueModes",
+    "adapter_label": "facade.writeRawMapValues",
+    "checks": [
+      "seed.container",
+      "seed.----:com.apple.iTunes:CONTRACT_UNKNOWN",
+      "seed.\u00a9alb",
+      "seed.audio",
+      "write.returned",
+      "native.title",
+      "unknown.removed",
+      "album.removed",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-RAW-02": {
+    "runtime_test": "contractRawValueModes",
+    "adapter_label": "facade.writeRawMapValues",
+    "checks": [
+      "seed.container",
+      "seed.----:com.apple.iTunes:CONTRACT_UNKNOWN",
+      "seed.\u00a9alb",
+      "seed.audio",
+      "write.returned",
+      "native.title",
+      "unknown.preserved",
+      "album.preserved",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-RAW-03": {
+    "runtime_test": "contractRawDeltaAndBridgeReplace",
+    "adapter_label": "facade.applyRawPatch",
+    "checks": [
+      "seed.container",
+      "seed.\u00a9alb",
+      "seed.\u00a9nam",
+      "seed.audio",
+      "write.returned",
+      "native.title",
+      "native.album.absent",
+      "native.unknown.preserved",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-RAW-04": {
+    "runtime_test": "contractRawDeltaAndBridgeReplace",
+    "adapter_label": "bridge.writeRawPropertyMap",
+    "checks": [
+      "seed.container",
+      "seed.\u00a9nam",
+      "seed.audio",
+      "write.returned",
+      "native.title",
+      "native.album.absent",
+      "native.unknown.absent",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-SEQ-01": {
+    "runtime_test": "contractMP4PublicSequence",
+    "adapter_label": "facade.applyPatch+facade.writeStructured+facade.eraseAll",
+    "checks": [
+      "seed.container",
+      "seed.----:com.apple.iTunes:CONTRACT_UNKNOWN",
+      "seed.trkn",
+      "seed.\u00a9nam",
+      "seed.audio",
+      "snapshot.title",
+      "first.returned",
+      "first.title",
+      "first.unknown",
+      "second.returned",
+      "second.title",
+      "second.unknown",
+      "third.returned",
+      "third.title.absent",
+      "third.unknown",
+      "third.version",
+      "erase.returned",
+      "erase.metadata.absent",
+      "erase.audio",
+      "erase.reopen.title"
+    ]
+  },
+  "S-MP4-STALE-01": {
+    "runtime_test": "contractStaleGuards",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "stale.version.reject",
+      "stale.version.unchanged"
+    ]
+  },
+  "S-MP4-STALE-02": {
+    "runtime_test": "contractStaleGuards",
+    "adapter_label": "facade.applyPatchGuarded",
+    "checks": [
+      "audio.guard.reject",
+      "audio.guard.unchanged"
+    ]
+  },
+  "S-MP4-TYPED-01": {
+    "runtime_test": "contractMP4TypedVertical",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "seed.container",
+      "seed.----:com.apple.iTunes:CONTRACT_UNKNOWN",
+      "seed.trkn",
+      "seed.\u00a9alb",
+      "seed.\u00a9nam",
+      "seed.audio",
+      "write.result",
+      "native.trkn",
+      "native.trkn.total",
+      "native.title",
+      "native.untouched.album",
+      "native.untouched.unknown",
+      "audio.unchanged",
+      "reopen.title",
+      "reopen.track",
+      "reopen.version"
+    ]
+  },
+  "S-MP4-VERIFYOFF-01": {
+    "runtime_test": "contractVerificationDisabled",
+    "adapter_label": "facade.writeStructured",
+    "checks": [
+      "seed.container",
+      "seed.\u00a9nam",
+      "seed.audio",
+      "write.returned",
+      "native.title",
+      "audio.unchanged"
+    ]
+  },
+  "S-NORM-01": {
+    "runtime_test": "contractNormalizationPlan",
+    "adapter_label": "facade.planNormalization+facade.applyNormalization",
+    "checks": [
+      "plan.track",
+      "plan.private.cleanup",
+      "native.normalized",
+      "native.private.removed",
+      "native.disc.untouched",
+      "audio.unchanged",
+      "inventory.track.total"
+    ]
+  },
+  "S-NORM-02": {
+    "runtime_test": "contractNormalizationPlan",
+    "adapter_label": "facade.applyNormalization",
+    "checks": [
+      "stale.plan.reject",
+      "stale.plan.unchanged"
+    ]
+  },
+  "S-NORM-03": {
+    "runtime_test": "contractNormalizationPlan",
+    "adapter_label": "facade.planNormalization+facade.applyNormalization",
+    "checks": [
+      "plan.track",
+      "native.track",
+      "native.disc",
+      "audio.unchanged"
+    ]
+  },
+  "S-NORM-04": {
+    "runtime_test": "contractNormalizationPlan",
+    "adapter_label": "facade.planNormalization+facade.applyNormalization",
+    "checks": [
+      "plan.legacy.total",
+      "native.track",
+      "native.alias.removed",
+      "audio.unchanged"
+    ]
+  },
+  "S-OGG-01": {
+    "runtime_test": "contractNativeTextOtherFamilies",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "seed.comments",
+      "seed.audio",
+      "native.title",
+      "untouched.comments",
+      "audio.unchanged"
+    ]
+  },
+  "S-OPUS-01": {
+    "runtime_test": "contractNativeTextOtherFamilies",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "seed.comments",
+      "seed.audio",
+      "native.title",
+      "untouched.comments",
+      "audio.unchanged"
+    ]
+  },
+  "S-TRACKER-01": {
+    "runtime_test": "contractTrackerRoute",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "tracker.bytes",
+      "tracker.padding",
+      "module.unchanged",
+      "audio.suffix.unchanged"
+    ]
+  },
+  "S-UNSUP-01": {
+    "runtime_test": "contractUnsupportedRoutesReject",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "role.qualified.performer",
+      "role.qualified.performer.unchanged-bytes"
+    ]
+  },
+  "S-UNSUP-02": {
+    "runtime_test": "contractUnsupportedRoutesReject",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "rate.on.flac",
+      "rate.on.flac.unchanged-bytes"
+    ]
+  },
+  "S-UNSUP-03": {
+    "runtime_test": "contractUnsupportedRoutesReject",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "matroska.extension",
+      "matroska.extension.unchanged-bytes",
+      "matroska.notWritable"
+    ]
+  },
+  "S-WAV-ID3-01": {
+    "runtime_test": "contractWAVAndAIFFID3",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "id3.title",
+      "container.declared.size",
+      "container.chunk.alignment",
+      "audio.unchanged",
+      "info.chunk.preserved"
+    ]
+  },
+  "S-WV-01": {
+    "runtime_test": "contractNativeTextOtherFamilies",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "seed.items",
+      "seed.audio",
+      "native.title",
+      "untouched.items",
+      "audio.unchanged"
+    ]
+  },
+  "S-FULL-ALIAS-01": {
+    "runtime_test": "contractFullModelRetiresEditedReleaseAlias",
+    "adapter_label": "bridge.writeMetadata",
+    "checks": [
+      "seed.release",
+      "release.canonical",
+      "unknown.preserved",
+      "audio.preserved"
+    ]
+  }
+}

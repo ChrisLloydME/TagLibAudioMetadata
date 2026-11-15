@@ -42,6 +42,38 @@ enum ContractEvidence {
         return URL(fileURLWithPath: path, isDirectory: true)
     }
 
+    static func campaignIdentity() throws -> [String: String] {
+        let env = ProcessInfo.processInfo.environment
+        guard let id = env["TAGLIB_CAMPAIGN_ID"], !id.isEmpty,
+              let mode = env["TAGLIB_CAMPAIGN_MODE"], ["debug", "release"].contains(mode),
+              let source = env["TAGLIB_CAMPAIGN_SOURCE_HASH"], source.count == 64 else {
+            throw ContractEvidenceError.writeFailed("missing campaign identity")
+        }
+        return ["id": id, "mode": mode, "source_hash": source]
+    }
+
+    static func recordInvocation(adapter: String, outcome: String) throws {
+        guard let directory = requestedDirectory else { return }
+        guard let test = Test.current else { throw ContractEvidenceError.writeFailed("no test context") }
+        let runtime = String(test.name.split(separator: "(").first ?? Substring(test.name))
+        let target = directory.appendingPathComponent("invocations", isDirectory: true)
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        let record: [String: Any] = ["schema_version": 1, "campaign": try campaignIdentity(),
+            "runtime_test": runtime, "adapter": adapter, "outcome": outcome]
+        try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+            .write(to: target.appendingPathComponent(UUID().uuidString + ".json"), options: .atomic)
+    }
+
+    static func validateAssertions(scenario: String, runtime: String, adapter: String, checks: [ContractCheck]) throws {
+        let url = ContractClaimsPaths.root.appendingPathComponent("scripts/package-test-system/scenario-assertions.json")
+        let raw = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: [String: Any]]
+        guard let expected = raw?[scenario], expected["runtime_test"] as? String == runtime,
+              expected["adapter_label"] as? String == adapter,
+              let names = expected["checks"] as? [String], names.sorted() == checks.map(\.name).sorted() else {
+            throw ContractEvidenceError.writeFailed("assertion identity mismatch for " + scenario)
+        }
+    }
+
     static func record(
         scenario: String,
         runtimeTest: String,
@@ -56,7 +88,9 @@ enum ContractEvidence {
         } catch {
             throw ContractEvidenceError.writeFailed("cannot create \(directory.path): \(error)")
         }
+        let identity = try campaignIdentity()
         let record: [String: Any] = [
+            "campaign": identity,
             "schema_version": 1,
             "scenario_id": scenario,
             "runtime_test": runtimeTest,
@@ -109,6 +143,7 @@ struct ContractCase {
     }
 
     func finish() throws {
+        try ContractEvidence.validateAssertions(scenario: scenario, runtime: runtimeTest, adapter: adapter, checks: checks)
         try ContractEvidence.record(
             scenario: scenario,
             runtimeTest: runtimeTest,
