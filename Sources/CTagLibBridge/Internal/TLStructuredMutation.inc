@@ -116,6 +116,130 @@ static BOOL StructuredOptionalValueIsBooleanLike(NSDictionary *entry, NSString *
     return !value || [value isKindOfClass:[NSNumber class]] || [value isKindOfClass:[NSString class]];
 }
 
+static BOOL StructuredIntegerValueWithinRange(NSDictionary *entry,
+                                              NSString *key,
+                                              long long minimum,
+                                              long long maximum)
+{
+    NSObject *value = entry[key];
+    if (!value) return NO;
+    NSString *string = [value isKindOfClass:[NSNumber class]]
+        ? ((NSNumber *)value).stringValue
+        : TrimmedStringOrNil((NSString *)value);
+    if (!string) return NO;
+    const char *utf8 = string.UTF8String;
+    if (!utf8) return NO;
+    errno = 0;
+    char *end = nullptr;
+    long long parsed = std::strtoll(utf8, &end, 10);
+    return errno != ERANGE && end && end != utf8 && *end == '\0' &&
+        parsed >= minimum && parsed <= maximum;
+}
+
+// Structured inspection emits these exact type tokens. Callers may use them
+// verbatim; anything else is an unsupported encoding, not an implicit default.
+static NSString * _Nullable CanonicalMP4AtomType(NSString * _Nullable type)
+{
+    NSString *normalized = UppercaseTrimmedString(type);
+    if (!normalized) return nil;
+    NSDictionary<NSString *, NSString *> *known = @{
+        @"STRINGLIST": @"stringList",
+        @"INT": @"int",
+        @"UINT": @"uint",
+        @"BYTE": @"byte",
+        @"LONGLONG": @"longLong",
+        @"BOOL": @"bool",
+        @"INTPAIR": @"intPair",
+    };
+    return known[normalized];
+}
+
+static NSString * _Nullable CanonicalASFAttributeType(NSString * _Nullable type)
+{
+    NSString *normalized = UppercaseTrimmedString(type);
+    if (!normalized) return nil;
+    NSDictionary<NSString *, NSString *> *known = @{
+        @"STRING": @"string",
+        @"BOOL": @"bool",
+        @"INT": @"int",
+        @"INT64": @"int64",
+        @"BINARY": @"binary",
+        @"GUID": @"guid",
+    };
+    return known[normalized];
+}
+
+static BOOL StructuredBooleanIsValid(NSObject *value)
+{
+    if ([value isKindOfClass:[NSNumber class]]) {
+        return [(NSNumber *)value isEqualToNumber:@0] || [(NSNumber *)value isEqualToNumber:@1];
+    }
+    if (![value isKindOfClass:[NSString class]]) return NO;
+    NSString *text = [TrimmedStringOrNil((NSString *)value) lowercaseString];
+    return [@[ @"0", @"1", @"true", @"false", @"yes", @"no", @"on", @"off" ] containsObject:text ?: @""];
+}
+
+static bool BooleanValueFromObject(NSObject *value);
+
+static BOOL ValidateMP4NativeEncoding(NSString *key, NSString *type, NSDictionary *entry, NSError **error)
+{
+    using Kind = NativeMP4Codec::Kind;
+    auto reject = [&]() -> BOOL {
+        return SetStructuredPayloadValidationError(error,
+            [NSString stringWithFormat:@"MP4 atom %@ has an incompatible codec, value or native range", key]);
+    };
+    const bool removing = BooleanValueFromObject(entry[@"remove"]);
+    const auto kind = NativeMP4Codec::forKey(key);
+    if (removing) {
+        NSArray *parts = [key componentsSeparatedByString:@":"];
+        if ([key hasPrefix:@"----:"]) {
+            return parts.count == 3 && [parts[1] length] && [parts[2] length] ? YES : reject();
+        }
+        return [key lengthOfBytesUsingEncoding:NSISOLatin1StringEncoding] == 4 ? YES : reject();
+    }
+    if ([type isEqual:@"stringList"] && ![entry[@"values"] isKindOfClass:[NSArray class]]) return reject();
+    const bool numeric = [@[ @"int", @"uint", @"byte", @"longLong" ] containsObject:type];
+    const bool text = [type isEqualToString:@"stringList"];
+    auto ranged = [&](long long maximum) -> BOOL {
+        return numeric && (removing || StructuredIntegerValueWithinRange(entry, @"value", 0, maximum));
+    };
+    switch (kind) {
+        case Kind::IntPair:
+        case Kind::IntPairNoTrailing:
+            return [type isEqualToString:@"intPair"] && (removing ||
+                (StructuredIntegerValueWithinRange(entry, @"first", 0, 65535) &&
+                 StructuredIntegerValueWithinRange(entry, @"second", 0, 65535))) ? YES : reject();
+        case Kind::Bool:
+            return [type isEqualToString:@"bool"] && (removing || StructuredBooleanIsValid(entry[@"value"])) ? YES : reject();
+        case Kind::Int:
+            if ([key isEqual:@"hdvd"] && [type isEqual:@"bool"]) {
+                return removing || StructuredBooleanIsValid(entry[@"value"]) ? YES : reject();
+            }
+            return ranged(32767) ? YES : reject();
+        case Kind::Gnre:
+            return ranged(255) ? YES : reject();
+        case Kind::Byte:
+            return ranged(255) ? YES : reject();
+        case Kind::UInt:
+            return ranged(std::numeric_limits<unsigned int>::max()) ? YES : reject();
+        case Kind::LongLong:
+            return ranged(std::numeric_limits<long long>::max()) ? YES : reject();
+        case Kind::TextOrInt:
+            return text || ranged(32767) ? YES : reject();
+        case Kind::FreeForm: {
+            NSArray *parts = [key componentsSeparatedByString:@":"];
+            return text && parts.count == 3 && [parts[0] isEqual:@"----"] &&
+                [parts[1] length] && [parts[2] length] ? YES : reject();
+        }
+        case Kind::Text:
+        case Kind::TextImplicit:
+            return text && [key lengthOfBytesUsingEncoding:NSISOLatin1StringEncoding] == 4 ? YES : reject();
+        default:
+            // Binary artwork/stem encoders are not represented by atom scalars.
+            return reject();
+    }
+}
+
 static bool UnsignedLongLongValueFromObject(NSObject *value, unsigned long long &result)
 {
     if ([value isKindOfClass:[NSNumber class]]) {
@@ -288,34 +412,56 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
     }
 
     for (NSDictionary *entry in StructuredArray(metadata, @"mp4Atoms") ?: @[]) {
-        NSString *type = [entry[@"type"] isKindOfClass:[NSString class]] ? (NSString *)entry[@"type"] : nil;
-        if (![entry[@"key"] isKindOfClass:[NSString class]] ||
-            !type ||
+        NSString *rawType = [entry[@"type"] isKindOfClass:[NSString class]] ? (NSString *)entry[@"type"] : nil;
+        NSString *type = CanonicalMP4AtomType(rawType);
+        NSString *key = [entry[@"key"] isKindOfClass:[NSString class]] ? TrimmedStringOrNil((NSString *)entry[@"key"]) : nil;
+        if (!key || !type ||
             (entry[@"value"] && ![entry[@"value"] isKindOfClass:[NSString class]] && ![entry[@"value"] isKindOfClass:[NSNumber class]]) ||
             (entry[@"values"] && !StructuredValueIsStringArray(entry[@"values"])) ||
             !StructuredOptionalValueHasClass(entry, @"freeformDescription", [NSString class]) ||
             (entry[@"remove"] && !StructuredOptionalValueIsBooleanLike(entry, @"remove"))) {
-            return SetStructuredPayloadValidationError(error, @"MP4 atom fields have invalid value types");
+            return SetStructuredPayloadValidationError(
+                error,
+                rawType
+                    ? [NSString stringWithFormat:@"Unsupported MP4 atom type '%@'", rawType]
+                    : @"MP4 atom fields have invalid value types"
+            );
         }
-        if (([entry[@"key"] isEqualToString:@"©mvi"] || [entry[@"key"] isEqualToString:@"©mvc"]) && ![entry[@"remove"] boolValue]) {
-            const bool numeric = [type isEqualToString:@"int"] || [type isEqualToString:@"uint"] || [type isEqualToString:@"longLong"];
-            const long long value = [entry[@"value"] longLongValue];
-            if (!numeric || !entry[@"value"] || value < 0 || value > std::numeric_limits<short>::max())
+        if (entry[@"remove"] && !StructuredBooleanIsValid(entry[@"remove"])) {
+            return SetStructuredPayloadValidationError(error, @"MP4 removal requires an explicit Boolean");
+        }
+        if (!ValidateMP4NativeEncoding(key, type, entry, error)) return NO;
+        const BOOL removing = BooleanValueFromObject(entry[@"remove"]);
+        if (([key isEqualToString:@"trkn"] || [key isEqualToString:@"disk"]) && !removing) {
+            // trkn/disk components are unsigned 16-bit values in the native
+            // intPair. A wider value would be truncated by TagLib on write.
+            if (!StructuredIntegerValueWithinRange(entry, @"first", 0, 65535) ||
+                !StructuredIntegerValueWithinRange(entry, @"second", 0, 65535)) {
+                return SetStructuredPayloadValidationError(
+                    error,
+                    @"MP4 track/disc intPair components must be unsigned 16-bit values between 0 and 65535"
+                );
+            }
+        }
+        if (([key isEqualToString:@"©mvi"] || [key isEqualToString:@"©mvc"]) && !removing) {
+            if (!StructuredIntegerValueWithinRange(entry, @"value", 0, 32767)) {
                 return SetStructuredPayloadValidationError(error, @"MP4 movement integers must be between 0 and 32767");
+            }
         }
-        if (([type isEqualToString:@"int"] && !StructuredOptionalValueFitsInt(entry, @"value")) ||
-            ([type isEqualToString:@"uint"] && !StructuredOptionalValueFitsUInt32(entry, @"value")) ||
-            ([type isEqualToString:@"byte"] && !StructuredOptionalValueFitsUInt8(entry, @"value")) ||
-            ([type isEqualToString:@"longLong"] && !StructuredOptionalValueFitsInt64(entry, @"value")) ||
-            ([type isEqualToString:@"intPair"] &&
+        if (([type isEqualToString:@"int"] && !removing && !StructuredOptionalValueFitsInt(entry, @"value")) ||
+            ([type isEqualToString:@"uint"] && !removing && !StructuredOptionalValueFitsUInt32(entry, @"value")) ||
+            ([type isEqualToString:@"byte"] && !removing && !StructuredOptionalValueFitsUInt8(entry, @"value")) ||
+            ([type isEqualToString:@"longLong"] && !removing && !StructuredOptionalValueFitsInt64(entry, @"value")) ||
+            ([type isEqualToString:@"intPair"] && !removing &&
              (!StructuredOptionalValueFitsInt(entry, @"first") || !StructuredOptionalValueFitsInt(entry, @"second")))) {
             return SetStructuredPayloadValidationError(error, @"MP4 atom numeric value is outside its declared type range");
         }
     }
 
     for (NSDictionary *entry in StructuredArray(metadata, @"asfAttributes") ?: @[]) {
-        if (![entry[@"key"] isKindOfClass:[NSString class]] ||
-            ![entry[@"type"] isKindOfClass:[NSString class]] ||
+        NSString *rawType = [entry[@"type"] isKindOfClass:[NSString class]] ? (NSString *)entry[@"type"] : nil;
+        NSString *type = CanonicalASFAttributeType(rawType);
+        if (![entry[@"key"] isKindOfClass:[NSString class]] || !TrimmedStringOrNil((NSString *)entry[@"key"]) || !type ||
             (entry[@"value"] && ![entry[@"value"] isKindOfClass:[NSString class]] && ![entry[@"value"] isKindOfClass:[NSNumber class]]) ||
             !StructuredOptionalDataFitsTagLib(entry, @"data") ||
             !StructuredOptionalValueHasClass(entry, @"pictureType", [NSString class]) ||
@@ -323,21 +469,34 @@ static BOOL ValidateStructuredMetadataPayload(NSDictionary<NSString *, NSObject 
             !StructuredOptionalValueHasClass(entry, @"description", [NSString class]) ||
             !StructuredOptionalValueFitsInt(entry, @"language") ||
             !StructuredOptionalValueFitsInt(entry, @"stream")) {
-            return SetStructuredPayloadValidationError(error, @"ASF attribute fields have invalid value types");
+            return SetStructuredPayloadValidationError(
+                error,
+                rawType
+                    ? [NSString stringWithFormat:@"Unsupported ASF attribute type '%@'", rawType]
+                    : @"ASF attribute fields have invalid value types"
+            );
         }
-        NSString *type = (NSString *)entry[@"type"];
         if ([type isEqualToString:@"guid"]) {
             // The pinned public Attribute API cannot construct GuidType.
             // Encoding as BytesType would silently change native identity.
             return SetStructuredPayloadValidationError(error,
                 @"ASF GUID attributes are inspection-only with the pinned TagLib encoder");
         }
+        if ([type isEqualToString:@"string"] && ![entry[@"value"] isKindOfClass:[NSString class]]) {
+            return SetStructuredPayloadValidationError(error, @"ASF string attributes require string text");
+        }
+        if ([type isEqualToString:@"binary"] && ![entry[@"data"] isKindOfClass:[NSData class]]) {
+            return SetStructuredPayloadValidationError(error, @"ASF binary attributes require NSData");
+        }
+        if ([type isEqualToString:@"bool"] && !StructuredBooleanIsValid(entry[@"value"])) {
+            return SetStructuredPayloadValidationError(error, @"ASF Boolean attributes require a Boolean value");
+        }
         if ([type isEqualToString:@"int64"]) {
             unsigned long long value = 0;
             if (!UnsignedLongLongValueFromObject(entry[@"value"], value)) {
                 return SetStructuredPayloadValidationError(error, @"ASF int64 attributes require an unsigned 64-bit value");
             }
-        } else if ([type isEqualToString:@"int"] && !StructuredOptionalValueFitsUInt32(entry, @"value")) {
+        } else if ([type isEqualToString:@"int"] && (!entry[@"value"] || !StructuredOptionalValueFitsUInt32(entry, @"value"))) {
             return SetStructuredPayloadValidationError(error, @"ASF integer attributes require an unsigned 32-bit value");
         }
     }
@@ -699,7 +858,7 @@ static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
     if (!tag || !atoms) return;
     for (NSDictionary<NSString *, NSObject *> *entry in atoms) {
         NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
-        NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
+        NSString *type = CanonicalMP4AtomType((NSString *)entry[@"type"]);
         if (!key || !type) continue;
 
         if (BooleanValueFromObject(entry[@"remove"])) {
@@ -718,15 +877,18 @@ static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
             else tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(list));
         } else if ([type isEqualToString:@"bool"]) {
             const bool boolValue = BooleanValueFromObject(entry[@"value"]);
-            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(boolValue));
-        } else if ([type isEqualToString:@"int"]) {
-            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((int)IntegerValueFromObject(entry[@"value"])));
-        } else if ([type isEqualToString:@"uint"]) {
-            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((unsigned int)IntegerValueFromObject(entry[@"value"])));
-        } else if ([type isEqualToString:@"byte"]) {
-            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((unsigned char)IntegerValueFromObject(entry[@"value"])));
-        } else if ([type isEqualToString:@"longLong"]) {
-            tag->setItem(NSStringToTagString(key), TagLib::MP4::Item((long long)IntegerValueFromObject(entry[@"value"])));
+            const bool integerCodec = NativeMP4Codec::forKey(key) == NativeMP4Codec::Kind::Int;
+            tag->setItem(NSStringToTagString(key), integerCodec ? TagLib::MP4::Item((int)boolValue) : TagLib::MP4::Item(boolValue));
+        } else if ([type isEqualToString:@"int"] || [type isEqualToString:@"uint"] ||
+                   [type isEqualToString:@"byte"] || [type isEqualToString:@"longLong"]) {
+            using Kind = NativeMP4Codec::Kind;
+            const auto kind = NativeMP4Codec::forKey(key);
+            const NSInteger value = IntegerValueFromObject(entry[@"value"]);
+            TagLib::MP4::Item item = kind == Kind::Byte ? TagLib::MP4::Item((unsigned char)value)
+                : kind == Kind::UInt ? TagLib::MP4::Item((unsigned int)value)
+                : kind == Kind::LongLong ? TagLib::MP4::Item((long long)value)
+                : TagLib::MP4::Item((int)value);
+            tag->setItem(NSStringToTagString(key), item);
         } else if ([type isEqualToString:@"intPair"]) {
             tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(
                 (int)IntegerValueFromObject(entry[@"first"]),
@@ -789,7 +951,9 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     if (!tag || !attributes) return YES;
     for (NSDictionary<NSString *, NSObject *> *entry in attributes) {
         NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
-        NSString *type = TrimmedStringOrNil((NSString *)entry[@"type"]);
+        // Validation canonicalizes with the same helper. Unknown tokens never
+        // reach this dispatch; "String" cannot silently fall into the int path.
+        NSString *type = CanonicalASFAttributeType((NSString *)entry[@"type"]);
         if (!key || !type) continue;
 
         TagLib::ASF::Attribute attribute;
@@ -864,19 +1028,61 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     return YES;
 }
 
+// A structured payload must not carry a collection the selected format does
+// not consume. Silently discarding a populated collection is a false success;
+// fail before opening or saving the destination.
+static BOOL ValidateStructuredCollectionsForFormat(TLTagFileFormat format,
+                                                   NSDictionary<NSString *, NSObject *> *metadata,
+                                                   NSError **error)
+{
+    NSArray *frames = StructuredArray(metadata, @"id3v2Frames");
+    NSArray *mp4Atoms = StructuredArray(metadata, @"mp4Atoms");
+    NSArray *asfAttributes = StructuredArray(metadata, @"asfAttributes");
+    NSArray *lyrics = StructuredArray(metadata, @"lyrics");
+    NSArray *comments = StructuredArray(metadata, @"comments");
+
+    auto reject = [&](NSString *message) -> BOOL {
+        return SetStructuredPayloadValidationError(error, message);
+    };
+    // Presence is explicit intent: an empty collection still names a
+    // destination surface this format does not implement.
+    auto present = [&](NSString *key) -> bool { return metadata[key] != nil; };
+
+    switch (format) {
+        case TLTagFileFormatMPEGID3:
+        case TLTagFileFormatMPEGAAC:
+            if (present(@"mp4Atoms") || present(@"asfAttributes")) {
+                return reject(@"MPEG ID3 containers accept ID3v2 frames, comments, lyrics, artwork and PropertyMap values; MP4/ASF collections are not consumed");
+            }
+            break;
+        case TLTagFileFormatMP4:
+            if (present(@"id3v2Frames") || present(@"asfAttributes") || present(@"lyrics") || present(@"comments")) {
+                return reject(@"MP4 accepts MP4 atoms, PropertyMap values and structured artwork; ID3/ASF/comment/lyric collections are not consumed");
+            }
+            break;
+        case TLTagFileFormatASF:
+            if (present(@"id3v2Frames") || present(@"mp4Atoms") || present(@"lyrics") || present(@"comments")) {
+                return reject(@"ASF accepts ASF attributes, PropertyMap values and structured artwork; ID3/MP4/comment/lyric collections are not consumed");
+            }
+            break;
+        case TLTagFileFormatWAV:
+        case TLTagFileFormatAIFF:
+            if (present(@"mp4Atoms") || present(@"asfAttributes")) {
+                return reject(@"WAV/AIFF accept ID3v2 frames, comments, lyrics, artwork and PropertyMap values; MP4/ASF collections are not consumed");
+            }
+            break;
+        default:
+            break;
+    }
+    return YES;
+}
+
 + (BOOL)writeStructuredMetadata:(NSDictionary<NSString *, NSObject *> *)metadata
                           toURL:(NSURL *)fileURL
                           error:(NSError **)error
 {
     try {
     if (!ValidateMetadataObjectStrings(metadata, error)) return NO;
-    if (TagLibAtomicMutationDepth == 0) {
-        if (!RejectDirectID3v23Write(fileURL, @"structured metadata", error)) return NO;
-        return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
-            if (!RejectDirectID3v23Write(temporaryURL, @"structured metadata", mutationError)) return NO;
-            return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
-        });
-    }
     if (!fileURL || !fileURL.isFileURL) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
@@ -900,7 +1106,17 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         }
         return NO;
     }
+    if (!ValidateStructuredCollectionsForFormat(format, metadata, error)) {
+        return NO;
+    }
 
+    if (TagLibAtomicMutationDepth == 0) {
+        if (!RejectDirectID3v23Write(fileURL, @"structured metadata", error)) return NO;
+        return PerformAtomicTagLibMutation(fileURL, error, @"Structured metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
+            if (!RejectDirectID3v23Write(temporaryURL, @"structured metadata", mutationError)) return NO;
+            return [self writeStructuredMetadata:metadata toURL:temporaryURL error:mutationError];
+        });
+    }
     const char *filePath = fileURL.path.UTF8String;
     if (!filePath) {
         if (error) {
@@ -934,6 +1150,9 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
     NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
+    if (format == TLTagFileFormatMP4 && propertyValues &&
+        !ValidateMP4RequestedProperties(BuildRawPropertyMapValues(propertyValues), error)) return NO;
+
     if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {
@@ -1057,7 +1276,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
         ReplaceID3v2Artwork(tag, artwork);
-        if (!file.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (!SaveWAVPreservingID3Version(&file, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured WAV metadata" }];
             return NO;
         }
@@ -1065,7 +1284,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
             ? (NSString *)metadata[@"riffPolicy"] : nil;
         if ([riffPolicy isEqualToString:@"id3v2Only"] && file.hasInfoTag()) {
             file.strip(TagLib::RIFF::WAV::File::Info);
-            if (!file.save()) {
+            if (!SaveWAVPreservingID3Version(&file, TagLib::RIFF::WAV::File::AllTags, TagLib::File::StripNone)) {
                 if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:235 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save the RIFF INFO removal" }];
                 return NO;
             }
@@ -1094,7 +1313,7 @@ static BOOL ApplyStructuredASFAttributes(TagLib::ASF::Tag *tag,
         ReplaceID3v2Comments(tag, comments);
         ReplaceID3v2Lyrics(tag, lyrics);
         ReplaceID3v2Artwork(tag, artwork);
-        if (!file.save()) {
+        if (!SaveAIFFPreservingID3Version(&file)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:237 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured AIFF metadata" }];
             return NO;
         }

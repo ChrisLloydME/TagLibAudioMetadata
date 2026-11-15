@@ -198,6 +198,23 @@ extension TagLibMetadataManager {
             )
         }
 
+        // Tracker modules expose only a PropertyMap surface. Route the
+        // narrow, declared allowlist (title, comment, tracker name) through
+        // that surface instead of inventing ID3/MP4 targets or enabling other
+        // tracker fields. Capability/writableFields still gate this route.
+        let trackerFormats: Set<String> = ["xm", "s3m", "it"]
+        let trackerTypedFields: Set<MetadataFieldKey> = [.title, .comment, .trackerName]
+        if formats == [.tagLibPropertyMap],
+           trackerFormats.contains(identifier),
+           trackerTypedFields.contains(field),
+           let engineKey {
+            return SemanticPropertyStorage(
+                mechanism: .propertyMap(key: engineKey),
+                keysToRemove: Set(schema.propertyMapKeys.map { $0.uppercased() }),
+                nativeAliasesToRemove: []
+            )
+        }
+
         if formats.contains(.id3v2) {
             // UFID's native identity is its owner, not a four-byte frame ID.
             // TagLib's canonical property codec owns that qualified identifier.

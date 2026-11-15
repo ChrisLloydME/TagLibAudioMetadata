@@ -83,12 +83,17 @@ enum ID3v23DateSafety {
         let id: String
         let description: String?
         let values: [String]
+        let statusFlags: String?
+        let formatFlags: String?
+        let groupIdentifier: String?
     }
 
     static func signature(of frames: [StructuredID3v2Frame]) -> [DateOwner: Int] {
         dateFrames(in: frames).reduce(into: [:]) { result, frame in
             let values = frame.values.isEmpty && !frame.value.isEmpty ? [frame.value] : frame.values
-            result[DateOwner(id: frame.frameID, description: frame.description, values: values), default: 0] += 1
+            result[DateOwner(id: frame.frameID, description: frame.description, values: values,
+                statusFlags: frame.fields["statusFlags"], formatFlags: frame.fields["formatFlags"],
+                groupIdentifier: frame.fields["groupIdentifier"]), default: 0] += 1
         }
     }
 

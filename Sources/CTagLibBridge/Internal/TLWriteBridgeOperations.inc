@@ -20,6 +20,26 @@
             userInfo:@{NSLocalizedDescriptionKey: @"MP4 movement integers must be between 0 and 32767"}];
         return NO;
     }
+    if (fileURL.isFileURL) {
+        const auto format = DetectTagFileFormat(fileURL);
+        if (format == TLTagFileFormatMP4) {
+            if (metadata.bpm > 32767) return SetNumericValidationError(error, @"MP4 BPM exceeds its signed 16-bit representation");
+            for (NSString *value in @[ metadata.itunesAlbumId ?: @"", metadata.itunesArtistId ?: @"",
+                                      metadata.itunesCatalogId ?: @"", metadata.itunesGenreId ?: @"",
+                                      metadata.itunesMediaType ?: @"" ]) {
+                NSString *text = TrimmedStringOrNil(value);
+                unsigned long long parsed = 0;
+                if (text && !ParseUnsignedDecimalString(text, std::numeric_limits<unsigned int>::max(), parsed))
+                    return SetNumericValidationError(error, @"MP4 store identifiers require unsigned decimal text");
+            }
+            NSString *media = TrimmedStringOrNil(metadata.itunesMediaType);
+            unsigned long long code = 0;
+            if (media && !ParseUnsignedDecimalString(media, 255, code))
+                return SetNumericValidationError(error, @"MP4 media kind exceeds its byte representation");
+        }
+        if (!ValidateNativeNumberPair(metadata.trackNumber, metadata.totalTracks, format, error) ||
+            !ValidateNativeNumberPair(metadata.discNumber, metadata.totalDiscs, format, error)) return NO;
+    }
     if (TagLibAtomicMutationDepth == 0) {
         return PerformAtomicTagLibMutation(fileURL, error, @"Metadata write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {
             return [self writeMetadata:metadata toURL:temporaryURL error:mutationError];
@@ -616,7 +636,7 @@
             return NO;
         }
 
-        if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (!SaveWAVPreservingID3Version(&wavFile, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:21
@@ -650,7 +670,7 @@
             return NO;
         }
 
-        if (!aiffFile.save()) {
+        if (!SaveAIFFPreservingID3Version(&aiffFile)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:23

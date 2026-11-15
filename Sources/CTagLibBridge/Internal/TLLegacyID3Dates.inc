@@ -22,14 +22,44 @@ static NSArray<NSDictionary<NSString *, NSObject *> *> *LiteralV23DateFrames(NSU
     size_t offset = 0;
     if (magic(0, "RIFF", 4) || magic(0, "FORM", 4) || magic(0, "FRM8", 4)) {
         const bool little = magic(0, "RIFF", 4);
-        const size_t header = magic(0, "FRM8", 4) ? 12 : 8;
-        offset = header == 12 ? 16 : 12;
+        const bool dsdiff = magic(0, "FRM8", 4);
+        const size_t header = dsdiff ? 12 : 8;
+        offset = dsdiff ? 16 : 12;
+        bool foundID3 = false;
         while (offset <= count && header <= count - offset) {
             const uint64_t size = integer(offset + 4, header - 4, little);
             if (size > count - offset - header) return fail();
-            if (magic(offset, "ID3 ", 4) || magic(offset, "id3 ", 4)) { offset += header; break; }
+            if (magic(offset, "ID3 ", 4) || magic(offset, "id3 ", 4)) {
+                offset += header;
+                foundID3 = true;
+                break;
+            }
+            // DSDIFF carries the ID3 chunk inside a PROP chunk after the
+            // "SND " form-type field. Walk only declared child bounds; never
+            // scan arbitrary bytes for an ID3 signature.
+            if (dsdiff && magic(offset, "PROP", 4)) {
+                const size_t chunkEnd = offset + header + static_cast<size_t>(size);
+                size_t child = offset + header + 4;
+                while (child <= chunkEnd && 12 <= chunkEnd - child) {
+                    const uint64_t childSize = integer(child + 4, 8);
+                    if (childSize > chunkEnd - child - 12) return fail();
+                    if (magic(child, "ID3 ", 4) || magic(child, "id3 ", 4)) {
+                        offset = child + 12;
+                        foundID3 = true;
+                        break;
+                    }
+                    child += 12 + static_cast<size_t>(childSize);
+                    if (childSize & 1) { if (child == chunkEnd) return fail(); ++child; }
+                }
+                if (foundID3) break;
+            }
             offset += header + static_cast<size_t>(size);
             if (size & 1) { if (offset == count) return fail(); ++offset; }
+        }
+        if (!foundID3) {
+            // The bounded walk above is the only supported locator. A missing
+            // chunk is malformed legacy evidence, not a reason to scan.
+            return fail();
         }
     } else if (magic(0, "DSD ", 4)) {
         const uint64_t location = integer(20, 8, true);
@@ -71,16 +101,35 @@ static NSArray<NSDictionary<NSString *, NSObject *> *> *LiteralV23DateFrames(NSU
         const uint64_t length = integer(offset + 4, 4);
         if (length > end - offset - 10) return fail();
         if ([owners containsObject:identifier]) {
-            if (length < 1 || bytes[offset + 8] || bytes[offset + 9]) return fail();
+            // ID3v2.3 status flags (0x80 tag-alter, 0x40 file-alter,
+            // 0x20 read-only) describe the frame's handling, not its payload.
+            // The format byte's compression (0x80) and encryption (0x40) bits
+            // make the text genuinely undecodable and stay fail-closed.
+            // Grouping (0x20) adds one bounded identifier byte before the text.
+            // Reserved low bits in either byte are not legal v2.3 headers.
+            const unsigned char statusFlags = bytes[offset + 8];
+            const unsigned char formatFlags = bytes[offset + 9];
+            if ((statusFlags & 0x1f) != 0 || (formatFlags & 0x1f) != 0) return fail();
+            if (formatFlags & 0x80 || formatFlags & 0x40) return fail();
+            const size_t groupingPrefix = (formatFlags & 0x20) ? 1 : 0;
+            if (length < 1 + groupingPrefix) return fail();
             NSStringEncoding encoding;
-            if (bytes[offset + 10] == 0) encoding = NSISOLatin1StringEncoding;
-            else if (bytes[offset + 10] == 1) encoding = NSUTF16StringEncoding;
+            const unsigned char encodingByte = bytes[offset + 10 + groupingPrefix];
+            if (encodingByte == 0) encoding = NSISOLatin1StringEncoding;
+            else if (encodingByte == 1) encoding = NSUTF16StringEncoding;
             else return fail();
-            NSString *text = [[NSString alloc] initWithBytes:bytes + offset + 11 length:static_cast<size_t>(length) - 1 encoding:encoding];
+            NSString *text = [[NSString alloc] initWithBytes:bytes + offset + 11 + groupingPrefix
+                                                      length:static_cast<size_t>(length) - 1 - groupingPrefix
+                                                    encoding:encoding];
             if (!text) return fail();
             const unichar zero = 0;
             NSArray *values = [text componentsSeparatedByString:[NSString stringWithCharacters:&zero length:1]];
-            [dates addObject:@{@"id":identifier, @"type":@"text", @"value":[values componentsJoinedByString:@"; "], @"values":values}];
+            NSMutableDictionary *date = [@{@"id":identifier, @"type":@"text",
+                @"value":[values componentsJoinedByString:@"; "], @"values":values,
+                @"statusFlags":[NSString stringWithFormat:@"%u", statusFlags],
+                @"formatFlags":[NSString stringWithFormat:@"%u", formatFlags]} mutableCopy];
+            if (groupingPrefix) date[@"groupIdentifier"] = [NSString stringWithFormat:@"%u", bytes[offset + 10]];
+            [dates addObject:date];
         }
         offset += 10 + static_cast<size_t>(length);
     }

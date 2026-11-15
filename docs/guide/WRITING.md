@@ -93,7 +93,7 @@ let patch = MetadataPatch(
 )
 ```
 
-`nil` leaves a pair unchanged, a non-empty string sets it, and an empty string removes it. Do not combine `numberText` with typed track/disc fields in the same patch.
+`nil` leaves a pair unchanged, a non-empty string sets it, and an empty string removes it. `numberText` and typed track/disc fields may be combined only across different pairs (for example `numberText.trackNumberText` with a typed disc edit); supplying both representations for the same pair is rejected, and every selected pair is preflighted under the captured version before staging.
 
 Ordinary numeric Basic and patch writes use native numeric storage. On MP4 they do not add private formatting atoms to a standard-only file. Legacy `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed by default write surfaces; they are preserved until an explicit, version-guarded normalization plan retires selected identities.
 
@@ -147,13 +147,13 @@ The typed `.date` YEAR alias has been removed. Use `.year` for YEAR and `.standa
 
 `BasicMetadata.date` carries the independent standalone DATE projection, equivalent to typed `.standaloneDate`; `BasicMetadata.year` carries YEAR.
 
-`replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with `isRepresentableYearText`; non-date text such as `"Spring 2021"` throws `MetadataValidationError.invalidYearText`. The typed patch path does not run that Basic-specific validator.
+`replaceBasicMetadata` and `updateBasicMetadata` use the existing Basic-specific `isRepresentableYearText` prefix filter. It accepts an unsigned 32-bit year or text whose first four scalars are digits followed by `-`, `/` or `.`; it is deliberately not a calendar grammar. Values that do not match that frozen prefix policy (for example `"Spring 2021"` or `"2021x"`) throw `MetadataValidationError.invalidYearText`. It does not normalize a date or derive one field from another, and existing malformed values are preserved on unrelated writes. The typed patch path does not run this Basic-specific validator.
 
 ### MP4-exclusive fields
 
 The registry adds `director` (`©dir`), `itunesAccount` (`apID`), `itunesComposerID` (`cmID`), `itunesCountryID` (`sfID`), `itunesGapless` (`pgap`), `itunesHDVideo` (`hdvd`), `itunesOwner` (`ownr`), `rate` (`rate`), `showMovement` (`shwm`), `storeDescription` (`sdes`), and the TV episode/network/season/show/sort atoms plus `itunesMediaType` (`stik`). Store IDs and TV numbers are lossless integers; Booleans distinguish present false from absence. `rate` is registered read-only because no verified native rating type or scale is available for typed writes, and the media-kind label vocabulary is not bound to numeric codes. Unknown existing media-kind codes are preserved.
 
-These fields are readable through `BasicMetadata`, but `replaceBasicMetadata` does not write them: the bridge writer model has no matching properties. Use `applyMetadataPatch` or structured writes for them. See [Preservation](../explanation/PRESERVATION.md#basic-preservation-rules).
+These fields are readable through `BasicMetadata` and are written by `replaceBasicMetadata`/`updateBasicMetadata` through the same typed planner and capability rules as `MetadataPatch`; `.rate` remains read-only. See [Preservation](../explanation/PRESERVATION.md#basic-preservation-rules).
 
 ## Native ownership and integer bounds
 
@@ -407,7 +407,7 @@ try TagLibMetadataManager.writeTagMetadata(
 )
 ```
 
-`TagLibAudioMetadata` is a writer model for fields the bridge maps. A sparse instance replaces mapped fields and clears them where the format allows; it is not an omission-safe patch. On read, the low-level model resolves YEAR and standalone DATE from their native owners on MP4, ID3, Xiph, and APE instead of deriving one from another's engine projection. On write, unchanged scalar projections do not collapse a native MP4 custom-field array or rebuild untouched native date owners. The model is still scalar: it cannot represent every native array or opaque structure, so use selective patches and structured APIs for those edits.
+`TagLibAudioMetadata` is a writer model for the fields it models. A sparse instance replaces those modeled fields and clears them where the format allows; it is not an omission-safe patch. Native owners outside that model set — including schema-known but unmodeled fields such as FLAC `PERFORMER` and MP4 `©dir`, unknown keys, and private `AUDIOMATOR_*_TEXT`/`TAGLIBAUDIOMETADATA_*_TEXT` provenance — are preserved. On read, the low-level model resolves YEAR and standalone DATE from their native owners on MP4, ID3, Xiph, and APE instead of deriving one from another's engine projection. On write, unchanged scalar projections do not collapse a native MP4 custom-field array or rebuild untouched native date owners. The model is still scalar: it cannot represent every native array or opaque structure, so use selective patches and structured APIs for those edits.
 
 `writeTagMetadata` with `.none` performs no semantic readback; the transaction validates the original audio before staging and the bridge mutation is called directly. Prefer the facade's verified APIs for normal editing. See [Bridge reference](../reference/BRIDGE.md).
 
@@ -426,7 +426,7 @@ The comparison scope differs by API:
 | --- | --- |
 | `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, native date/owner absence, ASF native attributes, artwork, number/advisory expectations, and format-aware storage. |
 | `applyRawMetadataPatch` | The complete visible `PropertyMap` after the delta. |
-| `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields, custom values, number/advisory expectations, artwork, and preserved raw values. MP4-exclusive Basic fields are not written or verified. |
+| `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields (including MP4-exclusive typed fields where supported), custom values, number/advisory expectations, artwork, and preserved raw values. `.rate` remains read-only. |
 | `writeStructuredMetadataWithVerification` | Requested structured collections and properties, including ordered frame values and artwork semantics. |
 | `writeTrackNumberText` | Track/disc numbers and text where the container preserves exact text. |
 | `writeTagMetadata` | Only the checks in `MetadataWriteVerificationContext`; `.none` checks no metadata values. |

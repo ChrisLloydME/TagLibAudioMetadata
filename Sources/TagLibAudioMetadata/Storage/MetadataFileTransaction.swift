@@ -5,6 +5,11 @@ import CTagLibBridgeInternalAPI
 
 /// Owns coordinated staging, validation, atomic replacement and durability.
 internal enum MetadataFileTransaction {
+    /// Narrow task-local observation seam for preflight-ordering tests. It is
+    /// internal, has no public controls, is never set by production code and
+    /// does not introduce cross-test shared mutable state.
+    @TaskLocal static var willStageForTesting: (@Sendable (URL) -> Void)?
+
     nonisolated private static let errorDomain = "TagLibMetadataManager"
 
     nonisolated private static func mutationError(
@@ -157,6 +162,7 @@ internal enum MetadataFileTransaction {
         afterFinalValidation: () throws -> Void,
         _ operation: (URL) throws -> Result
     ) throws -> FileMutationOutcome<Result> {
+        willStageForTesting?(url)
         guard url.isFileURL else {
             throw mutationError(code: 1001, description: "Metadata mutations require a file URL.")
         }

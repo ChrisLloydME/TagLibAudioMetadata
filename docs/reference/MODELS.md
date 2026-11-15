@@ -671,7 +671,7 @@ init(
 
 ## `MetadataFieldRegistry`
 
-Source: [MetadataFieldSchema.swift:399](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L399)
+Source: [MetadataFieldSchema.swift:407](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L407)
 
 ```swift
 enum MetadataFieldRegistry
@@ -707,7 +707,7 @@ func schema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:542](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L542)
+Source: [MetadataFieldSchema.swift:550](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L550)
 
 #### `canonicalSchema(forSemanticKey:)`
 
@@ -717,7 +717,7 @@ func canonicalSchema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:546](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L546)
+Source: [MetadataFieldSchema.swift:554](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L554)
 
 #### `schema(forPropertyMapKey:)`
 
@@ -727,7 +727,7 @@ func schema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:550](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L550)
+Source: [MetadataFieldSchema.swift:558](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L558)
 
 #### `schemas(withMappingsFor:)`
 
@@ -737,7 +737,7 @@ func schemas(
 ) -> [MetadataFieldSchema]
 ```
 
-Source: [MetadataFieldSchema.swift:574](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L574)
+Source: [MetadataFieldSchema.swift:582](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L582)
 
 #### `schemas(storableIn:)`
 
@@ -747,7 +747,12 @@ func schemas(
 ) -> [MetadataFieldSchema]
 ```
 
-Source: [MetadataFieldSchema.swift:580](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L580)
+> Fields whose high-level value kinds are executable for this declared
+> destination. This deliberately uses the same `writeSupport` policy as
+> typed writes, including property-map-only tracker allowlists; it is not
+> a union of every registered native target.
+
+Source: [MetadataFieldSchema.swift:592](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L592)
 
 #### `schema(_:hasMappingFor:)`
 
@@ -758,7 +763,7 @@ func schema(
 ) -> Bool
 ```
 
-Source: [MetadataFieldSchema.swift:595](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L595)
+Source: [MetadataFieldSchema.swift:600](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L600)
 
 #### `shouldDisplayRawPropertyAsMultiValue(_:)`
 
@@ -768,7 +773,7 @@ func shouldDisplayRawPropertyAsMultiValue(
 ) -> Bool
 ```
 
-Source: [MetadataFieldSchema.swift:600](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L600)
+Source: [MetadataFieldSchema.swift:605](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L605)
 
 #### `normalizePropertyMapKey(_:)`
 
@@ -778,7 +783,7 @@ func normalizePropertyMapKey(
 ) -> String
 ```
 
-Source: [MetadataFieldSchema.swift:609](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L609)
+Source: [MetadataFieldSchema.swift:614](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L614)
 
 ## `MetadataFieldSchema`
 
@@ -830,6 +835,9 @@ var acceptedPatchValueKinds: Set<MetadataPatchValueKind>
 /// those per destination family.
 var integerConstraint: MetadataIntegerConstraint?
 
+/// Best-available summary across all families, not a portability promise.
+/// A native target in any family is reported as native; use
+/// `capability(for:)` for destination-specific decisions.
 var aggregateCapability: MetadataMappingCapability
 ```
 
@@ -860,7 +868,7 @@ func targets(
 ) -> [MetadataNativeTarget]
 ```
 
-Source: [MetadataFieldSchema.swift:294](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L294)
+Source: [MetadataFieldSchema.swift:299](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L299)
 
 #### `writeTarget(for:)`
 
@@ -874,7 +882,7 @@ func writeTarget(
 > numeric pair intentionally share a native slot; their semantic keys
 > differ and the patch planner resolves both together.
 
-Source: [MetadataFieldSchema.swift:301](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L301)
+Source: [MetadataFieldSchema.swift:306](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L306)
 
 #### `capability(for:)`
 
@@ -884,7 +892,7 @@ func capability(
 ) -> MetadataMappingCapability
 ```
 
-Source: [MetadataFieldSchema.swift:305](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L305)
+Source: [MetadataFieldSchema.swift:310](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L310)
 
 #### `capability(for:)`
 
@@ -894,7 +902,7 @@ func capability(
 ) -> MetadataMappingCapability
 ```
 
-Source: [MetadataFieldSchema.swift:314](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L314)
+Source: [MetadataFieldSchema.swift:319](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L319)
 
 ## `MetadataFieldStorageKind`
 
@@ -986,7 +994,7 @@ init(
 
 ## `MetadataMappingCapability`
 
-Source: [MetadataMapping.swift:169](../../Sources/TagLibAudioMetadata/MetadataMapping.swift#L169)
+Source: [MetadataMapping.swift:170](../../Sources/TagLibAudioMetadata/MetadataMapping.swift#L170)
 
 ```swift
 enum MetadataMappingCapability: String, CaseIterable, Hashable, Sendable
@@ -1041,7 +1049,7 @@ func profile(
 ) -> MetadataTargetProfile?
 ```
 
-Source: [MetadataMappingCatalog.swift:1127](../../Sources/TagLibAudioMetadata/MetadataMappingCatalog.swift#L1127)
+Source: [MetadataMappingCatalog.swift:1130](../../Sources/TagLibAudioMetadata/MetadataMappingCatalog.swift#L1130)
 
 ## `MetadataNativeFamily`
 
@@ -1596,7 +1604,7 @@ init(
 
 ## `MetadataTargetCapability`
 
-Source: [MetadataMapping.swift:183](../../Sources/TagLibAudioMetadata/MetadataMapping.swift#L183)
+Source: [MetadataMapping.swift:184](../../Sources/TagLibAudioMetadata/MetadataMapping.swift#L184)
 
 ```swift
 struct MetadataTargetCapability: Hashable, Sendable
@@ -1650,8 +1658,9 @@ var targets: [MetadataNativeTarget]
 /// read and preserved.
 var writeUnsupportedReason: String?
 
-/// Lowest capability across the entire profile, used by capability views
-/// that cannot know the destination family.
+/// Best-available capability across the entire profile, used by views that
+/// cannot know the destination family. This is a summary, not a
+/// portability guarantee; destination-aware checks remain authoritative.
 var aggregateCapability: MetadataMappingCapability
 ```
 

@@ -13,6 +13,24 @@ This page is a snapshot of the latest known validation state for the current sou
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
+## Current public write-contract repair candidate
+
+The adjudicated F-01…F-15 repairs on `codex/public-write-contract-repairs-20261115` are implemented with new public-surface
+regressions. Both complete strict gates executed the full suite: **181 XCTest declarations** (179 passed, the two existing
+opt-in skips) and **221 Swift Testing declarations in 44 suites**. All required named evidence, matrices and policy minima
+passed; the only failure in each configuration was the mandatory
+`CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition. This host strips
+setuid/setgid bits from a user-owned `chmod`, so the gate is **red/blocked, not accepted**; no formal ready verdict is
+claimed. Evidence: `.build/test-evidence/debug-20261115-125755-33555/` and
+`.build/test-evidence/release-20261115-130116-34182/`; both summaries report `accepted: false` solely for that named test.
+The same precondition failed on the reviewed baseline before implementation, so it is an environment limit rather than a
+repair regression.
+
+Additional current checks: 39 gate-policy regressions, 62 Markdown files and all reference generators, both consumer
+products, focused ASan/TSan over the new 23-declaration/35-case public-write suite, and all five minimum-platform
+compile/link checks. The pinned TagLib binary is not sanitizer-instrumented. See [the repair record](../records/remediation/REM-2026-11-15-public-write-contract.md) for the
+finding-by-finding disposition and native-byte ledger.
+
 ## Current release-assessment follow-up
 
 The six third-party repairs through `12f6ce2` address confirmed native-owner, low-level preservation, advisory, APE verification and Basic numbering defects. The follow-up adds a central staged-copy legacy-date invariant, version-bound structured preservation, exact TXXX owner identity, bridge staged-file checks and complete artwork-owner removal. Final `de282df` test-tree gates are both **accepted**: 181 XCTest declarations (179 passed, two existing opt-in skips), 198 Swift Testing declarations in 43 suites, zero failures. The unchanged privilege test passed with host filesystem access. Debug evidence: `.build/test-evidence/debug-20261114-233512-4938/`; Release: `.build/test-evidence/release-20261114-232509-5048/`. All 36 policy regressions, 59 Markdown files/reference checks, both independent consumers, targeted ASan/TSan (each 16 XCTest and 12 Swift Testing) and AudioMator's local candidate gate (62 core, 580 app-hosted tests, Release/artifact) passed. Earlier evidence below certifies its recorded revision only. See [adjudication and verification](../records/remediation/REM-2026-11-14-release-review-followup.md).

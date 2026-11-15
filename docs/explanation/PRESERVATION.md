@@ -70,7 +70,7 @@ There is no Year/date reconciliation:
 - `YEAR=2004` and `RELEASEDATE=2017-06-09` are valid simultaneously;
 - complete YEAR text such as `2021-07-15` round-trips without truncation.
 
-`replaceBasicMetadata` and `updateBasicMetadata` validate an explicitly changed YEAR with `isRepresentableYearText` and throw `MetadataValidationError.invalidYearText` for new non-date text such as `"Spring 2021"`. An unchanged existing YEAR, including malformed text or a multi-value projection, is preserved without revalidation. All four untouched date owners retain native arrays, duplicates, whitespace and absence; no scalar Basic projection authorizes collapsing them. Native readback verifies this preservation before commit. The typed `applyMetadataPatch(.year:)` path does not run that Basic-specific validator; container/bridge validation still applies.
+`replaceBasicMetadata` and `updateBasicMetadata` validate an explicitly changed YEAR with the frozen Basic-specific `isRepresentableYearText` prefix filter (four digits plus `-`, `/` or `.`), not a calendar grammar, and throw `MetadataValidationError.invalidYearText` for new text outside that policy such as `"Spring 2021"` or `"2021x"`. An unchanged existing YEAR, including malformed text or a multi-value projection, is preserved without revalidation. All four untouched date owners retain native arrays, duplicates, whitespace and absence; no scalar Basic projection authorizes collapsing them. Native readback verifies this preservation before commit. The typed `applyMetadataPatch(.year:)` path does not run that Basic-specific validator; container/bridge validation still applies.
 
 `replaceBasicMetadata` binds its preservation read to a file version even when the caller supplies no version. `updateBasicMetadata` additionally retains the caller-edit snapshot version. Neither performs cross-field intent resolution. On MP4, unchanged modeled native atoms and their compatibility aliases are replayed exactly; only explicitly edited owners retire their own aliases. Track/disc pairs retain their independent component rules and bounds.
 
@@ -87,7 +87,7 @@ There is no Year/date reconciliation:
 - `.artwork`, `.custom`, and `.explicitContent` must use their dedicated patch properties.
 - Role-qualified fields such as `.performer`, `.involvedPeople`, and `.musicianCredits` are rejected; use `RawMetadataPatch` or `StructuredMetadata`.
 - Known keys, aliases, case variants, and typed/custom collisions are rejected in `customFields`.
-- A patch cannot mix typed track/disc fields with `numberText`.
+- A patch may combine `numberText` and typed track/disc fields only across different pairs; both representations for one pair are rejected.
 - Empty text and value arrays are rejected after trimming.
 - A capability with an explicit writable-field allowlist is checked before staging. Raw APIs are not restricted by that high-level preflight.
 - Concrete ID3v2.3 date fields are rejected before staging, regardless of the requested value.
@@ -188,7 +188,7 @@ The visible `PropertyMap` is a projection, not an ownership record. An unedited 
 - On ID3-backed formats, untouched date frames are detached before engine replay and restored afterward, so frame encoding, value arrays, flags, and malformed text can survive. They are not reconstructed from display strings.
 - On Xiph/APE, independent native YEAR, DATE, RELEASEDATE, and ORIGINALDATE keys are read and preserved without falling back to a similarly named engine key. On ASF, YEAR, DATE, and ORIGINALDATE use registered native attributes; ASF RELEASEDATE has no verified native target. Registered aliases such as `ORIGINAL YEAR`/`TORY` remain read compatibility paths.
 - The low-level bridge model resolves YEAR and standalone DATE from their native owners on MP4, ID3, Xiph, and APE. It leaves an owner absent when it is absent rather than populating it from another projection. Its scalar fields still cannot represent every native array or opaque structure; use selective patches and structured APIs for explicit native edits.
-- An unchanged unknown-field scalar projection does not collapse its underlying native value array during low-level read/modify/write. Changed MP4 custom fields retain the existing freeform name spelling and reconcile case aliases.
+- An unchanged unknown-field scalar projection does not collapse its underlying native value array during low-level read/modify/write. Schema-known fields absent from the low-level model (for example FLAC `PERFORMER` and MP4 `©dir`), unknown owners, and private `AUDIOMATOR_*_TEXT`/`TAGLIBAUDIOMETADATA_*_TEXT` provenance survive a whole-model write; modeled nil fields still mean replacement removal. Changed MP4 custom fields retain the existing freeform name spelling and reconcile case aliases.
 - A whole-map raw replacement compares submitted arrays with the current visible arrays. Arrays that exactly match are retained literally; new or changed arrays are normalized. YEAR and DATE remain separate verification keys.
 - ASF native-field verification treats missing attributes as absent even when the engine projects a similarly named value from another owner; Artist does not fall back to ARTISTS. Semantic ASF custom fields address native Unicode attributes and reconcile only the edited field's case aliases.
 - MP4 `.comment`/`.lyrics` use native `©cmt`/`©lyr`; ID3 `.comment`/`.lyrics` use qualified `COMM`/`USLT`. The structured comment/lyric collections remain a separate surface.
@@ -203,7 +203,7 @@ Verified facade APIs read the staged file back before commit and throw `TagLibMa
 | --- | --- |
 | `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, artwork, number/advisory expectations, native date/content-group/encoder owners, and format-aware storage. |
 | `applyRawMetadataPatch` | The complete visible `PropertyMap` after the delta. |
-| `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields, custom-field values, number/advisory expectations, artwork, and preservation data. The MP4-exclusive Basic properties are not written or verified by this path. |
+| `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields (including MP4-exclusive typed fields where supported), custom-field values, number/advisory expectations, artwork, and preservation data. `.rate` remains read-only. |
 | `writeStructuredMetadataWithVerification` | Requested structured collections and properties, with ordered frame values and artwork semantics. Empty text/user-text removals are verified as absence. |
 | `writeTrackNumberText` | Track/disc numbers and text where the container preserves exact text. |
 | `writeTagMetadata` | Only the checks in `MetadataWriteVerificationContext`; `.none` checks no metadata values. |
@@ -242,7 +242,7 @@ Preservation and verification happen on a sibling staging copy. The destination 
 - That a successful write with warnings is a partial failure; warnings are residual advisories after the requested checks passed.
 - That structured `comments`/`lyrics` collections are writable on MP4, or that the scalar low-level model exposes every native array or owner.
 - That an untouched native array is preserved merely because the scalar projection was unchanged on an untested container path; the state matrices define the covered surfaces.
-- That `replaceBasicMetadata` writes every property present on `BasicMetadata`; the MP4-exclusive fields are read/patch-only at that surface.
+- That `replaceBasicMetadata` writes every property present on `BasicMetadata`; it writes every editable Basic field through the typed planner, while `.rate` remains read-only.
 
 ## Related evidence
 

@@ -58,7 +58,7 @@ YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent stored fields and inde
 
 MP4 uses `©day` for YEAR. DATE and RELEASEDATE use explicit `DATE` and `RELEASEDATE` freeform extensions. The registry records version-appropriate ID3 locations (`TYER`/`TDRC`, `TDAT`/`TXXX(DATE)`, `TDRL`, `TORY`/`TDOR`). ID3v2.4 writes use the verified codecs. Independent date writes on existing ID3v2.3 tags are currently read-only: typed patches and Basic date edits reject before mutation. `StructuredMetadata.id3v2MajorVersion` exposes the observed primary version for concrete-file capability UI; it is not a version-conversion request. Xiph/APE use the declared text keys. ASF uses its registered attributes. RIFF INFO has no independent DATE target.
 
-YEAR may contain complete stored date text. Read it as-is; never take the first four characters. `replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with `isRepresentableYearText`; the typed patch path does not run that Basic-specific validator. `MetadataValidationError.invalidYearText` is the Basic rejection.
+YEAR may contain complete stored date text. Read it as-is; never take the first four characters. `replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with the frozen Basic-specific `isRepresentableYearText` prefix filter (unsigned year, or four digits followed by `-`, `/` or `.`); it is not a calendar grammar, and the typed patch path does not run it. `MetadataValidationError.invalidYearText` is the Basic rejection.
 
 No automatic fallback supplies one date field from another. When two requested fields cannot coexist in a layout, reject that operation before mutation.
 

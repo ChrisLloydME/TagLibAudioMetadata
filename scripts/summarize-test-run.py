@@ -71,13 +71,23 @@ required_xctest = {
 }
 passed_xctest = {xctest_identity(name) for name in re.findall(r"Test Case '(-\[[^']+\])' passed", log)}
 missing_xctest = sorted(required_xctest - passed_xctest)
-required_suites = ('IndependentDiagnosticRepairTests', 'SemanticLifecycleMatrixTests', 'FLACSemanticLifecycleTests', 'ID3SemanticLifecycleTests', 'NativeProbeContractTests', 'BasicIntegrityMatrixTests', 'AdditionalContainerLifecycleTests', 'ASFNativeLifecycleTests', 'AuditProbeTests', 'ID3ContainerLifecycleTests')
+required_suites = ('IndependentDiagnosticRepairTests', 'SemanticLifecycleMatrixTests', 'FLACSemanticLifecycleTests', 'ID3SemanticLifecycleTests', 'NativeProbeContractTests', 'BasicIntegrityMatrixTests', 'AdditionalContainerLifecycleTests', 'ASFNativeLifecycleTests', 'AuditProbeTests', 'ID3ContainerLifecycleTests', 'PublicWriteContractRepairTests', 'ReleaseAcceptanceTests')
 completed_suites = dict(re.findall(r'Suite (\w+) (passed|failed)', log))
 missing_suites = [suite for suite in required_suites if suite not in completed_suites]
 # Required executable evidence, with the minimum number of parameterized cases
 # that the frozen matrices must execute. Counts may grow when the coverage
 # inventory grows; they may not silently shrink.
 required_tests = {
+    'explicitZeroTotalIsNotRecoveredFromOldNumberText': 1,
+    'allPublicNumericWritersRejectNativeOverflow': 9,
+    'structuredMP4RejectsEncodingAndRangeBypasses': 7,
+    'malformedNumberTextCannotEraseExistingPairs': 1,
+    'excessiveInheritedPaddingDoesNotRemoveTrack': 1,
+    'protectedDateFlagsSurviveOrRejectUnrelatedMutation': 1,
+    'structuredPayloadsRequireExplicitValues': 1,
+    'nativeMP4EncodersRetainValidBoundaryValues': 1,
+    'legacyID3MustFitItsDeclaredContainerChunk': 1,
+    'directStructuredValidationPrecedesFileAccess': 1,
     'legacyDateFlagsRetainLiteralOwners': 4,
     'lowLevelMP4WritableTextOwnersMatchCatalog': 15,
     'legacyDatesAreIndependentAndBasicEditsPreserveThem': 1,
@@ -159,6 +169,29 @@ required_tests = {
     'asfUnrelatedBasicEditPreservesNativeEncodingSettings': 1,
     'asfUnrelatedSemanticPatchPreservesNativeEncodingSettings': 1,
     'id3v23DateWritesRejectBeforeMutation': 1,
+    'legacyV23StatusFlagsReadLiteralDates': 4,
+    'legacyV23GroupingFlagSkipsBoundedIdentifier': 1,
+    'undecodableV23FrameTransformsStillReject': 2,
+    'dsdiffPropertyChildID3UsesBoundedTraversal': 1,
+    'mp4IntPairOverflowRejectsWithoutMutation': 1,
+    'asfNoncanonicalTypeIsCanonicalTextOrRejected': 1,
+    'crossFormatStructuredCollectionsRejectAtomically': 1,
+    'mp4KnownAtomCannotChangeCodec': 1,
+    'generatedPaddingWidthRejectsBeforeFormatting': 3,
+    'maximumGeneratedPaddingStillWrites': 1,
+    'numberTextPreflightRunsBeforeStaging': 1,
+    'asfZeroNumberTextPairRejectsBeforeStaging': 1,
+    'fullModelPreservesUnmodeledOwners': 1,
+    'privateProvenanceSurvivesOrdinaryWrites': 1,
+    'ordinaryAliasRetiresOnlyForEditedPair': 1,
+    'musicBrainzAliasCleanupUsesCaseInsensitiveIdentity': 1,
+    'mp4RawCanonicalFreeformSetAndRemove': 2,
+    'rawAPIsStillRejectNativeMP4Keys': 1,
+    'v23ContainersPreserveVersionDatesAndAudio': 6,
+    'xmTrackerNameTypedRouteWritesNativeBytes': 1,
+    'registrySemanticAndTotalProjectionsAreConsistent': 1,
+    'roleQualifiedTypedPatchStillRejects': 1,
+    'yearPrefixFilterRemainsBasicSpecific': 1,
 }
 
 # "Test <name>(<arguments>) with <n> test cases passed ..." for parameterized
@@ -193,7 +226,7 @@ summary = {'source_inventory_errors': inventory_errors, 'runner_exit_status': st
            'failed_xctest_names': failed_xctest,
            'missing_required_xctest': missing_xctest}
 ok = (not inventory_errors and status == 0 and bool(xctest) and int(xctest[-1][0]) >= 181 and int(xctest[-1][2]) == 0
-      and bool(swift) and int(swift[-1][0]) >= 198 and swift[-1][2] == 'passed'
+      and bool(swift) and int(swift[-1][0]) >= 231 and swift[-1][2] == 'passed'
       and not unexpected and not swift_skips and not missing_suites and not missing_tests
       and not failed_named_tests and not failed_xctest and not missing_xctest
       and all(int(result[2]) == 0 for result in xctest)
