@@ -1375,7 +1375,9 @@
       "seed.release",
       "release.canonical",
       "unknown.preserved",
-      "audio.preserved"
+      "audio.preserved",
+      "seed.alias",
+      "release.alias.absent"
     ]
   }
 }

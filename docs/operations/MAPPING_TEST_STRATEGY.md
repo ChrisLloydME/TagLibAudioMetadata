@@ -38,7 +38,7 @@ These are explicit field subsets, not the complete field × format × tag-versio
 
 ## Mixed-framework gate
 
-Use `bash scripts/validate-tests.sh debug` and `bash scripts/validate-tests.sh release`. No filter/skip arguments are accepted. Restricted local environments may explicitly set `TAGLIB_DISABLE_MANIFEST_SANDBOX=1`; state that workaround in the evidence. Logs and `summary.json` are retained under ignored `.build/test-evidence`.
+Use `bash scripts/validate-contracts.sh debug` and `bash scripts/validate-contracts.sh release` for complete acceptance (including source-bound canonical calibration). No filter/skip arguments are accepted. Restricted local environments may explicitly set `TAGLIB_DISABLE_MANIFEST_SANDBOX=1`; state that workaround in the evidence. Logs and `summary.json` are retained under ignored `.build/test-evidence`.
 
 Both XCTest and Swift Testing must complete and pass. The only permitted skips are the two exact existing optional XCTest class/method identities. Missing framework summaries, any failed named test, unexpected skips, nonzero runner status and output-format changes fail acceptance. Named test evidence is mandatory for all 24 audit regressions/controls, all lifecycle matrices, Basic preservation, pair boundaries and native-probe vectors. Parameterized counts cannot shrink: 264 MP4, 90 FLAC, 66 MP3/ID3, 396 additional ID3-container, 270 APE, 180 Ogg, 21 ASF, 88 wrong-kind and five unavailable-field cases. Suite banners alone never establish execution.
 

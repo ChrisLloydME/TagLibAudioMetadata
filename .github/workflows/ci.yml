@@ -46,7 +46,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: package-debug-test-evidence
-          path: .build/test-evidence/
+          path: |
+            .build/test-evidence/
+            .build/test-calibration/**/calibration.json
+            .build/test-calibration/**/logs/*.log
           if-no-files-found: warn
       - name: Consumer integration (real writes and native assertions)
         run: bash scripts/validate-consumers.sh
@@ -96,7 +99,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: package-release-test-evidence
-          path: .build/test-evidence/
+          path: |
+            .build/test-evidence/
+            .build/test-calibration/**/calibration.json
+            .build/test-calibration/**/logs/*.log
           if-no-files-found: warn
 
   thread-sanitizer:

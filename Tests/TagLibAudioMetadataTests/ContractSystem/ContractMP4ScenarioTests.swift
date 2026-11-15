@@ -669,10 +669,12 @@ extension ContractMP4ScenarioTests {
             let before = try ContractMP4Oracle.read(url)
             var evidence = ContractCase(scenario: "S-FULL-ALIAS-01", runtimeTest: "contractFullModelRetiresEditedReleaseAlias", adapter: "bridge.writeMetadata")
             evidence.check("seed.release", try before.text("----:com.apple.iTunes:MusicBrainz Album Type") == "OldCanonical")
+            evidence.check("seed.alias", try before.text("----:com.apple.iTunes:MUSICBRAINZ_ALBUMTYPE") == "StaleAlias")
             let model = try TagLibMetadataExtractor.extractMetadata(from: url); model.releaseType = "Canonical"
             _ = try PublicSurfaceAdapters.invoke(.bridgeWriteMetadata, url: url, input: .model(model, .none))
             let after = try ContractMP4Oracle.read(url)
             evidence.check("release.canonical", try after.text("----:com.apple.iTunes:MusicBrainz Album Type") == "Canonical")
+            evidence.check("release.alias.absent", !after.has("----:com.apple.iTunes:MUSICBRAINZ_ALBUMTYPE"))
             evidence.check("unknown.preserved", try after.text("----:com.apple.iTunes:CONTRACT_UNKNOWN") == "keep")
             evidence.check("audio.preserved", after.audio == before.audio)
             try evidence.finish()

@@ -26,3 +26,22 @@ acceptance defects; they do not establish a new production metadata defect.
 Initial checks: 43 contract tests passed; 90 Python policies passed before the additional
 static inventory check. Final calibration and release evidence will be recorded below.
 No sibling application is inspected or used. No push, tag or publication is performed.
+
+## Calibration-driven follow-up
+
+The first canonical run failed closed on a parameterized-log parsing mismatch;
+that parser now has a direct policy regression. The second run killed six faults
+but exposed a missing alias-absence assertion: canonical release text alone did
+not detect a restored stale alias. The test now independently verifies both the
+seeded alias and its removal; the fault witness is that exact native assertion.
+
+Expanded ASan testing exposed a test-adapter stack overflow. The same Basic API
+passed its direct native preservation test under ASan. Boxing the large test
+command/result enums removes dispatch-frame pressure without moving calls to a
+different thread, changing inputs or modifying production code. Both consumers
+and all five minimum-platform strict builds passed during investigation.
+
+Final expected scope: 181 XCTest declarations (two reviewed opt-in skips), 274
+Swift Testing declarations / 51 suites, 75 contract scenarios and 62 adapters.
+Final evidence is required on the frozen source; earlier failed calibrations and
+sanitizer diagnostics remain under `.build/` and are not claimed as passing.
