@@ -450,6 +450,10 @@ extension TagLibMetadataManager {
         // The staged file re-resolves the same pair against its own snapshot so
         // a concurrent change cannot bypass the captured-version checks.
         if let numberText = patch.numberText {
+            let preflightVersion = try fileVersion(at: url)
+            if let expectedVersion, expectedVersion != preflightVersion {
+                throw TagLibManagerError.fileChanged
+            }
             let preflightSnapshot = try readSnapshot(from: url)
             _ = try resolveNumberTextPairs(numberText, from: preflightSnapshot, fileURL: url)
         }

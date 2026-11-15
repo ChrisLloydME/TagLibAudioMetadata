@@ -409,6 +409,18 @@ struct PublicWriteContractRepairTests {
             } catch {}
             #expect(try Data(contentsOf: url) == before)
             #expect(try IndependentMP4Probe.read(url).values["©nam"] == nil)
+
+            // Explicit empty collections still name an unsupported surface.
+            for payload: [String: NSObject] in [
+                ["asfAttributes": [] as NSArray],
+                ["id3v2Frames": [] as NSArray],
+            ] {
+                do {
+                    try TagLibMetadataExtractor.writeStructuredMetadata(payload, to: url)
+                    Issue.record("Explicit unsupported empty collection must reject: \(payload.keys)")
+                } catch {}
+                #expect(try Data(contentsOf: url) == before)
+            }
         }
     }
 
@@ -469,21 +481,20 @@ struct PublicWriteContractRepairTests {
                 var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
             }
             let staged = StageFlag()
-            let previous = MetadataFileTransaction.willStageForTesting
-            MetadataFileTransaction.willStageForTesting = { stagedURL in
+            try MetadataFileTransaction.$willStageForTesting.withValue({ stagedURL in
                 if stagedURL == url { staged.set() }
-            }
-            defer { MetadataFileTransaction.willStageForTesting = previous }
-            do {
-                try TagLibMetadataManager.applyMetadataPatch(
-                    MetadataPatch(numberText: .init(trackNumberText: "70000")),
-                    to: url
-                )
-                Issue.record("MP4 numberText 70000 must reject")
-            } catch let error as MetadataPatchValidationError {
-                guard case .integerOutOfRange = error else {
-                    Issue.record("Expected integerOutOfRange, got \(error)")
-                    return
+            }) {
+                do {
+                    try TagLibMetadataManager.applyMetadataPatch(
+                        MetadataPatch(numberText: .init(trackNumberText: "70000")),
+                        to: url
+                    )
+                    Issue.record("MP4 numberText 70000 must reject")
+                } catch let error as MetadataPatchValidationError {
+                    guard case .integerOutOfRange = error else {
+                        Issue.record("Expected integerOutOfRange, got \(error)")
+                        return
+                    }
                 }
             }
             #expect(!staged.isSet, "Preflight must reject before the transaction stages a copy")
@@ -530,6 +541,14 @@ struct PublicWriteContractRepairTests {
             let flac = try IndependentFLACProbe.read(url)
             #expect(flac.comments["PERFORMER"] == ["Alice"])
             #expect(flac.comments["TITLE"] == ["Changed"])
+
+            // The exported bridge product has the same ownership contract.
+            let bridgeModel = TagLibAudioMetadata()
+            bridgeModel.title = "Changed Direct"
+            try TagLibMetadataExtractor.writeMetadata(bridgeModel, to: url)
+            let direct = try IndependentFLACProbe.read(url)
+            #expect(direct.comments["PERFORMER"] == ["Alice"])
+            #expect(direct.comments["TITLE"] == ["Changed Direct"])
         }
 
         try RepairNativeProbe.withCopy("m4a") { url in
@@ -547,6 +566,13 @@ struct PublicWriteContractRepairTests {
             #expect(native.values["©dir"] == [Data("Director".utf8)])
             // Modeled nil still means replacement removal.
             #expect(native.values["©alb"] == nil)
+
+            let bridgeModel = TagLibAudioMetadata()
+            bridgeModel.title = "Changed Direct"
+            try TagLibMetadataExtractor.writeMetadata(bridgeModel, to: url)
+            let direct = try IndependentMP4Probe.read(url)
+            #expect(direct.values["©dir"] == [Data("Director".utf8)])
+            #expect(direct.values["©alb"] == nil)
         }
     }
 

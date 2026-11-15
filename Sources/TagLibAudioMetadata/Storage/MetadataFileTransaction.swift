@@ -5,9 +5,10 @@ import CTagLibBridgeInternalAPI
 
 /// Owns coordinated staging, validation, atomic replacement and durability.
 internal enum MetadataFileTransaction {
-    /// Narrow observation seam for preflight-ordering tests. It is internal,
-    /// has no public controls, and is never set by production code.
-    nonisolated(unsafe) static var willStageForTesting: (@Sendable (URL) -> Void)?
+    /// Narrow task-local observation seam for preflight-ordering tests. It is
+    /// internal, has no public controls, is never set by production code and
+    /// does not introduce cross-test shared mutable state.
+    @TaskLocal static var willStageForTesting: (@Sendable (URL) -> Void)?
 
     nonisolated private static let errorDomain = "TagLibMetadataManager"
 
