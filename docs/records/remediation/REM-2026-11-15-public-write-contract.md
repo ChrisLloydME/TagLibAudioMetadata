@@ -111,10 +111,12 @@ All tests use fresh disposable copies and reconstruct seeds. "Native oracle" mea
 | Focused new regressions | Pass | 23 Swift Testing declarations (35 executed cases) in `PublicWriteContractRepairTests` |
 | Policy tests (`python3 -m unittest discover -s scripts/tests`) | Pass | 39 tests |
 | Documentation check | Pass | 61 Markdown files |
-| Canonical Debug gate | See final handoff | Complete suite; 181 XCTest floor retained and Swift Testing floor raised to 221 |
-| Canonical Release gate | See final handoff | Complete suite |
-| Consumer products | See final handoff | Debug/Release package consumers |
-| ASan/TSan focused | See final handoff | Precompiled TagLib is not instrumented |
+| Canonical Debug gate | Blocked only at privilege precondition | 181 XCTest (179 passed, 2 existing opt-in skips, 0 failures), 221 Swift Testing declarations in 44 suites; all required evidence present; `accepted:false` only for `privilegedFilesRejectBeforeCloneInBothTransactionEngines`. `.build/test-evidence/debug-20261115-124510-30561/` |
+| Canonical Release gate | Blocked only at privilege precondition | Same counts/evidence; same single named failure. `.build/test-evidence/release-20261115-124926-31095/` |
+| Consumer products | Pass | `TagLibAudioMetadataConsumer` (37 extensions) and `TagLibAudioMetadataLowLevelConsumer` with strict warnings |
+| Focused ASan | Pass | 23 Swift Testing declarations / 35 cases over the new public-write suite; precompiled TagLib not instrumented |
+| Focused TSan | Pass (clean after task-local observer fix) | Same 23 declarations / 35 cases; precompiled TagLib not instrumented |
+| Minimum-platform builds | Pass | `arm64-apple-macosx13.0`, `x86_64-apple-macosx13.0`, `arm64-apple-ios16.0`, `arm64-apple-ios16.0-simulator`, `x86_64-apple-ios16.0-simulator` compile/link with strict warnings |
 
 ## Remaining limitations
 
