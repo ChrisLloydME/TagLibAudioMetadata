@@ -84,7 +84,11 @@ enum ContractAdapterError: Error, CustomStringConvertible {
     }
 }
 
-enum ContractAdapterInput {
+// Keep dispatch scaffolding off the worker stack. BasicMetadata/snapshot
+// payloads are large value types; ASan red zones otherwise make this wrapper
+// overflow the Swift Testing worker stack before the actual API returns.
+// Boxing does not change the public operation, its thread or its input values.
+indirect enum ContractAdapterInput {
     case none
     case patch(MetadataPatch)
     case patchGuarded(MetadataPatch, expectedVersion: MetadataFileVersion, audio: MetadataAudioContentIdentity)
@@ -112,7 +116,7 @@ enum ContractAdapterInput {
     case applyPlan(MetadataNumberNormalizationPlan)
 }
 
-enum ContractAdapterOutput {
+indirect enum ContractAdapterOutput {
     case none
     case write(TagLibMetadataManager.MetadataWriteResult)
     case metadata(BasicMetadata)

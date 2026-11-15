@@ -18,12 +18,12 @@ public call, the native oracle and the evidence that actually executed:
 | Builders and oracles | `ContractFixtureBuilders.swift`, `ContractNativeOracles.swift` and the retained independent probes | Bounded native readers that never decide expected values through the package reader. Builders are self-tested on literal synchsafe, atom-size, chunk-alignment, flag/grouping, integer and malformed-input vectors. Every seed is independently verified; a failed seed fails the test. |
 | Evidence gate | `scripts/test_manifest.py`, `scripts/summarize-test-run.py`, `scripts/validate-tests.sh` | Fresh commit/diff/source/toolchain manifests, exact scenario-set and assertion-budget comparison, complete framework outcomes, exact optional-skip identities and runner exit status. Counts and suite banners are supporting evidence only. |
 
-The catalog currently declares 70 metadata-operation scenarios plus three
+The catalog currently declares 71 metadata-operation scenarios plus four
 audit scenarios. The audit scenarios reconcile all 100 advertised fields, all
 advertised writable format families, and the catalog/declaration/adapter sets at
 runtime. The required minima are **181 XCTest declarations** (179 passed and
-the two reviewed opt-in skips), **272 Swift Testing declarations in 51 suites**
-and **76 Python policy regressions**. These are floors, not a claim that every
+the two reviewed opt-in skips), **274 Swift Testing declarations in 51 suites**
+and **92 Python policy regressions**. These are floors, not a claim that every
 possible file or caller is covered.
 
 ### Contract commands
@@ -48,9 +48,11 @@ bash scripts/validate-consumers.sh
 `validate-tests.sh` now writes `manifest-before.json`, `manifest-after.json`,
 `tests.log`, `scenarios/` and `summary.json` under a fresh
 `.build/test-evidence/<mode>-<timestamp>-<pid>/`. Acceptance requires the exact
-catalog scenario set, each scenario's exact check count, all framework
+catalog scenario set, each scenario's exact check-name multiset and adapter identity, all framework
 completion summaries, a source/config identity that did not change during the
-campaign, and only the two reviewed XCTest skips. A missing scenario, removed
+campaign, and only the two reviewed XCTest skips. Each scenario and actual adapter event must match the campaign UUID, build mode
+and source hash, with exact per-test adapter/outcome multiplicities from the frozen
+`scenario-assertions.json` and `runtime-invocations.json` inventories. A missing scenario, removed
 assertion, duplicate execution, unexpected scenario, stale source hash, mixed
 configuration, truncated log or hidden failure is rejected. Filters and shards
 are still rejected rather than being partially aggregated.
@@ -58,10 +60,10 @@ are still rejected rather than being partially aggregated.
 ### Defect-detection calibration
 
 `scripts/calibrate-test-system.py` copies the package into ignored
-`.build/test-calibration/<run>/`, builds a public-product probe harness against
+`.build/test-calibration/<run>/`, builds the actual package test target in
 that copy, and applies each anchored mutant only inside the copy. The active
 working tree, dependency binary and fixtures are never patched. A mutant counts
-as killed only when it compiles, the probe witnesses the intended bad behavior
+as killed only when it compiles, the required test witnesses the intended bad behavior
 and the expected behavioral assertion fails; compile errors, timeouts, missing
 fixtures and unrelated failures are inconclusive. The current set covers:
 omitted exported numeric validation; trimmed-versus-untrimmed MP4 key
@@ -75,6 +77,16 @@ restored and hashed after each mutant, and calibration is part of
 
 The manifest hashes make stale or accidental mixed evidence fail; they are not
 a cryptographic defense against a malicious actor with full repository access.
+Complete acceptance additionally requires an accepted, restored calibration result
+for the same source hash, commit and mutant definitions. `--require-all-killed`
+rejects subsets and `--allow-failures`. Development subsets report `partial` and
+cannot satisfy acceptance. To reuse one complete calibration for Debug and Release,
+set `TAGLIB_CALIBRATION_RESULT` to its `calibration.json` and run
+`validate-contracts.sh`; changed source/commit/definitions invalidate reuse.
+`validate-tests.sh` also requires this variable. Claim-blessing mode is forbidden
+in acceptance, named evidence directories cannot be overwritten, and both full
+before/after manifests are mandatory.
+
 Calibration proves the representative defect classes can be caught, not that
 every future defect will be caught. It also does not establish correctness of
 the precompiled upstream TagLib binary.
@@ -113,7 +125,7 @@ The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-te
 
 The current upgraded gate requires the legacy sparse-state matrices, the new
 contract scenarios and the calibration set. The reviewed floors are 181 XCTest,
-272 Swift Testing declarations in 51 suites and 76 Python policy regressions.
+274 Swift Testing declarations in 51 suites and 92 Python policy regressions.
 The latest observed result and environment belong to [Status](STATUS.md);
 historical counts below certify only their recorded revisions. Do not compare
 counts across revisions without checking scope and opt-ins.
@@ -230,7 +242,7 @@ TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
 
 The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, verified write batches, and flush samples. It also measures MP3/M4A/FLAC ordinary and 64-key metadata-heavy Basic/snapshot reads, typed/Basic/raw title writes, and declared-capability lookups. Each profile reports five batch-average latencies: `medianMs` is their median and `p95Ms` is their maximum (the nearest-rank 95th percentile of five samples), not a per-operation tail percentile. Reads assert byte immutability; writes include actual staging, verification and durability. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises. Baseline and optimized evidence are in the [API/performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
-The current gate requires at least 181 XCTest and 272 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the per-read lookup preservation regressions, transaction-readability regressions, every contract scenario and the calibration lane. An unchanged total count cannot substitute for those tests.
+The current gate requires at least 181 XCTest and 274 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the per-read lookup preservation regressions, transaction-readability regressions, every contract scenario and the calibration lane. An unchanged total count cannot substitute for those tests.
 
 ### Selective extraction profile and mandatory contracts
 

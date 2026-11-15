@@ -2197,7 +2197,7 @@
       "scenarios": [
         {
           "scenario_id": "S-FULL-ALIAS-01",
-          "expected_assertions": 4
+          "expected_assertions": 6
         }
       ],
       "version": "any",

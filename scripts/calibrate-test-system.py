@@ -70,6 +70,10 @@ def restore(originals):
     return all(path.read_bytes() == content for path, content in originals.items())
 
 
+def named_failure(name, output):
+    return bool(re.search(r'\bTest ' + re.escape(name) + r'\([^\n]*\)(?: with \d+ test cases?)? failed\b', output))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--list', action='store_true')
@@ -130,7 +134,7 @@ def main():
             detail['build_exit_status'] = build_code
             if build_code == 0:
                 code, output = execute(row['test_filter'], logs / (row['id'] + '-test.log'))
-                failed = re.search(r'\bTest ' + re.escape(row['test_filter']) + r'\([^\n]*\)(?: with \d+ test cases?)? failed\b', output)
+                failed = named_failure(row['test_filter'], output)
                 completed = re.search(r'Test run with \d+ tests? in \d+ suites? failed\b', output)
                 witness = row['witness'] in output
                 detail.update({'exit_status': code, 'activation_witness': [line for line in output.splitlines()

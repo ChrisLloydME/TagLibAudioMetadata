@@ -259,12 +259,9 @@ class CalibrationPolicy(unittest.TestCase):
 
 
     def test_calibration_named_failure_recognizes_parameterized_framework_completion(self):
-        import re
-        source = (ROOT / "scripts/calibrate-test-system.py").read_text()
-        expected = "r'\\([^\\n]*\\)(?: with \\d+ test cases?)? failed\\b'"
-        self.assertIn(expected, source)
-        pattern = r"\bTest target\([^\n]*\)(?: with \d+ test cases?)? failed\b"
-        self.assertRegex("Test target(_:) with 9 test cases failed after 0.024 seconds", pattern)
-        self.assertRegex("Test target() failed after 0.024 seconds", pattern)
-        self.assertIsNone(re.search(pattern, "Test otherTarget() failed"))
-        self.assertIsNone(re.search(pattern, "Test target(_:) recorded an issue"))
+        spec = importlib.util.spec_from_file_location("calibration_runner", ROOT / "scripts/calibrate-test-system.py")
+        runner = importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
+        self.assertTrue(runner.named_failure("target", "Test target(_:) with 9 test cases failed after 0.024 seconds"))
+        self.assertTrue(runner.named_failure("target", "Test target() failed after 0.024 seconds"))
+        self.assertFalse(runner.named_failure("target", "Test otherTarget() failed"))
+        self.assertFalse(runner.named_failure("target", "Test target(_:) recorded an issue"))

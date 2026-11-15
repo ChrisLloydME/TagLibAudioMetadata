@@ -102,7 +102,7 @@
         }
       ],
       "test_filter": "contractFullModelRetiresEditedReleaseAlias",
-      "witness": "release.canonical"
+      "witness": "release.alias.absent"
     },
     {
       "id": "invalid-text-zero-and-explicit-zero-recovery",
