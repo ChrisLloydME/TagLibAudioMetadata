@@ -156,7 +156,7 @@ Use [records/CONVENTIONS.md](../records/CONVENTIONS.md) and [records/TEMPLATE.md
 
 ## Release process
 
-1. Ensure the changelog's current release section describes the release and current docs match the code. Version `0.7.3` is the current release; later work belongs under `[Unreleased]`, not under `0.7.3`.
+1. Ensure the changelog's current release section describes the release and current docs match the code. Version `0.8.0` is the current release; later work belongs under `[Unreleased]`, not under `0.8.0`.
 2. Confirm the pinned binary identity in `Package.swift` and `scripts/taglib-binary-version.env`.
 3. Run the test, sanitizer, release, strict-platform, consumer, and documentation checks that apply.
 4. Create a tag from the reviewed commit. The tag is the release boundary; do not rewrite it.

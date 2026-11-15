@@ -70,3 +70,7 @@ These checks establish that the documentation is structurally consistent and tha
 - [Contract-system acceptance](../remediation/REM-2026-11-15-test-system-acceptance.md).
 - [Public write-contract acceptance](../verification/VER-2026-11-15-public-write-release-acceptance.md).
 - [Historical assignments](../assignments/README.md).
+
+## Addendum — 0.8.0 release inclusion
+
+This record was written while the accepted source was still unreleased on `main`. The maintainer subsequently prepared `0.8.0` from that source: the release commit assigns the version in the changelog, moves `[Unreleased]` under `0.8.0`, updates the release boundary across the README, hub, guides, reference, operations pages, and records index, and creates no automatic user-file migration. Tag creation and publication remain maintainer-owned and are not part of this record. The findings, evidence and limits above are unchanged; the statement that `0.7.3` was the only current release describes the pre-release revision, and the current release boundary belongs to [Status](../../operations/STATUS.md).

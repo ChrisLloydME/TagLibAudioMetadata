@@ -6,19 +6,20 @@ This page is a snapshot of the latest known validation state for the current sou
 
 | Item | State |
 | --- | --- |
-| Current release | `0.7.3`, declared 2026-11-12 |
-| Source | Unreleased `main` at `05416aa`, based on published `0.7.3` |
+| Current release | `0.8.0`, declared 2026-11-15 |
+| Source | `main` at the `0.8.0` release commit |
 | Later tag | None |
-| Latest accepted source | `959d688`; the `05416aa` merge adds documentation and acceptance evidence only |
-| Documentation scope | Current source includes breaking API cleanup; tagged-release guidance is identified in [Migration](MIGRATION.md) |
+| Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
+| Latest accepted source | `959d688`; the `05416aa` merge and this release preparation change documentation and evidence only |
+| Documentation scope | Current pages describe `0.8.0`; release-specific behavior is identified in [Migration](MIGRATION.md) |
 
-Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
+Version `0.8.0` includes mapping contract 2.2, the `0.7.1` through `0.7.3` corrections, and the breaking API cleanup, public write-contract repairs and independent contract test system finalized for this release. The TagLib binary and mapping contract ID are unchanged from `0.7.3`. Release notes are in the [changelog](../../CHANGELOG.md).
 
-The unreleased source adds three package-only changes: breaking API cleanup with selective I/O, the 2026-11-15 public write-contract repairs, and the independent contract test system. None changes the binary pin, mapping contract, or tagged-release boundary. The current source requires an explicitly breaking release and consumer migration.
+This is an explicitly breaking release: compatibility-only API was removed and several write paths validate or preserve more strictly. Consumers must review [Migration](MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading. No user-file migration is automatic.
 
-## Current package-only source acceptance
+## Accepted 0.8.0 source
 
-Final independent acceptance ran on source commit `959d688`. The campaign source hash was `09bd72f3b566ca956d62392e2ce217eacba149c7eff7bd2018083028d2c82787`; the later merge `05416aa` changes documentation and evidence only. Both strict lanes ran the policy suite, inventory/catalog reconciliation, the 13-mutant calibration set, and the complete framework gate:
+Final independent acceptance ran on source commit `959d688`. The campaign source hash was `09bd72f3b566ca956d62392e2ce217eacba149c7eff7bd2018083028d2c82787`; no production, test, script or configuration change followed it. Both strict lanes ran the policy suite, inventory/catalog reconciliation, the 13-mutant calibration set, and the complete framework gate:
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
@@ -33,13 +34,13 @@ Final independent acceptance ran on source commit `959d688`. The campaign source
 | Minimum platforms | Strict macOS 13 arm64/x86_64, iOS 16 arm64, and iOS 16 simulator arm64/x86_64 builds completed | `.build/independent-platform-evidence.json` |
 | Documentation | The campaign's 67 Markdown files passed link, heading, table, and all four generated-reference checks | `python3 scripts/check-docs.py` |
 
-The unchanged privilege test passed in the full host environment without weakening or skipping it. The pinned upstream TagLib binary is not sanitizer-instrumented, so the sanitizer runs cover package code and tests only. No hosted CI, device runtime, external-corpus lane, or application acceptance was executed for this source. The contract system is finite: passing it does not prove every file, codec, tag layout, or caller correct. See [the acceptance record](../records/remediation/REM-2026-11-15-test-system-acceptance.md) for the full ledger and remaining limits.
+The unchanged privilege test passed in the full host environment without weakening or skipping it. The pinned upstream TagLib binary is not sanitizer-instrumented, so the sanitizer runs cover package code and tests only. No hosted CI, device runtime, external-corpus lane, or application acceptance was executed for this source. No gate was rerun on the `0.8.0` release commit; release preparation changes documentation only, so the accepted source and the release commit compile from the same code. The contract system is finite: passing it does not prove every file, codec, tag layout, or caller correct. See [the acceptance record](../records/remediation/REM-2026-11-15-test-system-acceptance.md) for the full ledger and remaining limits.
 
-## Prior 2026-11-15 public write-contract campaign
+## 2026-11-15 public write-contract campaign
 
-The earlier public write-contract campaign accepted `c3c655e` with 181 XCTest (179 passed, two opt-in skips), 231 Swift Testing declarations in 45 suites, 41 policy regressions, focused sanitizers, both consumers, and all five minimum-platform builds. Its production repairs remain in the current source; the later contract-system acceptance above supersedes its counts and evidence. See [the remediation record](../records/remediation/REM-2026-11-15-public-write-contract.md) and [the acceptance record](../records/verification/VER-2026-11-15-public-write-release-acceptance.md).
+The earlier public write-contract campaign accepted `c3c655e` with 181 XCTest (179 passed, two opt-in skips), 231 Swift Testing declarations in 45 suites, 41 policy regressions, focused sanitizers, both consumers, and all five minimum-platform builds. Its production repairs are included in `0.8.0`; the later contract-system acceptance above supersedes its counts and evidence. See [the remediation record](../records/remediation/REM-2026-11-15-public-write-contract.md) and [the acceptance record](../records/verification/VER-2026-11-15-public-write-release-acceptance.md).
 
-## Earlier unreleased candidate history
+## Earlier candidate history
 
 These campaigns accepted their own revisions and are superseded for current-source evidence. Details, per-finding dispositions, and measurements are in the linked records.
 
@@ -55,7 +56,7 @@ The 48-row baseline/final profile showed faster selective reads and metadata-hea
 
 ## Recorded 0.7.3 validation
 
-The state-coverage repairs were validated on `codex/metadata-state-coverage-repairs`, then merged to `main` as `e9337f2` without source changes. The expanded gate requires the new state matrices, all previous matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions.
+The state-coverage repairs were validated on `codex/metadata-state-coverage-repairs`, then merged to `main` as `e9337f2` without source changes. The expanded gate required the new state matrices, all previous matrices, at least 158 XCTest / 179 Swift Testing declarations, and 24 policy regressions.
 
 | Check | Debug | Release |
 | --- | --- | --- |
@@ -95,12 +96,13 @@ Evidence: `.build/test-evidence/debug-20261111-124030-69547/`, `.build/test-evid
 
 No full accepted gate has been rerun on the exact `0.7.2` release commit. An earlier restricted rerun reproduced the same 158 XCTest and 165 Swift Testing counts, but failed only `privilegedFilesRejectBeforeCloneInBothTransactionEngines` because the host strips the privilege bits before the test can observe them. That is an environment-precondition failure, not evidence that the recorded acceptance failed. The full gate remains red in such an environment; use the authoritative gate and its prerequisites when making a release decision.
 
-## What changed in 0.7.2
+## What changed in 0.8.0
 
-- Audit repairs preserve untouched Basic date arrays, malformed text, duplicates, whitespace and absence; separate Encoded By from Encoder Settings; retire only explicitly edited MP4 aliases; normalize MP4 pairs to unsigned 16-bit values; and verify Basic Date, Content Group, structured ID3 text removal, ASF projections and APE engine aliases.
-- Native-mapping follow-up repairs MP4 Content Group, Grouping and Work ownership; MP4 Movement Number/Count atoms; encoder ownership; ID3v2.4 Content Group; and FLAC/Ogg/ID3 container reads.
-- The test system adds independent MP4, FLAC, APE-family, Ogg, ASF and ID3-container lifecycle matrices, named gate evidence and strict compilation. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
-- DSF/DSDIFF structured writes now accept native ID3 frame upserts while retaining the explicit comment/lyric collection-replacement rejection.
+- Breaking API cleanup removes the typed `.date` YEAR alias, obsolete read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters and verification expectations, and outdated capability/error aliases. Native mapping contract 2.2 and its target layouts are unchanged; see [Migration](MIGRATION.md#migrating-from-0-7-3-to-0-8-0).
+- Public writers share destination-aware validation: scalar, whole-model, structured and raw writes reject out-of-range native representations before staging, and whole-model writes preserve known-but-unmodeled and private owners.
+- Legacy reads and preservation are stricter: legal ID3v2.3 status flags, bounded grouping and DSDIFF `PROP`-child ID3 are read literally, WAV/AIFF saves retain the observed ID3 version, and generated number padding and `numberText` are preflighted.
+- Storage, projection reads and transactions have explicit internal ownership, and unrequested native projections are skipped while keeping the parser guard, exact verification and durable atomic commits.
+- The contract lane replaces the matrix-only gate: 907 public-surface rows, 34 contracts, 75 scenarios, 62 adapters, 13 calibration mutants and source-bound evidence must all reconcile. See [Testing](TESTING.md).
 
 ## What changed in 0.7.3
 
@@ -108,6 +110,13 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 - MP4 `.comment`/`.lyrics` use native `©cmt`/`©lyr`; ASF semantic custom fields use native Unicode attributes and reconcile only their case aliases.
 - Whole-map replacement retains unchanged submitted arrays literally; MP4 custom-field writes retain existing name spelling and unchanged projections do not collapse native arrays; ARTIST no longer falls back to ARTISTS.
 - The mixed-framework gate requires the sparse-state matrices and 8,282 additional cases. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance).
+
+## What changed in 0.7.2
+
+- Audit repairs preserve untouched Basic date arrays, malformed text, duplicates, whitespace and absence; separate Encoded By from Encoder Settings; retire only explicitly edited MP4 aliases; normalize MP4 pairs to unsigned 16-bit values; and verify Basic Date, Content Group, structured ID3 text removal, ASF projections and APE engine aliases.
+- Native-mapping follow-up repairs MP4 Content Group, Grouping and Work ownership; MP4 Movement Number/Count atoms; encoder ownership; ID3v2.4 Content Group; and FLAC/Ogg/ID3 container reads.
+- The test system adds independent MP4, FLAC, APE-family, Ogg, ASF and ID3-container lifecycle matrices, named gate evidence and strict compilation. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
+- DSF/DSDIFF structured writes now accept native ID3 frame upserts while retaining the explicit comment/lyric collection-replacement rejection.
 
 ## Coverage and limits
 
@@ -124,10 +133,11 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 
 | Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
-| `05416aa` | Merge of the contract-system upgrade; documentation and evidence only after `959d688` | Current `main`; no tagged release |
-| `959d688` | Final package-only acceptance: 181 XCTest / 274 Swift Testing / 75 scenarios / 92 policy / 13 calibration mutants, full ASan/TSan | Latest accepted source for the unreleased work |
-| `c3c655e` | Public write-contract acceptance: 181 XCTest / 231 Swift Testing / 41 policy | Superseded counts; production repairs remain |
-| `0.7.3` | Current release, declared 2026-11-12; source branch merged as `e9337f2` | Includes the native-owner state-preservation repairs above |
+| `0.8.0` | Current release, declared 2026-11-15; accepted source `959d688`; release preparation changes documentation only | Packages the breaking API cleanup, public write-contract repairs and contract test system above |
+| `05416aa` | Merge of the contract-system upgrade; documentation and evidence only after `959d688` | Included in `0.8.0`; production code unchanged |
+| `959d688` | Final package-only acceptance: 181 XCTest / 274 Swift Testing / 75 scenarios / 92 policy / 13 calibration mutants, full ASan/TSan | Latest accepted source; included in `0.8.0` |
+| `c3c655e` | Public write-contract acceptance: 181 XCTest / 231 Swift Testing / 41 policy | Superseded counts; production repairs are included in `0.8.0` |
+| `0.7.3` | Release tag, declared 2026-11-12; source branch merged as `e9337f2` | Previous release; includes the native-owner state-preservation repairs above |
 | `0.7.2` | Release tag, declared 2026-11-11 | Previous release; includes the audit, native-mapping, test-system and MP4 Content Group repairs; does not include `0.7.3` |
 | `0.7.1` | Release tag and merge `649b7a9`; date/ownership, comment verification and UFID repairs | Previous release; does not include the `0.7.2` repairs |
 | `0.7.0` | Release tag and mapping contract 2.2 | Introduced the field identities and date/number model described by the current mapping contract |

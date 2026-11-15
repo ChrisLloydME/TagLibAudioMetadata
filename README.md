@@ -4,13 +4,13 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **Source status.** Published `0.7.3` remains the production release. `main` contains unreleased breaking API cleanup, measured I/O optimizations, the 2026-11-15 public write-contract repairs, and an independent contract test system. Current API references describe this source; use the `0.7.3` tag for that release’s interface. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking) and [Status](docs/operations/STATUS.md).
+> **Release status.** Version `0.8.0` (2026-11-15) is the current release. It is an explicitly breaking release: compatibility-only API was removed and several write paths now validate or preserve more strictly. Install from `0.8.0` and read [Migration](docs/operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading.
 
-> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` adds sparse native-owner preservation across public write surfaces and low-level reads. The unreleased source keeps contract 2.2 and its native target layouts. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
+> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` added sparse native-owner preservation across public write surfaces and low-level reads; `0.8.0` adds the breaking API cleanup, the public write-contract repairs and the independent contract test system. Mapping contract 2.2 and its native target layouts are unchanged by this release.
 
 The [write-concurrency follow-up](docs/records/remediation/REM-2026-11-12-write-concurrency.md) measures bounded durable writes and reduces discarded transaction projections. Its package strict Debug/Release and real AudioMator local-candidate gates pass; timings remain local workload observations.
 
-The [2026-11-15 public write-contract repairs](docs/records/remediation/REM-2026-11-15-public-write-contract.md) close additional validation, ownership, and legacy-read gaps. The [independent contract test system](docs/records/remediation/REM-2026-11-15-test-system-acceptance.md) adds a public-surface inventory, executable contract catalog, native oracles, and defect-detection calibration behind a fail-closed evidence gate. Package-only acceptance at `959d688` supersedes earlier candidate counts; see [Status](docs/operations/STATUS.md).
+The [2026-11-15 public write-contract repairs](docs/records/remediation/REM-2026-11-15-public-write-contract.md) close additional validation, ownership, and legacy-read gaps. The [independent contract test system](docs/records/remediation/REM-2026-11-15-test-system-acceptance.md) adds a public-surface inventory, executable contract catalog, native oracles, and defect-detection calibration behind a fail-closed evidence gate. Recorded package-only acceptance at `959d688` supersedes earlier campaign counts; see [Status](docs/operations/STATUS.md).
 
 ## At a glance
 
@@ -23,9 +23,21 @@ The [2026-11-15 public write-contract repairs](docs/records/remediation/REM-2026
 | Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, explicit number normalization, and verified erase |
 | Commit model | Sibling staging copy, atomic rename, file and parent-directory sync; process-local coordination only |
 
+## What changed in 0.8.0
+
+Version `0.8.0` is a breaking release with no native mapping-contract change. Migration contract 2.2 and every registered native target remain in place.
+
+- **Breaking API cleanup.** The typed `.date` YEAR alias, obsolete read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters and verification expectations, and outdated capability/error aliases are removed. See [Migration](docs/operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0).
+- **Public writers share native validation.** Scalar, whole-model, structured, and raw writes reject out-of-range native representations before staging. Whole-model writes preserve schema-known but unmodeled owners and private numbering provenance while modeled `nil` still removes values.
+- **Legacy reads and date protection are stricter.** Legal ID3v2.3 frame-status flags and bounded grouping are read literally, DSDIFF `ID3` is located through declared `PROP` children, and WAV/AIFF saves retain the observed ID3 version. Existing v2.3 tags remain read-only for independent date changes.
+- **Selective I/O and ownership boundaries.** Snapshots, storage identity, projection reads and transactions have explicit internal ownership, and unrequested native projections are skipped without caching concrete files.
+- **The contract test system is canonical.** `scripts/validate-contracts.sh` reconciles 907 public-surface rows against 34 contracts and 75 scenarios, executes 62 public adapters through independent native oracles, and requires 13 calibrated defects to be detected before accepting the complete framework gate.
+
+The TagLib binary is unchanged from `0.7.3` (2.3.1-r2). Recorded package-only acceptance, sanitizer, consumer and minimum-platform evidence is in [Status](docs/operations/STATUS.md); release preparation changes documentation only.
+
 ## What changed in 0.7.3
 
-Version `0.7.3` repairs native-owner state loss discovered during application adoption:
+Version `0.7.3` repaired native-owner state loss discovered during application adoption:
 
 - PropertyMap replay and low-level reads preserve existing native YEAR, DATE, RELEASEDATE and ORIGINALDATE owners, including absence, on MP4 and ID3-backed files; Xiph/APE and ASF reads distinguish their independent native keys instead of relying on engine projections.
 - MP4 semantic `.comment` and `.lyrics` patches address the native `©cmt`/`©lyr` atoms. Structured `comments`/`lyrics` collections remain unsupported on MP4.
@@ -33,13 +45,6 @@ Version `0.7.3` repairs native-owner state loss discovered during application ad
 - The mixed-framework gate requires the sparse-state matrices and 8,282 additional parameterized cases in addition to the prior lifecycle evidence.
 
 See [Migration](docs/operations/MIGRATION.md) for the 0.7.2-to-0.7.3 changes and [Status](docs/operations/STATUS.md) for the recorded validation evidence.
-
-## Beyond 0.7.3 (unreleased)
-
-- **Public writers share native validation.** Scalar, whole-model, structured, and raw writes reject out-of-range native representations before staging. Whole-model writes preserve schema-known but unmodeled owners and private numbering provenance while modeled `nil` still removes values.
-- **Legacy reads and date protection are stricter.** Legal ID3v2.3 frame-status flags and bounded grouping are read literally, DSDIFF `ID3` is located through declared `PROP` children, and WAV/AIFF saves retain the observed ID3 version. Existing v2.3 tags remain read-only for independent date changes.
-- **The contract test system is canonical.** `scripts/validate-contracts.sh` reconciles 907 public-surface rows against 34 contracts and 75 scenarios, executes 62 public adapters through independent native oracles, and requires 13 calibrated defects to be detected before accepting the complete framework gate.
-- **No release is implied.** This work is not a tagged release. `0.7.3` remains the install target; see [Migration](docs/operations/MIGRATION.md) for the breaking source changes and [Status](docs/operations/STATUS.md) for evidence limits.
 
 ## Requirements
 
@@ -55,7 +60,7 @@ See [Migration](docs/operations/MIGRATION.md) for the 0.7.2-to-0.7.3 changes and
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.7.3"
+        from: "0.8.0"
     )
 ]
 ```
@@ -126,9 +131,9 @@ for warning in result.warnings {
 
 Fields absent from a patch are unchanged; `.remove` is the explicit deletion request. `numberText` and typed track/disc fields may be mixed only across different pairs; both representations for the same pair are rejected. Number-text pairs are resolved and range-checked against the captured version before staging. Verification mismatches throw before commit; a successful result carries only residual container advisories.
 
-Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` is the YEAR field; `.standaloneDate` is the independent DATE field. The unreleased API removes the ambiguous typed `.date` alias. `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension. Existing ID3v2.3 tags are read-only for independent date edits; inspect `StructuredMetadata.id3v2MajorVersion` before offering them.
+Year, Date, Release Date, Original Release Date, and Purchase Date are independent. `.year` is the YEAR field; `.standaloneDate` is the independent DATE field. Version `0.8.0` removed the ambiguous typed `.date` alias. `.standaloneDate` writes DATE, and `.releaseDate` writes RELEASEDATE; no field is synthesized from another. On MP4, `©day` is YEAR and Release Date is a `RELEASEDATE` freeform extension. Existing ID3v2.3 tags are read-only for independent date edits; inspect `StructuredMetadata.id3v2MajorVersion` before offering them.
 
-For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. The unreleased API removes the older `writeMetadata` and `writeMetadataWithVerification` aliases; see [migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking). `replaceBasicMetadata` uses the typed planner for every editable Basic field, including MP4-exclusive properties such as director and the TV/movement atoms. `.rate` remains read-only because no verified native rating scale exists. Unsupported fields/values still fail through the same capability and validation rules as `MetadataPatch`.
+For a Basic read/modify/write, use `updateBasicMetadata(at:_:)`, which captures a version and rejects a stale edit. `replaceBasicMetadata` replaces the complete modeled Basic projection, so empty/default fields clear values. Version `0.8.0` removed the older `writeMetadata` and `writeMetadataWithVerification` aliases; see [migration](docs/operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0). `replaceBasicMetadata` uses the typed planner for every editable Basic field, including MP4-exclusive properties such as director and the TV/movement atoms. `.rate` remains read-only because no verified native rating scale exists. Unsupported fields/values still fail through the same capability and validation rules as `MetadataPatch`.
 
 Check capability evidence before enabling controls:
 
