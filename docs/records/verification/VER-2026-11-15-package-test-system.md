@@ -232,10 +232,11 @@ The evidence gate checks both, so neither can substitute for the other.
 
 ## 8. Final acceptance addendum
 
-The implementation was frozen at `714710d` with a clean tree and both complete
-contract lanes accepted. The documentation/evidence addendum is the only later
-change; the tested Swift/Objective-C sources, tests, inventories, catalog,
-adapters, oracles and calibration definitions are unchanged from `714710d`.
+The accepted source is `2cedf9e` with a clean tree. Its Swift/Objective-C
+sources, tests, inventories, catalog, adapters, oracles and calibration
+definitions are unchanged from `714710d`; `2cedf9e` adds the stable evidence-ID
+support and this acceptance addendum. A later documentation-only correction
+records the exact evidence identities; it does not change executable source.
 
 Stable evidence directories:
 
@@ -243,13 +244,14 @@ Stable evidence directories:
 | --- | --- | --- |
 | Debug | `.build/test-evidence/debug-final-20261115/` | `accepted: true`; 181 XCTest executed (179 passed, 2 reviewed skips), 272 Swift Testing declarations in 51 suites passed, 73/73 scenarios, 0 failures |
 | Release | `.build/test-evidence/release-final-20261115/` | `accepted: true`; 181 XCTest executed (179 passed, 2 reviewed skips), 272 Swift Testing declarations in 51 suites passed, 73/73 scenarios, 0 failures |
-| Calibration | `.build/test-calibration/20261115T063441Z/calibration.json` | `accepted`; all 12 mutants compiled, activated and were killed; every source restored and hash-checked |
+| Calibration (Debug lane) | `.build/test-calibration/20261115T072347Z/calibration.json` | `accepted`; all 12 mutants compiled, activated and were killed; every source restored and hash-checked |
+| Calibration (Release lane) | `.build/test-calibration/20261115T072927Z/calibration.json` | `accepted`; all 12 mutants compiled, activated and were killed; every source restored and hash-checked |
 
 Both lanes re-ran the policy suite (76 regressions), inventory/catalog
 reconciliation and the bounded calibration set before the complete framework
 gate. The two final summaries bind the same campaign manifest commit
-`714710d` and the same source hash
-`802d170118965142b2520b937527ddfb97d0553275f63e7e84f0cd3138cf51ab`.
+`2cedf9e` and the same source hash
+`ef15b3e6252a1887bd73d8b57d4d2d82c09fcff3eb8706366016d06cc0595b85`.
 The two XCTest skips are exactly the reviewed opt-in identities:
 `ExternalCorpusPreservationTests.testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus`
 and
@@ -264,5 +266,16 @@ Focused sanitizer evidence (current HEAD source, separate scratch paths):
 | AddressSanitizer | `ContractBuilderOracleSelfTests` + `contractMP4TypedVertical` + `contractNormalizationPlan` | 9 tests in 3 suites passed |
 | ThreadSanitizer | `contractMP4PublicSequence` + `contractV23FlaggedPreservation` + `contractBridgeReadsRegistry` | 3 tests in 3 suites passed |
 
-Minimum-platform builds are recorded in the final report; unexecuted builds are
-not inferred green.
+Minimum-platform builds all completed on the same source:
+
+| Target | Result |
+| --- | --- |
+| macOS 13 arm64 | build passed |
+| macOS 13 x86_64 | build passed |
+| iOS 16 arm64 | build passed |
+| iOS 16 Simulator arm64 | build passed |
+| iOS 16 Simulator x86_64 | build passed |
+
+The standalone consumers perform real writes and independent native/audio
+checks. The final policy suite is 76 regressions. Unexecuted work is not
+inferred green.
