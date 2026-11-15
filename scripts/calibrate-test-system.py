@@ -185,6 +185,7 @@ def main() -> int:
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--mutant", action="append", default=[])
     parser.add_argument("--allow-failures", action="store_true")
+    parser.add_argument("--require-all-killed", action="store_true")
     parser.add_argument("--run-id")
     args = parser.parse_args()
     mutants = load_mutants()
