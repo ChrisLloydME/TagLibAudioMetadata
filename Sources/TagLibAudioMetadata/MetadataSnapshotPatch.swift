@@ -222,8 +222,13 @@ extension TagLibMetadataManager {
         for (field, value) in patch.fields {
             guard field != .artwork, field != .custom, field != .explicitContent,
                   let schema = MetadataFieldRegistry.schema(for: field),
-                  !schema.propertyMapKeys.isEmpty,
-                  !schema.acceptedPatchValueKinds.isEmpty else {
+                  !schema.propertyMapKeys.isEmpty else {
+                throw MetadataPatchValidationError.unsupportedField(field)
+            }
+            if schema.isRoleQualified {
+                throw MetadataPatchValidationError.roleQualifiedFieldRequiresRawAPI(field)
+            }
+            guard !schema.acceptedPatchValueKinds.isEmpty else {
                 throw MetadataPatchValidationError.unsupportedField(field)
             }
             if let kind = value.kind, !schema.acceptedPatchValueKinds.contains(kind) {
@@ -241,9 +246,6 @@ extension TagLibMetadataManager {
                     maximum: constraint.maximum,
                     actual: integer
                 )
-            }
-            if schema.isRoleQualified {
-                throw MetadataPatchValidationError.roleQualifiedFieldRequiresRawAPI(field)
             }
             normalizedFields[field] = try value.normalized(location: field.rawValue)
         }
@@ -336,6 +338,56 @@ extension TagLibMetadataManager {
         )
     }
 
+    /// Resolve a formatted numberText patch against a captured snapshot.
+    /// This is the single preflight and staged-file implementation: both
+    /// stages use the same inventory/version and range checks.
+    nonisolated private static func resolveNumberTextPairs(
+        _ numberText: MetadataNumberTextPatch,
+        from snapshot: MetadataSnapshot,
+        fileURL: URL
+    ) throws -> (track: (number: Int, total: Int)?, disc: (number: Int, total: Int)?) {
+        let inventory = numberingInventory(from: snapshot)
+        func resolvedTotal(_ component: MetadataNumberComponentInventory, field: String) throws -> Int {
+            if component.isUnresolved {
+                throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                    field: field,
+                    identities: component.identities
+                )
+            }
+            return component.resolvedValue ?? 0
+        }
+        for (selected, group, name) in [
+            (numberText.trackNumberText != nil, inventory.track, "track"),
+            (numberText.discNumberText != nil, inventory.disc, "disc"),
+        ] where selected && group.hasUnresolvedComponents {
+            throw MetadataPatchValidationError.ambiguousNumberRecovery(
+                field: name,
+                identities: group.number.identities + group.total.identities
+            )
+        }
+        var trackPair = numberText.trackNumberText.map(parseNumberPair)
+        var discPair = numberText.discNumberText.map(parseNumberPair)
+        if let pair = trackPair, pair.total == 0,
+           numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")
+        }
+        if let pair = discPair, pair.total == 0,
+           numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            discPair?.total = try resolvedTotal(inventory.disc.total, field: "discTotal")
+        }
+        if let trackPair {
+            try validateNativeNumberPair(
+                number: trackPair.number, total: trackPair.total, field: .track, for: fileURL
+            )
+        }
+        if let discPair {
+            try validateNativeNumberPair(
+                number: discPair.number, total: discPair.total, field: .disc, for: fileURL
+            )
+        }
+        return (trackPair, discPair)
+    }
+
     nonisolated private static func applyMetadataPatchValidatingAudio(
         _ patch: MetadataPatch,
         to url: URL,
@@ -392,6 +444,14 @@ extension TagLibMetadataManager {
             result, entry in
             guard !structuredNumberPairFields.contains(entry.key) else { return }
             result[entry.key] = try semanticStorage(for: entry.key, formatIdentifier: formatIdentifier, formats: fieldFormats)
+        }
+
+        // Format-level numberText rejection happens before any staging copy.
+        // The staged file re-resolves the same pair against its own snapshot so
+        // a concurrent change cannot bypass the captured-version checks.
+        if let numberText = patch.numberText {
+            let preflightSnapshot = try readSnapshot(from: url)
+            _ = try resolveNumberTextPairs(numberText, from: preflightSnapshot, fileURL: url)
         }
 
         return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
@@ -505,32 +565,9 @@ extension TagLibMetadataManager {
             }
 
             if let numberText = patch.numberText {
-                let inventory = numberingInventory(from: before)
-                func resolvedTotal(_ component: MetadataNumberComponentInventory, field: String) throws -> Int {
-                    if component.isUnresolved {
-                        throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                            field: field,
-                            identities: component.identities
-                        )
-                    }
-                    return component.resolvedValue ?? 0
-                }
-                for (selected, group, name) in [
-                    (numberText.trackNumberText != nil, inventory.track, "track"),
-                    (numberText.discNumberText != nil, inventory.disc, "disc"),
-                ] where selected && group.hasUnresolvedComponents {
-                    throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                        field: name, identities: group.number.identities + group.total.identities
-                    )
-                }
-                var trackPair = numberText.trackNumberText.map(parseNumberPair)
-                var discPair = numberText.discNumberText.map(parseNumberPair)
-                if let pair = trackPair, pair.total == 0, numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-                    trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")
-                }
-                if let pair = discPair, pair.total == 0, numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-                    discPair?.total = try resolvedTotal(inventory.disc.total, field: "discTotal")
-                }
+                let (trackPair, discPair) = try resolveNumberTextPairs(
+                    numberText, from: before, fileURL: mutationURL
+                )
                 numberMutations.append {
                     try TagLibMetadataExtractor.writeNumberPairsInPlace(
                         trackNumber: trackPair?.number ?? 0,

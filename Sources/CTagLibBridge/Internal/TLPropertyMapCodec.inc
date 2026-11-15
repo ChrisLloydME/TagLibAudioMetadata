@@ -800,6 +800,39 @@ static bool ApplyKnownCustomMetadataField(NSString * _Nullable key,
     return false;
 }
 
+// Schema-known identities that TagLibAudioMetadata does not model as scalar
+// properties. A full-model write owns only the fields it can actually set, so
+// these owners (and unknown/private owners) must survive a title-only write.
+static bool IsUnmodeledKnownMetadataFieldKey(NSString * _Nullable key)
+{
+    NSString *normalized = UppercaseTrimmedString(key);
+    if (!normalized) return false;
+    for (NSString *prefix in @[ @"PERFORMER:", @"INVOLVEDPEOPLE:", @"MUSICIANCREDITS:" ]) {
+        if ([normalized hasPrefix:prefix]) return true;
+    }
+    static NSSet<NSString *> *keys = [NSSet setWithArray:@[
+        @"PERFORMER", @"INVOLVEDPEOPLE", @"MUSICIANCREDITS",
+        @"DIRECTOR", @"ITUNESACCOUNT", @"ITUNESCOMPOSERID", @"ITUNESCOUNTRYID",
+        @"ITUNESGAPLESS", @"GAPLESSPLAYBACK", @"ITUNESHDVIDEO", @"HDVIDEO",
+        @"ITUNESOWNER", @"OWNER", @"RATE", @"SHOWMOVEMENT", @"SHOWWORKMOVEMENT",
+        @"STOREDESCRIPTION", @"TRACKERNAME",
+        @"TVEPISODE", @"TVEPISODEID", @"TVNETWORK", @"TVSEASON", @"TVSHOW",
+        @"TVSHOWSORT", @"SHOWSORT",
+    ]];
+    return [keys containsObject:normalized];
+}
+
+// True only for a key owned by the scalar full-model writer. Every other key
+// (unknown, private provenance, or schema-known but unmodeled) is preserved.
+static bool IsGenericModelOwnedPropertyMapKey(NSString * _Nullable key)
+{
+    if (IsHiddenInternalMetadataFieldKey(key)) return false;
+    // Role-qualified collections have no scalar model property. IsKnown treats
+    // their "PREFIX:" spellings as known, so reject them before that check.
+    if (IsUnmodeledKnownMetadataFieldKey(key)) return false;
+    return IsKnownMetadataFieldKey(key);
+}
+
 static TagLib::PropertyMap PreservedUnknownPropertyMapEntries(const TagLib::PropertyMap &existingProperties)
 {
     TagLib::PropertyMap properties;
@@ -817,7 +850,7 @@ static TagLib::PropertyMap PreservedUnknownPropertyMapEntries(const TagLib::Prop
             continue;
         }
 
-        if (IsHiddenInternalMetadataFieldKey(fieldKey) || IsKnownMetadataFieldKey(fieldKey)) {
+        if (IsGenericModelOwnedPropertyMapKey(fieldKey)) {
             continue;
         }
 

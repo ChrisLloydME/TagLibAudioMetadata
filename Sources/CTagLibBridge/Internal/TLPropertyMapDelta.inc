@@ -51,12 +51,21 @@ static void RemoveID3v2UserTextFrames(TagLib::ID3v2::Tag *tag,
                                         NSArray<NSString *> *descriptions)
 {
     if (!tag || descriptions.count == 0) return;
+    // TXXX descriptions are case-insensitive identities. Normalize both sides
+    // once so a mixed-case alias descriptor ("MusicBrainz Track Id") still
+    // retires the native frame whose description TagLib preserves verbatim.
+    NSMutableSet<NSString *> *normalizedDescriptions = [NSMutableSet set];
+    for (NSString *description in descriptions) {
+        NSString *normalized = UppercaseTrimmedString(description);
+        if (normalized) [normalizedDescriptions addObject:normalized];
+    }
+    if (normalizedDescriptions.count == 0) return;
     TagLib::ID3v2::FrameList frames = tag->frameList("TXXX");
     for (auto iterator = frames.begin(); iterator != frames.end(); ++iterator) {
         auto *userText = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(*iterator);
         if (!userText) continue;
-        NSString *description = [TagStringToNSString(userText->description()) uppercaseString];
-        if (description && [descriptions containsObject:description]) {
+        NSString *description = UppercaseTrimmedString(TagStringToNSString(userText->description()));
+        if (description && [normalizedDescriptions containsObject:description]) {
             tag->removeFrame(*iterator);
         }
     }
@@ -262,7 +271,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             return NO;
         }
         if (id3Changed &&
-            !wav->save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+            !SaveWAVPreservingID3Version(wav, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:9253
@@ -339,6 +348,58 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         for (NSString *key in changedDates) SetExactNativeDateKeys(file, dates, key.UTF8String);
     }
     if (mp4) {
+        // Raw deltas use prefixless PropertyMap keys, while MP4 freeform items
+        // are addressed by their inner description. Resolve an edited
+        // canonical key or alias to the matching native item through the
+        // mapping descriptors, so "RELEASETYPE" edits
+        // "----:com.apple.iTunes:MusicBrainz Album Type" instead of restoring
+        // the old value after TagLib's projection pass.
+        NSMutableDictionary<NSString *, NSArray<NSString *> *> *upperValues =
+            [NSMutableDictionary dictionary];
+        for (NSString *key in valuesToSet ?: @{}) {
+            upperValues[UppercaseTrimmedString(key)] = valuesToSet[key];
+        }
+        NSMutableSet<NSString *> *upperRemovals = [NSMutableSet set];
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *normalized = UppercaseTrimmedString(key);
+            if (normalized) [upperRemovals addObject:normalized];
+        }
+
+        struct EditedMP4Freeform {
+            const TLMetadataFieldMapping *mapping;
+            TagLib::StringList values;
+            bool remove;
+            bool applied;
+        };
+        std::vector<EditedMP4Freeform> edits;
+        for (const auto &mapping : kMetadataFieldMappings) {
+            if (!mapping.mp4FreeformDescription) continue;
+            NSArray<NSString *> *replacement = upperValues[@(mapping.canonicalPropertyKey)];
+            for (const char *alias : mapping.propertyAliases) {
+                if (!replacement && alias) replacement = upperValues[@(alias)];
+            }
+            bool remove = replacement == nil;
+            if (remove) {
+                remove = [upperRemovals containsObject:@(mapping.canonicalPropertyKey)];
+                for (const char *alias : mapping.propertyAliases) {
+                    if (!remove && alias) remove = [upperRemovals containsObject:@(alias)];
+                }
+            }
+            if (!replacement && !remove) continue;
+            TagLib::StringList values;
+            for (NSString *value in replacement ?: @[]) {
+                values.append(NSStringToTagString(value));
+            }
+            edits.push_back(EditedMP4Freeform{&mapping, values, remove, false});
+        }
+
+        auto editedForItem = [&](const TagLib::String &key) -> EditedMP4Freeform * {
+            for (auto &edit : edits) {
+                if (MP4ItemMatchesField(key, *edit.mapping)) return &edit;
+            }
+            return nullptr;
+        };
+
         NSMutableSet<NSString *> *descriptions = [NSMutableSet set];
         for (const auto &[key, item] : originalMP4Items) {
             NSString *description = MP4FreeformDescriptionForItemKey(key);
@@ -346,8 +407,15 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         }
         const auto generated = mp4->itemMap();
         for (const auto &[key, item] : generated) {
-            NSString *description = MP4FreeformDescriptionForItemKey(key);
-            if (description && [descriptions containsObject:description.uppercaseString]) mp4->removeItem(key);
+            if (!MP4FreeformDescriptionForItemKey(key)) continue;
+            if ([descriptions containsObject:MP4FreeformDescriptionForItemKey(key).uppercaseString]) {
+                mp4->removeItem(key);
+                continue;
+            }
+            // An edited field absent from the original file is re-created from
+            // the descriptor below, not through a differently-cased engine
+            // spelling.
+            if (!originalMP4Items.contains(key) && editedForItem(key)) mp4->removeItem(key);
         }
         for (const auto &mapping : kMetadataFieldMappings) {
             if (!mapping.mp4FreeformDescription) continue;
@@ -370,16 +438,40 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             NSString *description = MP4FreeformDescriptionForItemKey(key);
             if (!description) continue;
             NSString *normalized = description.uppercaseString;
-            NSArray<NSString *> *replacement = valuesToSet[normalized];
+            if (EditedMP4Freeform *edit = editedForItem(key)) {
+                // Reconcile every native alias of the edited semantic field to
+                // one item. The first surviving name is kept; later aliases
+                // are case/spelling duplicates, not independent owners.
+                if (edit->applied) {
+                    mp4->removeItem(key);
+                } else if (edit->remove) {
+                    mp4->removeItem(key);
+                    edit->applied = true;
+                } else {
+                    mp4->setItem(key, TagLib::MP4::Item(edit->values));
+                    edit->applied = true;
+                }
+                continue;
+            }
+            NSArray<NSString *> *replacement = upperValues[normalized];
             if (replacement) {
                 if ([written containsObject:normalized]) continue;
                 TagLib::StringList values;
                 for (NSString *value in replacement) values.append(NSStringToTagString(value));
                 mp4->setItem(key, TagLib::MP4::Item(values));
                 [written addObject:normalized];
-            } else if (![keysToRemove containsObject:normalized]) {
+            } else if (![upperRemovals containsObject:normalized]) {
                 mp4->setItem(key, item);
             }
+        }
+        for (auto &edit : edits) {
+            if (edit.applied || edit.remove) continue;
+            NSString *description = @(edit.mapping->mp4FreeformDescription);
+            if (!description) continue;
+            TagLib::String key = NSStringToTagString(
+                [@"----:com.apple.iTunes:" stringByAppendingString:description]);
+            mp4->setItem(key, TagLib::MP4::Item(edit.values));
+            edit.applied = true;
         }
     }
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
@@ -433,7 +525,7 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         id3.replace(tagKey, values);
     }
     SetID3PropertiesPreservingNativeDates(wav.ID3v2Tag(), id3);
-    if (!wav.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+    if (!SaveWAVPreservingID3Version(&wav, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9254
@@ -501,6 +593,27 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
     TLTagFileFormat format = DetectTagFileFormat(fileURL);
+    if (format == TLTagFileFormatMP4) {
+        // Native trkn/disk components are unsigned 16-bit. Reject before the
+        // TagLib Item(int, int) conversion would truncate them.
+        if ((updateTrackPair && (trackNumber > 65535 || totalTracks > 65535)) ||
+            (updateDiscPair && (discNumber > 65535 || totalDiscs > 65535))) {
+            if (error) *error = PropertyMapDeltaError(9260,
+                @"MP4 track/disc components must be unsigned 16-bit values between 0 and 65535");
+            return NO;
+        }
+    }
+    if (format == TLTagFileFormatASF) {
+        // WM/TrackNumber and WM/PartOfSet are single values; a zero number
+        // with a positive total is the same unsupported partial pair the typed
+        // planner rejects.
+        if ((updateTrackPair && trackNumber == 0 && totalTracks > 0) ||
+            (updateDiscPair && discNumber == 0 && totalDiscs > 0)) {
+            if (error) *error = PropertyMapDeltaError(9260,
+                @"ASF number pairs cannot store a zero number with a positive total");
+            return NO;
+        }
+    }
     NSString *trackText = BuildTRCKString(trackNumber, totalTracks, 0);
     NSString *discText = BuildTRCKString(discNumber, totalDiscs, 0);
     NSString *movementText = BuildTRCKString(movementNumber, movementCount, 0);

@@ -124,7 +124,31 @@ PASS = (
     "Suite ID3ContainerLifecycleTests passed.\n"
     "Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.\n"
     "Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.\n"
-    "Test run with 198 tests in 41 suites passed after 8 seconds.\n"
+    "Test legacyV23StatusFlagsReadLiteralDates(_:) with 4 test cases passed after 1 second.\n"
+    "Test legacyV23GroupingFlagSkipsBoundedIdentifier() passed after 1 second.\n"
+    "Test undecodableV23FrameTransformsStillReject(_:) with 2 test cases passed after 1 second.\n"
+    "Test dsdiffPropertyChildID3UsesBoundedTraversal() passed after 1 second.\n"
+    "Test mp4IntPairOverflowRejectsWithoutMutation() passed after 1 second.\n"
+    "Test asfNoncanonicalTypeIsCanonicalTextOrRejected() passed after 1 second.\n"
+    "Test crossFormatStructuredCollectionsRejectAtomically() passed after 1 second.\n"
+    "Test mp4KnownAtomCannotChangeCodec() passed after 1 second.\n"
+    "Test generatedPaddingWidthRejectsBeforeFormatting(_:) with 3 test cases passed after 1 second.\n"
+    "Test maximumGeneratedPaddingStillWrites() passed after 1 second.\n"
+    "Test numberTextPreflightRunsBeforeStaging() passed after 1 second.\n"
+    "Test asfZeroNumberTextPairRejectsBeforeStaging() passed after 1 second.\n"
+    "Test fullModelPreservesUnmodeledOwners() passed after 1 second.\n"
+    "Test privateProvenanceSurvivesOrdinaryWrites() passed after 1 second.\n"
+    "Test ordinaryAliasRetiresOnlyForEditedPair() passed after 1 second.\n"
+    "Test musicBrainzAliasCleanupUsesCaseInsensitiveIdentity() passed after 1 second.\n"
+    "Test mp4RawCanonicalFreeformSetAndRemove(_:) with 2 test cases passed after 1 second.\n"
+    "Test rawAPIsStillRejectNativeMP4Keys() passed after 1 second.\n"
+    "Test v23ContainersPreserveVersionDatesAndAudio(_:_:) with 6 test cases passed after 1 second.\n"
+    "Test xmTrackerNameTypedRouteWritesNativeBytes() passed after 1 second.\n"
+    "Test registrySemanticAndTotalProjectionsAreConsistent() passed after 1 second.\n"
+    "Test roleQualifiedTypedPatchStillRejects() passed after 1 second.\n"
+    "Test yearPrefixFilterRemainsBasicSpecific() passed after 1 second.\n"
+    "Suite PublicWriteContractRepairTests passed.\n"
+    "Test run with 221 tests in 42 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -173,7 +197,7 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 198 tests', 'run with 197 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 221 tests', 'run with 220 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -236,6 +260,31 @@ class TestGatePolicy(unittest.TestCase):
                       'testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]'
                       ' : Test skipped - External corpus is opt-in.\n')
         self.assertTrue(self.accepted(diagnostic + PASS))
+
+    def test_new_public_write_contract_regressions_cannot_be_filtered(self):
+        for name in ('mp4IntPairOverflowRejectsWithoutMutation',
+                     'numberTextPreflightRunsBeforeStaging',
+                     'fullModelPreservesUnmodeledOwners',
+                     'musicBrainzAliasCleanupUsesCaseInsensitiveIdentity',
+                     'v23ContainersPreserveVersionDatesAndAudio',
+                     'xmTrackerNameTypedRouteWritesNativeBytes',
+                     'registrySemanticAndTotalProjectionsAreConsistent'):
+            with self.subTest(name=name):
+                modified = "\n".join(line for line in PASS.splitlines() if name not in line)
+                self.assertFalse(self.accepted(modified))
+
+    def test_new_public_write_contract_case_minima_cannot_shrink(self):
+        for name, old, new in (
+            ('legacyV23StatusFlagsReadLiteralDates(_:)', 'with 4 test cases', 'with 3 test cases'),
+            ('generatedPaddingWidthRejectsBeforeFormatting(_:)', 'with 3 test cases', 'with 2 test cases'),
+            ('mp4RawCanonicalFreeformSetAndRemove(_:)', 'with 2 test cases', 'with 1 test case'),
+            ('v23ContainersPreserveVersionDatesAndAudio(_:_:)', 'with 6 test cases', 'with 5 test cases'),
+        ):
+            with self.subTest(name=name):
+                self.assertFalse(self.accepted(PASS.replace(old, new)))
+
+    def test_new_public_write_contract_suite_cannot_be_filtered(self):
+        self.assertFalse(self.accepted(PASS.replace('Suite PublicWriteContractRepairTests passed.\n', '')))
 
     def test_missing_basic_preservation_execution_is_rejected(self):
         self.assertFalse(self.accepted(PASS.replace('Test basicID3DatesPreserveNativeArrays() with 14 test cases passed after 1 second.\n', '')))

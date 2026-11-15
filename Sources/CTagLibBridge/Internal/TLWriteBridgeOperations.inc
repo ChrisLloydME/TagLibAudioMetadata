@@ -616,7 +616,7 @@
             return NO;
         }
 
-        if (!wavFile.save(TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
+        if (!SaveWAVPreservingID3Version(&wavFile, TagLib::RIFF::WAV::File::ID3v2, TagLib::File::StripNone)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:21
@@ -650,7 +650,7 @@
             return NO;
         }
 
-        if (!aiffFile.save()) {
+        if (!SaveAIFFPreservingID3Version(&aiffFile)) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                              code:23
