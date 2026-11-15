@@ -369,7 +369,8 @@ extension TagLibMetadataManager {
             let trimmed = normalizedTrimmed(text)
             if trimmed.isEmpty { return (0, 0) }
             let components = trimmed.split(separator: "/", omittingEmptySubsequences: false)
-            guard components.count <= 2 else {
+            guard components.count <= 2,
+                  components.contains(where: { !normalizedTrimmed(String($0)).isEmpty }) else {
                 throw MetadataPatchValidationError.numberTextMismatch(field: field, text: text)
             }
             var values: [Int] = []
@@ -386,11 +387,13 @@ extension TagLibMetadataManager {
         var trackPair = try numberText.trackNumberText.map { try inputPair($0, field: "track") }
         var discPair = try numberText.discNumberText.map { try inputPair($0, field: "disc") }
         if let pair = trackPair, pair.total == 0,
-           numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+           numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+           numberText.trackNumberText?.contains("/") == false {
             trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")
         }
         if let pair = discPair, pair.total == 0,
-           numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+           numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+           numberText.discNumberText?.contains("/") == false {
             discPair?.total = try resolvedTotal(inventory.disc.total, field: "discTotal")
         }
         if let trackPair {

@@ -7,6 +7,10 @@
     "suite": "ASFNativeLifecycleTests",
     "path": "Integration/ASFNativeLifecycleTests.swift"
   },
+  "allPublicNumericWritersRejectNativeOverflow": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
+  },
   "allPublicWriteSurfacesRequireContainerStateEvidence": {
     "suite": "CrossContainerWriteSurfaceTests",
     "path": "Integration/CrossContainerWriteSurfaceTests.swift"
@@ -178,6 +182,10 @@
   "explicitYearWritesOnlyTheYearSlot": {
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
+  },
+  "explicitZeroTotalIsNotRecoveredFromOldNumberText": {
+    "suite": "ReleaseAcceptanceTests",
+    "path": "Integration/ReleaseAcceptanceTests.swift"
   },
   "flacKnownVectorKeepsDuplicateCommentEntriesAndAudio": {
     "suite": "NativeProbeContractTests",

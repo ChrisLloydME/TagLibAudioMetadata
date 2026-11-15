@@ -153,6 +153,7 @@ static BOOL StripAllTagsAndSave(FileType &file,
                                        (long)kMaximumGeneratedNumberPaddingWidth]
         );
     }
+    if (fileURL.isFileURL && !ValidateNativeNumberPair(trackNumber, totalTracks, DetectTagFileFormat(fileURL), error)) return NO;
     if (TagLibAtomicMutationDepth == 0) {
         if (!RejectDirectID3v23Write(fileURL, @"track-number", error)) return NO;
         return PerformAtomicTagLibMutation(fileURL, error, @"Track-number write", ^BOOL(NSURL *temporaryURL, NSError **mutationError) {

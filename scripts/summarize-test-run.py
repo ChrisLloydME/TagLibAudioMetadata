@@ -78,7 +78,9 @@ missing_suites = [suite for suite in required_suites if suite not in completed_s
 # that the frozen matrices must execute. Counts may grow when the coverage
 # inventory grows; they may not silently shrink.
 required_tests = {
-    'structuredMP4RejectsEncodingAndRangeBypasses': 1,
+    'explicitZeroTotalIsNotRecoveredFromOldNumberText': 1,
+    'allPublicNumericWritersRejectNativeOverflow': 9,
+    'structuredMP4RejectsEncodingAndRangeBypasses': 7,
     'malformedNumberTextCannotEraseExistingPairs': 1,
     'excessiveInheritedPaddingDoesNotRemoveTrack': 1,
     'protectedDateFlagsSurviveOrRejectUnrelatedMutation': 1,
@@ -224,7 +226,7 @@ summary = {'source_inventory_errors': inventory_errors, 'runner_exit_status': st
            'failed_xctest_names': failed_xctest,
            'missing_required_xctest': missing_xctest}
 ok = (not inventory_errors and status == 0 and bool(xctest) and int(xctest[-1][0]) >= 181 and int(xctest[-1][2]) == 0
-      and bool(swift) and int(swift[-1][0]) >= 229 and swift[-1][2] == 'passed'
+      and bool(swift) and int(swift[-1][0]) >= 231 and swift[-1][2] == 'passed'
       and not unexpected and not swift_skips and not missing_suites and not missing_tests
       and not failed_named_tests and not failed_xctest and not missing_xctest
       and all(int(result[2]) == 0 for result in xctest)

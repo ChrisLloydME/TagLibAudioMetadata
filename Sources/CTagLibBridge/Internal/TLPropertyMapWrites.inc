@@ -17,7 +17,9 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
         return NO;
     }
 
-    SetPropertiesPreservingNativeDates(&file, BuildRawPropertyMap(properties), true);
+    const auto requested = BuildRawPropertyMap(properties);
+    if (dynamic_cast<TagLib::MP4::File *>(&file) && !ValidateMP4RequestedProperties(requested, error)) return NO;
+    SetPropertiesPreservingNativeDates(&file, requested, true);
 
     if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
@@ -53,7 +55,9 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
     }
 
     const auto existing = VisibleMetadataProperties(&file);
-    SetPropertiesPreservingNativeDates(&file, BuildRawPropertyMapValues(properties, &existing), true);
+    const auto requested = BuildRawPropertyMapValues(properties, &existing);
+    if (dynamic_cast<TagLib::MP4::File *>(&file) && !ValidateMP4RequestedProperties(requested, error)) return NO;
+    SetPropertiesPreservingNativeDates(&file, requested, true);
 
     if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
