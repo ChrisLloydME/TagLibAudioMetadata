@@ -39,8 +39,8 @@ jobs:
         run: swift build --disable-keychain --disable-netrc -Xswiftc -warnings-as-errors -Xcc -Werror
       - name: Test gate policy
         run: python3 -m unittest discover -s scripts/tests
-      - name: Test
-        run: bash scripts/validate-tests.sh debug
+      - name: Contract lane (policy, calibration, complete Debug gate)
+        run: bash scripts/validate-contracts.sh debug
       - name: Preserve test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -48,10 +48,8 @@ jobs:
           name: package-debug-test-evidence
           path: .build/test-evidence/
           if-no-files-found: warn
-      - name: Consumer integration
-        run: |
-          swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataConsumer
-          swift run --disable-keychain --disable-netrc --package-path IntegrationTests/Consumer TagLibAudioMetadataLowLevelConsumer
+      - name: Consumer integration (real writes and native assertions)
+        run: bash scripts/validate-consumers.sh
       - name: Dynamic link audit
         run: |
           test ! -d Sources/CTagLibBridge/taglib
@@ -91,8 +89,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Record Xcode toolchain
         run: xcodebuild -version
-      - name: Release tests against real fixtures
-        run: bash scripts/validate-tests.sh release
+      - name: Contract lane (policy, calibration, complete Release gate)
+        run: bash scripts/validate-contracts.sh release
       - name: Preserve test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -147,4 +145,5 @@ jobs:
           cp -R IntegrationTests/Consumer "${CONSUMER_PATH}"
           perl -pi -e 's#\.package\(name: "TagLibAudioMetadata", path: "\.\./\.\."\)#.package(url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git", exact: "$ENV{GITHUB_REF_NAME}")#' "${CONSUMER_PATH}/Package.swift"
           test -z "$(grep -F 'path: "../.."' "${CONSUMER_PATH}/Package.swift" || true)"
-          swift run --disable-keychain --disable-netrc --package-path "${CONSUMER_PATH}" TagLibAudioMetadataConsumer
+          swift run --disable-keychain --disable-netrc --package-path "${CONSUMER_PATH}" TagLibAudioMetadataConsumer "${GITHUB_WORKSPACE}/Tests/TagLibAudioMetadataTests/Audio/testAudioFile.m4a"
+          swift run --disable-keychain --disable-netrc --package-path "${CONSUMER_PATH}" TagLibAudioMetadataLowLevelConsumer "${GITHUB_WORKSPACE}/Tests/TagLibAudioMetadataTests/Audio/testAudioFile.mp3"

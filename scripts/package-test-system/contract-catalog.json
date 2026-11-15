@@ -1,0 +1,3846 @@
+{
+  "schema_version": 1,
+  "catalog_version": "AM-CONTRACT-2026-11-15",
+  "contracts": [
+    {
+      "contract_id": "C-MP4-TYPED-VERTICAL",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "title",
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text",
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "preservation",
+      "operation": "typed delta edits title and track pair",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractMP4TypedVertical",
+      "ownership": {
+        "edited": [
+          "\u00a9nam",
+          "trkn"
+        ],
+        "untouched": [
+          "\u00a9alb",
+          "----:com.apple.iTunes:CONTRACT_UNKNOWN",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "adapter_kind": [
+          "facade"
+        ],
+        "write_mode": [
+          "typed_patch"
+        ],
+        "ownership_mode": [
+          "delta"
+        ],
+        "audio_content_guard": [
+          "not_requested"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-TYPED-01",
+          "expected_assertions": 16
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-SEQUENCE",
+      "surface_id": "swift.TagLibMetadataManager.func.replaceBasicMetadata",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.replaceBasicMetadata",
+        "swift.TagLibMetadataManager.func.updateBasicMetadata",
+        "swift.TagLibMetadataManager.func.writeStructuredMetadataWithVerification",
+        "swift.TagLibMetadataManager.func.eraseAllMetadataWithVerification"
+      ],
+      "adapters": [
+        "facade.applyPatch",
+        "bridge.writeStructuredMetadata",
+        "facade.eraseAll"
+      ],
+      "field_family": [
+        "title"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "sequence",
+      "operation": "snapshot -> selected delta -> reopen -> alternating writer -> clear -> erase -> reopen",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractMP4PublicSequence",
+      "ownership": {
+        "edited": [
+          "\u00a9nam"
+        ],
+        "untouched": [
+          "trkn",
+          "----:com.apple.iTunes:CONTRACT_UNKNOWN",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "typed_patch",
+          "structured",
+          "erase"
+        ],
+        "expected_version": [
+          "current",
+          "absent"
+        ],
+        "number_text": [
+          "unchanged"
+        ],
+        "ownership_mode": [
+          "delta",
+          "erase"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-SEQ-01",
+          "expected_assertions": 20
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-FULL-MODEL",
+      "surface_id": "swift.TagLibMetadataManager.func.writeTagMetadata",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.writeTagMetadata",
+        "bridge.TagLibMetadataExtractor.class_method.writeMetadata"
+      ],
+      "adapters": [
+        "facade.writeTagMetadata",
+        "bridge.writeMetadata"
+      ],
+      "field_family": [
+        "title",
+        "album",
+        "custom"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "preservation",
+      "operation": "full-model replacement retains unmodeled freeform and album owners",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractFullModelRetention",
+      "ownership": {
+        "edited": [
+          "\u00a9nam"
+        ],
+        "untouched": [
+          "\u00a9alb",
+          "----:com.apple.iTunes:CONTRACT_UNKNOWN",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "full_model"
+        ],
+        "adapter_kind": [
+          "facade",
+          "bridge"
+        ],
+        "verification_context": [
+          "none",
+          "full"
+        ],
+        "ownership_mode": [
+          "full_replacement"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-FULL-01",
+          "expected_assertions": 13
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-RAW-VALUES-MODES",
+      "surface_id": "swift.TagLibMetadataManager.func.writeRawMetadataPropertyMapValuesWithVerification",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.writeRawMetadataPropertyMapValuesWithVerification",
+        "swift.TagLibMetadataManager.func.writeRawMetadataPropertyMapWithVerification",
+        "bridge.TagLibMetadataExtractor.class_method.writeRawPropertyMapValues"
+      ],
+      "adapters": [
+        "facade.writeRawMapValues"
+      ],
+      "field_family": [
+        "title",
+        "album"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "sequence",
+      "operation": "raw value-map replace and merge modes",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractRawValueModes",
+      "ownership": {
+        "edited": [
+          "\u00a9nam"
+        ],
+        "untouched": [
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "raw_write_mode": [
+          "replace",
+          "merge"
+        ],
+        "write_mode": [
+          "raw_replace",
+          "raw_merge"
+        ],
+        "ownership_mode": [
+          "full_replacement",
+          "delta"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-RAW-01",
+          "expected_assertions": 9
+        },
+        {
+          "scenario_id": "S-MP4-RAW-02",
+          "expected_assertions": 9
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-RAW-DELTA",
+      "surface_id": "swift.TagLibMetadataManager.func.applyRawMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyRawMetadataPatch",
+        "bridge.TagLibMetadataExtractor.class_method.writeRawPropertyMap"
+      ],
+      "adapters": [
+        "facade.applyRawPatch",
+        "bridge.writeRawPropertyMap"
+      ],
+      "field_family": [
+        "title",
+        "album",
+        "custom"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "sequence",
+      "operation": "explicit raw delta set/remove and exporter whole-map replacement",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractRawDeltaAndBridgeReplace",
+      "ownership": {
+        "edited": [
+          "\u00a9nam",
+          "\u00a9alb"
+        ],
+        "untouched": [
+          "----:com.apple.iTunes:CONTRACT_UNKNOWN",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "raw_delta",
+          "raw_replace"
+        ],
+        "ownership_mode": [
+          "delta",
+          "full_replacement"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-RAW-03",
+          "expected_assertions": 9
+        },
+        {
+          "scenario_id": "S-MP4-RAW-04",
+          "expected_assertions": 8
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-NUMBER-TEXT",
+      "surface_id": "swift.TagLibMetadataManager.func.writeTrackNumberText",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.writeTrackNumberText",
+        "bridge.TagLibMetadataExtractor.class_method.writeTrackNumberText",
+        "bridge.TagLibMetadataExtractor.class_method.writeTrackNumber"
+      ],
+      "adapters": [
+        "facade.writeTrackNumberText",
+        "bridge.writeTrackNumber",
+        "bridge.writeTrackNumberText"
+      ],
+      "field_family": [
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text",
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "numeric_boundary",
+      "operation": "formatted and padded track/disc number text",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractNumberTextSurfaces",
+      "ownership": {
+        "edited": [
+          "trkn"
+        ],
+        "untouched": [
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "number_text"
+        ],
+        "verification": [
+          "enabled",
+          "disabled"
+        ],
+        "number_text": [
+          "set",
+          "remove",
+          "unchanged"
+        ],
+        "input_representation": [
+          "nil",
+          "text",
+          "empty"
+        ],
+        "adapter_kind": [
+          "facade",
+          "bridge"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-NUMTEXT-01",
+          "expected_assertions": 4
+        },
+        {
+          "scenario_id": "S-MP4-NUMTEXT-02",
+          "expected_assertions": 4
+        },
+        {
+          "scenario_id": "S-MP4-NUMTEXT-03",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-MP4-NUMTEXT-04",
+          "expected_assertions": 4
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-NUMERIC-BOUNDS",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch",
+        "bridge.TagLibMetadataExtractor.class_method.writeTrackNumber"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "track",
+        "trackTotal",
+        "movementNumber"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "numeric_boundary",
+      "operation": "uint16 and int16 boundary values round-trip",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractMP4NumericBounds",
+      "ownership": {
+        "edited": [
+          "trkn",
+          "\u00a9mvi"
+        ],
+        "untouched": [
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "typed_patch"
+        ],
+        "input_representation": [
+          "integer"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-NUM-01",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-MP4-NUM-04",
+          "expected_assertions": 4
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-NUMERIC-OVERFLOW-REJECT",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "track"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "numeric_boundary",
+      "operation": "just-outside uint16 and negative track rejection",
+      "oracle": "byte equality",
+      "runtime_test": "contractMP4NumericBounds",
+      "validation_phase": "preflight before staging",
+      "rejection": {
+        "expected": "MetadataPatchValidationError.integerOutOfRange",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "input_representation": [
+          "integer",
+          "overflow"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-NUM-02",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-MP4-NUM-03",
+          "expected_assertions": 2
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-NUMBER-TEXT-INVALID",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "input_representation",
+      "operation": "malformed, overlong and embedded-NUL number text rejection",
+      "oracle": "byte equality",
+      "runtime_test": "contractInvalidNumberTextRejects",
+      "validation_phase": "preflight before staging",
+      "rejection": {
+        "expected": "MetadataPatchValidationError.numberTextMismatch",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "input_representation": [
+          "malformed",
+          "overflow",
+          "embedded_nul"
+        ],
+        "number_text": [
+          "set"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-BADNUM-01",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-MP4-BADNUM-02",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-MP4-BADNUM-03",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-MP4-BADNUM-04",
+          "expected_assertions": 2
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-VERIFICATION-DISABLED",
+      "surface_id": "swift.TagLibMetadataManager.func.writeStructuredMetadataWithVerification",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.writeStructuredMetadataWithVerification"
+      ],
+      "adapters": [
+        "facade.writeStructured"
+      ],
+      "field_family": [
+        "title"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "validation_execution",
+      "operation": "structured write with optional verification disabled still persists selected atom",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractVerificationDisabled",
+      "ownership": {
+        "edited": [
+          "\u00a9nam"
+        ],
+        "untouched": [
+          "\u00a9alb",
+          "----:com.apple.iTunes:CONTRACT_UNKNOWN",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "verification": [
+          "disabled"
+        ],
+        "write_mode": [
+          "structured"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-VERIFYOFF-01",
+          "expected_assertions": 6
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-ERASE-REOPEN",
+      "surface_id": "swift.TagLibMetadataManager.func.eraseAllMetadataWithVerification",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.eraseAllMetadataWithVerification"
+      ],
+      "adapters": [
+        "facade.eraseAll"
+      ],
+      "field_family": [
+        "title",
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text",
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "sequence",
+      "operation": "erase then fresh reopen",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractEraseAndReopen",
+      "ownership": {
+        "edited": [
+          "\u00a9nam",
+          "trkn"
+        ],
+        "untouched": [
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "erase"
+        ],
+        "ownership_mode": [
+          "erase"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-ERASE-01",
+          "expected_assertions": 9
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-STALE-GUARDS",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch",
+        "swift.TagLibMetadataManager.func.applyMetadataPatch.2",
+        "swift.TagLibMetadataManager.func.applyRawMetadataPatch.2",
+        "swift.TagLibMetadataManager.func.fileVersion"
+      ],
+      "adapters": [
+        "facade.applyPatchGuarded"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "title"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "transaction",
+      "operation": "stale version and mismatched audio-content guard rejection",
+      "oracle": "byte equality",
+      "runtime_test": "contractStaleGuards",
+      "validation_phase": "inside atomic transaction before staging commit",
+      "rejection": {
+        "expected": "TagLibManagerError.fileChanged or MetadataAudioContentError.changed",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "expected_version": [
+          "stale"
+        ],
+        "audio_content_guard": [
+          "mismatched"
+        ],
+        "write_mode": [
+          "typed_patch"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-STALE-01",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-MP4-STALE-02",
+          "expected_assertions": 2
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-BATCH",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "title",
+        "custom"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "batch",
+      "operation": "independent per-file patch results for successful copies",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractBatchPerFile",
+      "ownership": {
+        "edited": [
+          "\u00a9nam"
+        ],
+        "untouched": [
+          "----:com.apple.iTunes:CONTRACT_UNKNOWN",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "ownership_mode": [
+          "delta"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-BATCH-01",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-MP4-BATCH-03",
+          "expected_assertions": 3
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-BATCH-REJECT",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "track"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "batch",
+      "operation": "one rejected file in a small batch remains unchanged",
+      "oracle": "byte equality",
+      "runtime_test": "contractBatchPerFile",
+      "validation_phase": "preflight before staging",
+      "rejection": {
+        "expected": "MetadataPatchValidationError.integerOutOfRange",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "input_representation": [
+          "overflow"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-BATCH-02",
+          "expected_assertions": 4
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ID3-V23-FLAGS",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "year",
+        "standaloneDate",
+        "originalReleaseDate",
+        "title"
+      ],
+      "format_family": [
+        "id3v23"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.mp3",
+      "partition": "concrete_version",
+      "operation": "unrelated edit preserves v2.3 version, flags, grouping and literal dates or rejects safely",
+      "oracle": "ContractID3Oracle",
+      "runtime_test": "contractV23FlaggedPreservation",
+      "ownership": {
+        "edited": [
+          "TIT2"
+        ],
+        "untouched": [
+          "TYER",
+          "TDAT",
+          "TORY",
+          "TXXX private",
+          "audio"
+        ],
+        "audio": true,
+        "flags": true
+      },
+      "modes": {
+        "ownership_mode": [
+          "delta"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ID3-V23-FLAGS-01",
+          "expected_assertions": 12
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ID3-V23-DATE-REJECT",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch",
+        "swift.TagLibMetadataManager.func.writeStructuredMetadataWithVerification",
+        "bridge.TagLibMetadataExtractor.class_method.writeStructuredMetadata"
+      ],
+      "adapters": [
+        "facade.applyPatch",
+        "facade.writeStructured",
+        "bridge.writeStructuredMetadata"
+      ],
+      "outcome": "read_only_reject",
+      "field_family": [
+        "year",
+        "standaloneDate",
+        "releaseDate",
+        "originalReleaseDate"
+      ],
+      "format_family": [
+        "id3v23"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.mp3",
+      "partition": "validation_execution",
+      "operation": "typed, facade-structured and direct-bridge v2.3 date edits reject",
+      "oracle": "byte equality",
+      "runtime_test": "contractV23DateRejections",
+      "validation_phase": "preflight before staging",
+      "rejection": {
+        "expected": "unsupportedFieldForFormat or ID3v2.3 read-only policy",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "write_mode": [
+          "typed_patch",
+          "structured"
+        ],
+        "adapter_kind": [
+          "facade",
+          "bridge"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ID3-V23-DATE-01",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ID3-V23-DATE-02",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ID3-V23-DATE-03",
+          "expected_assertions": 2
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ID3-PRIVATE",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "title"
+      ],
+      "format_family": [
+        "id3v24"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.mp3",
+      "partition": "preservation",
+      "operation": "both private provenance namespaces survive an unrelated edit",
+      "oracle": "ContractID3Oracle",
+      "runtime_test": "contractPrivateProvenance",
+      "ownership": {
+        "edited": [
+          "TIT2"
+        ],
+        "untouched": [
+          "TXXX AUDIOMATOR",
+          "TXXX TAGLIBAUDIOMETADATA",
+          "audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "ownership_mode": [
+          "delta"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ID3-PRIVATE-01",
+          "expected_assertions": 5
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-FLAC-ARRAYS",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "title",
+        "year"
+      ],
+      "format_family": [
+        "flac"
+      ],
+      "encoding_families": [
+        "text",
+        "array"
+      ],
+      "fixture_id": "fixture.flac",
+      "partition": "preservation",
+      "operation": "FLAC duplicate arrays, whitespace, private namespaces and audio survive",
+      "oracle": "ContractFLACOracle",
+      "runtime_test": "contractFLACArrayPreservation",
+      "ownership": {
+        "edited": [
+          "TITLE"
+        ],
+        "untouched": [
+          "YEAR duplicates",
+          "CONTRACT whitespace",
+          "AUDIOMATOR_YEAR_TEXT",
+          "TAGLIBAUDIOMETADATA_YEAR_TEXT",
+          "audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "ownership_mode": [
+          "delta"
+        ],
+        "input_representation": [
+          "text"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-FLAC-ARRAY-01",
+          "expected_assertions": 6
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-FLAC-REMOVAL",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "standaloneDate",
+        "year"
+      ],
+      "format_family": [
+        "flac"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.flac",
+      "partition": "preservation",
+      "operation": "explicit DATE removal leaves YEAR, private and unknown owners",
+      "oracle": "ContractFLACOracle",
+      "runtime_test": "contractFLACExplicitRemoval",
+      "ownership": {
+        "edited": [
+          "DATE"
+        ],
+        "untouched": [
+          "YEAR",
+          "CONTRACT",
+          "AUDIOMATOR_YEAR_TEXT",
+          "audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "ownership_mode": [
+          "explicit_removal"
+        ],
+        "input_representation": [
+          "empty"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-FLAC-REMOVE-01",
+          "expected_assertions": 5
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-WAV-AIFF-ID3",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "title"
+      ],
+      "format_family": [
+        "wav",
+        "aiff"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.wav",
+      "partition": "concrete_version",
+      "operation": "WAV and AIFF ID3 chunks retain sizes, alignment, INFO sibling and audio",
+      "oracle": "ContractRIFFOracle+ContractID3Oracle",
+      "runtime_test": "contractWAVAndAIFFID3",
+      "ownership": {
+        "edited": [
+          "TIT2"
+        ],
+        "untouched": [
+          "LIST INFO",
+          "SSND/data audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "typed_patch"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-WAV-ID3-01",
+          "expected_assertions": 5
+        },
+        {
+          "scenario_id": "S-AIFF-ID3-01",
+          "expected_assertions": 5
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ASF-ADVISORY",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "explicitContent",
+        "title"
+      ],
+      "format_family": [
+        "asf"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.wma",
+      "partition": "preservation",
+      "operation": "unknown advisory code and known clean semantic state remain distinct",
+      "oracle": "IndependentASF",
+      "runtime_test": "contractASFAdvisoryPreservation",
+      "ownership": {
+        "edited": [
+          "ITUNESADVISORY/ADVISORY"
+        ],
+        "untouched": [
+          "other ASF attributes"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "typed_patch"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ASF-ADV-01",
+          "expected_assertions": 4
+        },
+        {
+          "scenario_id": "S-ASF-ADV-02",
+          "expected_assertions": 3
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ASF-PARTIAL-PAIR-REJECT",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "asf"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.wma",
+      "partition": "input_representation",
+      "operation": "ASF total-only pair rejection without mutation",
+      "oracle": "byte equality",
+      "runtime_test": "contractASFPartialPairRejects",
+      "validation_phase": "preflight before staging",
+      "rejection": {
+        "expected": "MetadataPatchValidationError.unsupportedPartialPairRemoval",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "input_representation": [
+          "integer"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ASF-PAIR-01",
+          "expected_assertions": 3
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-BRIDGE-READS-REGISTRY",
+      "surface_id": "swift.TagLibMetadataManager.func.readMetadataResult",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.readMetadataResult",
+        "swift.TagLibMetadataManager.func.readSnapshot",
+        "swift.TagLibMetadataManager.func.readBasicSnapshot",
+        "swift.TagLibMetadataManager.func.rawMetadataResult",
+        "swift.TagLibMetadataManager.func.bestEffortMetadata",
+        "swift.TagLibMetadataManager.func.bestEffortRawMetadata",
+        "swift.TagLibMetadataManager.func.bestEffortRawMetadataText",
+        "swift.TagLibMetadataManager.func.readStructuredMetadataResult",
+        "swift.TagLibMetadataManager.func.bestEffortStructuredMetadata",
+        "swift.TagLibMetadataManager.func.capability",
+        "swift.TagLibMetadataManager.func.probeFile",
+        "swift.TagLibMetadataManager.func.formatSupportLevel",
+        "swift.TagLibMetadataManager.func.isReadableExtension",
+        "swift.TagLibMetadataManager.func.isWritableExtension",
+        "swift.TagLibMetadataManager.var.readableExtensions",
+        "swift.TagLibMetadataManager.var.writableExtensions",
+        "swift.TagLibMetadataManager.var.formatCapabilities",
+        "bridge.TagLibMetadataExtractor.class_method.extractMetadataFromURL",
+        "bridge.TagLibMetadataExtractor.class_method.metadataProjectionsForURL",
+        "bridge.TagLibMetadataExtractor.class_method.metadataProjectionsForURL.2",
+        "bridge.TagLibMetadataExtractor.class_method.rawMetadataForURL",
+        "bridge.TagLibMetadataExtractor.class_method.structuredMetadataForURL",
+        "bridge.TagLibMetadataExtractor.class_method.dumpMetadataTextFromURL",
+        "bridge.TagLibMetadataExtractor.class_method.isSupportedFormat",
+        "bridge.TagLibMetadataExtractor.class_method.isWritableFormat",
+        "bridge.TagLibMetadataExtractor.class_method.supportedExtensions",
+        "bridge.TagLibMetadataExtractor.class_method.writableExtensions",
+        "bridge.TagLibMetadataExtractor.class_method.formatCapabilityForExtension",
+        "bridge.TagLibMetadataExtractor.class_method.formatCapabilities",
+        "bridge.TagLibMetadataExtractor.class_method.knownMetadataPropertyKeys",
+        "bridge.TagLibMetadataExtractor.class_method.metadataFieldMappings",
+        "swift.MetadataFieldRegistry.func.schema",
+        "swift.MetadataFieldRegistry.func.schema.2",
+        "swift.MetadataFieldRegistry.func.normalizePropertyMapKey",
+        "swift.MetadataFieldRegistry.func.schemas",
+        "swift.MetadataFieldRegistry.func.shouldDisplayRawPropertyAsMultiValue",
+        "swift.MetadataFieldRegistry.func.canonicalSchema",
+        "swift.MetadataFieldRegistry.func.schemas.2",
+        "swift.MetadataFieldRegistry.func.schema.3",
+        "swift.MetadataMappingCatalog.func.profile",
+        "swift.MetadataMappingCatalog.let.contractVersion"
+      ],
+      "adapters": [
+        "facade.readMetadataResult",
+        "facade.readSnapshot",
+        "facade.readSnapshotWithAudio",
+        "facade.readBasicSnapshot",
+        "facade.readRawMetadata",
+        "facade.bestEffortMetadata",
+        "facade.bestEffortRawMetadata",
+        "facade.bestEffortRawMetadataText",
+        "facade.readStructured",
+        "facade.bestEffortStructured",
+        "bridge.extractMetadata",
+        "bridge.metadataProjections",
+        "bridge.metadataProjectionsOptions",
+        "bridge.rawMetadata",
+        "bridge.structuredMetadata",
+        "bridge.dumpMetadataText",
+        "facade.fileVersion",
+        "facade.probeFile",
+        "facade.capability",
+        "facade.formatSupportLevel",
+        "facade.isReadableExtension",
+        "facade.isWritableExtension",
+        "facade.readableExtensions",
+        "facade.writableExtensions",
+        "facade.formatCapabilities",
+        "bridge.isSupportedFormat",
+        "bridge.isWritableFormat",
+        "bridge.supportedExtensions",
+        "bridge.writableExtensions",
+        "bridge.formatCapability",
+        "bridge.formatCapabilities",
+        "bridge.knownMetadataPropertyKeys",
+        "bridge.metadataFieldMappings",
+        "registry.schemaForKey",
+        "registry.schemaForPropertyMapKey",
+        "registry.normalizeKey",
+        "registry.schemas",
+        "registry.shouldDisplayMultiValue",
+        "registry.profile",
+        "registry.mappingContract"
+      ],
+      "field_family": [
+        "title",
+        "year",
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "read_registry",
+      "operation": "full/selective/raw/structured reads and registry/capability queries agree",
+      "oracle": "ContractMP4Oracle+native registry snapshots",
+      "runtime_test": "contractBridgeReadsRegistry",
+      "ownership": {
+        "edited": [],
+        "untouched": [
+          "whole file bytes on reads"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "read_options": [
+          "all",
+          "basic",
+          "raw",
+          "structured",
+          "property_map",
+          "raw_frames",
+          "zero"
+        ],
+        "format_registry": [
+          "supported",
+          "writable",
+          "unknown",
+          "read_only"
+        ],
+        "structured_properties": [
+          "excluded",
+          "included"
+        ],
+        "audio_content_guard": [
+          "not_requested",
+          "matching"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-BRIDGE-READ-01",
+          "expected_assertions": 27
+        },
+        {
+          "scenario_id": "S-BRIDGE-READ-02",
+          "expected_assertions": 22
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-BRIDGE-STRUCTURED-VALIDATION",
+      "surface_id": "bridge.TagLibMetadataExtractor.class_method.writeStructuredMetadata",
+      "surface_ids": [
+        "bridge.TagLibMetadataExtractor.class_method.writeStructuredMetadata"
+      ],
+      "adapters": [
+        "bridge.writeStructuredMetadata"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "track"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "bool",
+        "byte",
+        "signed_integer",
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "validation_execution",
+      "operation": "exported structured numeric/type validation precedes file access",
+      "oracle": "NSError identity + filesystem absence",
+      "runtime_test": "contractBridgeStructuredValidation",
+      "validation_phase": "inside exported bridge validation before file open",
+      "rejection": {
+        "expected": "NSError domain TagLibMetadataExtractor code 243",
+        "unchanged_bytes": true,
+        "file_not_created": true
+      },
+      "modes": {
+        "input_representation": [
+          "overflow",
+          "wrong_type",
+          "malformed"
+        ],
+        "adapter_kind": [
+          "bridge"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-BRIDGE-VALID-01",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-BRIDGE-VALID-02",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-BRIDGE-VALID-03",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-BRIDGE-VALID-04",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-BRIDGE-VALID-05",
+          "expected_assertions": 3
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-BRIDGE-WIPE",
+      "surface_id": "bridge.TagLibMetadataExtractor.class_method.wipeMetadataFromURL",
+      "surface_ids": [
+        "bridge.TagLibMetadataExtractor.class_method.wipeMetadataFromURL"
+      ],
+      "adapters": [
+        "bridge.wipeMetadata"
+      ],
+      "field_family": [
+        "title",
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text",
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "sequence",
+      "operation": "direct exported wipe then reopen",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractBridgeWipe",
+      "ownership": {
+        "edited": [
+          "\u00a9nam",
+          "trkn"
+        ],
+        "untouched": [
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "wipe"
+        ],
+        "adapter_kind": [
+          "bridge"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-BRIDGE-WIPE-01",
+          "expected_assertions": 4
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-NORMALIZATION-PLAN",
+      "surface_id": "swift.TagLibMetadataManager.func.planNumberNormalization",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.planNumberNormalization",
+        "swift.TagLibMetadataManager.func.applyNumberNormalization",
+        "swift.TagLibMetadataManager.func.numberingInventory"
+      ],
+      "adapters": [
+        "facade.numberingInventory",
+        "facade.planNormalization",
+        "facade.applyNormalization"
+      ],
+      "field_family": [
+        "track",
+        "trackTotal",
+        "disc",
+        "discTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "sequence",
+      "operation": "normalization preview/apply with private cleanup and untouched disc group",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractNormalizationPlan",
+      "ownership": {
+        "edited": [
+          "trkn",
+          "private track text"
+        ],
+        "untouched": [
+          "disk",
+          "audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "normalization"
+        ],
+        "normalization_policy": [
+          "explicit",
+          "legacy_recovery",
+          "native"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-NORM-01",
+          "expected_assertions": 6
+        },
+        {
+          "scenario_id": "S-NORM-03",
+          "expected_assertions": 4
+        },
+        {
+          "scenario_id": "S-NORM-04",
+          "expected_assertions": 4
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-NORMALIZATION-STALE-REJECT",
+      "surface_id": "swift.TagLibMetadataManager.func.applyNumberNormalization",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyNumberNormalization"
+      ],
+      "adapters": [
+        "facade.applyNormalization"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "transaction",
+      "operation": "stale normalization plan rejection after external edit",
+      "oracle": "byte equality",
+      "runtime_test": "contractNormalizationPlan",
+      "validation_phase": "before staging commit",
+      "rejection": {
+        "expected": "TagLibManagerError.fileChanged",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "expected_version": [
+          "stale"
+        ],
+        "normalization_policy": [
+          "explicit"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-NORM-02",
+          "expected_assertions": 2
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ENCODING-FAMILIES",
+      "surface_id": "bridge.TagLibMetadataExtractor.class_method.writeStructuredMetadata",
+      "surface_ids": [
+        "bridge.TagLibMetadataExtractor.class_method.writeStructuredMetadata",
+        "swift.TagLibMetadataManager.func.writeStructuredMetadataWithVerification"
+      ],
+      "adapters": [
+        "bridge.writeStructuredMetadata",
+        "facade.writeStructured",
+        "facade.writeRawMapValues",
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "title",
+        "lyrics",
+        "comment",
+        "artwork",
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4",
+        "flac",
+        "id3v24"
+      ],
+      "encoding_families": [
+        "text",
+        "array",
+        "bool",
+        "byte",
+        "signed_integer",
+        "unsigned_integer",
+        "int_pair",
+        "identifier",
+        "artwork",
+        "qualified_collection"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "encoding_family",
+      "operation": "text, array, bool, integer widths, intPair, identifier, artwork and qualified collections",
+      "oracle": "ContractMP4Oracle+ContractFLACOracle+ContractID3Oracle",
+      "runtime_test": "contractEncodingFamilies",
+      "ownership": {
+        "edited": [
+          "selected native owner"
+        ],
+        "untouched": [
+          "audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "structured",
+          "typed_patch",
+          "raw_replace"
+        ],
+        "structured_collections": [
+          "omitted",
+          "replaced",
+          "removed"
+        ],
+        "input_representation": [
+          "text",
+          "boolean",
+          "string_array"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ENC-01",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ENC-02",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ENC-03",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ENC-04",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ENC-05",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ENC-06",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-ENC-07",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ENC-08",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-ENC-09",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-ENC-10",
+          "expected_assertions": 5
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ARTWORK-QUALIFIED",
+      "surface_id": "swift.TagLibMetadataManager.func.writeStructuredMetadataWithVerification",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.writeStructuredMetadataWithVerification",
+        "bridge.TagLibMetadataExtractor.class_method.writeStructuredMetadata"
+      ],
+      "adapters": [
+        "facade.writeStructured",
+        "bridge.writeStructuredMetadata"
+      ],
+      "field_family": [
+        "artwork",
+        "comment"
+      ],
+      "format_family": [
+        "mp4",
+        "id3v24"
+      ],
+      "encoding_families": [
+        "artwork",
+        "qualified_collection"
+      ],
+      "fixture_id": "fixture.artwork",
+      "partition": "encoding_family",
+      "operation": "artwork replacement/removal and qualified comment payloads",
+      "oracle": "ContractMP4Oracle+ContractID3Oracle",
+      "runtime_test": "contractArtworkAndQualifiedCollections",
+      "ownership": {
+        "edited": [
+          "covr",
+          "APIC"
+        ],
+        "untouched": [
+          "audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "structured_collections": [
+          "replaced",
+          "removed"
+        ],
+        "ownership_mode": [
+          "explicit_removal"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ART-01",
+          "expected_assertions": 3
+        },
+        {
+          "scenario_id": "S-ART-02",
+          "expected_assertions": 3
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-TRACKER-ROUTE",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "trackerName"
+      ],
+      "format_family": [
+        "tracker"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.xm",
+      "partition": "concrete_version",
+      "operation": "XM tracker-name typed route writes native fixed bytes",
+      "oracle": "RepairXMHeader",
+      "runtime_test": "contractTrackerRoute",
+      "ownership": {
+        "edited": [
+          "tracker name bytes"
+        ],
+        "untouched": [
+          "module name",
+          "audio suffix"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "typed_patch"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-TRACKER-01",
+          "expected_assertions": 4
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-NATIVE-TEXT-OTHER",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "title"
+      ],
+      "format_family": [
+        "ogg-vorbis",
+        "ogg-opus",
+        "ape",
+        "wavpack"
+      ],
+      "encoding_families": [
+        "text",
+        "array"
+      ],
+      "fixture_id": "fixture.ogg",
+      "partition": "concrete_version",
+      "operation": "title update on Ogg Vorbis, Opus, APE and WavPack preserves sibling collections and audio",
+      "oracle": "IndependentOggProbe+HardeningFixture.apeState",
+      "runtime_test": "contractNativeTextOtherFamilies",
+      "ownership": {
+        "edited": [
+          "TITLE"
+        ],
+        "untouched": [
+          "all sibling comments/items",
+          "audio"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "ownership_mode": [
+          "delta"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-OGG-01",
+          "expected_assertions": 5
+        },
+        {
+          "scenario_id": "S-OPUS-01",
+          "expected_assertions": 5
+        },
+        {
+          "scenario_id": "S-APE-01",
+          "expected_assertions": 5
+        },
+        {
+          "scenario_id": "S-WV-01",
+          "expected_assertions": 5
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-UNSUPPORTED-ROUTES",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "outcome": "unsupported_reject",
+      "field_family": [
+        "performer",
+        "rate",
+        "title"
+      ],
+      "format_family": [
+        "mp4",
+        "flac",
+        "tracker"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "input_representation",
+      "operation": "role-qualified, non-MP4 rate and target-only Matroska extension routes reject",
+      "oracle": "byte equality",
+      "runtime_test": "contractUnsupportedRoutesReject",
+      "validation_phase": "before staging",
+      "rejection": {
+        "expected": "role/rate/format policy rejection",
+        "unchanged_bytes": true
+      },
+      "modes": {
+        "format_registry": [
+          "unknown"
+        ],
+        "input_representation": [
+          "wrong_type",
+          "integer"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-UNSUP-01",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-UNSUP-02",
+          "expected_assertions": 2
+        },
+        {
+          "scenario_id": "S-UNSUP-03",
+          "expected_assertions": 2
+        }
+      ],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MATROSKA-LIMITATION",
+      "surface_id": "swift.MetadataMappingCatalog.let.profiles",
+      "surface_ids": [
+        "swift.MetadataMappingCatalog.let.profiles"
+      ],
+      "adapters": [],
+      "outcome": "unverified",
+      "evidence_tier": "documented_limitation",
+      "field_family": [
+        "director",
+        "rate",
+        "showMovement",
+        "storeDescription",
+        "tvEpisode",
+        "tvEpisodeID",
+        "tvNetwork",
+        "tvSeason",
+        "tvShow",
+        "tvShowSort"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "concrete_version",
+      "operation": "target-only Matroska registrations remain non-executable",
+      "oracle": "mapping claims + format-capability claims",
+      "runtime_test": null,
+      "limitation_reason": "Matroska has target-only registrations and no registered family/fixture/runtime gate; no fallback codec is claimed.",
+      "ownership": null,
+      "rejection": null,
+      "modes": {
+        "format_registry": [
+          "read_only"
+        ]
+      },
+      "scenarios": [],
+      "version": "any",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "additional_surface_ids": []
+    }
+  ],
+  "field_decisions": [
+    {
+      "field": "acoustID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "acoustIDFingerprint",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "album",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "albumArtist",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "artist",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "artistType",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "artists",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "artwork",
+      "decision": "supported",
+      "contracts": [
+        "C-ARTWORK-QUALIFIED",
+        "C-ENCODING-FAMILIES"
+      ],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "asin",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "barcode",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "bpm",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "catalogNumber",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "comment",
+      "decision": "supported",
+      "contracts": [
+        "C-ARTWORK-QUALIFIED",
+        "C-ENCODING-FAMILIES"
+      ],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "compilation",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "composer",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "conductor",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "contentGroup",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "copyright",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "custom",
+      "decision": "supported",
+      "contracts": [
+        "C-MP4-FULL-MODEL"
+      ],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "director",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "disc",
+      "decision": "supported",
+      "contracts": [
+        "C-NORMALIZATION-PLAN"
+      ],
+      "existing_runtime_tests": [
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "numberTextPreflightRunsBeforeStaging",
+        "mp4PairUpperBound65535RoundTrips",
+        "explicitZeroTotalIsNotRecoveredFromOldNumberText"
+      ]
+    },
+    {
+      "field": "discSubtitle",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "discTotal",
+      "decision": "supported",
+      "contracts": [
+        "C-NORMALIZATION-PLAN"
+      ],
+      "existing_runtime_tests": [
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "numberTextPreflightRunsBeforeStaging",
+        "mp4PairUpperBound65535RoundTrips",
+        "explicitZeroTotalIsNotRecoveredFromOldNumberText"
+      ]
+    },
+    {
+      "field": "encodedBy",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "encoderSettings",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "engineer",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "explicitContent",
+      "decision": "supported",
+      "contracts": [
+        "C-ASF-ADVISORY"
+      ],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "genre",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "grouping",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "involvedPeople",
+      "decision": "read_only",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ],
+      "reason": "No verified role-qualified codec; raw/structured inspection remains available."
+    },
+    {
+      "field": "isrc",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesAccount",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesAlbumID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesArtistID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesCatalogID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesComposerID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesCountryID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesGapless",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesGenreID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesHDVideo",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesMediaType",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesNorm",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesOwner",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesPurchaseDate",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "itunesSMPB",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "language",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "lyricist",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "lyrics",
+      "decision": "supported",
+      "contracts": [
+        "C-ENCODING-FAMILIES"
+      ],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "mediaType",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "mood",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "movement",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "movementCount",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "numberTextPreflightRunsBeforeStaging",
+        "mp4PairUpperBound65535RoundTrips",
+        "explicitZeroTotalIsNotRecoveredFromOldNumberText"
+      ]
+    },
+    {
+      "field": "movementNumber",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "numberTextPreflightRunsBeforeStaging",
+        "mp4PairUpperBound65535RoundTrips",
+        "explicitZeroTotalIsNotRecoveredFromOldNumberText"
+      ]
+    },
+    {
+      "field": "musicBrainzAlbumArtistID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicBrainzAlbumID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicBrainzArtistID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicBrainzReleaseGroupID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicBrainzReleaseTrackID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicBrainzTrackID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicBrainzWorkID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicIPPUID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicalKey",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "musicianCredits",
+      "decision": "read_only",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ],
+      "reason": "No verified role-qualified codec; raw/structured inspection remains available."
+    },
+    {
+      "field": "originalAlbum",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "originalArtist",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "originalReleaseDate",
+      "decision": "supported",
+      "contracts": [
+        "C-ID3-V23-FLAGS"
+      ],
+      "existing_runtime_tests": [
+        "legacyV23StatusFlagsReadLiteralDates",
+        "basicID3DatesPreserveNativeArrays",
+        "textLifecyclePreservesEveryDatePresenceState",
+        "unrelatedWriteSurfacesPreserveDateState",
+        "everyFieldPreservesAllSiblingDateStates"
+      ]
+    },
+    {
+      "field": "performer",
+      "decision": "read_only",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ],
+      "reason": "No verified role-qualified codec; raw/structured inspection remains available."
+    },
+    {
+      "field": "producer",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "publisher",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "rate",
+      "decision": "read_only",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ],
+      "reason": "No verified MP4 rate type or scale in this profile."
+    },
+    {
+      "field": "releaseCountry",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "releaseDate",
+      "decision": "supported",
+      "contracts": [
+        "C-ID3-V23-FLAGS"
+      ],
+      "existing_runtime_tests": [
+        "legacyV23StatusFlagsReadLiteralDates",
+        "basicID3DatesPreserveNativeArrays",
+        "textLifecyclePreservesEveryDatePresenceState",
+        "unrelatedWriteSurfacesPreserveDateState",
+        "everyFieldPreservesAllSiblingDateStates"
+      ]
+    },
+    {
+      "field": "releaseStatus",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "releaseType",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "remixer",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "replayGainAlbumGain",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "replayGainAlbumPeak",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "replayGainTrackGain",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "replayGainTrackPeak",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "showMovement",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "sortAlbum",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "sortAlbumArtist",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "sortArtist",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "sortComposer",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "sortTitle",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "standaloneDate",
+      "decision": "supported",
+      "contracts": [
+        "C-ID3-V23-FLAGS",
+        "C-FLAC-REMOVAL"
+      ],
+      "existing_runtime_tests": [
+        "legacyV23StatusFlagsReadLiteralDates",
+        "basicID3DatesPreserveNativeArrays",
+        "textLifecyclePreservesEveryDatePresenceState",
+        "unrelatedWriteSurfacesPreserveDateState",
+        "everyFieldPreservesAllSiblingDateStates"
+      ]
+    },
+    {
+      "field": "storeDescription",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "subtitle",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "title",
+      "decision": "supported",
+      "contracts": [
+        "C-MP4-TYPED-VERTICAL",
+        "C-MP4-SEQUENCE",
+        "C-ID3-PRIVATE",
+        "C-FLAC-ARRAYS"
+      ],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "track",
+      "decision": "supported",
+      "contracts": [
+        "C-MP4-NUMERIC-BOUNDS",
+        "C-NORMALIZATION-PLAN"
+      ],
+      "existing_runtime_tests": [
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "numberTextPreflightRunsBeforeStaging",
+        "mp4PairUpperBound65535RoundTrips",
+        "explicitZeroTotalIsNotRecoveredFromOldNumberText"
+      ]
+    },
+    {
+      "field": "trackTotal",
+      "decision": "supported",
+      "contracts": [
+        "C-MP4-NUMERIC-BOUNDS",
+        "C-NORMALIZATION-PLAN"
+      ],
+      "existing_runtime_tests": [
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "numberTextPreflightRunsBeforeStaging",
+        "mp4PairUpperBound65535RoundTrips",
+        "explicitZeroTotalIsNotRecoveredFromOldNumberText"
+      ]
+    },
+    {
+      "field": "trackerName",
+      "decision": "supported",
+      "contracts": [
+        "C-TRACKER-ROUTE"
+      ],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "tvEpisode",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "tvEpisodeID",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "tvNetwork",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "tvSeason",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "tvShow",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "tvShowSort",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "work",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "everyFieldRequiresAnExplicitCoverageDecision",
+        "mp4LifecycleHasNativeOwnerAndPreservesSiblings",
+        "everyFieldPreservesAllSiblingDateStates",
+        "everyFieldPreservesAllOtherPresentOwners",
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "apeNativeItemLifecycle",
+        "oggNativeCommentLifecycle",
+        "nativeAttributeLifecycle"
+      ]
+    },
+    {
+      "field": "year",
+      "decision": "supported",
+      "contracts": [
+        "C-ID3-V23-FLAGS",
+        "C-FLAC-ARRAYS"
+      ],
+      "existing_runtime_tests": [
+        "legacyV23StatusFlagsReadLiteralDates",
+        "basicID3DatesPreserveNativeArrays",
+        "textLifecyclePreservesEveryDatePresenceState",
+        "unrelatedWriteSurfacesPreserveDateState",
+        "everyFieldPreservesAllSiblingDateStates"
+      ]
+    }
+  ],
+  "format_decisions": [
+    {
+      "format": "aiff",
+      "decision": "supported",
+      "contracts": [
+        "C-WAV-AIFF-ID3"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "ape",
+      "decision": "supported",
+      "contracts": [
+        "C-NATIVE-TEXT-OTHER"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "asf",
+      "decision": "supported",
+      "contracts": [
+        "C-ASF-ADVISORY"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "dsdiff",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "dsdiffPropertyChildID3UsesBoundedTraversal",
+        "v23ContainersPreserveVersionDatesAndAudio"
+      ]
+    },
+    {
+      "format": "dsf",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "v23ContainersPreserveVersionDatesAndAudio",
+        "nativeContainerFrameLifecycle"
+      ]
+    },
+    {
+      "format": "flac",
+      "decision": "supported",
+      "contracts": [
+        "C-FLAC-ARRAYS"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "it",
+      "decision": "unverified",
+      "contracts": [],
+      "existing_runtime_tests": [],
+      "reason": "Experimental tracker family has no committed fixture or typed runtime scenario; no fallback writer is claimed."
+    },
+    {
+      "format": "mp4",
+      "decision": "supported",
+      "contracts": [
+        "C-MP4-TYPED-VERTICAL"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "mpeg-aac",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "nativeFrameLifecyclePreservesOtherFramesAndAudio",
+        "v23ContainersPreserveVersionDatesAndAudio"
+      ]
+    },
+    {
+      "format": "mpeg-id3",
+      "decision": "supported",
+      "contracts": [
+        "C-ID3-V23-FLAGS",
+        "C-ID3-PRIVATE"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "musepack",
+      "decision": "supported",
+      "contracts": [
+        "C-NATIVE-TEXT-OTHER"
+      ],
+      "existing_runtime_tests": [
+        "apeNativeItemLifecycle",
+        "nativeContainerFrameLifecycle"
+      ]
+    },
+    {
+      "format": "ogg-flac",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "oggNativeCommentLifecycle",
+        "nativeContainerFrameLifecycle"
+      ]
+    },
+    {
+      "format": "ogg-opus",
+      "decision": "supported",
+      "contracts": [
+        "C-NATIVE-TEXT-OTHER"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "ogg-speex",
+      "decision": "unverified",
+      "contracts": [],
+      "existing_runtime_tests": [],
+      "reason": "Upstream-supported Ogg Speex family has no committed fixture or typed runtime scenario; no fallback writer is claimed."
+    },
+    {
+      "format": "ogg-vorbis",
+      "decision": "supported",
+      "contracts": [
+        "C-NATIVE-TEXT-OTHER"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "s3m",
+      "decision": "unverified",
+      "contracts": [],
+      "existing_runtime_tests": [],
+      "reason": "Experimental tracker family has no committed fixture or typed runtime scenario; no fallback writer is claimed."
+    },
+    {
+      "format": "trueaudio",
+      "decision": "supported",
+      "contracts": [],
+      "existing_runtime_tests": [
+        "v23ContainersPreserveVersionDatesAndAudio",
+        "nativeContainerFrameLifecycle"
+      ]
+    },
+    {
+      "format": "wav",
+      "decision": "supported",
+      "contracts": [
+        "C-WAV-AIFF-ID3"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "wavpack",
+      "decision": "supported",
+      "contracts": [
+        "C-NATIVE-TEXT-OTHER"
+      ],
+      "existing_runtime_tests": []
+    },
+    {
+      "format": "xm",
+      "decision": "supported",
+      "contracts": [
+        "C-TRACKER-ROUTE"
+      ],
+      "existing_runtime_tests": []
+    }
+  ],
+  "audit_scenarios": [
+    {
+      "scenario_id": "S-FIELD-COVERAGE-01",
+      "runtime_test": "contractEveryFieldHasCoverageDecision",
+      "expected_assertions": 303,
+      "purpose": "every advertised field has a reviewed coverage decision and expressibility/limitation outcome"
+    },
+    {
+      "scenario_id": "S-FORMAT-COVERAGE-01",
+      "runtime_test": "contractEveryFormatHasCoverageDecision",
+      "expected_assertions": 43,
+      "purpose": "every advertised writable format family has a reviewed decision or an explicit limitation"
+    },
+    {
+      "scenario_id": "S-CATALOG-RECONCILIATION-01",
+      "runtime_test": "contractCatalogReconciliation",
+      "expected_assertions": 207,
+      "purpose": "contracts, adapters, scenario declarations and assertion budgets reconcile without duplicates"
+    }
+  ]
+}

@@ -1,0 +1,377 @@
+{
+  "schema_version": 1,
+  "adapters": [
+    {
+      "id": "facade.readMetadataResult",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.readMetadataResult(from:)",
+      "invocation": "One facade read call; no fallback reader."
+    },
+    {
+      "id": "facade.readSnapshot",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.readSnapshot(from:includingAudioContent:false)",
+      "invocation": "One snapshot call without audio streaming."
+    },
+    {
+      "id": "facade.readSnapshotWithAudio",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.readSnapshot(from:includingAudioContent:true)",
+      "invocation": "One snapshot call with audio identity."
+    },
+    {
+      "id": "facade.readBasicSnapshot",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.readBasicSnapshot(from:includingAudioContent:)",
+      "invocation": "One facade basic snapshot call."
+    },
+    {
+      "id": "facade.readRawMetadata",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.rawMetadataResult(from:)",
+      "invocation": "One raw dump read."
+    },
+    {
+      "id": "facade.bestEffortMetadata",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.bestEffortMetadata(from:)",
+      "invocation": "One best-effort read; nil is not retried through another reader."
+    },
+    {
+      "id": "facade.bestEffortRawMetadata",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.bestEffortRawMetadata(from:)",
+      "invocation": "One best-effort raw read."
+    },
+    {
+      "id": "facade.bestEffortRawMetadataText",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.bestEffortRawMetadataText(from:)",
+      "invocation": "One best-effort text dump."
+    },
+    {
+      "id": "facade.readStructured",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.readStructuredMetadataResult(from:)",
+      "invocation": "One structured read."
+    },
+    {
+      "id": "facade.bestEffortStructured",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.bestEffortStructuredMetadata(from:)",
+      "invocation": "One best-effort structured read."
+    },
+    {
+      "id": "facade.applyPatch",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.applyMetadataPatch(_:to:expectedVersion:)",
+      "invocation": "One typed patch call with the unguarded overload."
+    },
+    {
+      "id": "facade.applyPatchGuarded",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.applyMetadataPatch(_:to:expectedVersion:expectedAudioContent:)",
+      "invocation": "One typed patch call with both guards."
+    },
+    {
+      "id": "facade.applyRawPatch",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.applyRawMetadataPatch(_:to:expectedVersion:)",
+      "invocation": "One raw delta call with the unguarded overload."
+    },
+    {
+      "id": "facade.applyRawPatchGuarded",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.applyRawMetadataPatch(_:to:expectedVersion:expectedAudioContent:)",
+      "invocation": "One raw delta call with both guards."
+    },
+    {
+      "id": "facade.replaceBasic",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.replaceBasicMetadata(_:to:expectedVersion:)",
+      "invocation": "One full-model facade replacement call."
+    },
+    {
+      "id": "facade.updateBasic",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.updateBasicMetadata(at:_:)",
+      "invocation": "One read-modify-write facade call."
+    },
+    {
+      "id": "facade.writeTagMetadata",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.writeTagMetadata(_:to:verification:expectedVersion:)",
+      "invocation": "One tagged low-level model write through the facade product."
+    },
+    {
+      "id": "facade.writeTrackNumberText",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.writeTrackNumberText(_:discNumberText:to:verifyAfterWrite:expectedVersion:)",
+      "invocation": "One formatted number-text write."
+    },
+    {
+      "id": "facade.writeRawMapStrings",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(_:to:mode:verifyAfterWrite:expectedVersion:)",
+      "invocation": "One raw string-map write with its explicit mode."
+    },
+    {
+      "id": "facade.writeRawMapValues",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(_:to:mode:verifyAfterWrite:expectedVersion:)",
+      "invocation": "One raw value-array write with its explicit mode."
+    },
+    {
+      "id": "facade.writeStructured",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.writeStructuredMetadataWithVerification(_:to:riffPolicy:includeProperties:replacingCollections:verifyAfterWrite:expectedVersion:)",
+      "invocation": "One structured write with explicit collection/property policy."
+    },
+    {
+      "id": "facade.eraseAll",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.eraseAllMetadataWithVerification(from:expectedVersion:)",
+      "invocation": "One erase call; no alternative wipe fallback."
+    },
+    {
+      "id": "facade.fileVersion",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.fileVersion(at:)",
+      "invocation": "One version query."
+    },
+    {
+      "id": "facade.numberingInventory",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.numberingInventory(at:)",
+      "invocation": "One numbering inventory read."
+    },
+    {
+      "id": "facade.planNormalization",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.planNumberNormalization(at:policy:groups:)",
+      "invocation": "One normalization plan call."
+    },
+    {
+      "id": "facade.applyNormalization",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.applyNumberNormalization(_:to:expectedVersion:)",
+      "invocation": "One normalization apply call."
+    },
+    {
+      "id": "facade.capability",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.capability(forExtension:)",
+      "invocation": "One declared capability lookup."
+    },
+    {
+      "id": "facade.probeFile",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.probeFile(at:)",
+      "invocation": "One concrete-file capability probe."
+    },
+    {
+      "id": "facade.formatSupportLevel",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.formatSupportLevel(for:)",
+      "invocation": "One extension support-level query."
+    },
+    {
+      "id": "facade.isReadableExtension",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.isReadableExtension(_:)",
+      "invocation": "One extension readability query."
+    },
+    {
+      "id": "facade.isWritableExtension",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.isWritableExtension(_:)",
+      "invocation": "One extension writability query."
+    },
+    {
+      "id": "facade.readableExtensions",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.readableExtensions",
+      "invocation": "One readable-extension registry read."
+    },
+    {
+      "id": "facade.writableExtensions",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.writableExtensions",
+      "invocation": "One writable-extension registry read."
+    },
+    {
+      "id": "facade.formatCapabilities",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.formatCapabilities",
+      "invocation": "One format-capability registry read."
+    },
+    {
+      "id": "bridge.extractMetadata",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.extractMetadata(from:)",
+      "invocation": "One exported bridge extraction call."
+    },
+    {
+      "id": "bridge.metadataProjections",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.metadataProjections(for:)",
+      "invocation": "One full projection call."
+    },
+    {
+      "id": "bridge.metadataProjectionsOptions",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.metadataProjections(for:options:)",
+      "invocation": "One selective projection call with the caller's mask."
+    },
+    {
+      "id": "bridge.writeMetadata",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.writeMetadata(_:to:)",
+      "invocation": "One exported model write call."
+    },
+    {
+      "id": "bridge.writeTrackNumberText",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.writeTrackNumberText(_:discNumberText:to:)",
+      "invocation": "One exported formatted number-text write."
+    },
+    {
+      "id": "bridge.writeTrackNumber",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.writeTrackNumber(_:totalTracks:padWidth:to:)",
+      "invocation": "One exported numeric track write."
+    },
+    {
+      "id": "bridge.writeRawPropertyMap",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.writeRawPropertyMap(_:to:)",
+      "invocation": "One exported raw string-map replacement."
+    },
+    {
+      "id": "bridge.writeRawPropertyMapValues",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.writeRawPropertyMapValues(_:to:)",
+      "invocation": "One exported raw value-array replacement."
+    },
+    {
+      "id": "bridge.structuredMetadata",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.structuredMetadata(for:)",
+      "invocation": "One exported structured read."
+    },
+    {
+      "id": "bridge.writeStructuredMetadata",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.writeStructuredMetadata(_:to:)",
+      "invocation": "One exported structured write."
+    },
+    {
+      "id": "bridge.wipeMetadata",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.wipeMetadata(from:)",
+      "invocation": "One exported wipe call."
+    },
+    {
+      "id": "bridge.rawMetadata",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.rawMetadata(for:)",
+      "invocation": "One exported raw read."
+    },
+    {
+      "id": "bridge.dumpMetadataText",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.dumpMetadataText(from:)",
+      "invocation": "One exported text-dump read."
+    },
+    {
+      "id": "bridge.isSupportedFormat",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.isSupportedFormat(_:)",
+      "invocation": "One extension readability query."
+    },
+    {
+      "id": "bridge.isWritableFormat",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.isWritableFormat(_:)",
+      "invocation": "One extension writability query."
+    },
+    {
+      "id": "bridge.supportedExtensions",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.supportedExtensions()",
+      "invocation": "One readable-extension registry read."
+    },
+    {
+      "id": "bridge.writableExtensions",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.writableExtensions()",
+      "invocation": "One writable-extension registry read."
+    },
+    {
+      "id": "bridge.formatCapability",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.formatCapability(for:)",
+      "invocation": "One family descriptor read."
+    },
+    {
+      "id": "bridge.formatCapabilities",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.formatCapabilities()",
+      "invocation": "One full descriptor list read."
+    },
+    {
+      "id": "bridge.knownMetadataPropertyKeys",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.knownMetadataPropertyKeys()",
+      "invocation": "One known-key schema read."
+    },
+    {
+      "id": "bridge.metadataFieldMappings",
+      "module": "CTagLibBridge",
+      "public_symbol": "TagLibMetadataExtractor.metadataFieldMappings()",
+      "invocation": "One mapping-table read."
+    },
+    {
+      "id": "registry.schemaForKey",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "MetadataFieldRegistry.schema(for:)",
+      "invocation": "One registry lookup; no fallback to a property-map schema."
+    },
+    {
+      "id": "registry.schemaForPropertyMapKey",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "MetadataFieldRegistry.schema(forPropertyMapKey:)",
+      "invocation": "One engine-key lookup used to check the DATE/YEAR alias split."
+    },
+    {
+      "id": "registry.normalizeKey",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "MetadataFieldRegistry.normalizePropertyMapKey(_:)",
+      "invocation": "One pure normalization query, never a write preflight."
+    },
+    {
+      "id": "registry.schemas",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "MetadataFieldRegistry.schemas(withMappingsFor:)",
+      "invocation": "One mapping enumeration query."
+    },
+    {
+      "id": "registry.shouldDisplayMultiValue",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "MetadataFieldRegistry.shouldDisplayRawPropertyAsMultiValue(_:)",
+      "invocation": "One display-projection query."
+    },
+    {
+      "id": "registry.profile",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "MetadataMappingCatalog.profile(forSemanticKey:)",
+      "invocation": "One profile lookup."
+    },
+    {
+      "id": "registry.mappingContract",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "MetadataMappingCatalog.contractVersion + decisionDate",
+      "invocation": "One contract-identity read."
+    }
+  ]
+}

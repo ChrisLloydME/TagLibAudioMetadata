@@ -1,0 +1,150 @@
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLegacyDateIdentityUsesDescriptionsAndExactArrays]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testAllFacadeMutationSurfacesProtectStandaloneDates]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLowLevelModelReadsAndPreservesContentGroupArtistsAndPeaks]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testASFLowLevelWritesUpdateExistingCanonicalAttributes]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLowLevelWritesPreserveUnknownAdvisoryRawCode]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testAPEReleaseTypeAndStatusAreWritableThroughTypedAndBasic]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testBasicNumberTextMismatchRejectsAndMixedPairsCommit]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testASFLowLevelAdvisoryEditRemovesAliases]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23StandaloneTDATSurvivesBasicAndStructuredUnrelatedWrites]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testDirectBridgeV23WritesRejectWithoutMutation]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23DateWritesRejectBeforeMutation]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23RawDeltaPreservesCanonicalDatesAndRejectsStandaloneLoss]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23ConflictingTORYAndTDORRejectWithoutMutation]' passed (0.001 seconds).
+Test legacyDateFlagsRetainLiteralOwners() with 4 test cases passed after 1 second.
+Suite IndependentDiagnosticRepairTests passed.
+Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testLegacyID3ProjectionOptionsHaveLiteralDateOwners]' passed (0.001 seconds).
+Test lowLevelMP4WritableTextOwnersMatchCatalog() with 15 test cases passed after 1 second.
+Test legacyDatesAreIndependentAndBasicEditsPreserveThem() passed after 1 second.
+Test basicClearArtworkRemovesNativeCollections() passed after 1 second.
+Test movementAndReleaseOwnersAgreeAcrossEntrypoints() passed after 1 second.
+Test typedASFAdvisoryPersistsNativeAttribute() passed after 1 second.
+Test basicMixedNumbersAndText() with 7 test cases passed after 1 second.
+Test lowLevelLegacyReplacementRejectsWithoutMutation() passed after 1 second.
+Test basicMusicBrainzUsesCanonicalUFIDAndClearsIt() passed after 1 second.
+Test emptyStructuredWritesAndUnsupportedCollectionsDoNotCommit() passed after 1 second.
+Test everyTransactionRejectsUnreadableStagedOutput() passed after 1 second.
+Test versionedTextWritesAndRemovalsVerify() passed after 1 second.
+Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testSelectiveViewsMatchFullExtractionAcrossNativeFixtures]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testRichSelectiveViewsPreserveNativeValuesAndArtwork]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testValidationOnlyRejectsInvalidInputsWithoutMutation]' passed (0.001 seconds).
+Test asfAdvisoryAliasEraseVerifiesFinalNativeState() with 24 test cases passed after 1 second.
+Test unknownAdvisoryDoesNotSatisfyExactAbsence() with 4 test cases passed after 1 second.
+Test unrelatedBasicEditPreservesUnknownAdvisory() with 16 test cases passed after 1 second.
+Test unrelatedBasicEditPreservesUnknownASFAliasOwners() with 6 test cases passed after 1 second.
+Test advisoryBearingEraseClearsKnownAndUnknownCodes() with 64 test cases passed after 1 second.
+Test exactUnknownAdvisoryVerificationRequiresMatchingRawCode() with 4 test cases passed after 1 second.
+Test erasedMP4OracleAllowsMissingMetadataWithoutAcceptingBrokenContainers() passed after 1 second.
+Test asfPublicWriteSurfacesPreserveSparseDateOwners() with 80 test cases passed after 1 second.
+Test asfCustomFieldLifecycleOwnsOnlyItsCaseAliases() with 24 test cases passed after 1 second.
+Test asfContentDescriptionVectorAndMalformedBounds() passed after 1 second.
+Test allPublicWriteSurfacesRequireContainerStateEvidence() passed after 1 second.
+Test publicWriteSurfacesPreserveSparseNativeOwners() with 2080 test cases passed after 1 second.
+Test allSixteenDatePresenceMasksAreExplicit() passed after 1 second.
+Test textLifecyclePreservesEveryDatePresenceState() with 114 test cases passed after 1 second.
+Test unrelatedWriteSurfacesPreserveDateState() with 176 test cases passed after 1 second.
+Test interactionManifestIncludesEveryNativeField() passed after 1 second.
+Test everyFieldPreservesAllSiblingDateStates() with 4128 test cases passed after 1 second.
+Test everyFieldPreservesAllOtherPresentOwners() with 264 test cases passed after 1 second.
+Test everyContainerAndDateMaskRequiresTextLifecycleEvidence() passed after 1 second.
+Test nativeTextLifecycleAcrossSparseContainerStates() with 1248 test cases passed after 1 second.
+Test allAttributeOwnersAcrossDatePresenceStates() with 168 test cases passed after 1 second.
+Test Case '-[TagLibAudioMetadataTests.ExternalCorpusPreservationTests testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]' skipped (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.SnapshotThroughputBenchmarkTests testOptInIndependentFileSnapshotThroughput]' skipped (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.FormatCapabilityTests testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testRawLookupPreservesFirstIdentityEmptyArraysAndText]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testUnicodeLookupRetainsFoundationCaseComparison]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityMatchesFullReaderAcrossFixtures]' passed (0.001 seconds).
+Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).
+Executed 181 tests, with 2 tests skipped and 0 failures (0 unexpected)
+Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.
+Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.
+Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.
+Test unavailableTypedMP4WritesRejectBeforeMutation(_:) with 5 test cases passed after 1 second.
+Test independentCommentLifecycle(_:_:) with 90 test cases passed after 1 second.
+Test nativeFrameLifecyclePreservesOtherFramesAndAudio(_:_:) with 66 test cases passed after 1 second.
+Test flacKnownVectorKeepsDuplicateCommentEntriesAndAudio() passed after 1 second.
+Test id3KnownVectorAndUnsupportedHeaderBounds() passed after 1 second.
+Suite SemanticLifecycleMatrixTests passed.
+Suite FLACSemanticLifecycleTests passed.
+Suite ID3SemanticLifecycleTests passed.
+Suite NativeProbeContractTests passed.
+Test apeNativeItemLifecycle() with 270 test cases passed after 1 second.
+Test oggNativeCommentLifecycle() with 180 test cases passed after 1 second.
+Test nativeAttributeLifecycle() with 21 test cases passed after 1 second.
+Test basicID3DatesPreserveNativeArrays() with 14 test cases passed after 1 second.
+Test basicAPEDatesPreserveExactBytesAndAudio() with 6 test cases passed after 1 second.
+Test basicFLACDatesKeepDuplicatesAndWhitespace() with 2 test cases passed after 1 second.
+Test basicOggDatesPreserveArraysAndAudio() with 4 test cases passed after 1 second.
+Test basicVerificationRejectsIncorrectDateAndContentGroup() with 2 test cases passed after 1 second.
+Test unrelatedMP4BasicEditKeepsLegacyOwnersAndArrays() passed after 1 second.
+Test mp4ExtendedAndZeroSizeAtomsKeepValuesAndAudio() passed after 1 second.
+Test malformedMP4LengthsAndFreeformsThrowRatherThanGuess() passed after 1 second.
+Test basicClearOfLegacyBackedMP4FieldsMustCommit() passed after 1 second.
+Test lowLevelClearMustNotResurrectOldMP4Values() passed after 1 second.
+Test basicSetMustRetireEditedMP4CompatibilityAliases() passed after 1 second.
+Test basicWorkMustKeepCanonicalOwnerAndRetireLegacyFreeform() passed after 1 second.
+Test basicUnrelatedEditMustPreserveMultivalueDatesOnFLAC() passed after 1 second.
+Test basicUnrelatedEditMustPreserveMultivalueDatesOnAPE() passed after 1 second.
+Test basicUnrelatedEditMustPreserveMultivalueYearOnID3() passed after 1 second.
+Test basicUnrelatedEditMustPreserveMP4DateFreeformArrays() passed after 1 second.
+Test basicUnrelatedEditMustAcceptValidMultivalueMP4Year() passed after 1 second.
+Test semanticEncoderRemovalRetiresOnlyOwnedCompatibilityAlias() passed after 1 second.
+Test basicUnrelatedEditPreservesUnknownAdvisoryOnMP4() passed after 1 second.
+Test mp4MovementUpperBoundWorksAcrossFacadeEntryPoints() passed after 1 second.
+Test mp4MovementOverflowRejectsAcrossFacadeEntryPointsWithoutMutation() passed after 1 second.
+Test mp4PairUpperBound65535RoundTrips() passed after 1 second.
+Test id3EncodedByEditPreservesEncoderSettings() passed after 1 second.
+Test id3EncoderSettingsEditMustSucceedAndPreserveEncodedBy() passed after 1 second.
+Test id3EncoderSettingsMustNotPopulateEncodedBy() passed after 1 second.
+Test id3EncodedByRemovalWithEncoderSettingsMustSucceed() passed after 1 second.
+Test asfEncoderOwnersRemainIndependent() passed after 1 second.
+Test explicitYearWritesOnlyTheYearSlot() passed after 1 second.
+Test basicContentGroupGroupingAndWorkStayIndependent() passed after 1 second.
+Test asfUnrelatedBasicEditPreservesNativeEncodingSettings() passed after 1 second.
+Test asfUnrelatedSemanticPatchPreservesNativeEncodingSettings() passed after 1 second.
+Test id3v23DateWritesRejectBeforeMutation() passed after 1 second.
+Suite BasicIntegrityMatrixTests passed.
+Suite AdditionalContainerLifecycleTests passed.
+Suite ASFNativeLifecycleTests passed.
+Suite AuditProbeTests passed.
+Suite ID3ContainerLifecycleTests passed.
+Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.
+Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.
+Test legacyV23StatusFlagsReadLiteralDates(_:) with 4 test cases passed after 1 second.
+Test legacyV23GroupingFlagSkipsBoundedIdentifier() passed after 1 second.
+Test undecodableV23FrameTransformsStillReject(_:) with 2 test cases passed after 1 second.
+Test dsdiffPropertyChildID3UsesBoundedTraversal() passed after 1 second.
+Test mp4IntPairOverflowRejectsWithoutMutation() passed after 1 second.
+Test asfNoncanonicalTypeIsCanonicalTextOrRejected() passed after 1 second.
+Test crossFormatStructuredCollectionsRejectAtomically() passed after 1 second.
+Test mp4KnownAtomCannotChangeCodec() passed after 1 second.
+Test generatedPaddingWidthRejectsBeforeFormatting(_:) with 3 test cases passed after 1 second.
+Test maximumGeneratedPaddingStillWrites() passed after 1 second.
+Test numberTextPreflightRunsBeforeStaging() passed after 1 second.
+Test asfZeroNumberTextPairRejectsBeforeStaging() passed after 1 second.
+Test fullModelPreservesUnmodeledOwners() passed after 1 second.
+Test privateProvenanceSurvivesOrdinaryWrites() passed after 1 second.
+Test ordinaryAliasRetiresOnlyForEditedPair() passed after 1 second.
+Test musicBrainzAliasCleanupUsesCaseInsensitiveIdentity() passed after 1 second.
+Test mp4RawCanonicalFreeformSetAndRemove(_:) with 2 test cases passed after 1 second.
+Test rawAPIsStillRejectNativeMP4Keys() passed after 1 second.
+Test v23ContainersPreserveVersionDatesAndAudio(_:_:) with 6 test cases passed after 1 second.
+Test xmTrackerNameTypedRouteWritesNativeBytes() passed after 1 second.
+Test registrySemanticAndTotalProjectionsAreConsistent() passed after 1 second.
+Test roleQualifiedTypedPatchStillRejects() passed after 1 second.
+Test yearPrefixFilterRemainsBasicSpecific() passed after 1 second.
+Suite PublicWriteContractRepairTests passed.
+Test structuredMP4RejectsEncodingAndRangeBypasses(_:) with 7 test cases passed after 1 second.
+Test malformedNumberTextCannotEraseExistingPairs() passed after 1 second.
+Test excessiveInheritedPaddingDoesNotRemoveTrack() passed after 1 second.
+Test protectedDateFlagsSurviveOrRejectUnrelatedMutation() passed after 1 second.
+Test structuredPayloadsRequireExplicitValues() passed after 1 second.
+Test nativeMP4EncodersRetainValidBoundaryValues() passed after 1 second.
+Test legacyID3MustFitItsDeclaredContainerChunk() passed after 1 second.
+Test directStructuredValidationPrecedesFileAccess() passed after 1 second.
+Test allPublicNumericWritersRejectNativeOverflow(_:) with 9 test cases passed after 1 second.
+Test explicitZeroTotalIsNotRecoveredFromOldNumberText() passed after 1 second.
+Suite ReleaseAcceptanceTests passed.
+Test run with 231 tests in 42 suites passed after 8 seconds.

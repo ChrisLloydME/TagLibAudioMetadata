@@ -1,0 +1,6033 @@
+{
+  "field_count" : 100,
+  "fields" : [
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "AcoustID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "acoustID",
+      "propertyMapKeys" : [
+        "ACOUSTID ID",
+        "ACOUSTID_ID"
+      ],
+      "semanticKey" : "ACOUSTID_ID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "Acoustid Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "Acoustid Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "Acoustid Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ACOUSTID_ID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ACOUSTID_ID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "Acoustid\/Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "AcoustID Fingerprint",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "acoustIDFingerprint",
+      "propertyMapKeys" : [
+        "ACOUSTID FINGERPRINT",
+        "ACOUSTID_FINGERPRINT"
+      ],
+      "semanticKey" : "ACOUSTID_FINGERPRINT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "Acoustid Fingerprint",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "Acoustid Fingerprint",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "Acoustid Fingerprint",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ACOUSTID_FINGERPRINT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ACOUSTID_FINGERPRINT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "Acoustid\/Fingerprint",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Album",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "album",
+      "propertyMapKeys" : [
+        "ALBUM"
+      ],
+      "semanticKey" : "ALBUM",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TALB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TALB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©alb",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ALBUM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ALBUM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/AlbumTitle",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "IPRD",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Album Artist",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "albumArtist",
+      "propertyMapKeys" : [
+        "ALBUM ARTIST",
+        "ALBUMARTIST"
+      ],
+      "semanticKey" : "ALBUMARTIST",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TPE2",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TPE2",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "aART",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ALBUMARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ALBUM ARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/AlbumArtist",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Artist",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "artist",
+      "propertyMapKeys" : [
+        "ARTIST"
+      ],
+      "semanticKey" : "ARTIST",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TPE1",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TPE1",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©ART",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "Author",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "IART",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Artist Type",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "artistType",
+      "propertyMapKeys" : [
+        "ARTISTTYPE",
+        "MUSICBRAINZ ARTIST TYPE",
+        "MUSICBRAINZ_ARTISTTYPE"
+      ],
+      "semanticKey" : "MUSICBRAINZ_ARTISTTYPE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Artist Type",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Artist Type",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Artist Type",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_ARTISTTYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_ARTISTTYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Artists",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "artists",
+      "propertyMapKeys" : [
+        "ARTISTS"
+      ],
+      "semanticKey" : "ARTISTS",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ARTISTS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ARTISTS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ARTISTS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ARTISTS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ARTISTS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/ARTISTS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+
+      ],
+      "category" : "artwork",
+      "displayName" : "Artwork",
+      "isArtworkField" : true,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "artwork",
+      "propertyMapKeys" : [
+        "PICTURE"
+      ],
+      "semanticKey" : "PICTURE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "APIC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "pictureCollection",
+          "storage" : "binaryFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "APIC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "pictureCollection",
+          "storage" : "binaryFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "covr",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "pictureCollection",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "PICTURE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "pictureCollection",
+          "storage" : "complexProperty"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "COVER ART",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "pictureCollection",
+          "storage" : "complexProperty"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Picture",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "pictureCollection",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "ASIN",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "asin",
+      "propertyMapKeys" : [
+        "ASIN"
+      ],
+      "semanticKey" : "ASIN",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ASIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ASIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ASIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ASIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ASIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "Barcode",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "barcode",
+      "propertyMapKeys" : [
+        "BARCODE",
+        "EAN",
+        "UPC"
+      ],
+      "semanticKey" : "BARCODE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "BARCODE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "BARCODE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "BARCODE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "BARCODE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "BARCODE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Barcode",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "technical",
+      "displayName" : "BPM",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "bpm",
+      "propertyMapKeys" : [
+        "BPM"
+      ],
+      "semanticKey" : "BPM",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TBPM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TBPM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "tmpo",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "BPM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "BPM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/BeatsPerMinute",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Catalog Number",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "catalogNumber",
+      "propertyMapKeys" : [
+        "CATALOG",
+        "CATALOG NUMBER",
+        "CATALOGNUMBER"
+      ],
+      "semanticKey" : "CATALOGNUMBER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "CATALOGNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "CATALOGNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "CATALOGNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "CATALOGNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "CATALOGNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/CatalogNo",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "lyricsAndComments",
+      "displayName" : "Comment",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "comment",
+      "propertyMapKeys" : [
+        "COMMENT"
+      ],
+      "semanticKey" : "COMMENT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "COMM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "qualifiedTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "COMM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "qualifiedTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©cmt",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "COMMENT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "COMMENT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "Description",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "ICMT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "boolean"
+      ],
+      "category" : "release",
+      "displayName" : "Compilation",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "compilation",
+      "propertyMapKeys" : [
+        "COMPILATION"
+      ],
+      "semanticKey" : "COMPILATION",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TCMP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TCMP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "cpil",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "mp4Integer"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "COMPILATION",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "COMPILATION",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Composer",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "composer",
+      "propertyMapKeys" : [
+        "COMPOSER"
+      ],
+      "semanticKey" : "COMPOSER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TCOM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TCOM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©wrt",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "COMPOSER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "COMPOSER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Composer",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "IMUS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Conductor",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "conductor",
+      "propertyMapKeys" : [
+        "CONDUCTOR"
+      ],
+      "semanticKey" : "CONDUCTOR",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TPE3",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TPE3",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©con",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "CONDUCTOR",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "CONDUCTOR",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Conductor",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Content Group",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "contentGroup",
+      "propertyMapKeys" : [
+        "CONTENTGROUP"
+      ],
+      "semanticKey" : "CONTENTGROUP",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TIT1",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TIT1",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©grp",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "CONTENTGROUP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "CONTENTGROUP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/ContentGroupDescription",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Copyright",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "copyright",
+      "propertyMapKeys" : [
+        "COPYRIGHT"
+      ],
+      "semanticKey" : "COPYRIGHT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TCOP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TCOP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "cprt",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "COPYRIGHT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "COPYRIGHT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "Copyright",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "ICOP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+
+      ],
+      "category" : "custom",
+      "displayName" : "Custom Field",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "custom",
+      "propertyMapKeys" : [
+
+      ],
+      "semanticKey" : "<explicit key>",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "<description>",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "<description>",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "<description>",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "<explicit key>",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "<explicit key>",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Director",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "director",
+      "propertyMapKeys" : [
+        "DIRECTOR"
+      ],
+      "semanticKey" : "DIRECTOR",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©dir",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "numbering",
+      "displayName" : "Disc Number",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 1
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "disc",
+      "propertyMapKeys" : [
+        "DISC",
+        "DISCNUMBER"
+      ],
+      "semanticKey" : "DISCNUMBER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TPOS",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TPOS",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "disk",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "intPair",
+          "storage" : "intPair"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "DISCNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "DISC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/PartOfSet",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Disc Subtitle",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "discSubtitle",
+      "propertyMapKeys" : [
+        "DISCSUBTITLE"
+      ],
+      "semanticKey" : "DISCSUBTITLE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "DISCSUBTITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "DISCSUBTITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "DISCSUBTITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "DISCSUBTITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/SetSubTitle",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "numbering",
+      "displayName" : "Disc Total",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 1
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "discTotal",
+      "propertyMapKeys" : [
+        "DISCTOTAL",
+        "TOTALDISCS"
+      ],
+      "semanticKey" : "DISCTOTAL",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TPOS",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TPOS",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "DISCTOTAL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "DISCTOTAL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/PartOfSet",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "disk",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "intPair",
+          "storage" : "intPair"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "technical",
+      "displayName" : "Encoded By",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "encodedBy",
+      "propertyMapKeys" : [
+        "ENCODEDBY"
+      ],
+      "semanticKey" : "ENCODEDBY",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TENC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TENC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©enc",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ENCODEDBY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ENCODEDBY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/EncodedBy",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "technical",
+      "displayName" : "Encoder Settings",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "encoderSettings",
+      "propertyMapKeys" : [
+        "ENCODERSETTINGS",
+        "ENCODING"
+      ],
+      "semanticKey" : "ENCODING",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TSSE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSSE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©too",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ENCODING",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ENCODING",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/EncodingSettings",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Engineer",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "engineer",
+      "propertyMapKeys" : [
+        "ENGINEER"
+      ],
+      "semanticKey" : "ENGINEER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ENGINEER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ENGINEER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ENGINEER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ENGINEER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ENGINEER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+
+      ],
+      "category" : "itunes",
+      "displayName" : "Explicit Content",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "explicitContent",
+      "propertyMapKeys" : [
+        "ADVISORY",
+        "EXPLICIT",
+        "EXPLICITCONTENT",
+        "ITUNESADVISORY"
+      ],
+      "semanticKey" : "ITUNESADVISORY",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ITUNESADVISORY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "advisory",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ITUNESADVISORY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "advisory",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNESADVISORY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "advisory",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNESADVISORY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "advisory",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "rtng",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "advisory",
+          "storage" : "mp4Integer"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "ITUNESADVISORY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "advisory",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "basic",
+      "displayName" : "Genre",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "genre",
+      "propertyMapKeys" : [
+        "GENRE"
+      ],
+      "semanticKey" : "GENRE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TCON",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TCON",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©gen",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "GENRE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "GENRE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Genre",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "IGNR",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "basic",
+      "displayName" : "Grouping",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "grouping",
+      "propertyMapKeys" : [
+        "GROUPING"
+      ],
+      "semanticKey" : "GROUPING",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "GRP1",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "GRP1",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "GROUPING",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "GROUPING",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "GROUPING",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+
+      ],
+      "category" : "peopleRoles",
+      "displayName" : "Involved People",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : true,
+      "key" : "involvedPeople",
+      "propertyMapKeys" : [
+        "INVOLVEDPEOPLE"
+      ],
+      "semanticKey" : "INVOLVEDPEOPLE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "IPLS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "roleFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TIPL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "roleFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "INVOLVEDPEOPLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "INVOLVEDPEOPLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "INVOLVEDPEOPLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "ISRC",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "isrc",
+      "propertyMapKeys" : [
+        "ISRC"
+      ],
+      "semanticKey" : "ISRC",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TSRC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSRC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ISRC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ISRC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ISRC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/ISRC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Account",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesAccount",
+      "propertyMapKeys" : [
+        "ITUNESACCOUNT"
+      ],
+      "semanticKey" : "ITUNESACCOUNT",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "apID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Album ID",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesAlbumID",
+      "propertyMapKeys" : [
+        "ITUNESALBUMID"
+      ],
+      "semanticKey" : "ITUNESALBUMID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ITUNESALBUMID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ITUNESALBUMID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNESALBUMID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNESALBUMID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "plID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Artist ID",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesArtistID",
+      "propertyMapKeys" : [
+        "ITUNESARTISTID"
+      ],
+      "semanticKey" : "ITUNESARTISTID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ITUNESARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ITUNESARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNESARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNESARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "atID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Catalog ID",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesCatalogID",
+      "propertyMapKeys" : [
+        "ITUNESCATALOGID"
+      ],
+      "semanticKey" : "ITUNESCATALOGID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ITUNESCATALOGID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ITUNESCATALOGID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNESCATALOGID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNESCATALOGID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "cnID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Composer ID",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesComposerID",
+      "propertyMapKeys" : [
+        "ITUNESCOMPOSERID"
+      ],
+      "semanticKey" : "ITUNESCOMPOSERID",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "cmID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Storefront ID",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesCountryID",
+      "propertyMapKeys" : [
+        "ITUNESCOUNTRYID"
+      ],
+      "semanticKey" : "ITUNESCOUNTRYID",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "sfID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "boolean"
+      ],
+      "category" : "itunes",
+      "displayName" : "Gapless Playback",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesGapless",
+      "propertyMapKeys" : [
+        "GAPLESSPLAYBACK",
+        "ITUNESGAPLESS"
+      ],
+      "semanticKey" : "ITUNESGAPLESS",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "pgap",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Genre ID",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesGenreID",
+      "propertyMapKeys" : [
+        "ITUNESGENREID"
+      ],
+      "semanticKey" : "ITUNESGENREID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ITUNESGENREID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ITUNESGENREID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNESGENREID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNESGENREID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "geID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "boolean"
+      ],
+      "category" : "itunes",
+      "displayName" : "HD Video",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesHDVideo",
+      "propertyMapKeys" : [
+        "HDVIDEO",
+        "ITUNESHDVIDEO"
+      ],
+      "semanticKey" : "ITUNESHDVIDEO",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "hdvd",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Media Type",
+      "integerConstraint" : {
+        "maximum" : 255,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesMediaType",
+      "propertyMapKeys" : [
+        "ITUNESMEDIATYPE"
+      ],
+      "semanticKey" : "ITUNESMEDIATYPE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ITUNESMEDIATYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ITUNESMEDIATYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNESMEDIATYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNESMEDIATYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "stik",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunNORM",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesNorm",
+      "propertyMapKeys" : [
+        "ITUNNORM"
+      ],
+      "semanticKey" : "ITUNNORM",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "iTunNORM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "iTunNORM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "iTunNORM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNNORM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNNORM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "Owner",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesOwner",
+      "propertyMapKeys" : [
+        "ITUNESOWNER",
+        "OWNER"
+      ],
+      "semanticKey" : "OWNER",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ownr",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunes Purchase Date",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesPurchaseDate",
+      "propertyMapKeys" : [
+        "ITUNESPURCHASEDATE"
+      ],
+      "semanticKey" : "ITUNESPURCHASEDATE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "ITUNESPURCHASEDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "ITUNESPURCHASEDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNESPURCHASEDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNESPURCHASEDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "purd",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "iTunSMPB",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "itunesSMPB",
+      "propertyMapKeys" : [
+        "ITUNSMPB"
+      ],
+      "semanticKey" : "ITUNSMPB",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "iTunSMPB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "iTunSMPB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "iTunSMPB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ITUNSMPB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ITUNSMPB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "basic",
+      "displayName" : "Language",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "language",
+      "propertyMapKeys" : [
+        "LANGUAGE"
+      ],
+      "semanticKey" : "LANGUAGE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TLAN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TLAN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "LANGUAGE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "LANGUAGE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "LANGUAGE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Language",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "ILNG",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Lyricist",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "lyricist",
+      "propertyMapKeys" : [
+        "LYRICIST"
+      ],
+      "semanticKey" : "LYRICIST",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TEXT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TEXT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "LYRICIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "LYRICIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "LYRICIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Writer",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "lyricsAndComments",
+      "displayName" : "Lyrics",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "lyrics",
+      "propertyMapKeys" : [
+        "LYRICS"
+      ],
+      "semanticKey" : "LYRICS",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "USLT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "qualifiedTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "USLT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "qualifiedTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©lyr",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "LYRICS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "LYRICS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Lyrics",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Media Type",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "mediaType",
+      "propertyMapKeys" : [
+        "MEDIA",
+        "MEDIA TYPE",
+        "MEDIATYPE"
+      ],
+      "semanticKey" : "MEDIA",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TMED",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TMED",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MEDIA",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MEDIA",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MEDIA",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Media",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "basic",
+      "displayName" : "Mood",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "mood",
+      "propertyMapKeys" : [
+        "MOOD"
+      ],
+      "semanticKey" : "MOOD",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MOOD",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TMOO",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MOOD",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MOOD",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MOOD",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Mood",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Movement",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "movement",
+      "propertyMapKeys" : [
+        "MOVEMENT",
+        "MOVEMENTNAME"
+      ],
+      "semanticKey" : "MOVEMENTNAME",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MVNM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MVNM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©mvn",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MOVEMENTNAME",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MOVEMENTNAME",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "numbering",
+      "displayName" : "Movement Count",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "movementCount",
+      "propertyMapKeys" : [
+        "MOVEMENTCOUNT"
+      ],
+      "semanticKey" : "MOVEMENTCOUNT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MVIN",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MVIN",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©mvc",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MOVEMENTCOUNT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MOVEMENTCOUNT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "numbering",
+      "displayName" : "Movement Number",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "movementNumber",
+      "propertyMapKeys" : [
+        "MOVEMENTNUMBER"
+      ],
+      "semanticKey" : "MOVEMENTNUMBER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MVIN",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MVIN",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©mvi",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MOVEMENTNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MOVEMENTNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicBrainz Album Artist ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicBrainzAlbumArtistID",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ ALBUM ARTIST ID",
+        "MUSICBRAINZ ALBUMARTISTID",
+        "MUSICBRAINZ_ALBUMARTISTID"
+      ],
+      "semanticKey" : "MUSICBRAINZ_ALBUMARTISTID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Album Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Album Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Album Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_ALBUMARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_ALBUMARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Album Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicBrainz Album ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicBrainzAlbumID",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ ALBUM ID",
+        "MUSICBRAINZ ALBUMID",
+        "MUSICBRAINZ_ALBUMID"
+      ],
+      "semanticKey" : "MUSICBRAINZ_ALBUMID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Album Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Album Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Album Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_ALBUMID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_ALBUMID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Album Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicBrainz Artist ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicBrainzArtistID",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ ARTIST ID",
+        "MUSICBRAINZ ARTISTID",
+        "MUSICBRAINZ_ARTISTID"
+      ],
+      "semanticKey" : "MUSICBRAINZ_ARTISTID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_ARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_ARTISTID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Artist Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicBrainz Release Group ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicBrainzReleaseGroupID",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ RELEASE GROUP ID",
+        "MUSICBRAINZ RELEASEGROUPID",
+        "MUSICBRAINZ_RELEASEGROUPID"
+      ],
+      "semanticKey" : "MUSICBRAINZ_RELEASEGROUPID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Release Group Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Release Group Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Release Group Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_RELEASEGROUPID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_RELEASEGROUPID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Release Group Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicBrainz Release Track ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicBrainzReleaseTrackID",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ RELEASE TRACK ID",
+        "MUSICBRAINZ RELEASETRACKID",
+        "MUSICBRAINZ_RELEASETRACKID"
+      ],
+      "semanticKey" : "MUSICBRAINZ_RELEASETRACKID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Release Track Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Release Track Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Release Track Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_RELEASETRACKID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_RELEASETRACKID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Release Track Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicBrainz Track ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicBrainzTrackID",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ TRACK ID",
+        "MUSICBRAINZ TRACKID",
+        "MUSICBRAINZ_TRACKID"
+      ],
+      "semanticKey" : "MUSICBRAINZ_TRACKID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "http:\/\/musicbrainz.org",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "identifierFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "http:\/\/musicbrainz.org",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "identifierFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Track Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_TRACKID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_TRACKID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Track Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicBrainz Work ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicBrainzWorkID",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ WORK ID",
+        "MUSICBRAINZ WORKID",
+        "MUSICBRAINZ_WORKID"
+      ],
+      "semanticKey" : "MUSICBRAINZ_WORKID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Work Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Work Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Work Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICBRAINZ_WORKID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_WORKID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Work Id",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "identifiers",
+      "displayName" : "MusicIP PUID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicIPPUID",
+      "propertyMapKeys" : [
+        "MUSICIP PUID",
+        "MUSICIP_PUID"
+      ],
+      "semanticKey" : "MUSICIP_PUID",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicIP PUID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicIP PUID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicIP PUID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICIP_PUID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICIP_PUID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicIP\/PUID",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Musical Key",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "musicalKey",
+      "propertyMapKeys" : [
+        "INITIALKEY",
+        "KEY"
+      ],
+      "semanticKey" : "INITIALKEY",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TKEY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TKEY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "INITIALKEY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "INITIALKEY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "INITIALKEY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/InitialKey",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+
+      ],
+      "category" : "peopleRoles",
+      "displayName" : "Musician Credits",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : true,
+      "key" : "musicianCredits",
+      "propertyMapKeys" : [
+        "MUSICIANCREDITS"
+      ],
+      "semanticKey" : "MUSICIANCREDITS",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "IPLS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "roleFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TMCL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "roleFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MUSICIANCREDITS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "MUSICIANCREDITS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICIANCREDITS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Original Album",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "originalAlbum",
+      "propertyMapKeys" : [
+        "ORIGINALALBUM"
+      ],
+      "semanticKey" : "ORIGINALALBUM",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TOAL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TOAL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ORIGINALALBUM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ORIGINALALBUM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ORIGINALALBUM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/OriginalAlbumTitle",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Original Artist",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "originalArtist",
+      "propertyMapKeys" : [
+        "ORIGINALARTIST"
+      ],
+      "semanticKey" : "ORIGINALARTIST",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TOPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TOPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ORIGINALARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ORIGINALARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ORIGINALARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/OriginalArtist",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "dates",
+      "displayName" : "Original Release Date",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "originalReleaseDate",
+      "propertyMapKeys" : [
+        "ORIGINAL YEAR",
+        "ORIGINALDATE"
+      ],
+      "semanticKey" : "ORIGINALDATE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TORY",
+          "numberComponent" : null,
+          "preferredWrite" : false,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TDOR",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "ORIGINALDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ORIGINALDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ORIGINALDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/OriginalReleaseYear",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+
+      ],
+      "category" : "peopleRoles",
+      "displayName" : "Performer",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : true,
+      "key" : "performer",
+      "propertyMapKeys" : [
+        "PERFORMER"
+      ],
+      "semanticKey" : "PERFORMER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "IPLS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "roleFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TMCL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "roleFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "PERFORMER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "PERFORMER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "PERFORMER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "roleText",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Producer",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "producer",
+      "propertyMapKeys" : [
+        "PRODUCER"
+      ],
+      "semanticKey" : "PRODUCER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "PRODUCER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "PRODUCER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "PRODUCER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "PRODUCER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "PRODUCER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Producer",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Publisher",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "publisher",
+      "propertyMapKeys" : [
+        "LABEL",
+        "PUBLISHER"
+      ],
+      "semanticKey" : "LABEL",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TPUB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TPUB",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©pub",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "LABEL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "LABEL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Publisher",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "Rating",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "rate",
+      "propertyMapKeys" : [
+        "RATE"
+      ],
+      "semanticKey" : "RATE",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "rate",
+          "numberComponent" : null,
+          "preferredWrite" : false,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : "no verified native rating type or scale in this profile"
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Release Country",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "releaseCountry",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ ALBUM RELEASE COUNTRY",
+        "MUSICBRAINZ_ALBUMRELEASECOUNTRY",
+        "RELEASECOUNTRY"
+      ],
+      "semanticKey" : "RELEASECOUNTRY",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Album Release Country",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Album Release Country",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Album Release Country",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "RELEASECOUNTRY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "RELEASECOUNTRY",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Album Release Country",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "dates",
+      "displayName" : "Release Date",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "releaseDate",
+      "propertyMapKeys" : [
+        "RELEASEDATE"
+      ],
+      "semanticKey" : "RELEASEDATE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TDRL",
+          "numberComponent" : null,
+          "preferredWrite" : false,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TDRL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "RELEASEDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "RELEASEDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "RELEASEDATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Release Status",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "releaseStatus",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ ALBUM STATUS",
+        "MUSICBRAINZ_ALBUMSTATUS",
+        "RELEASESTATUS"
+      ],
+      "semanticKey" : "RELEASESTATUS",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Album Status",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Album Status",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Album Status",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "RELEASESTATUS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_ALBUMSTATUS",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Album Status",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "release",
+      "displayName" : "Release Type",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "releaseType",
+      "propertyMapKeys" : [
+        "MUSICBRAINZ ALBUM TYPE",
+        "MUSICBRAINZ_ALBUMTYPE",
+        "RELEASETYPE"
+      ],
+      "semanticKey" : "RELEASETYPE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "MusicBrainz Album Type",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "MusicBrainz Album Type",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "MusicBrainz Album Type",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "RELEASETYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MUSICBRAINZ_ALBUMTYPE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "MusicBrainz\/Album Type",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text",
+        "values"
+      ],
+      "category" : "people",
+      "displayName" : "Remixer",
+      "isArtworkField" : false,
+      "isMultiValue" : true,
+      "isPeopleField" : true,
+      "isRoleQualified" : false,
+      "key" : "remixer",
+      "propertyMapKeys" : [
+        "REMIXER"
+      ],
+      "semanticKey" : "REMIXER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TPE4",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TPE4",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "REMIXER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "REMIXER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "MIXARTIST",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/ModifiedBy",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "textArray",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "replayGain",
+      "displayName" : "ReplayGain Album Gain",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "replayGainAlbumGain",
+      "propertyMapKeys" : [
+        "REPLAYGAIN_ALBUM_GAIN"
+      ],
+      "semanticKey" : "REPLAYGAIN_ALBUM_GAIN",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "replayGain",
+      "displayName" : "ReplayGain Album Peak",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "replayGainAlbumPeak",
+      "propertyMapKeys" : [
+        "REPLAYGAIN_ALBUM_PEAK"
+      ],
+      "semanticKey" : "REPLAYGAIN_ALBUM_PEAK",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "REPLAYGAIN_ALBUM_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "replayGain",
+      "displayName" : "ReplayGain Track Gain",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "replayGainTrackGain",
+      "propertyMapKeys" : [
+        "REPLAYGAIN_TRACK_GAIN"
+      ],
+      "semanticKey" : "REPLAYGAIN_TRACK_GAIN",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_GAIN",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "replayGain",
+      "displayName" : "ReplayGain Track Peak",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "replayGainTrackPeak",
+      "propertyMapKeys" : [
+        "REPLAYGAIN_TRACK_PEAK"
+      ],
+      "semanticKey" : "REPLAYGAIN_TRACK_PEAK",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "REPLAYGAIN_TRACK_PEAK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "boolean"
+      ],
+      "category" : "itunes",
+      "displayName" : "Show Work and Movement",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "showMovement",
+      "propertyMapKeys" : [
+        "SHOWMOVEMENT",
+        "SHOWWORKMOVEMENT"
+      ],
+      "semanticKey" : "SHOWMOVEMENT",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "shwm",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "boolean",
+          "storage" : "mp4Integer"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "sorting",
+      "displayName" : "Sort Album",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "sortAlbum",
+      "propertyMapKeys" : [
+        "ALBUMSORT"
+      ],
+      "semanticKey" : "ALBUMSORT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TSOA",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSOA",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "soal",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ALBUMSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ALBUMSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/AlbumSortOrder",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "sorting",
+      "displayName" : "Sort Album Artist",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "sortAlbumArtist",
+      "propertyMapKeys" : [
+        "ALBUMARTISTSORT"
+      ],
+      "semanticKey" : "ALBUMARTISTSORT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TSO2",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSO2",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "soaa",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ALBUMARTISTSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ALBUMARTISTSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/AlbumArtistSortOrder",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "sorting",
+      "displayName" : "Sort Artist",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "sortArtist",
+      "propertyMapKeys" : [
+        "ARTISTSORT"
+      ],
+      "semanticKey" : "ARTISTSORT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TSOP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSOP",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "soar",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "ARTISTSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "ARTISTSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/ArtistSortOrder",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "sorting",
+      "displayName" : "Sort Composer",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "sortComposer",
+      "propertyMapKeys" : [
+        "COMPOSERSORT"
+      ],
+      "semanticKey" : "COMPOSERSORT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TSOC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSOC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "soco",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "COMPOSERSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "COMPOSERSORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "sorting",
+      "displayName" : "Sort Title",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "sortTitle",
+      "propertyMapKeys" : [
+        "TITLESORT"
+      ],
+      "semanticKey" : "TITLESORT",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TSOT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TSOT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "sonm",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "TITLESORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "TITLESORT",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/TitleSortOrder",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "dates",
+      "displayName" : "Date",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "standaloneDate",
+      "propertyMapKeys" : [
+        "STANDALONEDATE"
+      ],
+      "semanticKey" : "DATE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TDAT",
+          "numberComponent" : null,
+          "preferredWrite" : false,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "DATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "DATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "DATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "DATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "DATE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "extensionTextKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "Store Description",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "storeDescription",
+      "propertyMapKeys" : [
+        "STOREDESCRIPTION"
+      ],
+      "semanticKey" : "STOREDESCRIPTION",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "sdes",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Subtitle",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "subtitle",
+      "propertyMapKeys" : [
+        "SUBTITLE"
+      ],
+      "semanticKey" : "SUBTITLE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TIT3",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TIT3",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "SUBTITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Freeform"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "SUBTITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "SUBTITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/SubTitle",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Title",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "title",
+      "propertyMapKeys" : [
+        "TITLE"
+      ],
+      "semanticKey" : "TITLE",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TIT2",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TIT2",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©nam",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "TITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "TITLE",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "Title",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "INAM",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "numbering",
+      "displayName" : "Track Number",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 1
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "track",
+      "propertyMapKeys" : [
+        "TRACK",
+        "TRACKNUMBER"
+      ],
+      "semanticKey" : "TRACKNUMBER",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TRCK",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TRCK",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "trkn",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "intPair",
+          "storage" : "intPair"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "TRACKNUMBER",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "TRACK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/TrackNumber",
+          "numberComponent" : "number",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "ITRK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "numbering",
+      "displayName" : "Track Total",
+      "integerConstraint" : {
+        "maximum" : 2147483647,
+        "minimum" : 1
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "trackTotal",
+      "propertyMapKeys" : [
+        "TOTALTRACKS",
+        "TRACKTOTAL"
+      ],
+      "semanticKey" : "TRACKTOTAL",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TRCK",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TRCK",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "TRACKTOTAL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "TRACKTOTAL",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/TrackNumber",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "trkn",
+          "numberComponent" : "total",
+          "preferredWrite" : true,
+          "shape" : "intPair",
+          "storage" : "intPair"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "technical",
+      "displayName" : "Tracker Name",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "trackerName",
+      "propertyMapKeys" : [
+        "TRACKERNAME"
+      ],
+      "semanticKey" : "TRACKERNAME",
+      "targets" : [
+
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "TV Episode",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "tvEpisode",
+      "propertyMapKeys" : [
+        "TVEPISODE"
+      ],
+      "semanticKey" : "TVEPISODE",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "tves",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        },
+        {
+          "family" : "matroska",
+          "nativeIdentity" : "PART_NUMBER@TargetTypeValue=50",
+          "numberComponent" : null,
+          "preferredWrite" : false,
+          "shape" : "integer",
+          "storage" : "matroskaSimpleTag"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "TV Episode ID",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "tvEpisodeID",
+      "propertyMapKeys" : [
+        "TVEPISODEID"
+      ],
+      "semanticKey" : "TVEPISODEID",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "tven",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "TV Network",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "tvNetwork",
+      "propertyMapKeys" : [
+        "TVNETWORK"
+      ],
+      "semanticKey" : "TVNETWORK",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "tvnn",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "integer"
+      ],
+      "category" : "itunes",
+      "displayName" : "TV Season",
+      "integerConstraint" : {
+        "maximum" : 4294967295,
+        "minimum" : 0
+      },
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "tvSeason",
+      "propertyMapKeys" : [
+        "TVSEASON"
+      ],
+      "semanticKey" : "TVSEASON",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "tvsn",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "integer",
+          "storage" : "mp4Integer"
+        },
+        {
+          "family" : "matroska",
+          "nativeIdentity" : "PART_NUMBER@TargetTypeValue=60",
+          "numberComponent" : null,
+          "preferredWrite" : false,
+          "shape" : "integer",
+          "storage" : "matroskaSimpleTag"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "TV Show",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "tvShow",
+      "propertyMapKeys" : [
+        "TVSHOW"
+      ],
+      "semanticKey" : "TVSHOW",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "tvsh",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "itunes",
+      "displayName" : "TV Show Sort",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "tvShowSort",
+      "propertyMapKeys" : [
+        "SHOWSORT",
+        "TVSHOWSORT"
+      ],
+      "semanticKey" : "SHOWSORT",
+      "targets" : [
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "sosn",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "basic",
+      "displayName" : "Work",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "work",
+      "propertyMapKeys" : [
+        "WORK"
+      ],
+      "semanticKey" : "WORK",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "WORK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "WORK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "userTextFrame"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "WORK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "WORK",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©wrk",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    },
+    {
+      "acceptedPatchValueKinds" : [
+        "text"
+      ],
+      "category" : "dates",
+      "displayName" : "Year",
+      "isArtworkField" : false,
+      "isMultiValue" : false,
+      "isPeopleField" : false,
+      "isRoleQualified" : false,
+      "key" : "year",
+      "propertyMapKeys" : [
+        "DATE",
+        "YEAR"
+      ],
+      "semanticKey" : "YEAR",
+      "targets" : [
+        {
+          "family" : "id3v23",
+          "nativeIdentity" : "TYER",
+          "numberComponent" : null,
+          "preferredWrite" : false,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "id3v24",
+          "nativeIdentity" : "TDRC",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textFrame"
+        },
+        {
+          "family" : "mp4",
+          "nativeIdentity" : "©day",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "mp4Atom"
+        },
+        {
+          "family" : "vorbisComment",
+          "nativeIdentity" : "YEAR",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "apev2",
+          "nativeIdentity" : "YEAR",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "textKey"
+        },
+        {
+          "family" : "asf",
+          "nativeIdentity" : "WM\/Year",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "asfAttribute"
+        },
+        {
+          "family" : "riffInfo",
+          "nativeIdentity" : "ICRD",
+          "numberComponent" : null,
+          "preferredWrite" : true,
+          "shape" : "text",
+          "storage" : "riffInfoKey"
+        }
+      ],
+      "writeUnsupportedReason" : null
+    }
+  ],
+  "mapping_contract_version" : "AM-TLAM-MAPPING-2.2",
+  "schema_version" : 1
+}
