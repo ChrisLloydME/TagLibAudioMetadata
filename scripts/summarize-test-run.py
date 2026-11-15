@@ -9,6 +9,8 @@ two reviewed opt-in XCTest skips.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
+import test_manifest
 import hashlib
 import json
 import re
@@ -58,6 +60,8 @@ REQUIRED_XCTEST = {
 
 # Counts may grow when the reviewed inventory grows; they may not shrink.
 REQUIRED_TESTS = {
+    "contractFullModelRetiresEditedReleaseAlias": 1,
+    "contractPreviouslyUnobservedSurfaces": 1,
     'explicitZeroTotalIsNotRecoveredFromOldNumberText': 1,
     'allPublicNumericWritersRejectNativeOverflow': 9,
     'structuredMP4RejectsEncodingAndRangeBypasses': 7,
@@ -224,7 +228,7 @@ REQUIRED_SUITES = (
 )
 
 XCTEST_MINIMUM = 181
-SWIFT_TESTING_MINIMUM = 272
+SWIFT_TESTING_MINIMUM = 274
 SWIFT_SUITE_MINIMUM = 51
 
 
@@ -272,6 +276,13 @@ def expected_scenarios(catalog: dict) -> dict[str, dict]:
             "outcome": "supported",
             "contract_id": None,
         }
+    identities = json.loads((ROOT / "scripts/package-test-system/scenario-assertions.json").read_text())
+    if set(identities) != set(expected): raise ValueError("assertion/scenario inventory mismatch")
+    for key, value in expected.items():
+        identity = identities[key]
+        if identity["runtime_test"] != value["runtime_test"] or len(identity["checks"]) != value["check_count"]:
+            raise ValueError("assertion requirement mismatch: " + key)
+        value.update({"checks": identity["checks"], "adapter_label": identity["adapter_label"]})
     return expected
 
 
@@ -286,6 +297,9 @@ def collect_evidence(directory: Path) -> tuple[dict[str, dict], list[str]]:
         except (OSError, json.JSONDecodeError) as error:
             errors.append(f"unreadable scenario evidence {path.name}: {error}")
             continue
+        if not isinstance(record, dict):
+            errors.append("scenario evidence is not an object: " + path.name)
+            continue
         scenario = record.get("scenario_id")
         if not isinstance(scenario, str) or not scenario:
             errors.append(f"scenario evidence without an id: {path.name}")
@@ -299,7 +313,7 @@ def collect_evidence(directory: Path) -> tuple[dict[str, dict], list[str]]:
     return records, errors
 
 
-def verify_evidence(expected: dict[str, dict], records: dict[str, dict]) -> list[str]:
+def verify_evidence(expected: dict[str, dict], records: dict[str, dict], manifest: dict | None = None) -> list[str]:
     errors: list[str] = []
     missing = sorted(set(expected) - set(records))
     unexpected = sorted(set(records) - set(expected))
@@ -311,6 +325,12 @@ def verify_evidence(expected: dict[str, dict], records: dict[str, dict]) -> list
         record = records.get(scenario)
         if record is None:
             continue
+        identity = {"id": (manifest or {}).get("run_id"), "mode": (manifest or {}).get("mode"),
+                    "source_hash": (manifest or {}).get("source_hash")}
+        if not all(identity.values()) or record.get("campaign") != identity:
+            errors.append(f"scenario {scenario} campaign mismatch")
+        if record.get("adapter") != requirement["adapter_label"]:
+            errors.append(f"scenario {scenario} adapter identity mismatch")
         if record.get("runtime_test") != requirement["runtime_test"]:
             errors.append(f"scenario {scenario} runtime test mismatch: {record.get('runtime_test')!r} != {requirement['runtime_test']!r}")
         if record.get("check_count") != requirement["check_count"]:
@@ -322,6 +342,8 @@ def verify_evidence(expected: dict[str, dict], records: dict[str, dict]) -> list
             errors.append(f"scenario {scenario} did not report its full check list")
         elif not all(isinstance(check, dict) and check.get("passed") is True for check in checks):
             errors.append(f"scenario {scenario} recorded a failed check")
+        if isinstance(checks, list) and Counter(str(c.get("name")) for c in checks if isinstance(c, dict)) != Counter(requirement["checks"]):
+            errors.append(f"scenario {scenario} assertion identity mismatch")
         if record.get("passed") is not True:
             errors.append(f"scenario {scenario} did not report an overall pass")
         if not isinstance(record.get("adapter"), str) or not record["adapter"].strip():
@@ -329,12 +351,48 @@ def verify_evidence(expected: dict[str, dict], records: dict[str, dict]) -> list
     return errors
 
 
+def verify_invocations(directory: Path, manifest: dict | None) -> list[str]:
+    expected = json.loads((ROOT / "scripts/package-test-system/runtime-invocations.json").read_text())["tests"]
+    observed = {}
+    identity = {"id": (manifest or {}).get("run_id"), "mode": (manifest or {}).get("mode"), "source_hash": (manifest or {}).get("source_hash")}
+    errors = []
+    for path in (directory / "invocations").glob("*.json"):
+        try: event = json.loads(path.read_text())
+        except (ValueError, OSError): errors.append("invalid invocation record"); continue
+        if not isinstance(event, dict): errors.append("invocation is not an object"); continue
+        if event.get("schema_version") != 1: errors.append("invocation schema mismatch")
+        if event.get("campaign") != identity: errors.append("invocation campaign mismatch")
+        if event.get("outcome") not in {"returned", "threw"}: errors.append("invalid invocation outcome")
+        test = event.get("runtime_test")
+        key = str(event.get("adapter")) + "|" + str(event.get("outcome"))
+        observed.setdefault(test, []).append(key)
+    if set(observed) != set(expected): errors.append("runtime invocation test set mismatch")
+    for test in expected:
+        if Counter(observed.get(test, [])) != Counter(expected[test]): errors.append("runtime invocation identity/multiplicity mismatch: " + test)
+    registered = {row["id"] for row in json.loads((ROOT / "scripts/package-test-system/execution-adapters.json").read_text())["adapters"]}
+    if {key.split("|")[0] for calls in expected.values() for key in calls} != registered:
+        errors.append("adapter runtime coverage inventory mismatch")
+    return errors
+
+
 def validate_manifest(manifest: dict | None, manifest_after: dict | None, mode: str) -> list[str]:
     errors: list[str] = []
-    if manifest is None:
+    if not isinstance(manifest, dict):
         return ["canonical evidence requires a campaign manifest"]
     if manifest.get("mode") != mode:
         errors.append(f"manifest mode mismatch: {manifest.get('mode')!r} != {mode!r}")
+    required = {"schema_version", "run_id", "created_at", "mode", "commit", "branch", "toolchain", "system_hashes",
+                "file_hashes", "source_hash", "git_status", "tracked_diff_hash", "build_options", "sdk", "target"}
+    if manifest.get("schema_version") != 2 or not required.issubset(manifest):
+        errors.append("manifest schema or required identity fields missing")
+    if not isinstance(manifest.get("toolchain"), dict) or not {"swift", "xcodebuild", "platform", "machine", "developer_dir"}.issubset(manifest.get("toolchain") or {}):
+        errors.append("manifest toolchain identity missing")
+    if manifest.get("build_options") != test_manifest.options(mode): errors.append("manifest build options mismatch")
+    if not manifest.get("sdk") or not isinstance(manifest.get("target"), dict): errors.append("manifest SDK/target missing")
+    if set(manifest.get("system_hashes") or {}) != set(test_manifest.SYSTEM_FILES): errors.append("manifest system identity incomplete")
+    current = test_manifest._source_state()
+    if manifest.get("file_hashes") != current["file_hashes"]: errors.append("manifest file inventory mismatch")
+    if not isinstance(manifest_after, dict): errors.append("post-run manifest is required")
     head = _current_head()
     if head is None:
         errors.append("cannot resolve current Git HEAD for manifest validation")
@@ -351,11 +409,43 @@ def validate_manifest(manifest: dict | None, manifest_after: dict | None, mode: 
             errors.append(f"manifest system file is missing: {relative}")
         elif _sha256(path) != expected_hash:
             errors.append(f"manifest system file changed: {relative}")
-    if manifest_after is not None:
-        stable_before = {k: v for k, v in manifest.items() if k not in {"created_at", "run_id"}}
-        stable_after = {k: v for k, v in manifest_after.items() if k not in {"created_at", "run_id"}}
+    if isinstance(manifest_after, dict):
+        stable_before = {k: v for k, v in manifest.items() if k not in {"created_at"}}
+        stable_after = {k: v for k, v in manifest_after.items() if k not in {"created_at"}}
         if stable_before != stable_after:
             errors.append("source or toolchain identity changed during the test campaign")
+    return errors
+
+
+def verify_calibration(result: dict | None, manifest: dict | None) -> list[str]:
+    if not isinstance(result, dict): return ["complete acceptance requires calibration evidence"]
+    definitions = json.loads((ROOT / "scripts/calibration-mutants.json").read_text())["mutants"]
+    ids = [row["id"] for row in definitions]
+    errors = []
+    if (result.get("schema_version") != 2 or result.get("runner") != "canonical-package-tests"
+            or result.get("acceptance") != "accepted" or result.get("source_restored") is not True):
+        errors.append("calibration was not accepted by the canonical runner")
+    if result.get("source_hash") != (manifest or {}).get("source_hash") or result.get("commit") != (manifest or {}).get("commit"):
+        errors.append("calibration source/commit mismatch")
+    if result.get("definition_hash") != _sha256(ROOT / "scripts/calibration-mutants.json"):
+        errors.append("calibration definitions changed")
+    rows = result.get("mutants", [])
+    if not isinstance(rows, list): return errors + ["invalid calibration mutant list"]
+    if result.get("expected_mutant_ids") != ids or Counter(row.get("id") for row in rows if isinstance(row, dict)) != Counter(ids):
+        errors.append("calibration mutant set incomplete or duplicated")
+    by_id = {row["id"]: row for row in definitions}
+    for row in rows:
+        definition = by_id.get(row.get("id")) if isinstance(row, dict) else None
+        if definition is None: errors.append("unknown calibration mutant"); continue
+        if (row.get("status") != "killed" or row.get("restored") is not True or row.get("build_exit_status") != 0
+                or row.get("exit_status") != 1 or row.get("named_failure") is not True
+                or row.get("test_filter") != definition["test_filter"]
+                or not any(definition["witness"] in line for line in row.get("activation_witness", []))):
+            errors.append("calibration activation missing: " + definition["id"])
+    control = result.get("control", {})
+    if any(control.get(key) != 0 for key in ("build_exit_status", "exit_status", "final_build_exit_status", "final_exit_status")) or any(
+            control.get(key) is not True for key in ("named_tests_passed", "final_named_tests_passed")):
+        errors.append("calibration controls did not pass")
     return errors
 
 
@@ -367,6 +457,7 @@ def main() -> int:
     parser.add_argument("--evidence-dir")
     parser.add_argument("--manifest")
     parser.add_argument("--manifest-after")
+    parser.add_argument("--calibration")
     parser.add_argument("--mode", choices=["debug", "release"], default="debug")
     args = parser.parse_args()
 
@@ -425,6 +516,11 @@ def main() -> int:
         except (OSError, json.JSONDecodeError) as error:
             framework_errors.append(f"unreadable post-run manifest: {error}")
     manifest_errors = validate_manifest(manifest, manifest_after, args.mode)
+    calibration = None
+    if args.calibration:
+        try: calibration = json.loads(Path(args.calibration).read_text())
+        except (OSError, ValueError): pass
+    calibration_errors = verify_calibration(calibration, manifest)
 
     scenario_errors: list[str] = []
     expected: dict[str, dict] = {}
@@ -433,11 +529,12 @@ def main() -> int:
         try:
             catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
             expected = expected_scenarios(catalog)
-        except (OSError, json.JSONDecodeError) as error:
+        except (OSError, ValueError, KeyError, TypeError) as error:
             scenario_errors.append(f"unreadable contract catalog: {error}")
         observed, collection_errors = collect_evidence(Path(args.evidence_dir))
         scenario_errors.extend(collection_errors)
-        scenario_errors.extend(verify_evidence(expected, observed) if expected else [])
+        scenario_errors.extend(verify_evidence(expected, observed, manifest) if expected else [])
+        scenario_errors.extend(verify_invocations(Path(args.evidence_dir), manifest))
     else:
         scenario_errors.append("canonical evidence requires --evidence-dir")
 
@@ -453,7 +550,7 @@ def main() -> int:
         and all(result[2] == 'passed' for result in swift)
         and all(completed_suites[suite] == 'passed' for suite in REQUIRED_SUITES)
         and int(xctest[-1][1] or 0) == len(skipped)
-        and not framework_errors and not manifest_errors and not scenario_errors
+        and not framework_errors and not manifest_errors and not scenario_errors and not calibration_errors
     )
     summary = {
         'source_inventory_errors': inventory_errors,
@@ -462,6 +559,8 @@ def main() -> int:
         'campaign_manifest_mode': (manifest or {}).get('mode'),
         'campaign_source_hash': (manifest or {}).get('source_hash'),
         'manifest_errors': manifest_errors,
+        'calibration_errors': calibration_errors,
+        'calibration_source_hash': (calibration or {}).get('source_hash'),
         'framework_errors': framework_errors,
         'xctest_executed': int(xctest[-1][0]) if xctest else None,
         'xctest_skipped': int(xctest[-1][1] or 0) if xctest else None,

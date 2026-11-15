@@ -1419,7 +1419,8 @@
         "bridge.writeMetadata"
       ],
       "catalog_contracts": [
-        "C-MP4-FULL-MODEL"
+        "C-MP4-FULL-MODEL",
+        "C-FULL-ALIAS"
       ],
       "rationale": "Exported model write."
     },

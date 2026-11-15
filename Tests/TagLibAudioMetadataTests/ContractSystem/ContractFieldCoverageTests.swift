@@ -133,8 +133,44 @@ struct ContractFieldCoverageTests {
         evidence.check("scenario.catalog.unique", catalogued.count == scenarioIDs.count)
         evidence.check("scenario.set.equal", declared == catalogued,
                        "declared-only=\(declared.symmetricDifference(catalogued))")
-        evidence.check("audit.scenarios", audits.count == 3, "\(audits.count)")
+        evidence.check("audit.scenarios", audits.count == 4, "\(audits.count)")
         evidence.check("contract.count", contracts.count >= 25, "\(contracts.count)")
+        try evidence.finish()
+    }
+}
+
+
+extension ContractFieldCoverageTests {
+    @Test func contractPreviouslyUnobservedSurfaces() throws {
+        let ids: [PublicSurfaceAdapterID] = [.facadeApplyRawPatchGuarded, .facadeReplaceBasic,
+            .facadeUpdateBasic, .facadeWriteRawMapStrings, .bridgeWriteRawPropertyMapValues]
+        var evidence = ContractCase(scenario: "S-ADAPTER-GAPS-01",
+            runtimeTest: "contractPreviouslyUnobservedSurfaces", adapter: "public.adapter.gaps")
+        for id in ids {
+            try ContractFixture.withCopy("flac") { url in
+                try ContractFLACSeed.seed(comments: ["TITLE": ["Seed"], "CONTRACT_UNKNOWN": ["keep"]], to: url)
+                let before = try ContractFLACOracle.read(url)
+                evidence.check(id.rawValue + ".seed", before.values("TITLE") == ["Seed"] && before.values("CONTRACT_UNKNOWN") == ["keep"])
+                let input: ContractAdapterInput
+                switch id {
+                case .facadeApplyRawPatchGuarded:
+                    let snapshot = try TagLibMetadataManager.readSnapshot(from: url, includingAudioContent: true)
+                    input = .rawPatchGuarded(.init(valuesToSet: ["TITLE": ["Changed"]]),
+                        expectedVersion: try #require(snapshot.fileVersion), audio: try #require(snapshot.audioContentIdentity))
+                case .facadeReplaceBasic:
+                    var basic = try TagLibMetadataManager.readMetadataResult(from: url); basic.title = "Changed"
+                    input = .basic(basic)
+                case .facadeUpdateBasic: input = .updateBasic { $0.title = "Changed" }
+                case .facadeWriteRawMapStrings: input = .rawStrings(["TITLE": "Changed"], mode: .merge, verify: false)
+                default: input = .rawValues(["TITLE": ["Changed"], "CONTRACT_UNKNOWN": ["keep"]], mode: .replace, verify: false)
+                }
+                _ = try PublicSurfaceAdapters.invoke(id, url: url, input: input)
+                let after = try ContractFLACOracle.read(url)
+                evidence.check(id.rawValue + ".title", after.values("TITLE") == ["Changed"])
+                evidence.check(id.rawValue + ".unknown", after.values("CONTRACT_UNKNOWN") == ["keep"])
+                evidence.check(id.rawValue + ".audio", after.audio == before.audio)
+            }
+        }
         try evidence.finish()
     }
 }

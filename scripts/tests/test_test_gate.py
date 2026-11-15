@@ -47,9 +47,9 @@ def build_pass_log() -> str:
             extra.append(f"Suite {suite} passed.")
     log = log.replace(
         'Test run with 231 tests in 42 suites passed after 8 seconds.',
-        'Test run with 272 tests in 51 suites passed after 8 seconds.',
+        'Test run with 274 tests in 51 suites passed after 8 seconds.',
     )
-    final = 'Test run with 272 tests in 51 suites passed after 8 seconds.'
+    final = 'Test run with 274 tests in 51 suites passed after 8 seconds.'
     if final in log:
         log = log.replace(final, '\n'.join(extra) + '\n' + final if extra else final)
     else:
@@ -60,21 +60,35 @@ def build_pass_log() -> str:
 PASS = build_pass_log()
 
 
+def valid_calibration(manifest):
+    definitions = json.loads((ROOT / 'scripts/calibration-mutants.json').read_text())['mutants']
+    return {'schema_version': 2, 'runner': 'canonical-package-tests', 'acceptance': 'accepted',
+        'source_restored': True, 'source_hash': manifest['source_hash'], 'commit': manifest['commit'],
+        'definition_hash': SUMMARIZER._sha256(ROOT / 'scripts/calibration-mutants.json'),
+        'expected_mutant_ids': [row['id'] for row in definitions],
+        'control': {key: 0 for key in ('build_exit_status', 'exit_status', 'final_build_exit_status', 'final_exit_status')} | {
+            'named_tests_passed': True, 'final_named_tests_passed': True},
+        'mutants': [{'id': row['id'], 'status': 'killed', 'restored': True, 'build_exit_status': 0,
+            'exit_status': 1, 'named_failure': True, 'test_filter': row['test_filter'],
+            'activation_witness': [row['witness']]} for row in definitions]}
+
+
 def expected_evidence() -> dict:
     catalog = json.loads(CATALOG.read_text())
     return SUMMARIZER.expected_scenarios(catalog)
 
 
-def write_evidence(directory: Path, expected: dict) -> None:
+def write_evidence(directory: Path, expected: dict, manifest: dict) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     for index, (scenario, requirement) in enumerate(sorted(expected.items())):
-        checks = [{"name": f"check-{n}", "passed": True, "detail": ""}
-                  for n in range(requirement["check_count"])]
+        checks = [{"name": name, "passed": True, "detail": ""}
+                  for name in requirement["checks"]]
         record = {
             "schema_version": 1,
             "scenario_id": scenario,
             "runtime_test": requirement["runtime_test"],
-            "adapter": "policy-fixture",
+            "adapter": requirement["adapter_label"],
+            "campaign": {"id": manifest["run_id"], "mode": manifest["mode"], "source_hash": manifest["source_hash"]},
             "outcome": requirement["outcome"],
             "checks": checks,
             "check_count": len(checks),
@@ -83,6 +97,17 @@ def write_evidence(directory: Path, expected: dict) -> None:
             "recorded_at": "2026-11-15T00:00:00Z",
         }
         (directory / f"{index:03d}.{scenario}.json").write_text(json.dumps(record))
+    invocations = directory / "invocations"
+    invocations.mkdir()
+    tests = json.loads((ROOT / "scripts/package-test-system/runtime-invocations.json").read_text())["tests"]
+    index = 0
+    for test, calls in tests.items():
+        for call in calls:
+            adapter, outcome = call.split("|")
+            event = {"schema_version": 1, "runtime_test": test, "adapter": adapter, "outcome": outcome,
+                     "campaign": {"id": manifest["run_id"], "mode": manifest["mode"], "source_hash": manifest["source_hash"]}}
+            (invocations / f"{index}.json").write_text(json.dumps(event))
+            index += 1
 
 
 class TestGatePolicy(unittest.TestCase):
@@ -93,13 +118,13 @@ class TestGatePolicy(unittest.TestCase):
 
     def accepted(self, log, status=0, *, evidence_mutator=None, manifest_mutator=None,
                  manifest_after_mutator=None, mode="debug", omit_manifest=False,
-                 omit_evidence=False):
+                 omit_evidence=False, omit_after=False, calibration_mutator=None, omit_calibration=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / 'log').write_text(log)
             evidence = root / 'evidence'
             if not omit_evidence:
-                write_evidence(evidence, self.expected)
+                write_evidence(evidence, self.expected, self.manifest)
                 if evidence_mutator:
                     evidence_mutator(evidence)
             manifest = json.loads(json.dumps(self.manifest))
@@ -110,13 +135,19 @@ class TestGatePolicy(unittest.TestCase):
                 manifest_after_mutator(manifest_after)
             (root / 'manifest.json').write_text(json.dumps(manifest))
             (root / 'manifest-after.json').write_text(json.dumps(manifest_after))
+            calibration = valid_calibration(self.manifest)
+            if calibration_mutator: calibration_mutator(calibration)
+            (root / 'calibration.json').write_text(json.dumps(calibration))
             command = ['python3', str(SCRIPT), str(root / 'log'), str(status), str(root / 'summary'),
                        '--mode', mode]
+            if not omit_calibration:
+                command += ['--calibration', str(root / 'calibration.json')]
             if not omit_evidence:
                 command += ['--evidence-dir', str(evidence)]
             if not omit_manifest:
-                command += ['--manifest', str(root / 'manifest.json'),
-                            '--manifest-after', str(root / 'manifest-after.json')]
+                command += ['--manifest', str(root / 'manifest.json')]
+                if not omit_after:
+                    command += ['--manifest-after', str(root / 'manifest-after.json')]
             run = subprocess.run(command, capture_output=True)
             accepted = json.loads((root / 'summary').read_text())['accepted']
             self.assertEqual(run.returncode == 0, accepted)
@@ -162,7 +193,7 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 272 tests', 'run with 271 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 274 tests', 'run with 273 tests')))
         self.assertFalse(self.accepted(PASS.replace('in 51 suites', 'in 50 suites')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
@@ -357,7 +388,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(lines[:-1]) + '\n'))
 
     def test_missing_framework_completion_is_rejected(self):
-        self.assertFalse(self.accepted(PASS.replace('Test run with 272 tests in 51 suites passed after 8 seconds.\n', '')))
+        self.assertFalse(self.accepted(PASS.replace('Test run with 274 tests in 51 suites passed after 8 seconds.\n', '')))
 
     def test_contract_suite_cannot_be_filtered(self):
         for suite in ('ContractBuilderOracleSelfTests', 'ContractMP4ScenarioTests',
@@ -372,3 +403,84 @@ class TestGatePolicy(unittest.TestCase):
             with self.subTest(name=name):
                 modified = "\n".join(line for line in PASS.splitlines() if name not in line)
                 self.assertFalse(self.accepted(modified))
+
+
+    def test_missing_post_run_manifest_is_rejected(self):
+        self.assertFalse(self.accepted(PASS, omit_after=True))
+
+    def test_minimal_manifest_cannot_replace_full_build_identity(self):
+        def minimal(manifest):
+            for key in list(manifest):
+                if key not in {"mode", "commit", "source_hash"}: del manifest[key]
+        self.assertFalse(self.accepted(PASS, manifest_mutator=minimal, manifest_after_mutator=minimal))
+
+    def test_manifest_identity_fields_are_required_even_when_both_match(self):
+        for field in ("schema_version", "run_id", "toolchain", "target", "sdk", "system_hashes", "file_hashes", "build_options"):
+            with self.subTest(field=field):
+                def remove(m): m.pop(field)
+                self.assertFalse(self.accepted(PASS, manifest_mutator=remove, manifest_after_mutator=remove))
+
+    def test_debug_scenarios_cannot_be_replayed_in_release(self):
+        def release(m):
+            m["mode"] = "release"
+            m["build_options"] = test_manifest.options("release")
+        self.assertFalse(self.accepted(PASS, mode="release", manifest_mutator=release, manifest_after_mutator=release))
+
+    def test_campaign_replay_is_rejected(self):
+        def stale(directory):
+            for path in directory.rglob("*.json"):
+                row = json.loads(path.read_text()); row["campaign"]["id"] = "previous-campaign"
+                path.write_text(json.dumps(row))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=stale))
+
+    def test_same_count_placeholder_assertions_and_fake_adapters_are_rejected(self):
+        def placeholders(directory):
+            for path in directory.glob("*.json"):
+                row = json.loads(path.read_text()); row["adapter"] = "nonexistent.adapter"
+                row["checks"] = [{"name": "placeholder", "passed": True} for _ in row["checks"]]
+                path.write_text(json.dumps(row))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=placeholders))
+
+    def test_same_count_assertion_substitution_is_rejected(self):
+        def substitute(directory):
+            path = next(directory.glob("*.S-MP4-TYPED-01.json")); row = json.loads(path.read_text())
+            row["checks"][0]["name"] = row["checks"][1]["name"]
+            path.write_text(json.dumps(row))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=substitute))
+
+    def test_missing_or_duplicated_invocations_are_rejected(self):
+        def missing(directory): next((directory / "invocations").glob("*.json")).unlink()
+        def duplicate(directory):
+            source = next((directory / "invocations").glob("*.json"))
+            shutil.copy(source, source.with_name("duplicate.json"))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=missing))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=duplicate))
+
+    def test_invocation_outcome_and_runtime_identity_cannot_be_substituted(self):
+        for field, value in (("outcome", "not-executed"), ("runtime_test", "wrongTest"), ("adapter", "fake.adapter"), ("schema_version", 99)):
+            with self.subTest(field=field):
+                def mutate(directory):
+                    path = next((directory / "invocations").glob("*.json")); row = json.loads(path.read_text())
+                    row[field] = value; path.write_text(json.dumps(row))
+                self.assertFalse(self.accepted(PASS, evidence_mutator=mutate))
+
+    def test_incomplete_stale_or_inactive_calibration_cannot_accept(self):
+        self.assertFalse(self.accepted(PASS, omit_calibration=True))
+        for kind in ("subset", "duplicate", "stale", "unrestored", "compile-failure", "not-activated", "control-missing"):
+            with self.subTest(kind=kind):
+                def mutate(row):
+                    if kind == "subset": row["mutants"].pop()
+                    if kind == "duplicate": row["mutants"].append(row["mutants"][0])
+                    if kind == "stale": row["source_hash"] = "0" * 64
+                    if kind == "unrestored": row["mutants"][0]["restored"] = False
+                    if kind == "compile-failure": row["mutants"][0]["build_exit_status"] = 1
+                    if kind == "not-activated": row["mutants"][0]["activation_witness"] = []
+                    if kind == "control-missing": row["control"]["named_tests_passed"] = False
+                self.assertFalse(self.accepted(PASS, calibration_mutator=mutate))
+
+    def test_claim_blessing_is_rejected_before_running_tests(self):
+        import os
+        result = subprocess.run(["bash", str(ROOT / "scripts/validate-tests.sh"), "debug"],
+            env=os.environ | {"TAGLIB_WRITE_CLAIMS": "1"}, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Claim blessing", result.stderr)

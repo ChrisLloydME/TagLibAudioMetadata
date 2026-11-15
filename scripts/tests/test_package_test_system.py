@@ -211,3 +211,48 @@ class CalibrationPolicy(unittest.TestCase):
         ignore = (ROOT / '.gitignore').read_text()
         self.assertIn('.build/', ignore)
         self.assertFalse((ROOT / '.git').joinpath('calibration').exists())
+
+
+    def test_require_all_killed_rejects_subsets_and_allow_failures(self):
+        spec = importlib.util.spec_from_file_location("calibration_runner", ROOT / "scripts/calibrate-test-system.py")
+        runner = importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
+        rows = json.loads((ROOT / "scripts/calibration-mutants.json").read_text())["mutants"]
+        with self.assertRaises(ValueError): runner.select_mutants(rows, [rows[0]["id"]], True)
+        with self.assertRaises(ValueError): runner.select_mutants(rows, [], True, True)
+        with self.assertRaises(ValueError): runner.select_mutants(rows, ["unknown"])
+        self.assertEqual(len(runner.select_mutants(rows, [], True)), len(rows))
+
+    def test_calibration_mutates_actual_required_tests_and_oracles(self):
+        rows = json.loads((ROOT / "scripts/calibration-mutants.json").read_text())["mutants"]
+        required = json.loads((ROOT / "scripts/required-test-inventory.json").read_text())
+        for row in rows:
+            self.assertIn(row["test_filter"], required)
+            self.assertTrue(row["witness"])
+            for patch in row["patches"]:
+                self.assertTrue(patch["file"].startswith(("Sources/", "Tests/")))
+        self.assertFalse((ROOT / "scripts/calibration").exists())
+
+    def test_unreferenced_registered_adapter_fails(self):
+        catalog = load("contract-catalog.json")
+        target = "facade.numberingInventory"
+        for row in catalog["contracts"] + catalog["audit_scenarios"]:
+            row["adapters"] = [a for a in row.get("adapters", []) if a != target]
+        declared = system.extract_adapter_declarations(ROOT)
+        errors = system.validate_adapters(load("execution-adapters.json"), declared,
+                                           load("public-surface-inventory.json"), catalog)
+        self.assertTrue(any("unreferenced adapters" in e for e in errors))
+
+
+    def test_frozen_runtime_requirements_reject_drift(self):
+        import copy
+        catalog, assertions, invocations = (load(name) for name in
+            ("contract-catalog.json", "scenario-assertions.json", "runtime-invocations.json"))
+        required = json.loads((ROOT / "scripts/required-test-inventory.json").read_text())
+        registered = system.extract_adapter_declarations(ROOT)
+        self.assertEqual(system.validate_runtime_requirements(catalog, assertions, invocations, registered, required), [])
+        bad = copy.deepcopy(assertions); bad.pop(next(iter(bad)))
+        self.assertTrue(system.validate_runtime_requirements(catalog, bad, invocations, registered, required))
+        bad = copy.deepcopy(invocations)
+        bad["tests"] = {k: [v for v in values if not v.startswith("facade.numberingInventory|")]
+                        for k, values in bad["tests"].items()}
+        self.assertTrue(system.validate_runtime_requirements(catalog, assertions, bad, registered, required))

@@ -1667,7 +1667,7 @@
       "scenarios": [
         {
           "scenario_id": "S-NORM-01",
-          "expected_assertions": 6
+          "expected_assertions": 7
         },
         {
           "scenario_id": "S-NORM-03",
@@ -2091,7 +2091,7 @@
         },
         {
           "scenario_id": "S-UNSUP-03",
-          "expected_assertions": 2
+          "expected_assertions": 3
         }
       ],
       "version": "any",
@@ -2143,6 +2143,68 @@
       "version": "any",
       "normalization": "test-owned literal expectations; no production-derived targets",
       "validation_phase": "preflight",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-FULL-ALIAS",
+      "surface_id": "bridge.TagLibMetadataExtractor.class_method.writeMetadata",
+      "surface_ids": [
+        "bridge.TagLibMetadataExtractor.class_method.writeMetadata"
+      ],
+      "adapters": [
+        "bridge.writeMetadata"
+      ],
+      "field_family": [
+        "releaseType"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "preservation",
+      "operation": "full-model edited release alias retirement",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractFullModelRetiresEditedReleaseAlias",
+      "ownership": {
+        "edited": [
+          "----:com.apple.iTunes:MusicBrainz Album Type",
+          "----:com.apple.iTunes:MUSICBRAINZ_ALBUMTYPE"
+        ],
+        "untouched": [
+          "----:com.apple.iTunes:CONTRACT_UNKNOWN",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "full_model"
+        ],
+        "adapter_kind": [
+          "bridge"
+        ],
+        "verification_context": [
+          "none"
+        ],
+        "ownership_mode": [
+          "full_replacement"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-FULL-ALIAS-01",
+          "expected_assertions": 4
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "saved_native_readback",
+      "evidence_tier": "runtime",
       "additional_surface_ids": []
     }
   ],
@@ -3839,8 +3901,21 @@
     {
       "scenario_id": "S-CATALOG-RECONCILIATION-01",
       "runtime_test": "contractCatalogReconciliation",
-      "expected_assertions": 207,
+      "expected_assertions": 212,
       "purpose": "contracts, adapters, scenario declarations and assertion budgets reconcile without duplicates"
+    },
+    {
+      "scenario_id": "S-ADAPTER-GAPS-01",
+      "runtime_test": "contractPreviouslyUnobservedSurfaces",
+      "expected_assertions": 20,
+      "purpose": "Independent native execution of formerly orphaned public adapters",
+      "adapters": [
+        "facade.applyRawPatchGuarded",
+        "facade.replaceBasic",
+        "facade.updateBasic",
+        "facade.writeRawMapStrings",
+        "bridge.writeRawPropertyMapValues"
+      ]
     }
   ]
 }

@@ -796,7 +796,39 @@ def validate_adapters(adapter_rows: dict, declared: list[str], inventory: dict, 
         if isinstance(contract, dict)
         for adapter in (contract.get("adapters") or [])
     }
+    used.update(a for row in catalog.get("audit_scenarios", []) for a in row.get("adapters", []))
     _require(not (used - ids), f"catalog uses undeclared adapters: {sorted(used - ids)}", errors)
+    _require(not (ids - used), f"unreferenced adapters: {sorted(ids - used)}", errors)
+    return errors
+
+
+def validate_runtime_requirements(catalog: dict, assertions: dict, invocations: dict,
+                                  registered: list[str], required: dict) -> list[str]:
+    errors = []
+    scenarios = {}
+    for row in catalog.get("contracts", []) + catalog.get("audit_scenarios", []):
+        for scenario in row.get("scenarios", [row] if "scenario_id" in row else []):
+            scenarios[scenario["scenario_id"]] = (row["runtime_test"], scenario["expected_assertions"])
+    _require(set(assertions) == set(scenarios), "assertion/scenario inventory mismatch", errors)
+    for key, (test, budget) in scenarios.items():
+        row = assertions.get(key, {})
+        names = row.get("checks", [])
+        _require(row.get("runtime_test") == test and isinstance(names, list) and len(names) == budget
+                 and all(_nonempty_string(name) for name in names) and _nonempty_string(row.get("adapter_label")),
+                 "assertion identity/budget mismatch: " + key, errors)
+    _require(invocations.get("schema_version") == 1, "runtime invocation schema mismatch", errors)
+    tests = invocations.get("tests", {})
+    _require(isinstance(tests, dict) and bool(tests), "runtime invocation inventory empty", errors)
+    observed = set()
+    for test, calls in tests.items():
+        _require(test in required, "runtime invocation test is not required: " + test, errors)
+        _require(isinstance(calls, list) and bool(calls), "runtime invocation list empty: " + test, errors)
+        for call in calls:
+            parts = call.split("|")
+            _require(len(parts) == 2 and parts[0] in registered and parts[-1] in {"returned", "threw"},
+                     "invalid runtime invocation identity: " + call, errors)
+            observed.add(parts[0])
+    _require(observed == set(registered), "registered adapters lack actual runtime coverage", errors)
     return errors
 
 
@@ -827,7 +859,11 @@ def validate_all(root: Path = ROOT) -> dict[str, list[str]]:
             declared_scenarios,
         ),
         "fixtures": validate_fixtures(fixtures, root),
-        "adapters": validate_adapters(adapters, declared_adapters, inventory, catalog),
+        "adapters": validate_adapters(adapters, declared_adapters, inventory, catalog)
+            + validate_runtime_requirements(catalog,
+                load_json(Path(root) / "scripts/package-test-system/scenario-assertions.json"),
+                load_json(Path(root) / "scripts/package-test-system/runtime-invocations.json"),
+                declared_adapters, required_tests),
     }
 
 

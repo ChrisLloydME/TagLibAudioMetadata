@@ -11,7 +11,9 @@
           "find": "    if (fileURL.isFileURL && !ValidateNativeNumberPair(trackNumber, totalTracks, DetectTagFileFormat(fileURL), error)) return NO;",
           "replace": "    // calibration mutant: exported pair validation removed"
         }
-      ]
+      ],
+      "test_filter": "allPublicNumericWritersRejectNativeOverflow",
+      "witness": "Expectation failed"
     },
     {
       "id": "key-normalization-mismatch",
@@ -23,7 +25,9 @@
           "find": "    for (NSDictionary<NSString *, NSObject *> *entry in atoms) {\n        NSString *key = TrimmedStringOrNil((NSString *)entry[@\"key\"]);\n        NSString *type = CanonicalMP4AtomType((NSString *)entry[@\"type\"]);",
           "replace": "    for (NSDictionary<NSString *, NSObject *> *entry in atoms) {\n        NSString *key = (NSString *)entry[@\"key\"];\n        NSString *type = CanonicalMP4AtomType((NSString *)entry[@\"type\"]);"
         }
-      ]
+      ],
+      "test_filter": "nativeMP4EncodersRetainValidBoundaryValues",
+      "witness": "Expectation failed"
     },
     {
       "id": "numeric-truncation",
@@ -35,7 +39,9 @@
           "find": "    long long parsed = std::strtoll(utf8, &end, 10);",
           "replace": "    long long parsed = (short)std::strtoll(utf8, &end, 10);"
         }
-      ]
+      ],
+      "test_filter": "structuredMP4RejectsEncodingAndRangeBypasses",
+      "witness": "Expectation failed"
     },
     {
       "id": "formatter-nil-as-delete",
@@ -43,20 +49,22 @@
       "probe": "formatter-nil",
       "patches": [
         {
-          "file": "Sources/CTagLibBridge/Internal/TLBasicBridgeOperations.inc",
-          "find": "    if (padWidth > kMaximumGeneratedNumberPaddingWidth) {",
-          "replace": "    if (NO) {"
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "        if (number.length > kMaximumGeneratedNumberPaddingWidth) {",
+          "replace": "        if (false) {"
         },
         {
           "file": "Sources/CTagLibBridge/Internal/TLBasicBridgeOperations.inc",
           "find": "        throw std::invalid_argument(\"Generated number padding exceeds the supported width\");",
           "replace": "        return nil;"
         }
-      ]
+      ],
+      "test_filter": "excessiveInheritedPaddingDoesNotRemoveTrack",
+      "witness": "TRCK"
     },
     {
       "id": "global-known-field-retention-filter",
-      "description": "Filter all schema-known fields out of full-model retention, dropping an unedited album owner.",
+      "description": "Filter all schema-known fields out of full-model retention, dropping an unmodeled tracker-name owner.",
       "probe": "retention-filter",
       "patches": [
         {
@@ -64,7 +72,9 @@
           "find": "        if (IsGenericModelOwnedPropertyMapKey(fieldKey)) {",
           "replace": "        if (IsKnownMetadataFieldKey(fieldKey)) {"
         }
-      ]
+      ],
+      "test_filter": "fullModelPreservesUnmodeledOwners",
+      "witness": "TRACKERNAME"
     },
     {
       "id": "legacy-default-v4-save",
@@ -76,11 +86,13 @@
           "find": "    if (tag && tag->header() && tag->header()->majorVersion() == 3) {",
           "replace": "    if (false) {"
         }
-      ]
+      ],
+      "test_filter": "v23ContainersPreserveVersionDatesAndAudio",
+      "witness": "verificationFailed"
     },
     {
       "id": "restored-stale-mp4-freeform",
-      "description": "Restore the old MP4 compatibility freeform after a canonical raw edit.",
+      "description": "Restore the old MP4 compatibility freeform after a full-model canonical edit.",
       "probe": "stale-freeform",
       "patches": [
         {
@@ -88,7 +100,9 @@
           "find": "            for (const auto &key : aliases) tag->removeItem(key);\n            SetMP4FreeformTextItem(tag, @(mapping.mp4FreeformDescription), value);",
           "replace": "            for (const auto &key : aliases) tag->removeItem(key);\n            SetMP4FreeformTextItem(tag, @(mapping.mp4FreeformDescription), value);\n            if (!aliases.isEmpty()) SetMP4FreeformTextItem(tag, MP4FreeformDescriptionForItemKey(aliases.front()), existingValue);"
         }
-      ]
+      ],
+      "test_filter": "contractFullModelRetiresEditedReleaseAlias",
+      "witness": "release.canonical"
     },
     {
       "id": "invalid-text-zero-and-explicit-zero-recovery",
@@ -105,7 +119,9 @@
           "find": "           numberText.trackNumberText?.contains(\"/\") == false {",
           "replace": "           numberText.trackNumberText?.contains(\"///\") == false {"
         }
-      ]
+      ],
+      "test_filter": "explicitZeroTotalIsNotRecoveredFromOldNumberText",
+      "witness": "verificationFailed"
     },
     {
       "id": "advertised-unreachable-route",
@@ -117,7 +133,9 @@
           "find": "        TagLibMetadataExtractor.isWritableFormat(fileExtension)",
           "replace": "        fileExtension.lowercased() == \"mka\" || TagLibMetadataExtractor.isWritableFormat(fileExtension)"
         }
-      ]
+      ],
+      "test_filter": "contractUnsupportedRoutesReject",
+      "witness": "matroska.notWritable"
     },
     {
       "id": "removed-adapter-invocation",
@@ -125,12 +143,13 @@
       "probe": "adapter-invocation",
       "patches": [
         {
-          "file": "harness/Sources/CalibrationProbes/PublicSurfaceAdapters.swift",
-          "source": "Tests/TagLibAudioMetadataTests/ContractSystem/PublicSurfaceAdapters.swift",
+          "file": "Tests/TagLibAudioMetadataTests/ContractSystem/PublicSurfaceAdapters.swift",
           "find": "            guard case .patch(let patch) = input else {\n                throw ContractAdapterError.missingInput(id.rawValue)\n            }\n            return .write(try TagLibMetadataManager.applyMetadataPatch(patch, to: url))",
           "replace": "            guard case .patch = input else {\n                throw ContractAdapterError.missingInput(id.rawValue)\n            }\n            return .write(TagLibMetadataManager.MetadataWriteResult(warnings: []))"
         }
-      ]
+      ],
+      "test_filter": "contractMP4TypedVertical",
+      "witness": "native.title"
     },
     {
       "id": "removed-preservation-assertion",
@@ -138,25 +157,27 @@
       "probe": "preservation-assertion",
       "patches": [
         {
-          "file": "harness/Sources/CalibrationProbes/PreservationProbe.swift",
-          "source": "scripts/calibration/CalibrationProbes/PreservationProbe.swift",
-          "find": "        if try after.text(\"----:com.apple.iTunes:CONTRACT_UNKNOWN\") == \"keep\" {\n            checks.append(\"unknown-owner\")\n        }\n",
-          "replace": "        // calibration mutant: untouched-owner assertion removed\n"
+          "file": "Tests/TagLibAudioMetadataTests/ContractSystem/ContractMP4ScenarioTests.swift",
+          "find": "            evidence.check(\"native.untouched.unknown\", try after.text(\"----:com.apple.iTunes:CONTRACT_UNKNOWN\") == \"keep\")",
+          "replace": "            // calibrated missing canonical preservation assertion"
         }
-      ]
+      ],
+      "test_filter": "contractMP4TypedVertical",
+      "witness": "assertion identity mismatch"
     },
     {
       "id": "oracle-vector-corruption",
-      "description": "Weaken the native MP4 oracle so a truncated atom is accepted as evidence.",
+      "description": "Weaken the native MP4 oracle so invalid UTF-8 native text is accepted as evidence.",
       "probe": "oracle-corruption",
       "patches": [
         {
-          "file": "harness/Sources/CalibrationProbes/ProbeMP4.swift",
-          "source": "scripts/calibration/CalibrationProbes/ProbeMP4.swift",
-          "find": "            guard let payload = values[key]?.first,\n                  let text = String(data: payload, encoding: .utf8) else {\n                throw ProbeError.malformed(\"missing text atom \\(key)\")\n            }\n            return text",
-          "replace": "            guard let payload = values[key]?.first else {\n                throw ProbeError.malformed(\"missing text atom \\(key)\")\n            }\n            // calibration mutant: corrupted text is accepted via lossy decoding\n            return String(decoding: payload, as: UTF8.self)"
+          "file": "Tests/TagLibAudioMetadataTests/ContractSystem/ContractNativeOracles.swift",
+          "find": "        guard let text = String(data: payload, encoding: .utf8) else {\n            throw ContractOracleError.malformed(\"MP4 item \\(key) is not UTF-8\")\n        }\n        return text",
+          "replace": "        return String(decoding: payload, as: UTF8.self)"
         }
-      ]
+      ],
+      "test_filter": "malformedNativeEvidenceIsRejected",
+      "witness": "an error was expected"
     }
   ]
 }

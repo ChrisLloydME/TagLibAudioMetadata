@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "tests": {
+    "contractASFAdvisoryPreservation": [
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned"
+    ],
+    "contractASFPartialPairRejects": [
+      "facade.applyPatch|threw"
+    ],
+    "contractArtworkAndQualifiedCollections": [
+      "bridge.writeStructuredMetadata|returned",
+      "facade.writeStructured|returned",
+      "facade.writeStructured|returned",
+      "facade.writeStructured|returned"
+    ],
+    "contractBatchPerFile": [
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned",
+      "facade.applyPatch|threw"
+    ],
+    "contractBridgeReadsRegistry": [
+      "bridge.dumpMetadataText|returned",
+      "bridge.extractMetadata|returned",
+      "bridge.formatCapabilities|returned",
+      "bridge.formatCapability|returned",
+      "bridge.isSupportedFormat|returned",
+      "bridge.isWritableFormat|returned",
+      "bridge.knownMetadataPropertyKeys|returned",
+      "bridge.metadataFieldMappings|returned",
+      "bridge.metadataProjectionsOptions|returned",
+      "bridge.metadataProjectionsOptions|returned",
+      "bridge.metadataProjectionsOptions|returned",
+      "bridge.metadataProjectionsOptions|returned",
+      "bridge.metadataProjectionsOptions|returned",
+      "bridge.metadataProjectionsOptions|returned",
+      "bridge.metadataProjections|returned",
+      "bridge.rawMetadata|returned",
+      "bridge.structuredMetadata|returned",
+      "bridge.supportedExtensions|returned",
+      "bridge.writableExtensions|returned",
+      "facade.bestEffortMetadata|returned",
+      "facade.bestEffortRawMetadataText|returned",
+      "facade.bestEffortRawMetadata|returned",
+      "facade.bestEffortStructured|returned",
+      "facade.capability|returned",
+      "facade.fileVersion|returned",
+      "facade.formatCapabilities|returned",
+      "facade.formatSupportLevel|returned",
+      "facade.isReadableExtension|returned",
+      "facade.isWritableExtension|returned",
+      "facade.probeFile|returned",
+      "facade.readBasicSnapshot|returned",
+      "facade.readMetadataResult|returned",
+      "facade.readRawMetadata|returned",
+      "facade.readSnapshotWithAudio|returned",
+      "facade.readSnapshotWithAudio|returned",
+      "facade.readSnapshot|returned",
+      "facade.readStructured|returned",
+      "facade.readableExtensions|returned",
+      "facade.writableExtensions|returned",
+      "registry.mappingContract|returned",
+      "registry.normalizeKey|returned",
+      "registry.profile|returned",
+      "registry.schemaForKey|returned",
+      "registry.schemaForPropertyMapKey|returned",
+      "registry.schemas|returned",
+      "registry.shouldDisplayMultiValue|returned"
+    ],
+    "contractBridgeStructuredValidation": [
+      "bridge.writeStructuredMetadata|threw",
+      "bridge.writeStructuredMetadata|threw",
+      "bridge.writeStructuredMetadata|threw",
+      "bridge.writeStructuredMetadata|threw",
+      "bridge.writeStructuredMetadata|threw"
+    ],
+    "contractBridgeWipe": [
+      "bridge.wipeMetadata|returned"
+    ],
+    "contractEncodingFamilies": [
+      "bridge.writeStructuredMetadata|returned",
+      "bridge.writeStructuredMetadata|returned",
+      "bridge.writeStructuredMetadata|returned",
+      "bridge.writeStructuredMetadata|returned",
+      "bridge.writeStructuredMetadata|returned",
+      "bridge.writeStructuredMetadata|returned",
+      "bridge.writeStructuredMetadata|returned",
+      "facade.applyPatch|returned",
+      "facade.writeRawMapValues|returned",
+      "facade.writeStructured|returned"
+    ],
+    "contractEraseAndReopen": [
+      "facade.eraseAll|returned"
+    ],
+    "contractFLACArrayPreservation": [
+      "facade.applyPatch|returned"
+    ],
+    "contractFLACExplicitRemoval": [
+      "facade.applyPatch|returned"
+    ],
+    "contractFullModelRetention": [
+      "bridge.writeMetadata|returned",
+      "facade.writeTagMetadata|returned"
+    ],
+    "contractFullModelRetiresEditedReleaseAlias": [
+      "bridge.writeMetadata|returned"
+    ],
+    "contractInvalidNumberTextRejects": [
+      "facade.applyPatch|threw",
+      "facade.applyPatch|threw",
+      "facade.applyPatch|threw",
+      "facade.applyPatch|threw"
+    ],
+    "contractMP4NumericBounds": [
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned",
+      "facade.applyPatch|threw",
+      "facade.applyPatch|threw",
+      "facade.applyPatch|threw"
+    ],
+    "contractMP4PublicSequence": [
+      "bridge.writeStructuredMetadata|returned",
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned",
+      "facade.eraseAll|returned"
+    ],
+    "contractMP4TypedVertical": [
+      "facade.applyPatch|returned"
+    ],
+    "contractNativeTextOtherFamilies": [
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned"
+    ],
+    "contractNormalizationPlan": [
+      "facade.applyNormalization|returned",
+      "facade.applyNormalization|returned",
+      "facade.applyNormalization|returned",
+      "facade.applyNormalization|threw",
+      "facade.applyPatch|returned",
+      "facade.numberingInventory|returned",
+      "facade.planNormalization|returned",
+      "facade.planNormalization|returned",
+      "facade.planNormalization|returned",
+      "facade.planNormalization|returned"
+    ],
+    "contractNumberTextSurfaces": [
+      "bridge.writeTrackNumberText|returned",
+      "bridge.writeTrackNumber|returned",
+      "facade.writeTrackNumberText|returned",
+      "facade.writeTrackNumberText|returned"
+    ],
+    "contractPreviouslyUnobservedSurfaces": [
+      "bridge.writeRawPropertyMapValues|returned",
+      "facade.applyRawPatchGuarded|returned",
+      "facade.replaceBasic|returned",
+      "facade.updateBasic|returned",
+      "facade.writeRawMapStrings|returned"
+    ],
+    "contractPrivateProvenance": [
+      "facade.applyPatch|returned"
+    ],
+    "contractRawDeltaAndBridgeReplace": [
+      "bridge.writeRawPropertyMap|returned",
+      "facade.applyRawPatch|returned"
+    ],
+    "contractRawValueModes": [
+      "facade.writeRawMapValues|returned",
+      "facade.writeRawMapValues|returned"
+    ],
+    "contractStaleGuards": [
+      "bridge.writeMetadata|returned",
+      "facade.applyPatchGuarded|threw"
+    ],
+    "contractTrackerRoute": [
+      "facade.applyPatch|returned"
+    ],
+    "contractUnsupportedRoutesReject": [
+      "facade.applyPatch|threw",
+      "facade.applyPatch|threw",
+      "facade.applyPatch|threw",
+      "facade.isWritableExtension|returned"
+    ],
+    "contractV23DateRejections": [
+      "bridge.writeStructuredMetadata|threw",
+      "facade.applyPatch|threw",
+      "facade.writeStructured|threw"
+    ],
+    "contractV23FlaggedPreservation": [
+      "facade.applyPatch|threw"
+    ],
+    "contractVerificationDisabled": [
+      "facade.writeStructured|returned"
+    ],
+    "contractWAVAndAIFFID3": [
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned"
+    ]
+  }
+}

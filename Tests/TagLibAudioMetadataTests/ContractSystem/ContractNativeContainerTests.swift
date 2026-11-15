@@ -378,6 +378,9 @@ struct ContractNativeContainerTests {
                 adapter: "facade.applyPatch",
                 outcome: "unsupported_reject"
             )
+            let declared = try PublicSurfaceAdapters.invoke(.facadeIsWritableExtension, url: mka, input: .extensionName("mka"))
+            if case .boolean(let writable) = declared { evidence.check("matroska.notWritable", !writable) }
+            else { evidence.check("matroska.notWritable", false) }
             try ContractAssertions.expectRejection(&evidence, name: "matroska.extension", file: mka) {
                 _ = try PublicSurfaceAdapters.invoke(.facadeApplyPatch, url: mka, input: .patch(
                     MetadataPatch(fields: [.title: .text("Unsupported")])
@@ -401,6 +404,10 @@ struct ContractNativeContainerTests {
                 adapter: "facade.planNormalization+facade.applyNormalization"
             )
             let audio = try ContractMP4Oracle.read(url).audio
+            let inventoryResult = try PublicSurfaceAdapters.invoke(.facadeNumberingInventory, url: url)
+            if case .inventory(let inventory) = inventoryResult {
+                evidence.check("inventory.track.total", inventory.track.total.resolvedValue == 12)
+            } else { evidence.check("inventory.track.total", false) }
             let planResult = try PublicSurfaceAdapters.invoke(
                 .facadePlanNormalization, url: url,
                 input: .normalization(.replace(number: 5, total: 10), [.track])

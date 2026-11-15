@@ -120,6 +120,15 @@ struct ContractBuilderOracleSelfTests {
     }
 
     @Test func malformedNativeEvidenceIsRejected() throws {
+        try ContractFixture.withCopy("m4a") { url in
+            try ContractMP4Seed.seed([.init(key: "©nam", value: .text("X"))], to: url)
+            var data = try Data(contentsOf: url)
+            // Locate the literal UTF-8 data byte in the test-owned seed.
+            let marker = Data([0,0,0,1,0,0,0,0,88])
+            let range = try #require(data.range(of: marker)); data[range.upperBound - 1] = 0xff
+            try data.write(to: url)
+            #expect(throws: (any Error).self) { _ = try ContractMP4Oracle.read(url).text("©nam") }
+        }
         #expect(throws: (any Error).self) {
             _ = try ContractMP4Oracle.atoms(Data([0, 0, 0, 7] + Array("ftyp".utf8)), 0..<8)
         }

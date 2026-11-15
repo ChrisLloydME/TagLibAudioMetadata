@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 import TagLibAudioMetadata
 import CTagLibBridge
 
@@ -146,6 +147,16 @@ enum PublicSurfaceAdapters {
         url: URL,
         input: ContractAdapterInput = .none
     ) throws -> ContractAdapterOutput {
+        let result: Result<ContractAdapterOutput, Error>
+        do { result = .success(try execute(id, url: url, input: input)) }
+        catch { result = .failure(error) }
+        let outcome: String
+        switch result { case .success: outcome = "returned"; case .failure: outcome = "threw" }
+        try ContractEvidence.recordInvocation(adapter: id.rawValue, outcome: outcome)
+        return try result.get()
+    }
+
+    private static func execute(_ id: PublicSurfaceAdapterID, url: URL, input: ContractAdapterInput) throws -> ContractAdapterOutput {
         switch id {
         case .facadeReadMetadataResult:
             return .metadata(try TagLibMetadataManager.readMetadataResult(from: url))

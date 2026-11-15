@@ -5,6 +5,8 @@ import Foundation
 /// policy reconciliation until the catalog and evidence budget are reviewed.
 enum ContractScenarioDeclarations {
     static let all: [String] = [
+        "S-FULL-ALIAS-01",
+        "S-ADAPTER-GAPS-01",
         "S-MP4-TYPED-01",
         "S-MP4-SEQ-01",
         "S-MP4-FULL-01",
