@@ -998,28 +998,30 @@ static BOOL ValidateStructuredCollectionsForFormat(TLTagFileFormat format,
     auto reject = [&](NSString *message) -> BOOL {
         return SetStructuredPayloadValidationError(error, message);
     };
-    auto nonEmpty = [](NSArray *array) -> bool { return array && array.count > 0; };
+    // Presence is explicit intent: an empty collection still names a
+    // destination surface this format does not implement.
+    auto present = [&](NSString *key) -> bool { return metadata[key] != nil; };
 
     switch (format) {
         case TLTagFileFormatMPEGID3:
         case TLTagFileFormatMPEGAAC:
-            if (nonEmpty(mp4Atoms) || nonEmpty(asfAttributes)) {
+            if (present(@"mp4Atoms") || present(@"asfAttributes")) {
                 return reject(@"MPEG ID3 containers accept ID3v2 frames, comments, lyrics, artwork and PropertyMap values; MP4/ASF collections are not consumed");
             }
             break;
         case TLTagFileFormatMP4:
-            if (nonEmpty(frames) || nonEmpty(asfAttributes) || nonEmpty(lyrics) || nonEmpty(comments)) {
+            if (present(@"id3v2Frames") || present(@"asfAttributes") || present(@"lyrics") || present(@"comments")) {
                 return reject(@"MP4 accepts MP4 atoms, PropertyMap values and structured artwork; ID3/ASF/comment/lyric collections are not consumed");
             }
             break;
         case TLTagFileFormatASF:
-            if (nonEmpty(frames) || nonEmpty(mp4Atoms) || nonEmpty(lyrics) || nonEmpty(comments)) {
+            if (present(@"id3v2Frames") || present(@"mp4Atoms") || present(@"lyrics") || present(@"comments")) {
                 return reject(@"ASF accepts ASF attributes, PropertyMap values and structured artwork; ID3/MP4/comment/lyric collections are not consumed");
             }
             break;
         case TLTagFileFormatWAV:
         case TLTagFileFormatAIFF:
-            if (nonEmpty(mp4Atoms) || nonEmpty(asfAttributes)) {
+            if (present(@"mp4Atoms") || present(@"asfAttributes")) {
                 return reject(@"WAV/AIFF accept ID3v2 frames, comments, lyrics, artwork and PropertyMap values; MP4/ASF collections are not consumed");
             }
             break;
