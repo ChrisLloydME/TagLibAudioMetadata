@@ -21,8 +21,8 @@ opt-in skips) and **221 Swift Testing declarations in 44 suites**. All required 
 passed; the only failure in each configuration was the mandatory
 `CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition. This host strips
 setuid/setgid bits from a user-owned `chmod`, so the gate is **red/blocked, not accepted**; no formal ready verdict is
-claimed. Evidence: `.build/test-evidence/debug-20261115-124510-30561/` and
-`.build/test-evidence/release-20261115-124926-31095/`; both summaries report `accepted: false` solely for that named test.
+claimed. Evidence: `.build/test-evidence/debug-20261115-125755-33555/` and
+`.build/test-evidence/release-20261115-130116-34182/`; both summaries report `accepted: false` solely for that named test.
 The same precondition failed on the reviewed baseline before implementation, so it is an environment limit rather than a
 repair regression.
 
