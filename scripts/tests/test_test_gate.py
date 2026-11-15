@@ -1,182 +1,136 @@
+import importlib.util
 import json
-from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / 'summarize-test-run.py'
-PASS = (
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLegacyDateIdentityUsesDescriptionsAndExactArrays]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testAllFacadeMutationSurfacesProtectStandaloneDates]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLowLevelModelReadsAndPreservesContentGroupArtistsAndPeaks]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testASFLowLevelWritesUpdateExistingCanonicalAttributes]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testLowLevelWritesPreserveUnknownAdvisoryRawCode]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testAPEReleaseTypeAndStatusAreWritableThroughTypedAndBasic]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testBasicNumberTextMismatchRejectsAndMixedPairsCommit]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testASFLowLevelAdvisoryEditRemovesAliases]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23StandaloneTDATSurvivesBasicAndStructuredUnrelatedWrites]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testDirectBridgeV23WritesRejectWithoutMutation]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23DateWritesRejectBeforeMutation]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23RawDeltaPreservesCanonicalDatesAndRejectsStandaloneLoss]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.RemediationPreservationTests testV23ConflictingTORYAndTDORRejectWithoutMutation]' passed (0.001 seconds).\n"
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / 'scripts/summarize-test-run.py'
+CATALOG = ROOT / 'scripts/package-test-system/contract-catalog.json'
+LEGACY_LOG = Path(__file__).resolve().parent / 'fixtures/legacy-complete-pass.log'
 
-    "Test legacyDateFlagsRetainLiteralOwners() with 4 test cases passed after 1 second.\n"
-    "Suite IndependentDiagnosticRepairTests passed.\n"
-    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testLegacyID3ProjectionOptionsHaveLiteralDateOwners]' passed (0.001 seconds).\n"
-    "Test lowLevelMP4WritableTextOwnersMatchCatalog() with 15 test cases passed after 1 second.\n"
-    "Test legacyDatesAreIndependentAndBasicEditsPreserveThem() passed after 1 second.\n"
-    "Test basicClearArtworkRemovesNativeCollections() passed after 1 second.\n"
-    "Test movementAndReleaseOwnersAgreeAcrossEntrypoints() passed after 1 second.\n"
-    "Test typedASFAdvisoryPersistsNativeAttribute() passed after 1 second.\n"
-    "Test basicMixedNumbersAndText() with 7 test cases passed after 1 second.\n"
-    "Test lowLevelLegacyReplacementRejectsWithoutMutation() passed after 1 second.\n"
-    "Test basicMusicBrainzUsesCanonicalUFIDAndClearsIt() passed after 1 second.\n"
-    "Test emptyStructuredWritesAndUnsupportedCollectionsDoNotCommit() passed after 1 second.\n"
-    "Test everyTransactionRejectsUnreadableStagedOutput() passed after 1 second.\n"
-    "Test versionedTextWritesAndRemovalsVerify() passed after 1 second.\n"
 
-    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testSelectiveViewsMatchFullExtractionAcrossNativeFixtures]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testRichSelectiveViewsPreserveNativeValuesAndArtwork]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.SelectiveExtractionTests testValidationOnlyRejectsInvalidInputsWithoutMutation]' passed (0.001 seconds).\n"
+import sys
+sys.path.insert(0, str(ROOT / 'scripts'))
 
-    "Test asfAdvisoryAliasEraseVerifiesFinalNativeState() with 24 test cases passed after 1 second.\n"
-    "Test unknownAdvisoryDoesNotSatisfyExactAbsence() with 4 test cases passed after 1 second.\n"
-    "Test unrelatedBasicEditPreservesUnknownAdvisory() with 16 test cases passed after 1 second.\n"
-    "Test unrelatedBasicEditPreservesUnknownASFAliasOwners() with 6 test cases passed after 1 second.\n"
-    "Test advisoryBearingEraseClearsKnownAndUnknownCodes() with 64 test cases passed after 1 second.\n"
-    "Test exactUnknownAdvisoryVerificationRequiresMatchingRawCode() with 4 test cases passed after 1 second.\n"
-    "Test erasedMP4OracleAllowsMissingMetadataWithoutAcceptingBrokenContainers() passed after 1 second.\n"
-    "Test asfPublicWriteSurfacesPreserveSparseDateOwners() with 80 test cases passed after 1 second.\n"
-    "Test asfCustomFieldLifecycleOwnsOnlyItsCaseAliases() with 24 test cases passed after 1 second.\n"
-    "Test asfContentDescriptionVectorAndMalformedBounds() passed after 1 second.\n"
-    "Test allPublicWriteSurfacesRequireContainerStateEvidence() passed after 1 second.\n"
-    "Test publicWriteSurfacesPreserveSparseNativeOwners() with 2080 test cases passed after 1 second.\n"
-    "Test allSixteenDatePresenceMasksAreExplicit() passed after 1 second.\n"
-    "Test textLifecyclePreservesEveryDatePresenceState() with 114 test cases passed after 1 second.\n"
-    "Test unrelatedWriteSurfacesPreserveDateState() with 176 test cases passed after 1 second.\n"
-    "Test interactionManifestIncludesEveryNativeField() passed after 1 second.\n"
-    "Test everyFieldPreservesAllSiblingDateStates() with 4128 test cases passed after 1 second.\n"
-    "Test everyFieldPreservesAllOtherPresentOwners() with 264 test cases passed after 1 second.\n"
-    "Test everyContainerAndDateMaskRequiresTextLifecycleEvidence() passed after 1 second.\n"
-    "Test nativeTextLifecycleAcrossSparseContainerStates() with 1248 test cases passed after 1 second.\n"
-    "Test allAttributeOwnersAcrossDatePresenceStates() with 168 test cases passed after 1 second.\n"
 
-    "Test Case '-[TagLibAudioMetadataTests.ExternalCorpusPreservationTests testTrackMutationPreservesOtherVisiblePropertiesInExternalCorpus]' skipped (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.SnapshotThroughputBenchmarkTests testOptInIndependentFileSnapshotThroughput]' skipped (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.FormatCapabilityTests testCachedDescriptorsMatchEveryBridgeExtensionAndRemainValueCopies]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testRawLookupPreservesFirstIdentityEmptyArraysAndText]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testUnicodeLookupRetainsFoundationCaseComparison]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testMP4LookupKeepsExactKeysFirstArraysAndFreshReadState]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityMatchesFullReaderAcrossFixtures]' passed (0.001 seconds).\n"
-    "Test Case '-[TagLibAudioMetadataTests.ReadLookupPreservationTests testTransactionReadabilityRejectsInvalidFilesBeforeMutation]' passed (0.001 seconds).\n"
-    "Executed 181 tests, with 2 tests skipped and 0 failures (0 unexpected)\n"
-    "Test mp4LifecycleHasNativeOwnerAndPreservesSiblings(_:_:) with 264 test cases passed after 1 second.\n"
-    "Test wrongValueKindCannotPartiallyCommitAnotherField(_:) with 88 test cases passed after 1 second.\n"
-    "Test everyFieldRequiresAnExplicitCoverageDecision() passed after 1 second.\n"
-    "Test unavailableTypedMP4WritesRejectBeforeMutation(_:) with 5 test cases passed after 1 second.\n"
-    "Test independentCommentLifecycle(_:_:) with 90 test cases passed after 1 second.\n"
-    "Test nativeFrameLifecyclePreservesOtherFramesAndAudio(_:_:) with 66 test cases passed after 1 second.\n"
-    "Test flacKnownVectorKeepsDuplicateCommentEntriesAndAudio() passed after 1 second.\n"
-    "Test id3KnownVectorAndUnsupportedHeaderBounds() passed after 1 second.\n"
-    "Suite SemanticLifecycleMatrixTests passed.\n"
-    "Suite FLACSemanticLifecycleTests passed.\n"
-    "Suite ID3SemanticLifecycleTests passed.\n"
-    "Suite NativeProbeContractTests passed.\n"
-    'Test apeNativeItemLifecycle() with 270 test cases passed after 1 second.\n'
-    'Test oggNativeCommentLifecycle() with 180 test cases passed after 1 second.\n'
-    'Test nativeAttributeLifecycle() with 21 test cases passed after 1 second.\n'
-    'Test basicID3DatesPreserveNativeArrays() with 14 test cases passed after 1 second.\n'
-    'Test basicAPEDatesPreserveExactBytesAndAudio() with 6 test cases passed after 1 second.\n'
-    'Test basicFLACDatesKeepDuplicatesAndWhitespace() with 2 test cases passed after 1 second.\n'
-    'Test basicOggDatesPreserveArraysAndAudio() with 4 test cases passed after 1 second.\n'
-    'Test basicVerificationRejectsIncorrectDateAndContentGroup() with 2 test cases passed after 1 second.\n'
-    'Test unrelatedMP4BasicEditKeepsLegacyOwnersAndArrays() passed after 1 second.\n'
-    'Test mp4ExtendedAndZeroSizeAtomsKeepValuesAndAudio() passed after 1 second.\n'
-    'Test malformedMP4LengthsAndFreeformsThrowRatherThanGuess() passed after 1 second.\n'
-    'Test basicClearOfLegacyBackedMP4FieldsMustCommit() passed after 1 second.\n'
-    'Test lowLevelClearMustNotResurrectOldMP4Values() passed after 1 second.\n'
-    'Test basicSetMustRetireEditedMP4CompatibilityAliases() passed after 1 second.\n'
-    'Test basicWorkMustKeepCanonicalOwnerAndRetireLegacyFreeform() passed after 1 second.\n'
-    'Test basicUnrelatedEditMustPreserveMultivalueDatesOnFLAC() passed after 1 second.\n'
-    'Test basicUnrelatedEditMustPreserveMultivalueDatesOnAPE() passed after 1 second.\n'
-    'Test basicUnrelatedEditMustPreserveMultivalueYearOnID3() passed after 1 second.\n'
-    'Test basicUnrelatedEditMustPreserveMP4DateFreeformArrays() passed after 1 second.\n'
-    'Test basicUnrelatedEditMustAcceptValidMultivalueMP4Year() passed after 1 second.\n'
-    'Test semanticEncoderRemovalRetiresOnlyOwnedCompatibilityAlias() passed after 1 second.\n'
-    'Test basicUnrelatedEditPreservesUnknownAdvisoryOnMP4() passed after 1 second.\n'
-    'Test mp4MovementUpperBoundWorksAcrossFacadeEntryPoints() passed after 1 second.\n'
-    'Test mp4MovementOverflowRejectsAcrossFacadeEntryPointsWithoutMutation() passed after 1 second.\n'
-    'Test mp4PairUpperBound65535RoundTrips() passed after 1 second.\n'
-    'Test id3EncodedByEditPreservesEncoderSettings() passed after 1 second.\n'
-    'Test id3EncoderSettingsEditMustSucceedAndPreserveEncodedBy() passed after 1 second.\n'
-    'Test id3EncoderSettingsMustNotPopulateEncodedBy() passed after 1 second.\n'
-    'Test id3EncodedByRemovalWithEncoderSettingsMustSucceed() passed after 1 second.\n'
-    'Test asfEncoderOwnersRemainIndependent() passed after 1 second.\n'
-    'Test explicitYearWritesOnlyTheYearSlot() passed after 1 second.\n'
-    'Test basicContentGroupGroupingAndWorkStayIndependent() passed after 1 second.\n'
-    'Test asfUnrelatedBasicEditPreservesNativeEncodingSettings() passed after 1 second.\n'
-    'Test asfUnrelatedSemanticPatchPreservesNativeEncodingSettings() passed after 1 second.\n'
-    'Test id3v23DateWritesRejectBeforeMutation() passed after 1 second.\n'
-    'Suite BasicIntegrityMatrixTests passed.\n'
-    'Suite AdditionalContainerLifecycleTests passed.\n'
-    'Suite ASFNativeLifecycleTests passed.\n'
-    'Suite AuditProbeTests passed.\n'
-    "Suite ID3ContainerLifecycleTests passed.\n"
-    "Test nativeContainerFrameLifecycle() with 396 test cases passed after 1 second.\n"
-    "Test unsignedMP4PairsAcrossWriteSurfaces() with 12 test cases passed after 1 second.\n"
-    "Test legacyV23StatusFlagsReadLiteralDates(_:) with 4 test cases passed after 1 second.\n"
-    "Test legacyV23GroupingFlagSkipsBoundedIdentifier() passed after 1 second.\n"
-    "Test undecodableV23FrameTransformsStillReject(_:) with 2 test cases passed after 1 second.\n"
-    "Test dsdiffPropertyChildID3UsesBoundedTraversal() passed after 1 second.\n"
-    "Test mp4IntPairOverflowRejectsWithoutMutation() passed after 1 second.\n"
-    "Test asfNoncanonicalTypeIsCanonicalTextOrRejected() passed after 1 second.\n"
-    "Test crossFormatStructuredCollectionsRejectAtomically() passed after 1 second.\n"
-    "Test mp4KnownAtomCannotChangeCodec() passed after 1 second.\n"
-    "Test generatedPaddingWidthRejectsBeforeFormatting(_:) with 3 test cases passed after 1 second.\n"
-    "Test maximumGeneratedPaddingStillWrites() passed after 1 second.\n"
-    "Test numberTextPreflightRunsBeforeStaging() passed after 1 second.\n"
-    "Test asfZeroNumberTextPairRejectsBeforeStaging() passed after 1 second.\n"
-    "Test fullModelPreservesUnmodeledOwners() passed after 1 second.\n"
-    "Test privateProvenanceSurvivesOrdinaryWrites() passed after 1 second.\n"
-    "Test ordinaryAliasRetiresOnlyForEditedPair() passed after 1 second.\n"
-    "Test musicBrainzAliasCleanupUsesCaseInsensitiveIdentity() passed after 1 second.\n"
-    "Test mp4RawCanonicalFreeformSetAndRemove(_:) with 2 test cases passed after 1 second.\n"
-    "Test rawAPIsStillRejectNativeMP4Keys() passed after 1 second.\n"
-    "Test v23ContainersPreserveVersionDatesAndAudio(_:_:) with 6 test cases passed after 1 second.\n"
-    "Test xmTrackerNameTypedRouteWritesNativeBytes() passed after 1 second.\n"
-    "Test registrySemanticAndTotalProjectionsAreConsistent() passed after 1 second.\n"
-    "Test roleQualifiedTypedPatchStillRejects() passed after 1 second.\n"
-    "Test yearPrefixFilterRemainsBasicSpecific() passed after 1 second.\n"
-    "Suite PublicWriteContractRepairTests passed.\n"
-    "Test structuredMP4RejectsEncodingAndRangeBypasses(_:) with 7 test cases passed after 1 second.\n"
-    "Test malformedNumberTextCannotEraseExistingPairs() passed after 1 second.\n"
-    "Test excessiveInheritedPaddingDoesNotRemoveTrack() passed after 1 second.\n"
-    "Test protectedDateFlagsSurviveOrRejectUnrelatedMutation() passed after 1 second.\n"
-    "Test structuredPayloadsRequireExplicitValues() passed after 1 second.\n"
-    "Test nativeMP4EncodersRetainValidBoundaryValues() passed after 1 second.\n"
-    "Test legacyID3MustFitItsDeclaredContainerChunk() passed after 1 second.\n"
-    "Test directStructuredValidationPrecedesFileAccess() passed after 1 second.\n"
-    "Test allPublicNumericWritersRejectNativeOverflow(_:) with 9 test cases passed after 1 second.\n"
-    "Test explicitZeroTotalIsNotRecoveredFromOldNumberText() passed after 1 second.\n"
-    "Suite ReleaseAcceptanceTests passed.\n"
-    "Test run with 231 tests in 42 suites passed after 8 seconds.\n"
-)
+def _script_module():
+    spec = importlib.util.spec_from_file_location('summarize_test_run', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+SUMMARIZER = _script_module()
+import test_manifest  # noqa: E402
+
+
+def build_pass_log() -> str:
+    log = LEGACY_LOG.read_text()
+    expected = SUMMARIZER.REQUIRED_TESTS
+    existing = set()
+    import re
+    for match in re.finditer(r'\bTest ([A-Za-z_]\w*)\([^)]*\)(?: with \d+ test cases?)? passed\b', log):
+        existing.add(match.group(1))
+    extra = []
+    for name, minimum in expected.items():
+        if name in existing:
+            continue
+        if minimum == 1:
+            extra.append(f"Test {name}() passed after 1 second.")
+        else:
+            extra.append(f"Test {name}() with {minimum} test cases passed after 1 second.")
+    for suite in SUMMARIZER.REQUIRED_SUITES:
+        if f"Suite {suite} passed." not in log:
+            extra.append(f"Suite {suite} passed.")
+    log = log.replace(
+        'Test run with 231 tests in 42 suites passed after 8 seconds.',
+        'Test run with 272 tests in 51 suites passed after 8 seconds.',
+    )
+    final = 'Test run with 272 tests in 51 suites passed after 8 seconds.'
+    if final in log:
+        log = log.replace(final, '\n'.join(extra) + '\n' + final if extra else final)
+    else:
+        log = log + '\n'.join(extra) + '\n' + final + '\n'
+    return log if log.endswith('\n') else log + '\n'
+
+
+PASS = build_pass_log()
+
+
+def expected_evidence() -> dict:
+    catalog = json.loads(CATALOG.read_text())
+    return SUMMARIZER.expected_scenarios(catalog)
+
+
+def write_evidence(directory: Path, expected: dict) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for index, (scenario, requirement) in enumerate(sorted(expected.items())):
+        checks = [{"name": f"check-{n}", "passed": True, "detail": ""}
+                  for n in range(requirement["check_count"])]
+        record = {
+            "schema_version": 1,
+            "scenario_id": scenario,
+            "runtime_test": requirement["runtime_test"],
+            "adapter": "policy-fixture",
+            "outcome": requirement["outcome"],
+            "checks": checks,
+            "check_count": len(checks),
+            "passed": True,
+            "pid": 1,
+            "recorded_at": "2026-11-15T00:00:00Z",
+        }
+        (directory / f"{index:03d}.{scenario}.json").write_text(json.dumps(record))
+
 
 class TestGatePolicy(unittest.TestCase):
-    def test_every_selective_projection_contract_is_required(self):
-        for name in ['testSelectiveViewsMatchFullExtractionAcrossNativeFixtures', 'testRichSelectiveViewsPreserveNativeValuesAndArtwork', 'testValidationOnlyRejectsInvalidInputsWithoutMutation']:
-            with self.subTest(name=name):
-                modified = "\n".join(line for line in PASS.splitlines() if name not in line)
-                self.assertFalse(self.accepted(modified))
+    @classmethod
+    def setUpClass(cls):
+        cls.manifest = test_manifest.build("debug")
+        cls.expected = expected_evidence()
 
-    def accepted(self, log, status=0):
+    def accepted(self, log, status=0, *, evidence_mutator=None, manifest_mutator=None,
+                 manifest_after_mutator=None, mode="debug", omit_manifest=False,
+                 omit_evidence=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / 'log').write_text(log)
-            run = subprocess.run(['python3', str(SCRIPT), str(root / 'log'), str(status), str(root / 'summary')], capture_output=True)
+            evidence = root / 'evidence'
+            if not omit_evidence:
+                write_evidence(evidence, self.expected)
+                if evidence_mutator:
+                    evidence_mutator(evidence)
+            manifest = json.loads(json.dumps(self.manifest))
+            manifest_after = json.loads(json.dumps(self.manifest))
+            if manifest_mutator:
+                manifest_mutator(manifest)
+            if manifest_after_mutator:
+                manifest_after_mutator(manifest_after)
+            (root / 'manifest.json').write_text(json.dumps(manifest))
+            (root / 'manifest-after.json').write_text(json.dumps(manifest_after))
+            command = ['python3', str(SCRIPT), str(root / 'log'), str(status), str(root / 'summary'),
+                       '--mode', mode]
+            if not omit_evidence:
+                command += ['--evidence-dir', str(evidence)]
+            if not omit_manifest:
+                command += ['--manifest', str(root / 'manifest.json'),
+                            '--manifest-after', str(root / 'manifest-after.json')]
+            run = subprocess.run(command, capture_output=True)
             accepted = json.loads((root / 'summary').read_text())['accepted']
             self.assertEqual(run.returncode == 0, accepted)
             return accepted
+
+    # --- retained legacy policy checks ---------------------------------
+
+    def test_every_selective_projection_contract_is_required(self):
+        for name in ['testSelectiveViewsMatchFullExtractionAcrossNativeFixtures',
+                     'testRichSelectiveViewsPreserveNativeValuesAndArtwork',
+                     'testValidationOnlyRejectsInvalidInputsWithoutMutation']:
+            with self.subTest(name=name):
+                modified = "\n".join(line for line in PASS.splitlines() if name not in line)
+                self.assertFalse(self.accepted(modified))
 
     def test_missing_advisory_erase_regression_cannot_pass(self):
         self.assertFalse(self.accepted(PASS.replace(
@@ -208,7 +162,8 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 231 tests', 'run with 230 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 272 tests', 'run with 271 tests')))
+        self.assertFalse(self.accepted(PASS.replace('in 51 suites', 'in 50 suites')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -339,3 +294,81 @@ class TestGatePolicy(unittest.TestCase):
         runner = SCRIPT.with_name('validate-tests.sh')
         result = subprocess.run(['bash', str(runner), 'not-a-configuration'], capture_output=True)
         self.assertEqual(result.returncode, 2)
+
+    # --- contract-system policy checks ---------------------------------
+
+    def test_missing_scenario_execution_is_rejected(self):
+        target = 'S-MP4-TYPED-01'
+        def mutate(directory):
+            for path in directory.glob(f"*.{target}.json"):
+                path.unlink()
+        self.assertFalse(self.accepted(PASS, evidence_mutator=mutate))
+
+    def test_duplicate_scenario_execution_is_rejected(self):
+        def mutate(directory):
+            source = next(directory.glob('*.S-MP4-TYPED-01.json'))
+            shutil.copy(source, directory / 'duplicate.S-MP4-TYPED-01.json')
+        self.assertFalse(self.accepted(PASS, evidence_mutator=mutate))
+
+    def test_scenario_assertion_budget_cannot_shrink(self):
+        def mutate(directory):
+            path = next(directory.glob('*.S-MP4-TYPED-01.json'))
+            record = json.loads(path.read_text())
+            record['checks'] = record['checks'][:-1]
+            record['check_count'] -= 1
+            path.write_text(json.dumps(record))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=mutate))
+
+    def test_unexpected_scenario_execution_is_rejected(self):
+        def mutate(directory):
+            record = {
+                'schema_version': 1, 'scenario_id': 'S-UNEXPECTED-01',
+                'runtime_test': 'contractMP4TypedVertical', 'adapter': 'policy-fixture',
+                'outcome': 'supported', 'checks': [{'name': 'x', 'passed': True, 'detail': ''}],
+                'check_count': 1, 'passed': True, 'pid': 1,
+                'recorded_at': '2026-11-15T00:00:00Z',
+            }
+            (directory / 'unexpected.json').write_text(json.dumps(record))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=mutate))
+
+    def test_stale_manifest_source_hash_is_rejected(self):
+        def mutate(manifest):
+            manifest['source_hash'] = '0' * 64
+        self.assertFalse(self.accepted(PASS, manifest_mutator=mutate))
+
+    def test_mixed_configuration_manifest_is_rejected(self):
+        def mutate(manifest):
+            manifest['mode'] = 'release'
+        self.assertFalse(self.accepted(PASS, manifest_mutator=mutate))
+
+    def test_source_change_during_campaign_is_rejected(self):
+        def mutate(manifest):
+            manifest['source_hash'] = 'f' * 64
+        self.assertFalse(self.accepted(PASS, manifest_after_mutator=mutate))
+
+    def test_missing_manifest_is_rejected(self):
+        self.assertFalse(self.accepted(PASS, omit_manifest=True))
+
+    def test_missing_scenario_evidence_directory_is_rejected(self):
+        self.assertFalse(self.accepted(PASS, omit_evidence=True))
+
+    def test_truncated_log_is_rejected(self):
+        lines = PASS.splitlines()
+        self.assertFalse(self.accepted('\n'.join(lines[:-1]) + '\n'))
+
+    def test_missing_framework_completion_is_rejected(self):
+        self.assertFalse(self.accepted(PASS.replace('Test run with 272 tests in 51 suites passed after 8 seconds.\n', '')))
+
+    def test_contract_suite_cannot_be_filtered(self):
+        for suite in ('ContractBuilderOracleSelfTests', 'ContractMP4ScenarioTests',
+                      'ContractNativeContainerTests', 'ContractFieldCoverageTests'):
+            with self.subTest(suite=suite):
+                self.assertFalse(self.accepted(PASS.replace(f'Suite {suite} passed.\n', '')))
+
+    def test_new_contract_test_cannot_be_removed(self):
+        for name in ('contractMP4TypedVertical', 'contractV23DateRejections',
+                     'contractBridgeStructuredValidation', 'contractEveryFieldHasCoverageDecision',
+                     'contractCatalogReconciliation'):
+            with self.subTest(name=name):
+                modified = "\n".join(line for line in PASS.splitlines() if name not in line)
+                self.assertFalse(self.accepted(modified))

@@ -4,6 +4,95 @@ This guide explains how the package is tested, how to run the checks, and what t
 
 See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md) for the independent lifecycle matrix, mandatory mixed-framework gate and remaining coverage limits. The audit regressions are mandatory normal tests. Current repaired-source results and historical failures are distinguished in the status page; older passing counts never waive a current failure.
 
+## Independent contract system (2026-11-15 upgrade)
+
+The canonical gate is no longer only a collection of named matrices. Five
+independent layers reconcile the public surface, the intended contract, the
+public call, the native oracle and the evidence that actually executed:
+
+| Layer | Source | What it establishes and what it does not |
+| --- | --- | --- |
+| Public-surface inventory | `scripts/package-test-system/public-surface-inventory.json` | Stable IDs and normalized signatures for every public Swift facade/registry declaration and every exported bridge method/property/enum, plus reviewed mode values. Extraction only enumerates production claims; it cannot approve behavior. New or duplicate declarations fail reconciliation. Internal in-place bridge selectors are deliberately excluded. |
+| Test-owned contract catalog | `scripts/package-test-system/contract-catalog.json`, `field-schema-claims.json`, `format-capability-claims.json` | Scenario IDs, fixture/version, public surface, input/state partition, intended native ownership, unsupported/rejection outcome, normalization and oracle. Expected native identities are literal test data. Production field and capability snapshots are reviewed claims, not golden targets. Every advertised field and writable family has an independent decision or an explicit limitation. |
+| Execution adapters | `Tests/TagLibAudioMetadataTests/ContractSystem/PublicSurfaceAdapters.swift` | One named public call per adapter, with facade wrappers and direct exported-bridge calls kept separate. No coercion, fallback, retry or version clearing. |
+| Builders and oracles | `ContractFixtureBuilders.swift`, `ContractNativeOracles.swift` and the retained independent probes | Bounded native readers that never decide expected values through the package reader. Builders are self-tested on literal synchsafe, atom-size, chunk-alignment, flag/grouping, integer and malformed-input vectors. Every seed is independently verified; a failed seed fails the test. |
+| Evidence gate | `scripts/test_manifest.py`, `scripts/summarize-test-run.py`, `scripts/validate-tests.sh` | Fresh commit/diff/source/toolchain manifests, exact scenario-set and assertion-budget comparison, complete framework outcomes, exact optional-skip identities and runner exit status. Counts and suite banners are supporting evidence only. |
+
+The catalog currently declares 70 metadata-operation scenarios plus three
+audit scenarios. The audit scenarios reconcile all 100 advertised fields, all
+advertised writable format families, and the catalog/declaration/adapter sets at
+runtime. The required minima are **181 XCTest declarations** (179 passed and
+the two reviewed opt-in skips), **272 Swift Testing declarations in 51 suites**
+and **76 Python policy regressions**. These are floors, not a claim that every
+possible file or caller is covered.
+
+### Contract commands
+
+```sh
+# Policy reconciliation, the bounded calibration set and a complete strict gate.
+bash scripts/validate-contracts.sh debug
+bash scripts/validate-contracts.sh release
+
+# Inventory/catalog reconciliation without building the package.
+python3 scripts/package_test_system.py
+python3 -m unittest discover -s scripts/tests
+
+# Calibration inventory and a single isolated mutant (development only).
+python3 scripts/calibrate-test-system.py --list
+python3 scripts/calibrate-test-system.py --mutant numeric-truncation
+
+# Real package-owned consumers through declared products, no @testable access.
+bash scripts/validate-consumers.sh
+```
+
+`validate-tests.sh` now writes `manifest-before.json`, `manifest-after.json`,
+`tests.log`, `scenarios/` and `summary.json` under a fresh
+`.build/test-evidence/<mode>-<timestamp>-<pid>/`. Acceptance requires the exact
+catalog scenario set, each scenario's exact check count, all framework
+completion summaries, a source/config identity that did not change during the
+campaign, and only the two reviewed XCTest skips. A missing scenario, removed
+assertion, duplicate execution, unexpected scenario, stale source hash, mixed
+configuration, truncated log or hidden failure is rejected. Filters and shards
+are still rejected rather than being partially aggregated.
+
+### Defect-detection calibration
+
+`scripts/calibrate-test-system.py` copies the package into ignored
+`.build/test-calibration/<run>/`, builds a public-product probe harness against
+that copy, and applies each anchored mutant only inside the copy. The active
+working tree, dependency binary and fixtures are never patched. A mutant counts
+as killed only when it compiles, the probe witnesses the intended bad behavior
+and the expected behavioral assertion fails; compile errors, timeouts, missing
+fixtures and unrelated failures are inconclusive. The current set covers:
+omitted exported numeric validation; trimmed-versus-untrimmed MP4 key
+normalization; pre-range numeric truncation; formatter `nil` as deletion;
+schema-known retention filtering; lost ID3v2.3 version; restored stale MP4
+freeform; invalid-text zero coercion and explicit-zero recovery; an advertised
+but unreachable route; removed adapter invocation; removed preservation
+assertion; and a weakened native oracle vector. The isolated workspace is
+restored and hashed after each mutant, and calibration is part of
+`validate-contracts.sh`, not an optional unexecuted script.
+
+The manifest hashes make stale or accidental mixed evidence fail; they are not
+a cryptographic defense against a malicious actor with full repository access.
+Calibration proves the representative defect classes can be caught, not that
+every future defect will be caught. It also does not establish correctness of
+the precompiled upstream TagLib binary.
+
+### Surface and partition scope
+
+Runtime scenarios cover MP4 typed deltas, full-model and structured writes, both
+raw replace/merge modes, raw deltas, formatted-number boundaries and malformed
+input, verification-disabled paths, erase/wipe, stale version and audio guards,
+small per-file batches, ID3v2.3 literal dates/flags/grouping and safe date
+rejections, both private provenance namespaces, FLAC duplicate arrays and
+explicit removal, WAV/AIFF ID3 chunk alignment, ASF advisory and partial-pair
+policy, Ogg Vorbis, Opus, APE, WavPack, tracker names, artwork and qualified
+comment collections. Fields that a scalar API cannot express are preserved and
+tested as untouchable owners rather than given fabricated setters. Unsupported
+Matroska registrations, Ogg Speex, IT and S3M remain explicit limitations in
+the catalog; no fallback writer or new codec is claimed.
+
 ## Test layers
 
 The single SwiftPM test target is organized physically by layer:
@@ -22,7 +111,12 @@ The suite uses both XCTest and Swift Testing. Test counts vary by runner and by 
 
 The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`) requires named matrix/oracle execution evidence and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate.
 
-The `0.7.3` gate requires the sparse-state matrices and 8,282 additional parameterized cases in addition to the previous lifecycle evidence. Its latest recorded result is 158 XCTest declarations (156 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, and 24 policy regressions; both Debug and Release gates were accepted. The latest observed result and environment belong to [Status](STATUS.md); the required inventory belongs to [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance). The recorded runs were on the pre-merge state-coverage branch; release preparation changes documentation only. The `0.7.2` release line's 165 Swift Testing declarations in 36 suites and 22 policy regressions are historical and do not certify `0.7.3`. Do not compare counts across revisions without checking scope and opt-ins.
+The current upgraded gate requires the legacy sparse-state matrices, the new
+contract scenarios and the calibration set. The reviewed floors are 181 XCTest,
+272 Swift Testing declarations in 51 suites and 76 Python policy regressions.
+The latest observed result and environment belong to [Status](STATUS.md);
+historical counts below certify only their recorded revisions. Do not compare
+counts across revisions without checking scope and opt-ins.
 
 ## Strict test compilation
 
@@ -136,7 +230,7 @@ TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
 
 The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, verified write batches, and flush samples. It also measures MP3/M4A/FLAC ordinary and 64-key metadata-heavy Basic/snapshot reads, typed/Basic/raw title writes, and declared-capability lookups. Each profile reports five batch-average latencies: `medianMs` is their median and `p95Ms` is their maximum (the nearest-rank 95th percentile of five samples), not a per-operation tail percentile. Reads assert byte immutability; writes include actual staging, verification and durability. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises. Baseline and optimized evidence are in the [API/performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
-The current gate requires at least 181 XCTest and 198 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the three per-read lookup preservation regressions and two transaction-readability regressions. An unchanged total count cannot substitute for those tests.
+The current gate requires at least 181 XCTest and 272 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the per-read lookup preservation regressions, transaction-readability regressions, every contract scenario and the calibration lane. An unchanged total count cannot substitute for those tests.
 
 ### Selective extraction profile and mandatory contracts
 
