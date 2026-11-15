@@ -83,17 +83,18 @@ MP3, MP4/M4A, raw AAC, Ogg/Opus, ASF, APE, WavPack, Musepack, TrueAudio, DSD, an
 
 ## Source compatibility and function references
 
-Adding overloads with the same base name means an untyped function reference can become ambiguous:
+`applyMetadataPatch` and `applyRawMetadataPatch` each have guarded and unguarded public overloads, so an untyped function reference is ambiguous:
 
 ```swift
-// Ambiguous with multiple readSnapshot overloads.
-let reader = TagLibMetadataManager.readSnapshot
+// Ambiguous: two public applyMetadataPatch overloads.
+let apply = TagLibMetadataManager.applyMetadataPatch
 
-// Supported compatibility shape: an explicit function type.
-let reader: (URL) throws -> MetadataSnapshot = TagLibMetadataManager.readSnapshot
+// Supported: an explicit type for the guarded form.
+let apply: (MetadataPatch, URL, MetadataFileVersion, MetadataAudioContentIdentity) throws -> MetadataWriteResult =
+    TagLibMetadataManager.applyMetadataPatch
 ```
 
-Typed references and direct calls remain supported. The same caveat applies to `readBasicSnapshot`, `applyMetadataPatch`, `applyRawMetadataPatch`, and `BasicMetadataSnapshot.init`. This is a source-compatibility limitation, not a runtime defect. Give stored references an explicit type or call the overload directly.
+`readSnapshot` and `readBasicSnapshot` have one public signature with a default `includingAudioContent` flag. A stored reference therefore has the full `(URL, Bool)` signature rather than an overload ambiguity; direct calls may omit the flag. This is a source-compatibility limitation, not a runtime defect. Give stored patch references an explicit type or call the overload directly.
 
 ## Cost and concurrency limits
 

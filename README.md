@@ -4,13 +4,13 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **Source status.** Published `0.7.3` remains the production release. This branch contains unreleased, breaking API cleanup and measured I/O optimizations. Current API references describe this source; use the `0.7.3` tag for that release’s interface. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking) and [candidate evidence](docs/records/remediation/REM-2026-11-12-api-mapping-performance.md).
+> **Source status.** Published `0.7.3` remains the production release. `main` contains unreleased breaking API cleanup, measured I/O optimizations, the 2026-11-15 public write-contract repairs, and an independent contract test system. Current API references describe this source; use the `0.7.3` tag for that release’s interface. See [Migration](docs/operations/MIGRATION.md#unreleased-api-cleanup-breaking) and [Status](docs/operations/STATUS.md).
 
-> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` adds sparse native-owner preservation across public write surfaces and low-level reads. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
+> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` adds sparse native-owner preservation across public write surfaces and low-level reads. The unreleased source keeps contract 2.2 and its native target layouts. Use the [migration guide](docs/operations/MIGRATION.md) when comparing behavior.
 
 The [write-concurrency follow-up](docs/records/remediation/REM-2026-11-12-write-concurrency.md) measures bounded durable writes and reduces discarded transaction projections. Its package strict Debug/Release and real AudioMator local-candidate gates pass; timings remain local workload observations.
 
-The later [independent-review repairs](docs/records/remediation/REM-2026-11-14-independent-review-repairs.md) fix advisory erase/unknown-code preservation and distinguish confirmed defects from intentional breaking design. Current acceptance belongs to that record and [Status](docs/operations/STATUS.md).
+The [2026-11-15 public write-contract repairs](docs/records/remediation/REM-2026-11-15-public-write-contract.md) close additional validation, ownership, and legacy-read gaps. The [independent contract test system](docs/records/remediation/REM-2026-11-15-test-system-acceptance.md) adds a public-surface inventory, executable contract catalog, native oracles, and defect-detection calibration behind a fail-closed evidence gate. Package-only acceptance at `959d688` supersedes earlier candidate counts; see [Status](docs/operations/STATUS.md).
 
 ## At a glance
 
@@ -33,6 +33,13 @@ Version `0.7.3` repairs native-owner state loss discovered during application ad
 - The mixed-framework gate requires the sparse-state matrices and 8,282 additional parameterized cases in addition to the prior lifecycle evidence.
 
 See [Migration](docs/operations/MIGRATION.md) for the 0.7.2-to-0.7.3 changes and [Status](docs/operations/STATUS.md) for the recorded validation evidence.
+
+## Beyond 0.7.3 (unreleased)
+
+- **Public writers share native validation.** Scalar, whole-model, structured, and raw writes reject out-of-range native representations before staging. Whole-model writes preserve schema-known but unmodeled owners and private numbering provenance while modeled `nil` still removes values.
+- **Legacy reads and date protection are stricter.** Legal ID3v2.3 frame-status flags and bounded grouping are read literally, DSDIFF `ID3` is located through declared `PROP` children, and WAV/AIFF saves retain the observed ID3 version. Existing v2.3 tags remain read-only for independent date changes.
+- **The contract test system is canonical.** `scripts/validate-contracts.sh` reconciles 907 public-surface rows against 34 contracts and 75 scenarios, executes 62 public adapters through independent native oracles, and requires 13 calibrated defects to be detected before accepting the complete framework gate.
+- **No release is implied.** This work is not a tagged release. `0.7.3` remains the install target; see [Migration](docs/operations/MIGRATION.md) for the breaking source changes and [Status](docs/operations/STATUS.md) for evidence limits.
 
 ## Requirements
 
@@ -214,8 +221,9 @@ Start at the [documentation hub](docs/README.md), which maps tasks to the canoni
 | Compatibility and migration | [docs/operations/MIGRATION.md](docs/operations/MIGRATION.md) |
 | Third-party notices | [docs/operations/THIRD_PARTY_NOTICES.md](docs/operations/THIRD_PARTY_NOTICES.md) |
 | Historical audits and reviews | [docs/records/README.md](docs/records/README.md) |
+| Completed assignments and startup prompts | [docs/records/assignments/README.md](docs/records/assignments/README.md) |
 
-The documentation pipeline generates the API, model, field, format, and mapping references from source. Run `python3 scripts/check-docs.py` before committing. CI covers documentation checks, strict warnings-as-errors, the mixed-framework test gate and its policy tests, release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the environment-dependent privilege-bit caveat, is in [Status](docs/operations/STATUS.md).
+The documentation pipeline generates the API, model, field, format, and mapping references from source. Run `python3 scripts/check-docs.py` before committing. CI covers documentation checks, strict warnings-as-errors, the contract lane (inventory/catalog reconciliation, 13-defect calibration, and the complete Debug or Release framework gate), release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the environment-dependent privilege-bit caveat, is in [Status](docs/operations/STATUS.md).
 
 ## License
 

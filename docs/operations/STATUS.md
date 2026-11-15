@@ -7,81 +7,51 @@ This page is a snapshot of the latest known validation state for the current sou
 | Item | State |
 | --- | --- |
 | Current release | `0.7.3`, declared 2026-11-12 |
-| Source | Unreleased `codex/diagnostic-native-owner-repairs`, continuing the breaking API candidate based on published `0.7.3` |
+| Source | Unreleased `main` at `05416aa`, based on published `0.7.3` |
 | Later tag | None |
+| Latest accepted source | `959d688`; the `05416aa` merge adds documentation and acceptance evidence only |
 | Documentation scope | Current source includes breaking API cleanup; tagged-release guidance is identified in [Migration](MIGRATION.md) |
 
 Version `0.7.3` includes mapping contract 2.2, the `0.7.1` and `0.7.2` corrections, and the native-owner state-preservation repairs. The TagLib binary and mapping contract ID are unchanged from `0.7.2`. Release notes are in the [changelog](../../CHANGELOG.md).
 
-## Current independent contract-system candidate
+The unreleased source adds three package-only changes: breaking API cleanup with selective I/O, the 2026-11-15 public write-contract repairs, and the independent contract test system. None changes the binary pin, mapping contract, or tagged-release boundary. The current source requires an explicitly breaking release and consumer migration.
 
-The package-only contract-system upgrade on `codex/package-test-system-upgrade-20261115` is accepted at source commit `2cedf9e` (code unchanged from `714710d`; later documentation/evidence correction only). Both complete strict lanes re-ran the 76 policy regressions, the 12-mutant isolated calibration set, the five-layer inventory/catalog reconciliation and the full framework gate:
+## Current package-only source acceptance
+
+Final independent acceptance ran on source commit `959d688`. The campaign source hash was `09bd72f3b566ca956d62392e2ce217eacba149c7eff7bd2018083028d2c82787`; the later merge `05416aa` changes documentation and evidence only. Both strict lanes ran the policy suite, inventory/catalog reconciliation, the 13-mutant calibration set, and the complete framework gate:
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
-| Debug | Accepted: 181 XCTest executed (179 passed, two reviewed opt-in skips), 272 Swift Testing declarations in 51 suites passed, 73/73 catalog scenarios, zero failures | `.build/test-evidence/debug-final-20261115/` |
-| Release | Accepted: same counts and 73/73 scenarios, zero failures | `.build/test-evidence/release-final-20261115/` |
+| Canonical Debug | Accepted: 181 XCTest executed (179 passed, two reviewed opt-in skips), 274 Swift Testing declarations in 51 suites, 75/75 scenarios, zero failures | `.build/test-evidence/debug-independent-acceptance/` |
+| Canonical Release | Accepted: same counts and 75/75 scenarios, zero failures | `.build/test-evidence/release-independent-acceptance/` |
+| Canonical calibration | 13/13 mutants compiled, activated, and were killed by the required tests; controls passed and source was restored | `.build/test-calibration/independent-canonical-acceptance/calibration.json` |
+| Policy and inventory | 92 policy regressions; 907 public-surface rows, 34 contracts, 75 scenarios, 62 adapters and all decisions reconcile | `.build/independent-policy-acceptance.log` |
+| Adapter execution | 134 observed calls across 31 tests; all 62 registered adapters match exact identity, outcome, and multiplicity | Scenario evidence under each lane |
+| Full AddressSanitizer | 181 XCTest (two existing skips), 274 Swift Testing in 51 suites, no failures or sanitizer findings | `.build/independent-asan-full.log` |
+| Full ThreadSanitizer | Same counts; no failures or sanitizer findings | `.build/independent-tsan-full.log` |
+| Consumers | Both public products wrote real files and passed independent native and audio assertions | `.build/independent-consumers-final.log` |
+| Minimum platforms | Strict macOS 13 arm64/x86_64, iOS 16 arm64, and iOS 16 simulator arm64/x86_64 builds completed | `.build/independent-platform-evidence.json` |
+| Documentation | The campaign's 67 Markdown files passed link, heading, table, and all four generated-reference checks | `python3 scripts/check-docs.py` |
 
-All twelve calibration mutants compiled, activated and were killed with source restored. Focused ASan (9 tests/3 suites) and TSan (3 tests/3 suites) passed. All five minimum-platform builds (macOS 13 arm64/x86_64, iOS 16 arm64/simulator arm64/simulator x86_64) completed. Both declared consumers performed real writes with independent native and audio assertions. The unchanged privilege test passed under authorized host access; the workspace sandbox strips setuid/setgid bits. See [VER-2026-11-15-package-test-system](../records/verification/VER-2026-11-15-package-test-system.md) for the gap ledger, inventory/catalog counts and remaining limits.
+The unchanged privilege test passed in the full host environment without weakening or skipping it. The pinned upstream TagLib binary is not sanitizer-instrumented, so the sanitizer runs cover package code and tests only. No hosted CI, device runtime, external-corpus lane, or application acceptance was executed for this source. The contract system is finite: passing it does not prove every file, codec, tag layout, or caller correct. See [the acceptance record](../records/remediation/REM-2026-11-15-test-system-acceptance.md) for the full ledger and remaining limits.
 
-## Current public write-contract repair candidate
+## Prior 2026-11-15 public write-contract campaign
 
-The adjudicated F-01…F-15 repairs on `codex/public-write-contract-repairs-20261115` are implemented with new public-surface
-regressions. Both complete strict gates executed the full suite: **181 XCTest declarations** (179 passed, the two existing
-opt-in skips) and **221 Swift Testing declarations in 44 suites**. All required named evidence, matrices and policy minima
-passed; the only failure in each configuration was the mandatory
-`CleanRoomPrivilegeTests.privilegedFilesRejectBeforeCloneInBothTransactionEngines` precondition. This host strips
-setuid/setgid bits from a user-owned `chmod`, so the gate is **red/blocked, not accepted**; no formal ready verdict is
-claimed. Evidence: `.build/test-evidence/debug-20261115-125755-33555/` and
-`.build/test-evidence/release-20261115-130116-34182/`; both summaries report `accepted: false` solely for that named test.
-The same precondition failed on the reviewed baseline before implementation, so it is an environment limit rather than a
-repair regression.
+The earlier public write-contract campaign accepted `c3c655e` with 181 XCTest (179 passed, two opt-in skips), 231 Swift Testing declarations in 45 suites, 41 policy regressions, focused sanitizers, both consumers, and all five minimum-platform builds. Its production repairs remain in the current source; the later contract-system acceptance above supersedes its counts and evidence. See [the remediation record](../records/remediation/REM-2026-11-15-public-write-contract.md) and [the acceptance record](../records/verification/VER-2026-11-15-public-write-release-acceptance.md).
 
-Additional current checks: 39 gate-policy regressions, 62 Markdown files and all reference generators, both consumer
-products, focused ASan/TSan over the new 23-declaration/35-case public-write suite, and all five minimum-platform
-compile/link checks. The pinned TagLib binary is not sanitizer-instrumented. See [the repair record](../records/remediation/REM-2026-11-15-public-write-contract.md) for the
-finding-by-finding disposition and native-byte ledger.
+## Earlier unreleased candidate history
 
-## Current release-assessment follow-up
+These campaigns accepted their own revisions and are superseded for current-source evidence. Details, per-finding dispositions, and measurements are in the linked records.
 
-The six third-party repairs through `12f6ce2` address confirmed native-owner, low-level preservation, advisory, APE verification and Basic numbering defects. The follow-up adds a central staged-copy legacy-date invariant, version-bound structured preservation, exact TXXX owner identity, bridge staged-file checks and complete artwork-owner removal. Final `de282df` test-tree gates are both **accepted**: 181 XCTest declarations (179 passed, two existing opt-in skips), 198 Swift Testing declarations in 43 suites, zero failures. The unchanged privilege test passed with host filesystem access. Debug evidence: `.build/test-evidence/debug-20261114-233512-4938/`; Release: `.build/test-evidence/release-20261114-232509-5048/`. All 36 policy regressions, 59 Markdown files/reference checks, both independent consumers, targeted ASan/TSan (each 16 XCTest and 12 Swift Testing) and AudioMator's local candidate gate (62 core, 580 app-hosted tests, Release/artifact) passed. Earlier evidence below certifies its recorded revision only. See [adjudication and verification](../records/remediation/REM-2026-11-14-release-review-followup.md).
+| Revision | Scope | Accepted evidence |
+| --- | --- | --- |
+| [`de282df`](../records/remediation/REM-2026-11-14-release-review-followup.md) | Release-review follow-up: native-owner, advisory, APE verification, Basic numbering, legacy-date and artwork-owner repairs | 181 XCTest (179 passed, two skips), 198 Swift Testing in 43 suites, 36 policy regressions, targeted ASan/TSan, both consumers, AudioMator local candidate |
+| [`f2ac9ad`](../records/remediation/REM-2026-11-14-package-architecture.md) | Architecture and selective-I/O candidate: canonical API, storage/read/model boundaries, projection skipping | 167 XCTest (165 passed, two skips), 186 Swift Testing in 42 suites, 30 policy regressions, targeted ASan/TSan, both consumers, AudioMator local candidate |
+| [`a93c2f0`](../records/remediation/REM-2026-11-14-independent-review-repairs.md) | Independent-review repairs: ASF alias erase, exact advisory absence, unknown-code preservation | 164 XCTest (162 passed, two skips), 186 Swift Testing in 42 suites, 29 policy regressions, targeted ASan/TSan, AudioMator local candidate |
+| [`bbf64c3`](../records/remediation/REM-2026-11-12-write-concurrency.md) | Write-preparation follow-up: discarded readability projections and same-open-file property evidence | 164 XCTest (162 passed, two skips), 179 Swift Testing in 41 suites, 27 policy regressions |
+| [`4dd2a60`](../records/remediation/REM-2026-11-12-api-mapping-performance.md) | API/performance candidate: compatibility cleanup and measured I/O optimization | 162 XCTest (160 passed, two skips), 179 Swift Testing in 41 suites, 26 policy regressions |
 
-## Prior architecture and selective-I/O candidate
-
-Production `f2ac9ad` consolidates the canonical public API, separates storage/read/model/contract ownership, makes native storage planning depend on explicit format evidence and skips unrequested metadata work. Both full strict gates are accepted: **167 XCTest declarations** (165 passed, the two original opt-in skips), **186 Swift Testing declarations in 42 suites**, with every required independent native/advisory matrix and the three new selective-projection contracts. All **30 gate-policy regressions**, 57 Markdown files, all four reference generators and both independent consumer products pass.
-
-Evidence: `.build/test-evidence/debug-20261114-182100-6841/` and `.build/test-evidence/release-20261114-182604-7715/`. Targeted ASan and TSan each passed 15 XCTest and 17 Swift Testing declarations with no reports. The pinned prebuilt TagLib binary was not instrumented. The unchanged AudioMator checkout passed its real local-candidate gate at `.deriveddata-codex/Validation/20261114-182135-7046/`: 62 core tests, 580 serial app-hosted tests, unsigned Release build and artifact validation.
-
-The 48-row baseline/final profile shows faster selective reads and metadata-heavy writes, while ordinary MP3/M4A writes and some full snapshots remain slower in individual runs. These are local measurements, not a universal improvement claim. Native mapping contract 2.2, global parser guard, exact native/semantic verification and durable atomic commits remain intact. The breaking API/migration changes are unreleased; no version/pin/tag/publication changed. Minimum-platform/device, full-suite sanitizer, hosted-CI and interactive UI runtime acceptance remain unverified. See the [architecture/removal/performance record](../records/remediation/REM-2026-11-14-package-architecture.md).
-
-## Previous independent-review repair candidate
-
-Production `a93c2f0` fixes the ASF alias erase false failure, exact advisory absence and unchanged unknown-code preservation. Both strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 186 Swift Testing declarations in 42 suites, and all required native/advisory evidence. All 29 policy tests and both independent consumers pass. Targeted ASan and TSan each passed 13 tests without reports; the prebuilt TagLib binary was not instrumented. The real AudioMator local-candidate gate passed 62 core and 580 app-hosted tests, unsigned Release build and artifact validation. Documentation checks cover 56 Markdown files.
-
-Evidence: `.build/test-evidence/debug-20261114-111016-13278/` and `.build/test-evidence/release-20261114-111355-13265/`. Minimum-platform/device and hosted-CI runtime remain unverified. Previous campaign results below describe earlier source phases and do not replace these current gates. See [review adjudication and repair evidence](../records/remediation/REM-2026-11-14-independent-review-repairs.md).
-
-## Historical write-preparation follow-up
-
-Production `bbf64c3` narrows discarded readability projections and reuses same-open-file property evidence. Both full strict gates are accepted: 164 XCTest declarations (162 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites, all required native matrices and preflight/cache/lookup evidence. All 27 gate-policy tests and both independent consumer executables pass. There are 55 checked Markdown files. Evidence: `.build/test-evidence/debug-20261112-135450-25050/` and `.build/test-evidence/release-20261112-135822-25044/`.
-
-The bounded-concurrency profile shows about 9%/5% lower ordinary/heavy batch medians at four workers, with some other worker samples varying in the opposite direction. The actual application executor sees only about 8%/3% improvement from four to eight workers, so four remains its default. The app separately adopts four-file scheduling in formerly serial provider/import paths; its complete local-candidate gate passed 62 core and 580 app-hosted tests, 13 policy tests, unsigned Release and artifact validation. See [write-concurrency record](../records/remediation/REM-2026-11-12-write-concurrency.md). The previous API campaign below is historical evidence for its own source.
-
-## Previous API/performance candidate
-
-This branch intentionally removes ambiguous compatibility-only API and keeps native mapping contract 2.2. It is not a source-compatible patch release. That campaign's final production implementation was `4dd2a60`; the write-preparation follow-up above supersedes its current-source acceptance. The [audit and performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md) contains the removal inventory, migration, all 33 before/after measurements and exact evidence boundaries.
-
-| Check | Current observed result |
-| --- | --- |
-| Strict Debug and Release | Both accepted; 162 XCTest declarations (160 passed, two original opt-in skips), 179 Swift Testing declarations in 41 suites passed |
-| Mandatory native matrices and new cache/lookup tests | Required named evidence present; no case-count reduction, unexpected skips or failures |
-| Gate policy | 26 regressions passed |
-| Documentation/generators | 54 Markdown files and all four generated-reference checks passed |
-| Independent consumers | Both products built with strict warnings and ran successfully |
-| AudioMator local candidate | 62 core and 579 serial app-hosted tests passed; unsigned Release/artifact validation passed; final affected erase journey also passed |
-| Warm local I/O profile | Declared lookup roughly 80–120 times faster; metadata-heavy reads about 7–14% faster. Writes vary; some workloads are slower. No universal write-speed improvement claimed |
-| Publication | No version bump, tag, push or publication; an explicitly breaking release and consumer migration are required |
-
-Current strict-gate evidence: `.build/test-evidence/debug-20261112-133244-22151/` and `.build/test-evidence/release-20261112-133604-22116/`. The application record distinguishes its full-suite source snapshot from the subsequent exact-advisory erase check. Existing application XCTest isolation warnings remain visible. Sanitizers, minimum-platform/device runtime, cold storage, peak memory and large-artwork performance were not evaluated. Historical release-line evidence follows and is not a substitute for these candidate runs.
+The 48-row baseline/final profile showed faster selective reads and metadata-heavy writes, while ordinary MP3/M4A writes and some full snapshots were slower in individual runs. Those are local measurements, not a universal improvement claim. See the [architecture/removal/performance record](../records/remediation/REM-2026-11-14-package-architecture.md) and [write-concurrency record](../records/remediation/REM-2026-11-12-write-concurrency.md).
 
 ## Recorded 0.7.3 validation
 
@@ -95,7 +65,7 @@ The state-coverage repairs were validated on `codex/metadata-state-coverage-repa
 | State matrices | 8,282 additional parameterized cases | Same |
 | Gate policy | 24 Python regressions passed | Same |
 
-Both gates compiled production and tests with Swift/C warnings as errors, and the mandatory privilege test passed with expanded filesystem access. Both independent consumers passed in separate runs, and all 24 policy tests passed. The evidence is recorded in [the state-coverage repair record](../records/remediation/REM-2026-11-11-state-coverage.md). These runs were on the pre-merge branch; no full accepted gate was rerun on the exact `0.7.3` release commit, and release preparation changes documentation only. Release preparation passed the documentation check over 53 Markdown files. Tag creation and publication remain maintainer-owned. Historical release-line results below do not certify `0.7.3`.
+Both gates compiled production and tests with Swift/C warnings as errors, and the mandatory privilege test passed with expanded filesystem access. Both independent consumers passed in separate runs. The evidence is recorded in [the state-coverage repair record](../records/remediation/REM-2026-11-11-state-coverage.md). These runs were on the pre-merge branch; no full accepted gate was rerun on the exact `0.7.3` release commit, and release preparation changes documentation only. Tag creation and publication remain maintainer-owned.
 
 ## Latest observed 0.7.2 release-line package gate
 
@@ -114,9 +84,9 @@ Additional recorded checks:
 
 | Check | Result |
 | --- | --- |
-| Strict production build | Passed; the test-target `DeprecatedDeclaration` exception does not apply to production |
+| Strict production build | Passed; the test-target deprecation exception that existed at that revision does not apply to the current source |
 | Package consumers | Facade-only and low-level executables passed |
-| Documentation | 52 Markdown files and all four generated-reference checks passed at the last documentation pass |
+| Documentation | 52 Markdown files and all four generated-reference checks passed at the last documentation pass for that release line |
 | AudioMator local override | 62 core and 574 serial app-hosted tests passed; unsigned Release artifact validation passed |
 | Release tag and publication | Maintainer-owned; not created by this documentation pass |
 | Hosted CI, sanitizers, minimum-platform runtime for this tree | Not re-run for the `0.7.2` release commit; no additional validation was performed for release preparation |
@@ -141,17 +111,22 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 
 ## Coverage and limits
 
-- The lifecycle and sparse-state matrices are explicit field/state subsets, not a complete field × format × tag-version × writer cross-product. The coverage inventory and minimum case counts are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md).
+- The lifecycle and sparse-state matrices are explicit field/state subsets, not a complete field × format × tag-version × writer cross-product. The contract catalog adds another finite decision layer; it is not a universal safety claim. The coverage inventory and minimum case counts are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md); the contract system is described in [Testing](TESTING.md).
 - Existing ID3v2.3 tags are read-only for independent date writes. Inspect `StructuredMetadata.id3v2MajorVersion`; an extension-level ID3v2.4 capability does not prove a concrete v2.3 file is writable.
 - MP4 track/disc components are unsigned 16-bit values through 65535; MP4 movement is bounded to 0...32767. External readers may decode MP4 native pairs differently.
 - Audio-content identity remains unavailable for many layouts, including MP3, MP4/M4A, raw AAC, Ogg, ASF, APE-family, DSD, and ambiguous chunk layouts. A nil identity never establishes continuity; see [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md).
 - Fixture coverage is finite. `fixtureCovered` does not certify every codec variant, unknown native structure, minimum-OS runtime, device, or external decoder.
+- Ogg Speex, IT and S3M remain explicit unverified catalog decisions with no typed runtime scenario. Matroska registrations remain target-only with no registered family, native codec, or fixture.
+- Calibration proves that the representative defect classes are detectable, not that every future defect will be caught. The pinned TagLib binary is not sanitizer-instrumented and its correctness is not established by package tests.
 - A successful package test run does not validate an embedding application's signing, rpath, entitlement, or interactive UI behavior.
 
 ## Historical evidence
 
 | Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
+| `05416aa` | Merge of the contract-system upgrade; documentation and evidence only after `959d688` | Current `main`; no tagged release |
+| `959d688` | Final package-only acceptance: 181 XCTest / 274 Swift Testing / 75 scenarios / 92 policy / 13 calibration mutants, full ASan/TSan | Latest accepted source for the unreleased work |
+| `c3c655e` | Public write-contract acceptance: 181 XCTest / 231 Swift Testing / 41 policy | Superseded counts; production repairs remain |
 | `0.7.3` | Current release, declared 2026-11-12; source branch merged as `e9337f2` | Includes the native-owner state-preservation repairs above |
 | `0.7.2` | Release tag, declared 2026-11-11 | Previous release; includes the audit, native-mapping, test-system and MP4 Content Group repairs; does not include `0.7.3` |
 | `0.7.1` | Release tag and merge `649b7a9`; date/ownership, comment verification and UFID repairs | Previous release; does not include the `0.7.2` repairs |

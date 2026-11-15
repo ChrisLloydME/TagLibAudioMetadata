@@ -6,9 +6,7 @@ See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md) for the independent life
 
 ## Independent contract system (2026-11-15 upgrade)
 
-The canonical gate is no longer only a collection of named matrices. Five
-independent layers reconcile the public surface, the intended contract, the
-public call, the native oracle and the evidence that actually executed:
+The canonical gate is no longer only a collection of named matrices. Five independent layers reconcile the public surface, the intended contract, the public call, the native oracle and the evidence that actually executed:
 
 | Layer | Source | What it establishes and what it does not |
 | --- | --- | --- |
@@ -16,22 +14,22 @@ public call, the native oracle and the evidence that actually executed:
 | Test-owned contract catalog | `scripts/package-test-system/contract-catalog.json`, `field-schema-claims.json`, `format-capability-claims.json` | Scenario IDs, fixture/version, public surface, input/state partition, intended native ownership, unsupported/rejection outcome, normalization and oracle. Expected native identities are literal test data. Production field and capability snapshots are reviewed claims, not golden targets. Every advertised field and writable family has an independent decision or an explicit limitation. |
 | Execution adapters | `Tests/TagLibAudioMetadataTests/ContractSystem/PublicSurfaceAdapters.swift` | One named public call per adapter, with facade wrappers and direct exported-bridge calls kept separate. No coercion, fallback, retry or version clearing. |
 | Builders and oracles | `ContractFixtureBuilders.swift`, `ContractNativeOracles.swift` and the retained independent probes | Bounded native readers that never decide expected values through the package reader. Builders are self-tested on literal synchsafe, atom-size, chunk-alignment, flag/grouping, integer and malformed-input vectors. Every seed is independently verified; a failed seed fails the test. |
-| Evidence gate | `scripts/test_manifest.py`, `scripts/summarize-test-run.py`, `scripts/validate-tests.sh` | Fresh commit/diff/source/toolchain manifests, exact scenario-set and assertion-budget comparison, complete framework outcomes, exact optional-skip identities and runner exit status. Counts and suite banners are supporting evidence only. |
+| Evidence gate | `scripts/test_manifest.py`, `scripts/summarize-test-run.py`, `scripts/validate-tests.sh`, `scripts/validate-contracts.sh` | Fresh commit/diff/source/toolchain manifests, exact scenario-set and assertion-budget comparison, complete framework outcomes, exact optional-skip identities, and runner exit status. Counts and suite banners are supporting evidence only. |
 
-The catalog currently declares 71 metadata-operation scenarios plus four
-audit scenarios. The audit scenarios reconcile all 100 advertised fields, all
-advertised writable format families, and the catalog/declaration/adapter sets at
-runtime. The required minima are **181 XCTest declarations** (179 passed and
-the two reviewed opt-in skips), **274 Swift Testing declarations in 51 suites**
-and **92 Python policy regressions**. These are floors, not a claim that every
-possible file or caller is covered.
+The catalog declares 34 contracts, 71 metadata-operation scenarios and four audit scenarios; the reviewed inventory covers 907 public-surface rows and 62 execution adapters. The audit scenarios reconcile all 100 advertised fields, all advertised writable format families, and the catalog/declaration/adapter sets at runtime. The required minima are **181 XCTest declarations** (179 passed and the two reviewed opt-in skips), **274 Swift Testing declarations in 51 suites** and **92 Python policy regressions**. These are floors, not a claim that every possible file or caller is covered.
 
 ### Contract commands
 
 ```sh
-# Policy reconciliation, the bounded calibration set and a complete strict gate.
+# Canonical contract lane: policy reconciliation, 13-defect calibration and a
+# complete strict gate. This is the acceptance entry point.
 bash scripts/validate-contracts.sh debug
 bash scripts/validate-contracts.sh release
+
+# Inner framework gate only. It requires a source-bound calibration result;
+# validate-contracts.sh supplies or reuses one after checking source identity.
+TAGLIB_CALIBRATION_RESULT=/path/to/calibration.json \
+  bash scripts/validate-tests.sh debug
 
 # Inventory/catalog reconciliation without building the package.
 python3 scripts/package_test_system.py
@@ -45,65 +43,19 @@ python3 scripts/calibrate-test-system.py --mutant numeric-truncation
 bash scripts/validate-consumers.sh
 ```
 
-`validate-tests.sh` now writes `manifest-before.json`, `manifest-after.json`,
-`tests.log`, `scenarios/` and `summary.json` under a fresh
-`.build/test-evidence/<mode>-<timestamp>-<pid>/`. Acceptance requires the exact
-catalog scenario set, each scenario's exact check-name multiset and adapter identity, all framework
-completion summaries, a source/config identity that did not change during the
-campaign, and only the two reviewed XCTest skips. Each scenario and actual adapter event must match the campaign UUID, build mode
-and source hash, with exact per-test adapter/outcome multiplicities from the frozen
-`scenario-assertions.json` and `runtime-invocations.json` inventories. A missing scenario, removed
-assertion, duplicate execution, unexpected scenario, stale source hash, mixed
-configuration, truncated log or hidden failure is rejected. Filters and shards
-are still rejected rather than being partially aggregated.
+`validate-tests.sh` writes `manifest-before.json`, `manifest-after.json`, `tests.log`, `scenarios/` and `summary.json` under a fresh `.build/test-evidence/<mode>-<timestamp>-<pid>/`. Acceptance requires the exact catalog scenario set, each scenario's exact check-name multiset and adapter identity, all framework completion summaries, a source/config identity that did not change during the campaign, and only the two reviewed XCTest skips. Each scenario and actual adapter event must match the campaign UUID, build mode and source hash, with exact per-test adapter/outcome multiplicities from the frozen `scenario-assertions.json` and `runtime-invocations.json` inventories. A missing scenario, removed assertion, duplicate execution, unexpected scenario, stale source hash, mixed configuration, truncated log or hidden failure is rejected. Filters and shards are still rejected rather than being partially aggregated.
 
 ### Defect-detection calibration
 
-`scripts/calibrate-test-system.py` copies the package into ignored
-`.build/test-calibration/<run>/`, builds the actual package test target in
-that copy, and applies each anchored mutant only inside the copy. The active
-working tree, dependency binary and fixtures are never patched. A mutant counts
-as killed only when it compiles, the required test witnesses the intended bad behavior
-and the expected behavioral assertion fails; compile errors, timeouts, missing
-fixtures and unrelated failures are inconclusive. The current set has 13 independently activated faults and covers:
-omitted exported numeric validation; trimmed-versus-untrimmed MP4 key
-normalization; pre-range numeric truncation; formatter `nil` as deletion;
-schema-known retention filtering; lost ID3v2.3 version; restored stale MP4
-freeform; invalid-text zero coercion and explicit-zero recovery; an advertised
-but unreachable route; removed adapter invocation; removed preservation
-assertion; and a weakened native oracle vector. The isolated workspace is
-restored and hashed after each mutant, and calibration is part of
-`validate-contracts.sh`, not an optional unexecuted script.
+`scripts/calibrate-test-system.py` copies the package into ignored `.build/test-calibration/<run>/`, builds the actual package test target in that copy, and applies each anchored mutant only inside the copy. The active working tree, dependency binary and fixtures are never patched. A mutant counts as killed only when it compiles, the required test witnesses the intended bad behavior and the expected behavioral assertion fails; compile errors, timeouts, missing fixtures and unrelated failures are inconclusive. The current set has 13 independently activated faults and covers: omitted exported numeric validation; trimmed-versus-untrimmed MP4 key normalization; pre-range numeric truncation; formatter `nil` as deletion; schema-known retention filtering; lost ID3v2.3 version; restored stale MP4 freeform; invalid-text zero coercion and explicit-zero recovery; an advertised but unreachable route; removed adapter invocation; removed preservation assertion; and a weakened native oracle vector. The isolated workspace is restored and hashed after each mutant, and calibration is part of `validate-contracts.sh`, not an optional unexecuted script.
 
-The manifest hashes make stale or accidental mixed evidence fail; they are not
-a cryptographic defense against a malicious actor with full repository access.
-Complete acceptance additionally requires an accepted, restored calibration result
-for the same source hash, commit and mutant definitions. `--require-all-killed`
-rejects subsets and `--allow-failures`. Development subsets report `partial` and
-cannot satisfy acceptance. To reuse one complete calibration for Debug and Release,
-set `TAGLIB_CALIBRATION_RESULT` to its `calibration.json` and run
-`validate-contracts.sh`; changed source/commit/definitions invalidate reuse.
-`validate-tests.sh` also requires this variable. Claim-blessing mode is forbidden
-in acceptance, named evidence directories cannot be overwritten, and both full
-before/after manifests are mandatory.
+The manifest hashes make stale or accidental mixed evidence fail; they are not a cryptographic defense against a malicious actor with full repository access. Complete acceptance additionally requires an accepted, restored calibration result for the same source hash, commit and mutant definitions. `--require-all-killed` rejects subsets and `--allow-failures`. Development subsets report `partial` and cannot satisfy acceptance. To reuse one complete calibration for Debug and Release, set `TAGLIB_CALIBRATION_RESULT` to its `calibration.json` and run `validate-contracts.sh`; changed source/commit/definitions invalidate reuse. `validate-tests.sh` also requires this variable. Claim-blessing mode is forbidden in acceptance, named evidence directories cannot be overwritten, and both full before/after manifests are mandatory.
 
-Calibration proves the representative defect classes can be caught, not that
-every future defect will be caught. It also does not establish correctness of
-the precompiled upstream TagLib binary.
+Calibration proves the representative defect classes can be caught, not that every future defect will be caught. It also does not establish correctness of the precompiled upstream TagLib binary.
 
 ### Surface and partition scope
 
-Runtime scenarios cover MP4 typed deltas, full-model and structured writes, both
-raw replace/merge modes, raw deltas, formatted-number boundaries and malformed
-input, verification-disabled paths, erase/wipe, stale version and audio guards,
-small per-file batches, ID3v2.3 literal dates/flags/grouping and safe date
-rejections, both private provenance namespaces, FLAC duplicate arrays and
-explicit removal, WAV/AIFF ID3 chunk alignment, ASF advisory and partial-pair
-policy, Ogg Vorbis, Opus, APE, WavPack, tracker names, artwork and qualified
-comment collections. Fields that a scalar API cannot express are preserved and
-tested as untouchable owners rather than given fabricated setters. Unsupported
-Matroska registrations, Ogg Speex, IT and S3M remain explicit limitations in
-the catalog; no fallback writer or new codec is claimed.
+Runtime scenarios cover MP4 typed deltas, full-model and structured writes, both raw replace/merge modes, raw deltas, formatted-number boundaries and malformed input, verification-disabled paths, erase/wipe, stale version and audio guards, small per-file batches, ID3v2.3 literal dates/flags/grouping and safe date rejections, both private provenance namespaces, FLAC duplicate arrays and explicit removal, WAV/AIFF ID3 chunk alignment, ASF advisory and partial-pair policy, Ogg Vorbis, Opus, APE, WavPack, tracker names, artwork and qualified comment collections. Fields that a scalar API cannot express are preserved and tested as untouchable owners rather than given fabricated setters. Unsupported Matroska registrations, Ogg Speex, IT and S3M remain explicit limitations in the catalog; no fallback writer or new codec is claimed.
 
 ## Test layers
 
@@ -111,6 +63,7 @@ The single SwiftPM test target is organized physically by layer:
 
 | Directory | Coverage |
 | --- | --- |
+| `ContractSystem/` | Public-surface adapters, test-owned contract scenarios, fixture builders, independent native oracles, assertion-budget inventories, and builder self-tests. |
 | `Capabilities/` | Public capability model, field-level support, and cross-language schema consistency. |
 | `Integration/` | Real-fixture round trips, container projections, native parsers, artwork, dates, numbers, legacy numbering recovery, MP4-exclusive fields, and raw metadata. |
 | `Transactions/` | Stale versions, failure atomicity, preservation, same-entry coordination, privilege rejection, and audio-content identity. |
@@ -121,7 +74,7 @@ The single SwiftPM test target is organized physically by layer:
 
 The suite uses both XCTest and Swift Testing. Test counts vary by runner and by which opt-ins are enabled; do not compare totals across records without checking their scope and revision.
 
-The mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`) requires named matrix/oracle execution evidence and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate.
+The contract lane (`scripts/validate-contracts.sh`) runs the policy and inventory checks, requires a source-bound calibration result, then executes the mixed-framework gate (`scripts/validate-tests.sh` plus `scripts/summarize-test-run.py`). The gate requires named matrix/oracle execution evidence, exact contract-scenario and adapter records, and minimum parameterized case counts, not only suite banners. An allowlisted optional XCTest skip must match both its class and method; a different class with the same method name fails the gate.
 
 The current upgraded gate requires the legacy sparse-state matrices, the new
 contract scenarios and the calibration set. The reviewed floors are 181 XCTest,
@@ -137,11 +90,11 @@ The full Debug/Release gates pass `-Xswiftc -warnings-as-errors -Xcc -Werror` to
 ## Standard commands
 
 ```sh
-# Full-suite acceptance gate (Debug). No filters or skips are accepted.
-bash scripts/validate-tests.sh debug
+# Canonical acceptance lane (Debug). No filters or skips are accepted.
+bash scripts/validate-contracts.sh debug
 
-# Full-suite acceptance gate (Release).
-bash scripts/validate-tests.sh release
+# Canonical acceptance lane (Release).
+bash scripts/validate-contracts.sh release
 
 # Gate-policy regressions only, without running the package suite.
 python3 -m unittest discover -s scripts/tests
@@ -158,14 +111,16 @@ swift test --disable-keychain --disable-netrc --sanitize=address
 swift test --disable-keychain --disable-netrc --sanitize=thread
 ```
 
-The gate writes a timestamped `tests.log` and `summary.json` under `.build/test-evidence/`. The summary is accepted only when both frameworks complete, no unexpected skip or named failure occurs, all required suites execute, and every parameterized case count meets its frozen minimum. A bare `swift test` run or a suite banner is not equivalent evidence.
+The gate writes a timestamped `tests.log`, `summary.json`, before/after manifests, and scenario records under `.build/test-evidence/`. The summary is accepted only when both frameworks complete, no unexpected skip or named failure occurs, all required suites execute, every parameterized case count meets its frozen minimum, the exact contract-scenario and adapter records match, and the source identity did not change during the campaign. A bare `swift test` run or a suite banner is not equivalent evidence.
 
-Some restricted environments cannot launch SwiftPM's manifest sandbox or write to the default module cache. `scripts/validate-tests.sh` supports `TAGLIB_DISABLE_MANIFEST_SANDBOX=1` for that case; workspace-local module caches can avoid the default cache. These workarounds alter build isolation and must be stated in the verification record.
+The canonical lane sets `TAGLIB_DISABLE_MANIFEST_SANDBOX=1` and uses an evidence directory that cannot already exist. Some restricted environments also need workspace-local module caches. These settings alter build isolation and must be stated in the verification record when used for a direct inner-gate run.
 
 ```sh
 CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-module-cache" \
 SWIFT_MODULE_CACHE_PATH="$PWD/.build/module-cache" \
-TAGLIB_DISABLE_MANIFEST_SANDBOX=1 bash scripts/validate-tests.sh debug
+TAGLIB_DISABLE_MANIFEST_SANDBOX=1 \
+TAGLIB_CALIBRATION_RESULT="$PWD/.build/test-calibration/<run>/calibration.json" \
+bash scripts/validate-tests.sh debug
 ```
 
 ### Minimum-platform builds
@@ -270,9 +225,9 @@ These oracles are intentionally bounded. They do not establish universal codec c
 
 | Job | What it does |
 | --- | --- |
-| `build-and-test` | Documentation check, clean build, strict warning build, gate-policy tests, Debug `validate-tests.sh`, evidence artifact, both consumers, and a dynamic-link/binary-boundary audit. |
+| `build-and-test` | Documentation check, clean build, strict warning build, gate-policy tests, Debug contract lane (inventory/catalog reconciliation, calibration, complete framework gate), evidence artifact, both consumers, and a dynamic-link/binary-boundary audit. |
 | `address-sanitizer` | Full test suite under AddressSanitizer. |
-| `release-build-and-test` | Release-mode `validate-tests.sh` against real fixtures, with an evidence artifact. |
+| `release-build-and-test` | Release contract lane against real fixtures, with an evidence artifact. |
 | `thread-sanitizer` | Full test suite under ThreadSanitizer. |
 | `minimum-platform-builds` | Five compile/link checks for the supported deployment targets. |
 | `remote-tag-consumer` | On a tag build, a clean consumer resolves the published tag and runs. |
