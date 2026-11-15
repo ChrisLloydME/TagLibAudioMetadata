@@ -45,3 +45,25 @@ Final expected scope: 181 XCTest declarations (two reviewed opt-in skips), 274
 Swift Testing declarations / 51 suites, 75 contract scenarios and 62 adapters.
 Final evidence is required on the frozen source; earlier failed calibrations and
 sanitizer diagnostics remain under `.build/` and are not claimed as passing.
+
+The original combined number-coercion mutant is now two independent faults:
+malformed-text coercion and explicit-zero recovery. Each must activate its own
+required test and native/ordering assertion; the total calibration set is 13.
+The earlier zero-recovery run failed at the intended numeric assertion rather
+than the speculative error string, so its activation witness was corrected to
+the actual failed expression. That run remained rejected.
+
+The development subset subsequently killed all six selected faults (both number
+faults, unreachable capability, removed adapter call, removed preservation
+assertion and malformed-text oracle). Its result is `partial`, never accepted.
+
+## Non-documentation inspection scope
+
+Reviewed the implementation/public boundary, native owner planning and codecs,
+transaction/read validation and concurrency boundaries, package/binary manifest,
+public product consumers, generated schema/mapping/API consistency, Python/shell
+gates and CI evidence handling. The 45 implementation files, package manifest,
+public APIs, dependencies, binary checksum and consumer sources are unchanged
+from `de39d42`; no additional production defect was reproduced. The repaired
+code is test infrastructure and test coverage. Scripts pass syntax/bytecode checks;
+all four generated reference checks match their source registries.
