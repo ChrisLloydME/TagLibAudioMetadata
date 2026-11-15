@@ -67,3 +67,61 @@ public APIs, dependencies, binary checksum and consumer sources are unchanged
 from `de39d42`; no additional production defect was reproduced. The repaired
 code is test infrastructure and test coverage. Scripts pass syntax/bytecode checks;
 all four generated reference checks match their source registries.
+
+## Final independent acceptance
+
+**Code verdict: ready for the maintainer's release workflow.** No remaining
+reproduced release-blocking production defect was found. The repaired test
+system passes complete package-only acceptance; this is a finite contract
+campaign, not a guarantee about every future file or caller.
+
+Final tested source: `959d68854db600a5726b6b9cb9c05018b9335f22`.
+Campaign source hash: `09bd72f3b566ca956d62392e2ce217eacba149c7eff7bd2018083028d2c82787`.
+This results-only addendum changes documentation after that tested revision;
+no executable source, tests, scripts, dependency or configuration changes follow it.
+
+| Check | Observed result |
+| --- | --- |
+| Canonical Debug | accepted; 181 XCTest, 2 reviewed opt-in skips, 0 failures; 274 Swift Testing / 51 suites; 75/75 scenarios |
+| Canonical Release | accepted; same declaration, skip, suite and scenario counts |
+| Canonical calibration | 13/13 compiled, activated and killed by actual required tests; initial/final controls pass; source restored |
+| Policy tests | 92 passed; replay, assertion substitution, incomplete manifests, missing/duplicate invocations and incomplete calibration reject |
+| Adapter execution | 134 observed calls across 31 tests; all 62 registered adapters have exact identity/outcome/multiplicity expectations |
+| Full ASan | 181 XCTest (2 existing skips), 274 Swift Testing / 51 suites; no failures or sanitizer findings |
+| Full TSan | same counts; no failures or sanitizer findings |
+| Standalone consumers | both public products pass real writes, independent native/audio assertions; facade also checks stale-version rejection |
+| Minimum platforms | strict macOS 13 arm64/x86_64; iOS 16 arm64; iOS 16 simulator arm64/x86_64 builds pass |
+| Integrity/reference checks | all four schema/format/mapping/API generators match; inventory reconciliation, shell/Python syntax and 67-file docs check pass |
+
+Commands: `python3 scripts/calibrate-test-system.py --require-all-killed --run-id
+independent-canonical-acceptance`; then both `bash scripts/validate-contracts.sh
+<mode>` lanes with `TAGLIB_CALIBRATION_RESULT` pointing to that same frozen
+campaign. Build/test commands use the stable installed Xcode and explicit
+`--disable-sandbox --disable-keychain --disable-netrc` with Swift/C warnings as
+errors. The full host permits the privilege-bit precondition; it passed without
+changing/skipping/waiving the test.
+
+Evidence (ignored local artifacts):
+
+- `.build/test-calibration/independent-canonical-acceptance/calibration.json`
+- `.build/test-evidence/debug-independent-acceptance/`
+- `.build/test-evidence/release-independent-acceptance/`
+- `.build/independent-policy-acceptance.log`
+- `.build/independent-asan-full.log`, `.build/independent-tsan-full.log`
+- `.build/independent-consumers-final.log`, `.build/independent-platform-evidence.json`
+
+The sanitizer executables contain the final Swift/bridge/test code; later
+calibration-definition and record changes do not change that code. The pinned
+upstream TagLib binary is not sanitizer-instrumented. Existing finite-format
+limits remain (including unverified Speex/IT/S3M fixtures, target-only Matroska
+and unavailable public MP4 audio identity). No hosted CI, device runtime or
+external-corpus lane was executed. No sibling application was accessed, built,
+tested or used for acceptance. No push, PR, merge, tag or publication occurred.
+
+A final independent replay against genuine accepted logs retained the passing
+Debug control and rejected Debug scenarios paired with genuine Release evidence,
+same-count placeholder assertions/fictitious adapter labels, missing post-run
+manifest and matching minimal manifests. The real calibration CLI rejected a
+subset with `--require-all-killed` before creating a workspace. Results are in
+`.build/independent-tamper-results.json`. Dynamic framework/rpath, identity,
+license resources and non-vendoring checks also passed.
