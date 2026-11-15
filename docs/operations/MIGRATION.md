@@ -267,3 +267,9 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 - That a package update changes an application's conflict policy automatically.
 - That an untagged `main` state is a release.
 - That `replaceBasicMetadata` writes every property present on `BasicMetadata`.
+
+## Public write acceptance follow-up (2026-11-15)
+
+Direct scalar/whole-model/raw writes now reject numeric input outside the destination's native representation, including MP4 pair, BPM, byte/media-kind and store-ID limits. Structured atom validation uses the pinned engine's real encoder class; a supplied type cannot override it, and missing scalar values are not implicit zero/empty writes. Explicit structured removals remain distinct. Unsupported generated padding, including inherited width above 64, rejects instead of removing the number owner.
+
+Literal v2.3 status/format/group evidence participates in date preservation. Reading legal protected dates remains supported; a write that cannot preserve them fails before commit. numberText rejects malformed components before staging, and an explicit zero total is retained as that intent; only number-only input recovers an existing total. API signatures, dependency identity, date independence and the breaking-release boundary remain unchanged. See [package acceptance](../records/verification/VER-2026-11-15-public-write-release-acceptance.md).

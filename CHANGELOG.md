@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Close public native numeric codec/range bypasses across structured, scalar, whole-model and raw writes. Reject unsupported inherited padding without deleting number owners, preserve protected legacy date evidence, and validate numberText intent before staging.
+
 - Reject incompatible structured write payloads before mutation: MP4 reserved-atom codecs/ranges, noncanonical or unknown ASF types, and collections the destination does not consume. Bound generated number padding to 64 and preflight numberText ranges under the captured version.
 - Preserve legal ID3v2.3 frame-status flags and bounded grouping while keeping compression/encryption fail-closed; locate DSDIFF ID3 only through declared `PROP` children.
 - Preserve schema-known but unmodeled owners and private numbering provenance in whole-model writes, while keeping modeled nil as replacement removal.
