@@ -530,6 +530,7 @@ struct PublicWriteContractRepairTests {
             try TagLibMetadataManager.writeStructuredMetadataWithVerification(
                 .init(properties: [
                     .init(key: "PERFORMER", values: ["Alice"]),
+                    .init(key: "TRACKERNAME", values: ["Keep Tracker"]),
                     .init(key: "TITLE", values: ["Old"]),
                 ]),
                 to: url,
@@ -540,6 +541,7 @@ struct PublicWriteContractRepairTests {
             _ = try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
             let flac = try IndependentFLACProbe.read(url)
             #expect(flac.comments["PERFORMER"] == ["Alice"])
+            #expect(flac.comments["TRACKERNAME"] == ["Keep Tracker"])
             #expect(flac.comments["TITLE"] == ["Changed"])
 
             // The exported bridge product has the same ownership contract.
@@ -548,6 +550,7 @@ struct PublicWriteContractRepairTests {
             try TagLibMetadataExtractor.writeMetadata(bridgeModel, to: url)
             let direct = try IndependentFLACProbe.read(url)
             #expect(direct.comments["PERFORMER"] == ["Alice"])
+            #expect(direct.comments["TRACKERNAME"] == ["Keep Tracker"])
             #expect(direct.comments["TITLE"] == ["Changed Direct"])
         }
 
