@@ -169,18 +169,6 @@ static NSString * _Nullable CanonicalASFAttributeType(NSString * _Nullable type)
     return known[normalized];
 }
 
-// Ask the pinned engine for its native encoder instead of maintaining a
-// second incomplete list of reserved atoms. No engine source is vendored.
-class StructuredMP4Codec final : public TagLib::MP4::ItemFactory {
-public:
-    using Kind = ItemHandlerType;
-    static Kind forKey(NSString *key) {
-        if ([key hasPrefix:@"----:"]) return Kind::FreeForm;
-        static const StructuredMP4Codec factory;
-        return factory.handlerTypeForName(NSStringToTagString(key).data(TagLib::String::Latin1));
-    }
-};
-
 static BOOL StructuredBooleanIsValid(NSObject *value)
 {
     if ([value isKindOfClass:[NSNumber class]]) {
@@ -195,13 +183,13 @@ static bool BooleanValueFromObject(NSObject *value);
 
 static BOOL ValidateMP4NativeEncoding(NSString *key, NSString *type, NSDictionary *entry, NSError **error)
 {
-    using Kind = StructuredMP4Codec::Kind;
+    using Kind = NativeMP4Codec::Kind;
     auto reject = [&]() -> BOOL {
         return SetStructuredPayloadValidationError(error,
             [NSString stringWithFormat:@"MP4 atom %@ has an incompatible codec, value or native range", key]);
     };
     const bool removing = BooleanValueFromObject(entry[@"remove"]);
-    const auto kind = StructuredMP4Codec::forKey(key);
+    const auto kind = NativeMP4Codec::forKey(key);
     if (removing) {
         NSArray *parts = [key componentsSeparatedByString:@":"];
         if ([key hasPrefix:@"----:"]) {
@@ -889,12 +877,12 @@ static void ApplyStructuredMP4Atoms(TagLib::MP4::Tag *tag,
             else tag->setItem(NSStringToTagString(key), TagLib::MP4::Item(list));
         } else if ([type isEqualToString:@"bool"]) {
             const bool boolValue = BooleanValueFromObject(entry[@"value"]);
-            const bool integerCodec = StructuredMP4Codec::forKey(key) == StructuredMP4Codec::Kind::Int;
+            const bool integerCodec = NativeMP4Codec::forKey(key) == NativeMP4Codec::Kind::Int;
             tag->setItem(NSStringToTagString(key), integerCodec ? TagLib::MP4::Item((int)boolValue) : TagLib::MP4::Item(boolValue));
         } else if ([type isEqualToString:@"int"] || [type isEqualToString:@"uint"] ||
                    [type isEqualToString:@"byte"] || [type isEqualToString:@"longLong"]) {
-            using Kind = StructuredMP4Codec::Kind;
-            const auto kind = StructuredMP4Codec::forKey(key);
+            using Kind = NativeMP4Codec::Kind;
+            const auto kind = NativeMP4Codec::forKey(key);
             const NSInteger value = IntegerValueFromObject(entry[@"value"]);
             TagLib::MP4::Item item = kind == Kind::Byte ? TagLib::MP4::Item((unsigned char)value)
                 : kind == Kind::UInt ? TagLib::MP4::Item((unsigned int)value)
@@ -1162,6 +1150,9 @@ static BOOL ValidateStructuredCollectionsForFormat(TLTagFileFormat format,
     NSArray<NSDictionary<NSString *, NSObject *> *> *asfAttributes = StructuredArray(metadata, @"asfAttributes");
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
+    if (format == TLTagFileFormatMP4 && propertyValues &&
+        !ValidateMP4RequestedProperties(BuildRawPropertyMapValues(propertyValues), error)) return NO;
+
     if (format == TLTagFileFormatMPEGID3 || format == TLTagFileFormatMPEGAAC) {
         TagLib::MPEG::File file(filePath);
         if (!file.isValid()) {

@@ -227,6 +227,9 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         return NO;
     }
 
+    if (dynamic_cast<TagLib::MP4::File *>(file) &&
+        !ValidateMP4RequestedProperties(BuildRawPropertyMapValues(valuesToSet), error)) return NO;
+
     // WAV exposes RIFF INFO and ID3v2 through the same file-level
     // PropertyMap. Applying a file-level setProperties call writes everything
     // into ID3v2 and duplicates INFO values. Apply the delta to the surface(s)

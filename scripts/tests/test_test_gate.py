@@ -148,7 +148,7 @@ PASS = (
     "Test roleQualifiedTypedPatchStillRejects() passed after 1 second.\n"
     "Test yearPrefixFilterRemainsBasicSpecific() passed after 1 second.\n"
     "Suite PublicWriteContractRepairTests passed.\n"
-    "Test structuredMP4RejectsEncodingAndRangeBypasses() passed after 1 second.\n"
+    "Test structuredMP4RejectsEncodingAndRangeBypasses(_:) with 7 test cases passed after 1 second.\n"
     "Test malformedNumberTextCannotEraseExistingPairs() passed after 1 second.\n"
     "Test excessiveInheritedPaddingDoesNotRemoveTrack() passed after 1 second.\n"
     "Test protectedDateFlagsSurviveOrRejectUnrelatedMutation() passed after 1 second.\n"
@@ -156,8 +156,10 @@ PASS = (
     "Test nativeMP4EncodersRetainValidBoundaryValues() passed after 1 second.\n"
     "Test legacyID3MustFitItsDeclaredContainerChunk() passed after 1 second.\n"
     "Test directStructuredValidationPrecedesFileAccess() passed after 1 second.\n"
+    "Test allPublicNumericWritersRejectNativeOverflow(_:) with 9 test cases passed after 1 second.\n"
+    "Test explicitZeroTotalIsNotRecoveredFromOldNumberText() passed after 1 second.\n"
     "Suite ReleaseAcceptanceTests passed.\n"
-    "Test run with 229 tests in 42 suites passed after 8 seconds.\n"
+    "Test run with 231 tests in 42 suites passed after 8 seconds.\n"
 )
 
 class TestGatePolicy(unittest.TestCase):
@@ -206,7 +208,7 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 229 tests', 'run with 228 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 231 tests', 'run with 230 tests')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -292,8 +294,17 @@ class TestGatePolicy(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertFalse(self.accepted(PASS.replace(old, new)))
 
+    def test_release_acceptance_case_minima_cannot_shrink(self):
+        for name, count in [('structuredMP4RejectsEncodingAndRangeBypasses', 7),
+                            ('allPublicNumericWritersRejectNativeOverflow', 9)]:
+            with self.subTest(name=name):
+                original = f'Test {name}(_:) with {count} test cases'
+                reduced = f'Test {name}(_:) with {count - 1} test cases'
+                self.assertIn(original, PASS)
+                self.assertFalse(self.accepted(PASS.replace(original, reduced)))
+
     def test_release_acceptance_methods_are_required(self):
-        for name in ['structuredMP4RejectsEncodingAndRangeBypasses', 'malformedNumberTextCannotEraseExistingPairs', 'excessiveInheritedPaddingDoesNotRemoveTrack', 'protectedDateFlagsSurviveOrRejectUnrelatedMutation', 'structuredPayloadsRequireExplicitValues', 'nativeMP4EncodersRetainValidBoundaryValues', 'legacyID3MustFitItsDeclaredContainerChunk', 'directStructuredValidationPrecedesFileAccess']:
+        for name in ['explicitZeroTotalIsNotRecoveredFromOldNumberText', 'allPublicNumericWritersRejectNativeOverflow', 'structuredMP4RejectsEncodingAndRangeBypasses', 'malformedNumberTextCannotEraseExistingPairs', 'excessiveInheritedPaddingDoesNotRemoveTrack', 'protectedDateFlagsSurviveOrRejectUnrelatedMutation', 'structuredPayloadsRequireExplicitValues', 'nativeMP4EncodersRetainValidBoundaryValues', 'legacyID3MustFitItsDeclaredContainerChunk', 'directStructuredValidationPrecedesFileAccess']:
             with self.subTest(name=name):
                 modified = "\n".join(line for line in PASS.splitlines() if name not in line)
                 self.assertFalse(self.accepted(modified))

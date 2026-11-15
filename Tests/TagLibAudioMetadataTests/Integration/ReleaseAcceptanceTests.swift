@@ -4,7 +4,7 @@ import CTagLibBridge
 @testable import TagLibAudioMetadata
 
 struct ReleaseAcceptanceTests {
-    @Test func structuredMP4RejectsEncodingAndRangeBypasses() throws {
+    @Test(arguments: 0..<7) func structuredMP4RejectsEncodingAndRangeBypasses(_ index: Int) throws {
         let invalid: [[String: NSObject]] = [
             ["key": " trkn " as NSString, "type": "intPair" as NSString, "first": NSNumber(value: 70000), "second": NSNumber(value: 0)],
             ["key": "tmpo" as NSString, "type": "int" as NSString, "value": NSNumber(value: 70000)],
@@ -14,7 +14,7 @@ struct ReleaseAcceptanceTests {
             ["key": "tvsn" as NSString, "type": "stringList" as NSString, "values": ["5"] as NSArray],
             ["key": "----:com.apple.iTunes:AUDIT" as NSString, "type": "int" as NSString, "value": NSNumber(value: 5)],
         ]
-        for atom in invalid {
+        for atom in [invalid[index]] {
             try RepairNativeProbe.withCopy("m4a") { url in
                 let bytes = try Data(contentsOf: url)
                 #expect(throws: (any Error).self) {
@@ -26,7 +26,7 @@ struct ReleaseAcceptanceTests {
     }
 
     @Test func malformedNumberTextCannotEraseExistingPairs() throws {
-        for text in ["garbage", "-1", "1/no", "1/2/3", "99999999999999999999999999999999", "1\0/2"] {
+        for text in ["garbage", "/", "-1", "1/no", "1/2/3", "99999999999999999999999999999999", "1\0/2"] {
             try RepairNativeProbe.withCopy("m4a") { url in
                 try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.track: .integer(3)]), to: url)
                 let bytes = try Data(contentsOf: url)
@@ -145,6 +145,47 @@ struct ReleaseAcceptanceTests {
             #expect((error as NSError).code == 243)
         }
         #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
+    @Test(arguments: 0..<9) func allPublicNumericWritersRejectNativeOverflow(_ argument: Int) throws {
+        for surface in [argument] {
+            try RepairNativeProbe.withCopy("m4a") { url in
+                let original = try Data(contentsOf: url)
+                #expect(throws: (any Error).self) {
+                    switch surface {
+                    case 0: try TagLibMetadataExtractor.writeTrackNumber(70000, totalTracks: 0, padWidth: 0, to: url)
+                    case 1:
+                        let model = TagLibAudioMetadata(); model.trackNumber = 70000
+                        try TagLibMetadataExtractor.writeMetadata(model, to: url)
+                    case 2:
+                        let model = TagLibAudioMetadata(); model.totalDiscs = 70000
+                        _ = try TagLibMetadataManager.writeTagMetadata(model, to: url, verification: .none)
+                    case 3: try TagLibMetadataExtractor.writeRawPropertyMap(["TRACKNUMBER": "70000"], to: url)
+                    case 4: try TagLibMetadataExtractor.writeRawPropertyMapValues(["TRACKNUMBER": ["70000"]], to: url)
+                    case 5:
+                        let model = TagLibAudioMetadata(); model.bpm = 70000
+                        try TagLibMetadataExtractor.writeMetadata(model, to: url)
+                    case 6:
+                        let model = TagLibAudioMetadata(); model.itunesMediaType = "256"
+                        try TagLibMetadataExtractor.writeMetadata(model, to: url)
+                    case 7:
+                        let model = TagLibAudioMetadata(); model.itunesCatalogId = "not-an-id"
+                        try TagLibMetadataExtractor.writeMetadata(model, to: url)
+                    default: try TagLibMetadataExtractor.writeRawPropertyMapValues(["BPM": ["70000"]], to: url)
+                    }
+                }
+                #expect(try Data(contentsOf: url) == original)
+            }
+        }
+    }
+
+    @Test func explicitZeroTotalIsNotRecoveredFromOldNumberText() throws {
+        try RepairNativeProbe.withCopy("m4a") { url in
+            try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.track: .integer(3), .trackTotal: .integer(12)]), to: url)
+            try TagLibMetadataManager.applyMetadataPatch(.init(numberText: .init(trackNumberText: "5/0")), to: url)
+            let after = try TagLibMetadataManager.readMetadataResult(from: url)
+            #expect(after.track == 5 && after.trackTotal == 0)
+        }
     }
 
 }

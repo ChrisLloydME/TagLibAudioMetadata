@@ -178,6 +178,20 @@ static TagLib::ID3v2::Version ID3v2SaveVersion(TagLib::ID3v2::Tag * _Nullable ta
     return TagLib::ID3v2::v4;
 }
 
+// Ask the pinned engine for its native encoder instead of maintaining a
+// second incomplete list of reserved atoms. No engine source is vendored.
+namespace {
+class NativeMP4Codec final : public TagLib::MP4::ItemFactory {
+public:
+    using Kind = ItemHandlerType;
+    static Kind forKey(NSString *key) {
+        if ([key hasPrefix:@"----:"]) return Kind::FreeForm;
+        static const NativeMP4Codec factory;
+        return factory.handlerTypeForName(TagLib::String(key.UTF8String ?: "", TagLib::String::UTF8).data(TagLib::String::Latin1));
+    }
+};
+} // namespace
+
 // One documented maximum for API-generated zero padding on track/disc text.
 // Reject wider requests instead of formatting or clamping them.
 static constexpr NSInteger kMaximumGeneratedNumberPaddingWidth = 64;
@@ -454,6 +468,56 @@ static BOOL ValidateNonnegativeIntValue(NSInteger value, NSString *name, NSError
             error,
             [NSString stringWithFormat:@"%@ must be between 0 and %d", name, std::numeric_limits<int>::max()]
         );
+    }
+    return YES;
+}
+
+static BOOL ValidateNativeNumberPair(NSInteger number, NSInteger total,
+                                      TLTagFileFormat format, NSError **error)
+{
+    if (format == TLTagFileFormatMP4 && (number > 65535 || total > 65535))
+        return SetNumericValidationError(error, @"MP4 pair components must be between 0 and 65535");
+    if (format == TLTagFileFormatASF && number == 0 && total > 0)
+        return SetNumericValidationError(error, @"ASF has no verified total-only number representation");
+    return YES;
+}
+
+// Raw numeric fields are encoded by native binary handlers too. Validate only
+// submitted values, never an untouched projection being retained for a delta.
+static BOOL ValidateMP4RequestedProperties(const TagLib::PropertyMap &properties, NSError **error)
+{
+    using Kind = NativeMP4Codec::Kind;
+    for (const auto &[key, values] : properties) {
+        if (values.isEmpty()) continue;
+        const auto name = TagLib::MP4::ItemFactory::instance()->nameForPropertyKey(key);
+        if (name.startsWith("----")) continue;
+        NSString *nativeKey = TagStringToNSString(TagLib::String(name, TagLib::String::Latin1));
+        const auto kind = NativeMP4Codec::forKey(nativeKey);
+        const bool pair = kind == Kind::IntPair || kind == Kind::IntPairNoTrailing;
+        unsigned long long maximum;
+        switch (kind) {
+            case Kind::IntPair: case Kind::IntPairNoTrailing: maximum = 65535; break;
+            case Kind::Int: maximum = 32767; break;
+            case Kind::Gnre: case Kind::Byte: maximum = 255; break;
+            case Kind::UInt: maximum = std::numeric_limits<unsigned int>::max(); break;
+            case Kind::LongLong: maximum = std::numeric_limits<long long>::max(); break;
+            case Kind::Bool: maximum = 1; break;
+            default: continue;
+        }
+        if (values.size() != 1)
+            return SetNumericValidationError(error, @"A native MP4 numeric owner accepts one value");
+        NSString *text = TagStringToNSString(values.front());
+        NSArray<NSString *> *parts = pair ? [text componentsSeparatedByString:@"/"] : @[text];
+        if (parts.count > (pair ? 2u : 1u))
+            return SetNumericValidationError(error, @"Malformed MP4 numeric value");
+        for (NSString *part in parts) {
+            // An omitted first component is the native total-only sentinel.
+            NSString *trimmed = TrimmedStringOrNil(part);
+            if (!trimmed && pair) continue;
+            unsigned long long parsed = 0;
+            if (!trimmed || !ParseUnsignedDecimalString(trimmed, maximum, parsed))
+                return SetNumericValidationError(error, @"MP4 numeric property exceeds its native representation");
+        }
     }
     return YES;
 }
