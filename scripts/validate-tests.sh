@@ -6,7 +6,12 @@ cd "$(dirname "$0")/.."
 MODE="${1:-debug}"
 case "$MODE" in debug|release) ;; *) echo 'Usage: validate-tests.sh [debug|release]' >&2; exit 2;; esac
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-EVIDENCE=".build/test-evidence/${MODE}-$(date +%Y%m%d-%H%M%S)-$$"
+if [[ -n "${TAGLIB_EVIDENCE_ID:-}" ]]; then
+  EVIDENCE=".build/test-evidence/${MODE}-${TAGLIB_EVIDENCE_ID}"
+  rm -rf "$EVIDENCE"
+else
+  EVIDENCE=".build/test-evidence/${MODE}-$(date +%Y%m%d-%H%M%S)-$$"
+fi
 SCENARIOS="$EVIDENCE/scenarios"
 mkdir -p "$SCENARIOS"
 export TAGLIB_TEST_EVIDENCE_DIR="$SCENARIOS"
