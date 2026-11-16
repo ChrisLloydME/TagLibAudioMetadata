@@ -1374,7 +1374,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 4)
     }
 
-    func testM4ANumberPatchNeverRenamesLegacyPrivateFormattingAtoms() throws {
+    func testM4ANumberPatchRetiresPrivateFormattingWithoutRenamingIt() throws {
         let url = try copyAudioFixture("m4a")
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(
             StructuredMetadata(mp4Atoms: [
@@ -1392,21 +1392,14 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         )
 
         let atoms = try TagLibMetadataManager.readStructuredMetadataResult(from: url).mp4Atoms
-        // A typed pair edit writes native trkn/disk. Legacy app-owned
-        // formatting provenance is preserved byte-for-byte (no rename) until an
-        // explicit normalization plan retires it.
+        // Both groups were explicitly edited. Retire owned provenance instead
+        // of renaming it or requiring a separate maintenance UI.
         XCTAssertEqual(atoms.first { $0.key == "trkn" }?.first, 5)
         XCTAssertEqual(atoms.first { $0.key == "trkn" }?.second, 12)
         XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, 1)
         XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, 4)
-        XCTAssertEqual(
-            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
-            ["03/12"]
-        )
-        XCTAssertEqual(
-            atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
-            ["01/02"]
-        )
+        XCTAssertNil(atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" })
+        XCTAssertNil(atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" })
         XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("TAGLIBAUDIOMETADATA_") })
     }
 
@@ -1461,7 +1454,7 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertFalse(atoms.contains { $0.key.uppercased().contains("AUDIOMATOR_DISCNUMBER_TEXT") })
     }
 
-    func testM4ABasicNumericEditsPreserveLegacyPrivateAtomsAndUpdateNativePair() throws {
+    func testM4ABasicNumericEditsRetireOnlyEditedPrivateProvenance() throws {
         struct Scenario {
             let name: String
             let edit: (inout BasicMetadata) -> Void
@@ -1530,27 +1523,15 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
             XCTAssertEqual(atoms.first { $0.key == "disk" }?.first, scenario.expectedDisc, scenario.name)
             XCTAssertEqual(atoms.first { $0.key == "disk" }?.second, scenario.expectedDiscTotal, scenario.name)
 
-            // The target contract retires both private namespaces: no new
-            // package-owned atom may be manufactured, and unrelated legacy
-            // provenance remains byte-for-byte until an explicit cleanup.
-            XCTAssertNil(
-                atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" },
-                scenario.name
-            )
-            XCTAssertNil(
-                atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" },
-                scenario.name
-            )
-            XCTAssertEqual(
-                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
-                ["03/12"],
-                scenario.name
-            )
-            XCTAssertEqual(
-                atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
-                ["01/02"],
-                scenario.name
-            )
+            // Only the explicitly edited group retires provenance. Preserve
+            // the counterpart's exact array; never manufacture a new prefix.
+            XCTAssertNil(atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT" }, scenario.name)
+            XCTAssertNil(atoms.first { $0.key == "----:com.apple.iTunes:TAGLIBAUDIOMETADATA_DISCNUMBER_TEXT" }, scenario.name)
+            let changedTrack = scenario.name.hasPrefix("track")
+            XCTAssertEqual(atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT" }?.values,
+                           changedTrack ? nil : ["03/12"], scenario.name)
+            XCTAssertEqual(atoms.first { $0.key == "----:com.apple.iTunes:AUDIOMATOR_DISCNUMBER_TEXT" }?.values,
+                           changedTrack ? ["01/02"] : nil, scenario.name)
         }
     }
 

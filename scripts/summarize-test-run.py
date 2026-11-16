@@ -60,6 +60,7 @@ REQUIRED_XCTEST = {
 
 # Counts may grow when the reviewed inventory grows; they may not shrink.
 REQUIRED_TESTS = {
+    "canonicalNativeValueWinsDespiteLegacyAliasDiagnostic": 1,
     "ordinaryNumberEditsRecoverAndRetireOnlyOwnedGroup": 21,
     "numberTextRetiresProvenanceInSameSave": 4,
     "canonicalNumbersBeatConflictingOrMalformedPrivateProvenance": 1,

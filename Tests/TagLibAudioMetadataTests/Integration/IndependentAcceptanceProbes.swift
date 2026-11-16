@@ -10,14 +10,28 @@ struct IndependentAcceptanceProbes {
         try TagLibMetadataManager.writeStructuredMetadataWithVerification(StructuredMetadata(mp4Atoms: seed), to: url)
         return url
     }
-    @Test func nativeAndAliasConflictMustBeAmbiguous() throws {
-        let url = try fixture([.init(key:"trkn",type:"intPair",first:3,second:12), .init(key:"----:com.apple.iTunes:TRACKTOTAL",type:"stringList",values:["99"])])
-        defer { try? FileManager.default.removeItem(at:url) }
-        let inv = try TagLibMetadataManager.numberingInventory(at:url)
-        #expect(inv.track.total.state == .ambiguous)
-        let before = try Data(contentsOf:url)
-        #expect(throws: (any Error).self) { try TagLibMetadataManager.applyMetadataPatch(MetadataPatch(fields:[.track:.integer(5)]),to:url) }
-        #expect(try Data(contentsOf:url) == before)
+    @Test func canonicalNativeValueWinsDespiteLegacyAliasDiagnostic() throws {
+        let identity = "----:com.apple.iTunes:TRACKTOTAL"
+        let url = try fixture([.init(key: "trkn", type: "intPair", first: 3, second: 12),
+            .init(key: identity, type: "stringList", values: ["99"])])
+        defer { try? FileManager.default.removeItem(at: url) }
+        let inventory = try TagLibMetadataManager.numberingInventory(at: url)
+        // Inventory preserves the diagnostic; normal editing has a defined
+        // canonical authority rule and does not ask callers to pick a source.
+        #expect(inventory.track.total.state == .ambiguous)
+        #expect(inventory.track.total.nativeValue == 12)
+        let before = try IndependentMP4Probe.read(url)
+        try TagLibMetadataManager.applyMetadataPatch(.init(fields: [.track: .integer(5)]), to: url)
+        let after = try IndependentMP4Probe.read(url)
+        let bytes = try #require(after.values["trkn"]?.first)
+        try #require(bytes.count >= 6)
+        #expect(Int(bytes[2]) << 8 | Int(bytes[3]) == 5)
+        #expect(Int(bytes[4]) << 8 | Int(bytes[5]) == 12)
+        #expect(after.items[identity] == nil)
+        for key in before.items.keys where key != "trkn" && key != identity {
+            #expect(after.items[key] == before.items[key])
+        }
+        #expect(after.audio == before.audio)
     }
     @Test func trackCleanupMustPreserveDiscAliases() throws {
         let url = try fixture([.init(key:"trkn",type:"intPair",first:3,second:0), .init(key:"----:com.apple.iTunes:TRACKTOTAL",type:"stringList",values:["12"]), .init(key:"disk",type:"intPair",first:1,second:2), .init(key:"----:com.apple.iTunes:DISCTOTAL",type:"stringList",values:["99"])])
