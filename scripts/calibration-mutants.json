@@ -174,6 +174,45 @@
       ],
       "test_filter": "malformedNativeEvidenceIsRejected",
       "witness": "an error was expected"
+    },
+    {
+      "id": "omitted-number-provenance-retirement",
+      "description": "Keep old private candidates after an ordinary numbering edit.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift",
+          "find": "retiredNumberProvenance.formUnion(group.privateTexts.map(\\.identity))",
+          "replace": "retiredNumberProvenance.formUnion(group.privateTexts.prefix(0).map(\\.identity))"
+        }
+      ],
+      "test_filter": "ordinaryNumberEditsRecoverAndRetireOnlyOwnedGroup",
+      "witness": "after.items[identity] == nil"
+    },
+    {
+      "id": "guessed-opaque-number-sibling",
+      "description": "Treat an unreadable missing sibling as zero during partial edits.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataNumberInventory.swift",
+          "find": "throw MetadataPatchValidationError.ambiguousNumberRecovery(field: field, identities: component.identities)",
+          "replace": "return component.recoveredValue ?? 0"
+        }
+      ],
+      "test_filter": "malformedMissingSiblingDoesNotDisappearDuringPartialEdit",
+      "witness": "an error was expected"
+    },
+    {
+      "id": "legacy-conflict-overrides-native-authority",
+      "description": "Block an authoritative canonical sibling because private candidates disagree.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataNumberInventory.swift",
+          "find": "if !component.hasUnresolvedNativeValues, let native = component.nativeValue { return native }",
+          "replace": "if component.state == .native, let native = component.nativeValue { return native }"
+        }
+      ],
+      "test_filter": "canonicalNumbersBeatConflictingOrMalformedPrivateProvenance",
+      "witness": "ambiguousNumberRecovery"
     }
   ]
 }

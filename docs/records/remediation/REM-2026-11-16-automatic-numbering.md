@@ -1,0 +1,26 @@
+# Automatic numbering compatibility — 2026-11-16
+
+Baseline: published 0.8.0 (`e91d822`). Branch: `codex/automatic-numbering-recovery`. The maintainer explicitly authorized unfreezing this package for the new product contract and local override integration, without publication.
+
+The old explicit-resolution policy was intentional but exposed internal storage decisions in the application. A copied MP4 containing only private `03/12` recovered through inventory but not Basic, and an ordinary edit to `5/12` preserved stale provenance that blocked later removal. Normal edits now resolve supplied values first, canonical siblings next and unambiguous recovery last. Exact private identities of edited groups retire on the existing staged file; untouched provenance and data remain. No new public API, binary/dependency change, source workaround or second commit is introduced. Basic continues its scalar projection; consumers use inventory for recovered display values.
+
+Six new native-oracle tests include 21 parameterized lifecycle cases (each exercising track and disc) and four text cases. They verify exact private retirement, other groups/foreign lookalikes/audio preservation, one staging transaction, canonical authority, ambiguous/opaque sibling rejection, full replacement and failure atomicity. Legal MP4 disc pairs have six bytes; the native oracle handles both six- and eight-byte pair payloads. Focused new and existing numbering/release-acceptance regressions passed. Three actual-test calibration faults cover omitted retirement, guessed opaque siblings and failure to prefer canonical values (16 total faults).
+
+Unrelated writes do not gain extra inventory extraction. Standalone strict Debug acceptance and local override integration are required below. Release builds/tests are skipped per the maintainer's instruction. No tag, push or publication is performed.
+
+The initial expanded calibration failed closed because the omitted-retirement fault introduced an unused binding under warnings-as-errors; no kill was claimed. The fault now consumes an empty prefix of the captured group, compiles, and is killed by the native retirement assertion. A development-only subset killed all three new faults; it remains partial evidence. The complete 16-fault campaign is required for final Debug acceptance.
+
+The first complete Debug campaign was rejected on exactly three old-design test functions: two fixture tests required edited private provenance to survive, and one probe required all native/alias disagreement to block a normal edit. They were retained and renamed with new assertions for selected-group retirement, exact untouched-group preservation, no renamed replacement prefix, canonical authority and independent native/audio preservation. No production repair was needed after that run; all other declarations passed. The new canonical-authority probe is required by the gate.
+
+## Final standalone Debug acceptance
+
+Final tested package revision: `e9fb7da16e793d78d3a8460f7790b61dc8d26016`. Full source hash: `3c6330fb6eb1ccef1b2a3f5a35779c93ac70aed58d748acf86d623cd66d1578a`. `validate-contracts.sh debug` accepted the complete campaign: 181 XCTest declarations (179 passed, the same two reviewed opt-in skips, no failures), 280 Swift Testing declarations in 52 suites, 75/75 required scenarios and exact adapter/assertion evidence. All 16 canonical faults compiled, activated and were killed; controls passed and source was restored. The 93 Python policies passed. No existing test was skipped or waived. The three superseded design tests were retained with the amended native/retirement assertions; the final gate has no named failures.
+
+Evidence:
+
+- `.build/test-evidence/debug-automatic-numbering-complete/`
+- `.build/test-calibration/automatic-numbering-complete/calibration.json`
+- `.build/automatic-numbering-final-policy.log`
+- `.build/automatic-numbering-asan.log` and `.build/automatic-numbering-tsan.log`: six new declarations (21 lifecycle parameter cases covering both groups, four text cases and four controls) passed in each focused sanitizer run. Package product sources did not change after these runs; subsequent changes updated superseded test assertions/calibration definitions only.
+
+The final application Debug-only local override gate passed 62 core and 593 app-hosted tests against this product code. This is supplementary integration evidence, not the package acceptance method. Release builds/tests, hosted CI, device runs and binary sanitization were not performed; the pinned upstream TagLib binary remains uninstrumented. Main and the published 0.8.0 tag are unchanged. This is a local candidate requiring publication/adoption before an application release; no push, tag, release or binary/dependency update is performed. This addendum is documentation-only after the tested revision.
