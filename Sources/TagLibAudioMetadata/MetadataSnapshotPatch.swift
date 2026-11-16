@@ -347,24 +347,6 @@ extension TagLibMetadataManager {
         fileURL: URL
     ) throws -> (track: (number: Int, total: Int)?, disc: (number: Int, total: Int)?) {
         let inventory = numberingInventory(from: snapshot)
-        func resolvedTotal(_ component: MetadataNumberComponentInventory, field: String) throws -> Int {
-            if component.isUnresolved {
-                throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                    field: field,
-                    identities: component.identities
-                )
-            }
-            return component.resolvedValue ?? 0
-        }
-        for (selected, group, name) in [
-            (numberText.trackNumberText != nil, inventory.track, "track"),
-            (numberText.discNumberText != nil, inventory.disc, "disc"),
-        ] where selected && group.hasUnresolvedComponents {
-            throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                field: name,
-                identities: group.number.identities + group.total.identities
-            )
-        }
         func inputPair(_ text: String, field: String) throws -> (number: Int, total: Int) {
             let trimmed = normalizedTrimmed(text)
             if trimmed.isEmpty { return (0, 0) }
@@ -389,12 +371,12 @@ extension TagLibMetadataManager {
         if let pair = trackPair, pair.total == 0,
            numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
            numberText.trackNumberText?.contains("/") == false {
-            trackPair?.total = try resolvedTotal(inventory.track.total, field: "trackTotal")
+            trackPair?.total = try automaticNumberValue(in: inventory.track, number: false, field: "trackTotal")
         }
         if let pair = discPair, pair.total == 0,
            numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
            numberText.discNumberText?.contains("/") == false {
-            discPair?.total = try resolvedTotal(inventory.disc.total, field: "discTotal")
+            discPair?.total = try automaticNumberValue(in: inventory.disc, number: false, field: "discTotal")
         }
         if let trackPair {
             try validateNativeNumberPair(
@@ -502,25 +484,22 @@ extension TagLibMetadataManager {
             let patchesNumberPair = !structuredNumberPairFields.isDisjoint(with: validatedPatch.fields.keys)
             var expectedNumberPairs: [MetadataFieldKey: Int] = [:]
             var numberMutations: [() throws -> Void] = []
+            var numberInventory: MetadataNumberingInventory?
 
             if patchesNumberPair {
                 let current = before.basic
                 let inventory = numberingInventory(from: before)
-                func resolved(_ component: MetadataNumberComponentInventory, field: String) throws -> Int {
-                    if component.isUnresolved {
-                        throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                            field: field,
-                            identities: component.identities
-                        )
-                    }
-                    return component.resolvedValue ?? 0
-                }
+                numberInventory = inventory
                 let updatesTrackPair = validatedPatch.fields[.track] != nil || validatedPatch.fields[.trackTotal] != nil
                 let updatesDiscPair = validatedPatch.fields[.disc] != nil || validatedPatch.fields[.discTotal] != nil
-                var track = updatesTrackPair ? try resolved(inventory.track.number, field: "track") : current.track
-                var trackTotal = updatesTrackPair ? try resolved(inventory.track.total, field: "trackTotal") : current.trackTotal
-                var disc = updatesDiscPair ? try resolved(inventory.disc.number, field: "disc") : current.disc
-                var discTotal = updatesDiscPair ? try resolved(inventory.disc.total, field: "discTotal") : current.discTotal
+                var track = updatesTrackPair ? try automaticNumberValue(in: inventory.track, number: true,
+                    replacement: validatedPatch.fields[.track], field: "track") : current.track
+                var trackTotal = updatesTrackPair ? try automaticNumberValue(in: inventory.track, number: false,
+                    replacement: validatedPatch.fields[.trackTotal], field: "trackTotal") : current.trackTotal
+                var disc = updatesDiscPair ? try automaticNumberValue(in: inventory.disc, number: true,
+                    replacement: validatedPatch.fields[.disc], field: "disc") : current.disc
+                var discTotal = updatesDiscPair ? try automaticNumberValue(in: inventory.disc, number: false,
+                    replacement: validatedPatch.fields[.discTotal], field: "discTotal") : current.discTotal
                 var movementNumber = current.movementNumber
                 var movementCount = current.movementCount
 
@@ -590,6 +569,7 @@ extension TagLibMetadataManager {
             }
 
             if let numberText = patch.numberText {
+                if numberInventory == nil { numberInventory = numberingInventory(from: before) }
                 let (trackPair, discPair) = try resolveNumberTextPairs(
                     numberText, from: before, fileURL: mutationURL
                 )
@@ -715,6 +695,18 @@ extension TagLibMetadataManager {
                 }
             }
 
+            let numberingGroups = numberInventory.map { [
+                (expectedNumberPairs[.track] != nil, $0.track),
+                (expectedNumberPairs[.disc] != nil, $0.disc),
+            ] } ?? []
+            var retiredNumberProvenance = Set<String>()
+            for (edited, group) in numberingGroups where edited {
+                retiredNumberProvenance.formUnion(group.privateTexts.map(\.identity))
+            }
+            nativeAtoms.append(contentsOf: retiredNumberProvenance.sorted().map {
+                StructuredMP4Atom(key: $0, type: "stringList", remove: true)
+            })
+
             if before.structured.id3v2MajorVersion == 3 {
                 id3Frames.append(contentsOf: ID3v23DateSafety.preservationFrames(
                     in: before.structured.id3v2Frames
@@ -772,6 +764,17 @@ extension TagLibMetadataManager {
                 fileExtension: mutationURL.pathExtension,
                 structured: afterStructured
             )
+            for identity in retiredNumberProvenance where afterStructured.mp4Atoms.contains(where: { $0.key == identity }) {
+                warnings.append("Edited numbering provenance remains after save: \(identity).")
+            }
+            // Retirement must never touch the counterpart group's provenance.
+            for (edited, group) in numberingGroups where !edited {
+                let identities = Set(group.privateTexts.map(\.identity))
+                if before.structured.mp4Atoms.filter({ identities.contains($0.key) })
+                    != afterStructured.mp4Atoms.filter({ identities.contains($0.key) }) {
+                    warnings.append("Unedited numbering provenance changed during save.")
+                }
+            }
             var intentionallyChangedKeys = keysToRemove.union(nativeFieldAliases)
             for field in validatedPatch.fields.keys {
                 intentionallyChangedKeys.formUnion(

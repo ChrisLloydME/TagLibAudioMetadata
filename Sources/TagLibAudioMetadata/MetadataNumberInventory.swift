@@ -260,6 +260,25 @@ extension TagLibMetadataManager {
         )
     }
 
+    /// Normal edits supply intent, not a storage-source preference. An explicit
+    /// component replaces any historical value. Untouched components use a
+    /// unique canonical value first, then unambiguous recovery; never guess.
+    nonisolated static func automaticNumberValue(
+        in group: MetadataNumberGroupInventory, number: Bool,
+        replacement: MetadataPatchValue? = nil, field: String
+    ) throws -> Int {
+        if case .integer(let value) = replacement { return value }
+        if replacement == .remove { return 0 }
+        let component = number ? group.number : group.total
+        if !component.hasUnresolvedNativeValues, let native = component.nativeValue { return native }
+        let opaquePair = group.privateTexts.contains { !$0.isStrictlyNumeric }
+            || group.number.hasUnresolvedNativeValues || group.total.hasUnresolvedNativeValues
+        if component.isUnresolved || (component.state == .absent && opaquePair) {
+            throw MetadataPatchValidationError.ambiguousNumberRecovery(field: field, identities: component.identities)
+        }
+        return component.resolvedValue ?? 0
+    }
+
     public nonisolated static func numberingInventory(at url: URL) throws -> MetadataNumberingInventory {
         numberingInventory(from: try readSnapshot(from: url))
     }
