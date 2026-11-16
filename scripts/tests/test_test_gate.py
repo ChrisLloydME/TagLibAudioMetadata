@@ -47,9 +47,9 @@ def build_pass_log() -> str:
             extra.append(f"Suite {suite} passed.")
     log = log.replace(
         'Test run with 231 tests in 42 suites passed after 8 seconds.',
-        'Test run with 274 tests in 51 suites passed after 8 seconds.',
+        'Test run with 280 tests in 52 suites passed after 8 seconds.',
     )
-    final = 'Test run with 274 tests in 51 suites passed after 8 seconds.'
+    final = 'Test run with 280 tests in 52 suites passed after 8 seconds.'
     if final in log:
         log = log.replace(final, '\n'.join(extra) + '\n' + final if extra else final)
     else:
@@ -193,8 +193,8 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 274 tests', 'run with 273 tests')))
-        self.assertFalse(self.accepted(PASS.replace('in 51 suites', 'in 50 suites')))
+        self.assertFalse(self.accepted(PASS.replace('run with 280 tests', 'run with 279 tests')))
+        self.assertFalse(self.accepted(PASS.replace('in 52 suites', 'in 51 suites')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -388,7 +388,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(lines[:-1]) + '\n'))
 
     def test_missing_framework_completion_is_rejected(self):
-        self.assertFalse(self.accepted(PASS.replace('Test run with 274 tests in 51 suites passed after 8 seconds.\n', '')))
+        self.assertFalse(self.accepted(PASS.replace('Test run with 280 tests in 52 suites passed after 8 seconds.\n', '')))
 
     def test_contract_suite_cannot_be_filtered(self):
         for suite in ('ContractBuilderOracleSelfTests', 'ContractMP4ScenarioTests',
@@ -484,3 +484,11 @@ class TestGatePolicy(unittest.TestCase):
             env=os.environ | {"TAGLIB_WRITE_CLAIMS": "1"}, capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)
         self.assertIn("Claim blessing", result.stderr)
+
+
+    def test_automatic_numbering_contracts_are_required(self):
+        for name in ("ordinaryNumberEditsRecoverAndRetireOnlyOwnedGroup", "numberTextRetiresProvenanceInSameSave",
+                     "canonicalNumbersBeatConflictingOrMalformedPrivateProvenance", "ambiguousMissingSiblingNeedsValueButFullReplacementSucceeds",
+                     "malformedMissingSiblingDoesNotDisappearDuringPartialEdit", "staleAndInvalidMixedWritesCannotPartiallyCleanPrivateData"):
+            with self.subTest(name=name):
+                self.assertFalse(self.accepted("\n".join(line for line in PASS.splitlines() if name not in line)))

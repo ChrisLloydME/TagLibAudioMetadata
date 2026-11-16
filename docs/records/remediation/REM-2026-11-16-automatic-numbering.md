@@ -1,0 +1,9 @@
+# Automatic numbering compatibility — 2026-11-16
+
+Baseline: published 0.8.0 (`e91d822`). Branch: `codex/automatic-numbering-recovery`. The maintainer explicitly authorized unfreezing this package for the new product contract and local override integration, without publication.
+
+The old explicit-resolution policy was intentional but exposed internal storage decisions in the application. A copied MP4 containing only private `03/12` recovered through inventory but not Basic, and an ordinary edit to `5/12` preserved stale provenance that blocked later removal. Normal edits now resolve supplied values first, canonical siblings next and unambiguous recovery last. Exact private identities of edited groups retire on the existing staged file; untouched provenance and data remain. No new public API, binary/dependency change, source workaround or second commit is introduced. Basic continues its scalar projection; consumers use inventory for recovered display values.
+
+Six new native-oracle tests include 21 parameterized lifecycle cases (each exercising track and disc) and four text cases. They verify exact private retirement, other groups/foreign lookalikes/audio preservation, one staging transaction, canonical authority, ambiguous/opaque sibling rejection, full replacement and failure atomicity. Legal MP4 disc pairs have six bytes; the native oracle handles both six- and eight-byte pair payloads. Focused new and existing numbering/release-acceptance regressions passed. Three actual-test calibration faults cover omitted retirement, guessed opaque siblings and failure to prefer canonical values (16 total faults).
+
+Unrelated writes do not gain extra inventory extraction. Standalone strict Debug acceptance and local override integration are required below. Release builds/tests are skipped per the maintainer's instruction. No tag, push or publication is performed.

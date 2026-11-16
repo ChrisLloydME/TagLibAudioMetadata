@@ -9,7 +9,7 @@
 | Method | Overload status | Source |
 | --- | --- | --- |
 | [`applyMetadataPatch`](#applymetadatapatch) | — | [MetadataSnapshotPatch.swift:317](../../Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift#L317) |
-| [`applyNumberNormalization`](#applynumbernormalization) | — | [MetadataNumberInventory.swift:449](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L449) |
+| [`applyNumberNormalization`](#applynumbernormalization) | — | [MetadataNumberInventory.swift:468](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L468) |
 | [`applyRawMetadataPatch`](#applyrawmetadatapatch) | — | [RawMetadataPatch.swift:92](../../Sources/TagLibAudioMetadata/RawMetadataPatch.swift#L92) |
 | [`bestEffortMetadata`](#besteffortmetadata) | — | [TagLibMetadataManager+Read.swift:611](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L611) |
 | [`bestEffortRawMetadata`](#besteffortrawmetadata) | — | [TagLibMetadataManager+Read.swift:617](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L617) |
@@ -21,8 +21,8 @@
 | [`formatSupportLevel`](#formatsupportlevel) | — | [FormatCapability.swift:214](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L214) |
 | [`isReadableExtension`](#isreadableextension) | — | [TagLibMetadataManager.swift:18](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L18) |
 | [`isWritableExtension`](#iswritableextension) | — | [TagLibMetadataManager.swift:22](../../Sources/TagLibAudioMetadata/TagLibMetadataManager.swift#L22) |
-| [`numberingInventory`](#numberinginventory) | — | [MetadataNumberInventory.swift:263](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L263) |
-| [`planNumberNormalization`](#plannumbernormalization) | — | [MetadataNumberInventory.swift:397](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L397) |
+| [`numberingInventory`](#numberinginventory) | — | [MetadataNumberInventory.swift:282](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L282) |
+| [`planNumberNormalization`](#plannumbernormalization) | — | [MetadataNumberInventory.swift:416](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L416) |
 | [`probeFile`](#probefile) | — | [FormatCapability.swift:206](../../Sources/TagLibAudioMetadata/FormatCapability.swift#L206) |
 | [`rawMetadataResult`](#rawmetadataresult) | — | [TagLibMetadataManager+Read.swift:622](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L622) |
 | [`readBasicSnapshot`](#readbasicsnapshot) | — | [TagLibMetadataManager+Read.swift:583](../../Sources/TagLibAudioMetadata/TagLibMetadataManager+Read.swift#L583) |
@@ -82,7 +82,7 @@ func applyNumberNormalization(
 ) throws -> MetadataWriteResult
 ```
 
-Source: [MetadataNumberInventory.swift:449](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L449)
+Source: [MetadataNumberInventory.swift:468](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L468)
 
 ## `applyRawMetadataPatch`
 
@@ -256,7 +256,7 @@ func numberingInventory(
 ) throws -> MetadataNumberingInventory
 ```
 
-Source: [MetadataNumberInventory.swift:263](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L263)
+Source: [MetadataNumberInventory.swift:282](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L282)
 
 ## `planNumberNormalization`
 
@@ -270,7 +270,7 @@ func planNumberNormalization(
 ) throws -> MetadataNumberNormalizationPlan
 ```
 
-Source: [MetadataNumberInventory.swift:397](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L397)
+Source: [MetadataNumberInventory.swift:416](../../Sources/TagLibAudioMetadata/MetadataNumberInventory.swift#L416)
 
 ## `probeFile`
 

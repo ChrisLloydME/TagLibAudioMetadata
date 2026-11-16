@@ -60,6 +60,13 @@ REQUIRED_XCTEST = {
 
 # Counts may grow when the reviewed inventory grows; they may not shrink.
 REQUIRED_TESTS = {
+    "ordinaryNumberEditsRecoverAndRetireOnlyOwnedGroup": 21,
+    "numberTextRetiresProvenanceInSameSave": 4,
+    "canonicalNumbersBeatConflictingOrMalformedPrivateProvenance": 1,
+    "ambiguousMissingSiblingNeedsValueButFullReplacementSucceeds": 1,
+    "malformedMissingSiblingDoesNotDisappearDuringPartialEdit": 1,
+    "staleAndInvalidMixedWritesCannotPartiallyCleanPrivateData": 1,
+
     "contractFullModelRetiresEditedReleaseAlias": 1,
     "contractPreviouslyUnobservedSurfaces": 1,
     'explicitZeroTotalIsNotRecoveredFromOldNumberText': 1,
@@ -223,13 +230,13 @@ REQUIRED_SUITES = (
     'ID3SemanticLifecycleTests', 'NativeProbeContractTests', 'BasicIntegrityMatrixTests',
     'AdditionalContainerLifecycleTests', 'ASFNativeLifecycleTests', 'AuditProbeTests',
     'ID3ContainerLifecycleTests', 'PublicWriteContractRepairTests', 'ReleaseAcceptanceTests',
-    'ContractBuilderOracleSelfTests', 'ContractClaimsTests', 'ContractMP4ScenarioTests',
+    'AutomaticNumberingTests', 'ContractBuilderOracleSelfTests', 'ContractClaimsTests', 'ContractMP4ScenarioTests',
     'ContractBridgeAndEncodingTests', 'ContractNativeContainerTests', 'ContractFieldCoverageTests',
 )
 
 XCTEST_MINIMUM = 181
-SWIFT_TESTING_MINIMUM = 274
-SWIFT_SUITE_MINIMUM = 51
+SWIFT_TESTING_MINIMUM = 280
+SWIFT_SUITE_MINIMUM = 52
 
 
 def xctest_identity(name: str):

@@ -531,3 +531,7 @@ for url in urls {
 - [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md) — guarded rebases.
 - [Field reference](../reference/FIELDS.md) — keys, native targets, patch constraints.
 - [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent matrices and coverage limits.
+
+## Automatic numbering compatibility
+
+Normal `applyMetadataPatch` numbering edits no longer require a separate normalization preview. An explicit component value/removal wins, an untouched valid native component wins over aliases, and a missing component is recovered only when unambiguous. Exact recognized private provenance is retired for edited groups on the same staged file as other requested fields. Unrelated fields and the other pair preserve provenance; reads do not migrate files. Supplying both components resolves ambiguity without choosing a storage source. Invalid input and stale guards leave the original unchanged.
