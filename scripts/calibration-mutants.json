@@ -182,7 +182,7 @@
         {
           "file": "Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift",
           "find": "retiredNumberProvenance.formUnion(group.privateTexts.map(\\.identity))",
-          "replace": "retiredNumberProvenance.formUnion([])"
+          "replace": "retiredNumberProvenance.formUnion(group.privateTexts.prefix(0).map(\\.identity))"
         }
       ],
       "test_filter": "ordinaryNumberEditsRecoverAndRetireOnlyOwnedGroup",
