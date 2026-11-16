@@ -638,5 +638,9 @@
   "staleAndInvalidMixedWritesCannotPartiallyCleanPrivateData": {
     "suite": "AutomaticNumberingTests",
     "path": "Integration/AutomaticNumberingTests.swift"
+  },
+  "canonicalNativeValueWinsDespiteLegacyAliasDiagnostic": {
+    "suite": "IndependentAcceptanceProbes",
+    "path": "Integration/IndependentAcceptanceProbes.swift"
   }
 }
