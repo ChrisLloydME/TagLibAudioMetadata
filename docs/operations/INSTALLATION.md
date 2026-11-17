@@ -2,7 +2,7 @@
 
 The package consumes an immutable, checksum-pinned TagLib 2.3.1 dynamic XCFramework. It has no source, static, Homebrew, or system-library fallback.
 
-This page applies to version `0.8.0` and to the tagged releases it supersedes. Version `0.8.0` includes mapping contract 2.2 behavior, the `0.7.1` through `0.7.3` corrections, and the breaking API cleanup, public write-contract repairs and contract test system finalized for this release. The TagLib binary identity is unchanged from `0.7.3`. Use the [migration guide](MIGRATION.md) when comparing behavior across releases.
+This page applies to version `0.8.0`, the latest published release (tag `9e986eb`), and to the tagged releases it supersedes. Version `0.8.0` includes mapping contract 2.2 behavior, the `0.7.1` through `0.7.3` corrections, and the breaking API cleanup, public write-contract repairs and contract test system finalized for this release. The TagLib binary identity is unchanged from `0.7.3`. Use the [migration guide](MIGRATION.md) when comparing behavior across releases. Current `main` also carries unreleased numbering repairs; they are not in the tag.
 
 ## Add the package
 
@@ -17,7 +17,7 @@ Depend on the Swift facade for normal application code. This version range selec
 .product(name: "TagLibAudioMetadata", package: "TagLibAudioMetadata")
 ```
 
-The `0.8.0` release notes describe the delta from `0.7.3`; see the [changelog](../../CHANGELOG.md). Because `0.8.0` removes compatibility-only API, review the [migration actions](MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading. To evaluate later untagged work after `0.8.0`, opt in explicitly:
+The `0.8.0` release notes describe the delta from `0.7.3`; see the [changelog](../../CHANGELOG.md). Because `0.8.0` removes compatibility-only API, review the [migration actions](MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading. To evaluate later untagged work after `0.8.0`, opt in explicitly. The current accepted source is `558df00`; it adds automatic numbering resolution, explicit-zero intent and fail-closed opaque recovery, and has package-only Debug acceptance. For example:
 
 ```swift
 .package(

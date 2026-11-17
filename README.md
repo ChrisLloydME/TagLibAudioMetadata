@@ -2,15 +2,13 @@
 
 `TagLibAudioMetadata` is a Swift package for reading, editing, verifying, and erasing audio metadata on macOS and iOS. A Swift facade is backed by an Objective-C++ bridge to a checksum-pinned, namespaced TagLib 2.3.1 XCFramework.
 
-The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, and an explicit number-recovery API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
+The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, automatic track/disc number resolution, and an explicit number-normalization API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **Release status.** Version `0.8.0` (2026-11-15) is the current release. It is an explicitly breaking release: compatibility-only API was removed and several write paths now validate or preserve more strictly. Install from `0.8.0` and read [Migration](docs/operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading.
+> **Release status.** Version `0.8.0` (tag `9e986eb`, 2026-11-15) is the latest published release. It is an explicitly breaking release: compatibility-only API was removed and several write paths validate or preserve more strictly. Install from `0.8.0` and read [Migration](docs/operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading. The `main` branch also carries **unreleased** post-`0.8.0` numbering repairs; they are not part of the `0.8.0` tag.
 
-> **Documentation scope.** The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` added sparse native-owner preservation across public write surfaces and low-level reads; `0.8.0` adds the breaking API cleanup, the public write-contract repairs and the independent contract test system. Mapping contract 2.2 and its native target layouts are unchanged by this release.
+> **Documentation scope.** Current pages describe the code on `main` after accepted source `558df00` (later changes are documentation and tooling only) and call out behavior that belongs only to the published `0.8.0` tag. The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` added sparse native-owner preservation; `0.8.0` added the breaking API cleanup, public write-contract repairs and independent contract test system; unreleased work adds automatic numbering compatibility and explicit-number-intent repairs. Mapping contract 2.2 and its native target layouts are unchanged.
 
-The [write-concurrency follow-up](docs/records/remediation/REM-2026-11-12-write-concurrency.md) measures bounded durable writes and reduces discarded transaction projections. Its package strict Debug/Release and real AudioMator local-candidate gates pass; timings remain local workload observations.
-
-The [2026-11-15 public write-contract repairs](docs/records/remediation/REM-2026-11-15-public-write-contract.md) close additional validation, ownership, and legacy-read gaps. The [independent contract test system](docs/records/remediation/REM-2026-11-15-test-system-acceptance.md) adds a public-surface inventory, executable contract catalog, native oracles, and defect-detection calibration behind a fail-closed evidence gate. Recorded package-only acceptance at `959d688` supersedes earlier campaign counts; see [Status](docs/operations/STATUS.md).
+The post-`0.8.0` numbering repairs are accepted for the package-only **Debug** lane on source `558df00`: 181 XCTest declarations, 306 Swift Testing declarations in 55 suites, 81/81 contract scenarios, 97 policy regressions and 23/23 calibration mutants, plus consumers, focused sanitizers and five platform builds. This is not a Release acceptance and does not create a tag. See [Status](docs/operations/STATUS.md) and the [numbering-contract repair record](docs/records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
 
 ## At a glance
 
@@ -20,7 +18,7 @@ The [2026-11-15 public write-contract repairs](docs/records/remediation/REM-2026
 | Products | `TagLibAudioMetadata` (Swift facade) and `TagLibAudioMetadataLowLevel` (`CTagLibBridge`) |
 | Format coverage | 22 families and 37 extensions; query `FormatCapability` rather than hard-coding the matrix |
 | Reads | Basic, raw `PropertyMap`, structured container models, numbering inventory, and an optional audio-content identity |
-| Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, explicit number normalization, and verified erase |
+| Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, automatic number resolution, explicit number normalization, and verified erase |
 | Commit model | Sibling staging copy, atomic rename, file and parent-directory sync; process-local coordination only |
 
 ## What changed in 0.8.0
@@ -31,20 +29,23 @@ Version `0.8.0` is a breaking release with no native mapping-contract change. Mi
 - **Public writers share native validation.** Scalar, whole-model, structured, and raw writes reject out-of-range native representations before staging. Whole-model writes preserve schema-known but unmodeled owners and private numbering provenance while modeled `nil` still removes values.
 - **Legacy reads and date protection are stricter.** Legal ID3v2.3 frame-status flags and bounded grouping are read literally, DSDIFF `ID3` is located through declared `PROP` children, and WAV/AIFF saves retain the observed ID3 version. Existing v2.3 tags remain read-only for independent date changes.
 - **Selective I/O and ownership boundaries.** Snapshots, storage identity, projection reads and transactions have explicit internal ownership, and unrequested native projections are skipped without caching concrete files.
-- **The contract test system is canonical.** `scripts/validate-contracts.sh` reconciles 907 public-surface rows against 34 contracts and 75 scenarios, executes 62 public adapters through independent native oracles, and requires 13 calibrated defects to be detected before accepting the complete framework gate.
+- **The contract test system is canonical.** At `0.8.0`, `scripts/validate-contracts.sh` reconciled 907 public-surface rows against 34 contracts and 75 scenarios, executed 62 public adapters through independent native oracles, and required 13 calibrated defects to be detected before accepting the complete framework gate. The unreleased repairs expand this to 36 contracts, 81 scenarios and 23 mutants.
 
-The TagLib binary is unchanged from `0.7.3` (2.3.1-r2). Recorded package-only acceptance, sanitizer, consumer and minimum-platform evidence is in [Status](docs/operations/STATUS.md); release preparation changes documentation only.
+The TagLib binary is unchanged from `0.7.3` (2.3.1-r2). Recorded package-only acceptance, sanitizer, consumer and minimum-platform evidence for `0.8.0` is in [Status](docs/operations/STATUS.md); release preparation changed documentation only. The 2026-11-15 [public write-contract repairs](docs/records/remediation/REM-2026-11-15-public-write-contract.md) and [contract-system acceptance](docs/records/remediation/REM-2026-11-15-test-system-acceptance.md) are the release's evidence.
 
-## What changed in 0.7.3
+## Unreleased after 0.8.0
 
-Version `0.7.3` repaired native-owner state loss discovered during application adoption:
+The numbering repairs on `main` change write behavior without changing public signatures, the mapping-contract ID, or the TagLib binary. They are not part of `0.8.0`.
 
-- PropertyMap replay and low-level reads preserve existing native YEAR, DATE, RELEASEDATE and ORIGINALDATE owners, including absence, on MP4 and ID3-backed files; Xiph/APE and ASF reads distinguish their independent native keys instead of relying on engine projections.
-- MP4 semantic `.comment` and `.lyrics` patches address the native `©cmt`/`©lyr` atoms. Structured `comments`/`lyrics` collections remain unsupported on MP4.
-- ASF semantic custom fields address native Unicode attributes and reconcile only the edited field's case aliases.
-- The mixed-framework gate requires the sparse-state matrices and 8,282 additional parameterized cases in addition to the prior lifecycle evidence.
+- **Ordinary numbering edits resolve and clean up atomically.** Typed, Basic and `numberText` track/disc edits resolve an explicit component first, then the canonical native sibling, then an unambiguous legacy candidate. Recognized `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` provenance of the edited group retires in the same staged transaction. Untouched groups, foreign namespaces and unrelated fields survive.
+- **Explicit zero is intent.** `5/0`, and an empty total after a slash, store an explicit zero and never recover the previous total. Only an omitted total is resolved. The rule applies through the facade and direct bridge on MP4, ID3, FLAC, Ogg and APE/WavPack.
+- **Opaque partial evidence fails closed.** Malformed or multi-value private evidence cannot supply a missing canonical component; typed and number-text writes reject with `ambiguousNumberRecovery` before staging. A valid native component remains authoritative, and a full explicit replacement still succeeds.
+- **The contract lane grew with the repair.** The package-only Debug gate now covers 36 contracts, 81 scenarios, 62 adapters, 97 policy regressions and 23 calibration mutants, with 306 Swift Testing declarations in 55 suites.
+- **Scope.** Acceptance is package-only Debug at `558df00`; no Release lane, hosted CI, device run, application acceptance or publication was performed. See [Status](docs/operations/STATUS.md), [Migration](docs/operations/MIGRATION.md#unreleased-after-0-8-0), and [Testing](docs/operations/TESTING.md).
 
-See [Migration](docs/operations/MIGRATION.md) for the 0.7.2-to-0.7.3 changes and [Status](docs/operations/STATUS.md) for the recorded validation evidence.
+## Earlier releases
+
+Version `0.7.3` added sparse native-owner preservation across public write surfaces and low-level reads, including native MP4/ID3 date owners and ASF custom attributes. Version `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.1` corrected date/ownership and verification; `0.7.0` introduced mapping contract 2.2. Release notes are in the [changelog](CHANGELOG.md), and consumer-visible changes are in [Migration](docs/operations/MIGRATION.md).
 
 ## Requirements
 
@@ -75,6 +76,8 @@ Most targets need only the facade product:
     ]
 )
 ```
+
+`0.8.0` predates the unreleased numbering repairs. Pin an exact revision instead of the version range if you need to evaluate them before a release.
 
 Targets that name bridge types must also declare the low-level product and import its module:
 
@@ -158,7 +161,7 @@ A failure before rename leaves the original path and bytes unchanged and removes
 
 Snapshot reads capture a `MetadataFileVersion`; pass it as `expectedVersion` to reject a stale edit. TagLib parser and mutation work is serialized by a process-wide recursive mutex, and same-entry transactions are serialized by a directory-identity/name lock shared by the facade and bridge. This is **process-local coordination, not cross-process exclusion**. An external writer can still race the final identity check and rename. See [Transactions and concurrency](docs/explanation/TRANSACTIONS.md).
 
-Ordinary compatibility aliases of a track/disc pair (for example MP4 `TRACKTOTAL`/`DISCTOTAL` freeforms) may retire after an explicit edit of that pair, once their values are recovered into native `trkn`/`disk`. That cleanup is pair-scoped: untouched groups and both private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` namespaces survive ordinary writes. Private provenance is retired only by the explicit, version-guarded normalization plan; no default surface creates or renames it.
+Ordinary compatibility aliases of a track/disc pair (for example MP4 `TRACKTOTAL`/`DISCTOTAL` freeforms) may retire after an explicit edit of that pair, once their values are recovered into native `trkn`/`disk`. That cleanup is pair-scoped: untouched groups and both private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` namespaces survive ordinary writes. Recognized private provenance **of an edited group** also retires in the same transaction, which is the unreleased behavior after `0.8.0`; untouched provenance is preserved. No default surface creates or renames these atoms, and the explicit, version-guarded normalization plan remains available for headless cleanup. See [Write semantics](docs/explanation/PRESERVATION.md#number-pairs-and-native-bounds).
 
 `MetadataPatch` and `RawMetadataPatch` are omission-safe deltas. Raw APIs use prefixless TagLib `PropertyMap` keys; native MP4 `----:` atom identifiers must go through `StructuredMetadata.mp4Atoms`. Unchanged native date owners are restored across PropertyMap replay, including native absence, and a scalar projection does not authorize collapsing an existing native array. Neither delta comparison is a lossless oracle for opaque native metadata that TagLib does not expose. See [Write semantics](docs/explanation/PRESERVATION.md).
 
@@ -204,6 +207,7 @@ Start at the [documentation hub](docs/README.md), which maps tasks to the canoni
 | Topic | Document |
 | --- | --- |
 | Documentation hub and ownership | [docs/README.md](docs/README.md) |
+| Release history, including unreleased changes | [CHANGELOG.md](CHANGELOG.md) |
 | Getting started | [docs/guide/GETTING_STARTED.md](docs/guide/GETTING_STARTED.md) |
 | Reading metadata | [docs/guide/READING.md](docs/guide/READING.md) |
 | Writing metadata | [docs/guide/WRITING.md](docs/guide/WRITING.md) |
@@ -229,7 +233,7 @@ Start at the [documentation hub](docs/README.md), which maps tasks to the canoni
 | Historical audits and reviews | [docs/records/README.md](docs/records/README.md) |
 | Completed assignments and startup prompts | [docs/records/assignments/README.md](docs/records/assignments/README.md) |
 
-The documentation pipeline generates the API, model, field, format, and mapping references from source. Run `python3 scripts/check-docs.py` before committing. CI covers documentation checks, strict warnings-as-errors, the contract lane (inventory/catalog reconciliation, 13-defect calibration, and the complete Debug or Release framework gate), release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the environment-dependent privilege-bit caveat, is in [Status](docs/operations/STATUS.md).
+The documentation pipeline generates the API, model, field, format, and mapping references from source. Run `python3 scripts/check-docs.py` before committing. CI covers documentation checks, strict warnings-as-errors, the contract lane (inventory/catalog reconciliation, 23-defect calibration, and the complete Debug or Release framework gate), release builds, AddressSanitizer, ThreadSanitizer, minimum-platform compilation, consumers, and a dynamic-link audit. Configured jobs are not evidence that an unrun commit passed. The latest observed validation state, including the environment-dependent privilege-bit caveat, is in [Status](docs/operations/STATUS.md).
 
 ## License
 

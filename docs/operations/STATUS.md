@@ -6,13 +6,13 @@ This page is a snapshot of the latest known validation state for the current sou
 
 | Item | State |
 | --- | --- |
-| Current release | `0.8.0`, declared 2026-11-15 |
-| Source | `main` at the `0.8.0` release commit |
-| Later tag | None |
+| Latest published release | `0.8.0`, tag `9e986eb`, declared 2026-11-15 |
+| Current source | `main` after accepted source `558df00`; later changes are documentation and tooling only |
+| Latest accepted source | `558df00` for current `main` (package-only Debug numbering-contract acceptance); release source remains `959d688` |
+| Later tag | None after `0.8.0` |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
-| Latest accepted source | Release source `959d688`; current candidate source `558df00` (package-only Debug acceptance; not a release) |
-| Documentation scope | Current pages describe `0.8.0`; release-specific behavior is identified in [Migration](MIGRATION.md) |
-| Current candidate audit | **READY for package-only Debug acceptance** on `558df00`: [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md) closes F-01, F-02, F-03, F-04 and F-07 from [AUD-2026-11-17-pre-release](../records/audits/AUD-2026-11-17-pre-release.md). The historical audit remains linked. |
+| Documentation scope | Current pages describe current `main`; `0.8.0`-only behavior is identified in [Migration](MIGRATION.md) and the [changelog](../../CHANGELOG.md) |
+| Current state | **Accepted for package-only Debug** on `558df00`: [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md) closes F-01, F-02, F-03, F-04 and F-07 from [AUD-2026-11-17-pre-release](../records/audits/AUD-2026-11-17-pre-release.md). The historical audit remains linked. |
 
 The post-`0.8.0` numbering-contract repairs are accepted for the package-only **Debug** lane on source commit `558df00`. The complete strict campaign accepted 181 XCTest declarations (179 passed, two reviewed opt-in skips), 306 Swift Testing declarations in 55 suites, 81/81 contract scenarios, 97 policy regressions and 23/23 killed calibration mutants; both package-owned consumers, focused ASan/TSan and five minimum-platform builds also passed. This is not a Release acceptance, does not change the `0.8.0` release boundary, and does not establish application, hosted-CI, device or external-decoder behavior. The historical audit that found F-01–F-04 remains in the records index and is not rewritten as a pass.
 
@@ -20,7 +20,7 @@ Version `0.8.0` includes mapping contract 2.2, the `0.7.1` through `0.7.3` corre
 
 This is an explicitly breaking release: compatibility-only API was removed and several write paths validate or preserve more strictly. Consumers must review [Migration](MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading. No user-file migration is automatic.
 
-## Current repaired candidate acceptance (2026-11-17)
+## Current post-0.8.0 acceptance (2026-11-17)
 
 The repaired candidate is accepted for the package-only **Debug** contract campaign on source commit `558df00db502044e23d9935aa0b9fb328f237369` (branch `codex/numbering-contract-repairs-20261117`). The campaign source hash was `5cbc2ba2b6030751e624dc5f523fd6352ce9ac46e726c753e71df68ebb9b1032`; the before/after manifests were identical and the tracked diff was empty. This acceptance does not create a release, tag or publication.
 
@@ -33,11 +33,18 @@ The repaired candidate is accepted for the package-only **Debug** contract campa
 | Focused sanitizers | ASan and TSan each passed 26 tests in 3 suites without findings | `.build/numbering-repairs-asan.log`, `.build/numbering-repairs-tsan.log` |
 | Minimum platforms | 5/5 strict Debug builds: macOS 13 arm64/x86_64, iOS 16 device arm64, iOS 16 simulator arm64/x86_64 | `.build/platform-*.log` |
 
-The acceptance closes F-01, F-02, F-03, F-04 and F-07 from the [pre-release audit](../records/audits/AUD-2026-11-17-pre-release.md). F-05 (Basic unchanged-zero semantics) and F-10 (low-level private-owner preservation) remain deliberate boundaries. The record/index/status edits that describe this result are documentation-only; the accepted source commit is the gate commit. See [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
+The acceptance closes F-01, F-02, F-03, F-04 and F-07 from the [pre-release audit](../records/audits/AUD-2026-11-17-pre-release.md). F-05 (Basic unchanged-zero semantics), F-06 (exact alias ownership) and F-10 (low-level private-owner preservation) remain deliberate boundaries. The record/index/status edits that describe this result are documentation-only; the accepted source commit is the gate commit. See [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
+
+## What changed after 0.8.0
+
+- **Ordinary numbering edits are automatic and atomic.** Typed, Basic and `numberText` track/disc edits resolve an explicit component first, then the canonical native sibling, then an unambiguous legacy candidate, and retire recognized private provenance of the edited group in the same staged transaction. Untouched groups and foreign namespaces survive.
+- **Explicit zero is authoritative.** `5/0` and an empty total after a slash store zero instead of recovering the previous total; only an omitted total resolves. The Swift preflight, MP4 native branch, PropertyMap branch and ID3 inventory parsing agree.
+- **Opaque recovery fails closed.** Malformed or multi-value private evidence cannot supply a missing canonical component; ordinary writes reject with `ambiguousNumberRecovery` before staging, while full explicit replacement succeeds. The existing Basic unchanged-zero and low-level private-owner rules remain deliberate boundaries.
+- **The contract lane expanded.** 907 public-surface rows now reconcile against 36 contracts, 81 scenarios, 62 adapters, 97 policy regressions and 23 calibration mutants; the suite reports 306 Swift Testing declarations in 55 suites. See [Testing](TESTING.md) and the [repair record](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
 
 ## Accepted 0.8.0 source
 
-Final independent acceptance ran on source commit `959d688`. The campaign source hash was `09bd72f3b566ca956d62392e2ce217eacba149c7eff7bd2018083028d2c82787`; no production, test, script or configuration change followed it. Both strict lanes ran the policy suite, inventory/catalog reconciliation, the 13-mutant calibration set, and the complete framework gate:
+Final independent acceptance ran on source commit `959d688`. The campaign source hash was `09bd72f3b566ca956d62392e2ce217eacba149c7eff7bd2018083028d2c82787`; no production, test or configuration change followed it. The release commit and later work changed documentation, records and tooling only. Both strict lanes ran the policy suite, inventory/catalog reconciliation, the 13-mutant calibration set, and the complete framework gate:
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
@@ -53,6 +60,14 @@ Final independent acceptance ran on source commit `959d688`. The campaign source
 | Documentation | The campaign's 67 Markdown files passed link, heading, table, and all four generated-reference checks | `python3 scripts/check-docs.py` |
 
 The unchanged privilege test passed in the full host environment without weakening or skipping it. The pinned upstream TagLib binary is not sanitizer-instrumented, so the sanitizer runs cover package code and tests only. No hosted CI, device runtime, external-corpus lane, or application acceptance was executed for this source. No gate was rerun on the `0.8.0` release commit; release preparation changes documentation only, so the accepted source and the release commit compile from the same code. The contract system is finite: passing it does not prove every file, codec, tag layout, or caller correct. See [the acceptance record](../records/remediation/REM-2026-11-15-test-system-acceptance.md) for the full ledger and remaining limits.
+
+## What changed in 0.8.0
+
+- Breaking API cleanup removes the typed `.date` YEAR alias, obsolete read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters and verification expectations, and outdated capability/error aliases. Native mapping contract 2.2 and its target layouts are unchanged; see [Migration](MIGRATION.md#migrating-from-0-7-3-to-0-8-0).
+- Public writers share destination-aware validation: scalar, whole-model, structured and raw writes reject out-of-range native representations before staging, and whole-model writes preserve known-but-unmodeled and private owners.
+- Legacy reads and preservation are stricter: legal ID3v2.3 status flags, bounded grouping and DSDIFF `PROP`-child ID3 are read literally, WAV/AIFF saves retain the observed ID3 version, and generated number padding and `numberText` are preflighted.
+- Storage, projection reads and transactions have explicit internal ownership, and unrequested native projections are skipped while keeping the parser guard, exact verification and durable atomic commits.
+- At `0.8.0`, the contract lane replaced the matrix-only gate: 907 public-surface rows, 34 contracts, 75 scenarios, 62 adapters, 13 calibration mutants and source-bound evidence had to reconcile. The current `main` lane is 36/81/23 as described above. See [Testing](TESTING.md).
 
 ## 2026-11-15 public write-contract campaign
 
@@ -86,6 +101,13 @@ The state-coverage repairs were validated on `codex/metadata-state-coverage-repa
 
 Both gates compiled production and tests with Swift/C warnings as errors, and the mandatory privilege test passed with expanded filesystem access. Both independent consumers passed in separate runs. The evidence is recorded in [the state-coverage repair record](../records/remediation/REM-2026-11-11-state-coverage.md). These runs were on the pre-merge branch; no full accepted gate was rerun on the exact `0.7.3` release commit, and release preparation changes documentation only. Tag creation and publication remain maintainer-owned.
 
+## What changed in 0.7.3
+
+- Native MP4 item and ID3 date-frame owners survive PropertyMap replay, including absence; low-level date reads use native owners on MP4, ID3, Xiph, and APE.
+- MP4 `.comment`/`.lyrics` use native `©cmt`/`©lyr`; ASF semantic custom fields use native Unicode attributes and reconcile only their case aliases.
+- Whole-map replacement retains unchanged submitted arrays literally; MP4 custom-field writes retain existing name spelling and unchanged projections do not collapse native arrays; ARTIST no longer falls back to ARTISTS.
+- The mixed-framework gate requires the sparse-state matrices and 8,282 additional cases. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance).
+
 ## Latest observed 0.7.2 release-line package gate
 
 The recorded repair campaign examined the repaired working tree based on `c3f1481`; those repairs are included in the `0.7.2` release. The campaign used expanded filesystem access for module caches and the privilege-test prerequisites. Both configurations were accepted:
@@ -114,21 +136,6 @@ Evidence: `.build/test-evidence/debug-20261111-124030-69547/`, `.build/test-evid
 
 No full accepted gate has been rerun on the exact `0.7.2` release commit. An earlier restricted rerun reproduced the same 158 XCTest and 165 Swift Testing counts, but failed only `privilegedFilesRejectBeforeCloneInBothTransactionEngines` because the host strips the privilege bits before the test can observe them. That is an environment-precondition failure, not evidence that the recorded acceptance failed. The full gate remains red in such an environment; use the authoritative gate and its prerequisites when making a release decision.
 
-## What changed in 0.8.0
-
-- Breaking API cleanup removes the typed `.date` YEAR alias, obsolete read/write and failure-policy overloads, old function-reference arities, Boolean advisory setters and verification expectations, and outdated capability/error aliases. Native mapping contract 2.2 and its target layouts are unchanged; see [Migration](MIGRATION.md#migrating-from-0-7-3-to-0-8-0).
-- Public writers share destination-aware validation: scalar, whole-model, structured and raw writes reject out-of-range native representations before staging, and whole-model writes preserve known-but-unmodeled and private owners.
-- Legacy reads and preservation are stricter: legal ID3v2.3 status flags, bounded grouping and DSDIFF `PROP`-child ID3 are read literally, WAV/AIFF saves retain the observed ID3 version, and generated number padding and `numberText` are preflighted.
-- Storage, projection reads and transactions have explicit internal ownership, and unrequested native projections are skipped while keeping the parser guard, exact verification and durable atomic commits.
-- The contract lane replaces the matrix-only gate: 907 public-surface rows, 34 contracts, 75 scenarios, 62 adapters, 13 calibration mutants and source-bound evidence must all reconcile. See [Testing](TESTING.md).
-
-## What changed in 0.7.3
-
-- Native MP4 item and ID3 date-frame owners survive PropertyMap replay, including absence; low-level date reads use native owners on MP4, ID3, Xiph, and APE.
-- MP4 `.comment`/`.lyrics` use native `©cmt`/`©lyr`; ASF semantic custom fields use native Unicode attributes and reconcile only their case aliases.
-- Whole-map replacement retains unchanged submitted arrays literally; MP4 custom-field writes retain existing name spelling and unchanged projections do not collapse native arrays; ARTIST no longer falls back to ARTISTS.
-- The mixed-framework gate requires the sparse-state matrices and 8,282 additional cases. See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md#sparse-state-and-write-surface-acceptance).
-
 ## What changed in 0.7.2
 
 - Audit repairs preserve untouched Basic date arrays, malformed text, duplicates, whitespace and absence; separate Encoded By from Encoder Settings; retire only explicitly edited MP4 aliases; normalize MP4 pairs to unsigned 16-bit values; and verify Basic Date, Content Group, structured ID3 text removal, ASF projections and APE engine aliases.
@@ -151,7 +158,7 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 
 | Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
-| `0.8.0` | Current release, declared 2026-11-15; accepted source `959d688`; release preparation changes documentation only | Packages the breaking API cleanup, public write-contract repairs and contract test system above |
+| `0.8.0` | Latest published release (tag `9e986eb`), declared 2026-11-15; accepted source `959d688`; release preparation changes documentation only | Packages the breaking API cleanup, public write-contract repairs and contract test system above; does not include the post-tag numbering repairs |
 | `05416aa` | Merge of the contract-system upgrade; documentation and evidence only after `959d688` | Included in `0.8.0`; production code unchanged |
 | `558df00` | Numbering-contract repair Debug acceptance: 181 XCTest / 306 Swift Testing / 81 scenarios / 97 policy / 23 calibration mutants, focused ASan/TSan, consumers, five platform builds | Current package-only Debug accepted source; not a release |
 | `959d688` | Final `0.8.0` package-only acceptance: 181 XCTest / 274 Swift Testing / 75 scenarios / 92 policy / 13 calibration mutants, full ASan/TSan | Release source; included in `0.8.0` |

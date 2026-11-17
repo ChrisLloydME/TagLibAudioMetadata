@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` added native-owner state preservation; `0.8.0` adds destination-aware write validation and the contract test system without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` added native-owner state preservation; `0.8.0` added destination-aware write validation and the contract test system; unreleased work adds automatic numbering resolution and explicit-number-intent semantics without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -87,7 +87,7 @@ Track and disc components begin at one; BPM and movement numbering begin at zero
 
 `planNumberNormalization(at:policy:groups:)` captures the file version and returns an immutable plan. `applyNumberNormalization(_:to:)` requires the same version, writes the native pair first, retires only the selected aliases and private identities, and verifies persistence and removal. Untouched groups are not resolved or cleaned. `.useNative` cannot discard malformed or multi-valued native data; `.useLegacy` falls back to a native component only when there are no legacy candidates, otherwise the ambiguity must be resolved with `.replace(number:total:)`.
 
-No default write surface creates or renames `AUDIOMATOR_*_TEXT` or `TAGLIBAUDIOMETADATA_*_TEXT` MP4 atoms. As amended on 2026-11-16, ordinary typed/Basic numbering edits and `MetadataPatch.numberText` retire exact private provenance of the edited group on the same staged file as all other requested fields. Explicit component values/removals take precedence; untouched canonical values take precedence over legacy candidates, and missing siblings recover only unambiguous values. An unresolved untouched sibling needs an ordinary explicit value. Reads, unrelated writes and unedited groups preserve provenance. No UI storage-source choice or separate migration step is required. Explicit normalization plans remain optional maintenance APIs. Custom-field writes are not a cleanup mechanism; avoid package-reserved names in custom data.
+No default write surface creates or renames `AUDIOMATOR_*_TEXT` or `TAGLIBAUDIOMETADATA_*_TEXT` MP4 atoms. As amended on 2026-11-16 and 2026-11-17, ordinary typed/Basic numbering edits and `MetadataPatch.numberText` resolve an explicit component first, then a valid canonical native value, then unambiguous legacy evidence, and retire exact private provenance of the edited group on the same staged file as all other requested fields. Presence is intent: `n/0` and a slash followed by an empty total store an explicit zero and never recover the old total; only an omitted total resolves. Non-strict or malformed private evidence cannot supply a missing canonical component, and such an edit rejects with `ambiguousNumberRecovery` unless the caller supplies the value or replaces the pair explicitly. Untouched groups preserve provenance. No UI storage-source choice or separate migration step is required. Explicit normalization plans remain optional maintenance APIs. Custom-field writes are not a cleanup mechanism; avoid package-reserved names in custom data.
 
 ## 5. Explicit advisory
 
@@ -180,6 +180,10 @@ Version `0.7.3` extends the same contract without new native identifiers. It pre
 ### 0.8.0 release
 
 Version `0.8.0` keeps contract 2.2 and the same native target registrations. The 2026-11-15 public write-contract repairs add destination-aware validation and preservation to existing targets and make previously advertised routes executable, including the XM tracker-name typed route and canonical-key MP4 freeform raw edits. They add no mapping-contract identity and no new writable family; native `----:` MP4 keys remain rejected at raw boundaries. See [Migration](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) and the [remediation record](../records/remediation/REM-2026-11-15-public-write-contract.md).
+
+### Unreleased after 0.8.0
+
+The post-`0.8.0` numbering repairs keep contract 2.2 and every native target registration. They change track/disc resolution and private-provenance retirement as described in section 4, add explicit-zero intent through the facade, direct bridge, MP4 native and PropertyMap paths, and reject opaque partial recovery that cannot name a canonical component. There is no new public API, mapping identity or binary dependency. The repaired source `558df00` has package-only Debug acceptance; see [Migration](../operations/MIGRATION.md#unreleased-after-0-8-0) and the [repair record](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
 
 ## Related references
 

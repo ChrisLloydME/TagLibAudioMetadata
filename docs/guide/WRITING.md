@@ -56,7 +56,7 @@ Rules enforced before staging:
 - `customFields` accepts only unknown keys. Known keys, aliases, case variants, and a typed/custom collision are rejected.
 - `.text` and `.values` are trimmed once; empty text, empty arrays, and empty elements are errors. `.remove` is the explicit deletion request.
 - A patch cannot mix `numberText` with typed track/disc fields.
-- `.date` and `.year` cannot both be supplied.
+- The old serialized `date` field key is rejected; use `.year` or `.standaloneDate`.
 - A format's explicit writable-field allowlist is checked before staging.
 
 `MetadataPatchValue` has four value forms and one deletion form: `.text`, `.integer`, `.boolean`, `.values`, and `.remove`. `.boolean(false)` writes `"0"`; it is not deletion. The complete per-field kind and range table is generated in the [field reference](../reference/FIELDS.md#typed-patch-value-contract).
@@ -95,13 +95,15 @@ let patch = MetadataPatch(
 
 `nil` leaves a pair unchanged, a non-empty string sets it, and an empty string removes it. `numberText` and typed track/disc fields may be combined only across different pairs (for example `numberText.trackNumberText` with a typed disc edit); supplying both representations for the same pair is rejected, and every selected pair is preflighted under the captured version before staging.
 
-Ordinary numeric Basic and patch writes use native numeric storage. On MP4 they do not add private formatting atoms to a standard-only file. Legacy `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms are never created or renamed by default write surfaces; they are preserved until an explicit, version-guarded normalization plan retires selected identities.
+Ordinary numeric Basic and patch writes use native numeric storage and do not add private formatting atoms to a standard-only file. On MP4 they never create or rename legacy `AUDIOMATOR_*_TEXT` or `TAGLIBAUDIOMETADATA_*_TEXT` atoms. Editing a track/disc group retires that group's recognized provenance in the same staged transaction; untouched groups and foreign namespaces keep theirs. The explicit, version-guarded normalization plan remains available for headless cleanup.
 
 MP4 track/disc numbers and totals round-trip through 65535 as unsigned 16-bit components. Some external readers interpret the high half as signed; the package preserves the native value. MP4 movement number/count uses the separate `©mvi`/`©mvc` atoms and a `0...32767` range; larger values reject before staging rather than being clamped.
 
-A number-only `numberText` value preserves the resolved existing total. Exact MP4 text padding has no portable atom, so the display normalizes to the native pair.
+Presence is intent: a number-only `numberText` value resolves an omitted total, while `5/0` or `5/` stores an explicit zero and does not recover the previous total. Exact MP4 text padding has no portable atom, so the display normalizes to the native pair.
 
-### Recover legacy totals
+### Recover legacy totals explicitly
+
+Ordinary edits resolve totals automatically. Use the inventory and normalization plan when a headless workflow needs to inspect or force the storage source:
 
 ```swift
 let inventory = try TagLibMetadataManager.numberingInventory(at: url)
@@ -122,6 +124,10 @@ try TagLibMetadataManager.applyNumberNormalization(plan, to: url)
 `planNumberNormalization` requires a headless policy; there is no implicit application preference. `.useNative` keeps actual native components, `.useLegacy` selects an unambiguous legacy candidate, and `.replace(number:total:)` supplies an explicit pair for each selected group. Neither policy resolves or modifies unselected groups.
 
 `.useLegacy` falls back to a native component only when there are no legacy candidates. If legacy candidates exist but are ambiguous, the call throws `MetadataPatchValidationError.ambiguousNumberRecovery`; resolve it with `.replace` instead of guessing. A stale plan must be rebuilt; passing a newer `expectedVersion` cannot override the captured token. The apply step writes the native pair first, retires only the selected aliases in the same transaction, and verifies persistence and removal.
+
+### Automatic numbering compatibility
+
+Normal typed, Basic and `applyMetadataPatch` number-text edits no longer require a normalization preview. An explicit component value/removal wins, an untouched valid native component wins over aliases, and a component with opaque or conflicting evidence is rejected; a genuinely absent component resolves to zero. Exact recognized private provenance is retired for edited groups on the same staged file as other requested fields. Unrelated fields and the other pair preserve provenance; reads do not migrate files. Supplying both components resolves ambiguity without choosing a storage source. Invalid input and stale guards leave the original unchanged.
 
 ### Year, date, and release date
 
@@ -371,7 +377,7 @@ let result = try TagLibMetadataManager.writeTrackNumberText(
 )
 ```
 
-`nil` leaves the disc pair unchanged; an empty string removes it. This API is for renumbering or formatting features where the text is authoritative. Ordinary numeric writes may normalize padding.
+`nil` leaves the disc pair unchanged; an empty string removes it. This API is for renumbering or formatting features where the text is authoritative. An omitted total resolves, while a slash makes the total explicit, including `0`. Recognized private provenance of the selected groups retires in the same staged transaction. Ordinary numeric writes may normalize padding.
 
 ## Erase metadata
 
@@ -531,7 +537,3 @@ for url in urls {
 - [Audio-content continuity](../explanation/AUDIO_CONTENT_CONTINUITY.md) — guarded rebases.
 - [Field reference](../reference/FIELDS.md) — keys, native targets, patch constraints.
 - [Mapping test acceptance](../operations/MAPPING_TEST_STRATEGY.md) — independent matrices and coverage limits.
-
-## Automatic numbering compatibility
-
-Normal `applyMetadataPatch` numbering edits no longer require a separate normalization preview. An explicit component value/removal wins, an untouched valid native component wins over aliases, and a missing component is recovered only when unambiguous. Exact recognized private provenance is retired for edited groups on the same staged file as other requested fields. Unrelated fields and the other pair preserve provenance; reads do not migrate files. Supplying both components resolves ambiguity without choosing a storage source. Invalid input and stale guards leave the original unchanged.

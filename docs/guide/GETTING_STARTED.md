@@ -2,7 +2,7 @@
 
 `TagLibAudioMetadata` reads, edits, verifies, and erases audio metadata on macOS and iOS. A Swift facade wraps an Objective-C++ bridge to a checksum-pinned TagLib 2.3.1 XCFramework. This guide takes you from package resolution to a first read and a first verified patch.
 
-Version `0.8.0` is the current release and is explicitly breaking: compatibility-only API was removed, so read the [migration guide](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading from `0.7.x`. Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit and native-mapping repairs; `0.7.3` added state-preservation repairs across public write surfaces and low-level reads; `0.8.0` adds write-contract validation, selective I/O and the contract test system.
+Version `0.8.0` (tag `9e986eb`) is the latest published release and is explicitly breaking: compatibility-only API was removed, so read the [migration guide](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading from `0.7.x`. Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit and native-mapping repairs; `0.7.3` added state-preservation repairs; `0.8.0` adds write-contract validation, selective I/O and the contract test system. The `main` branch additionally carries unreleased numbering repairs; they are documented in [Migration](../operations/MIGRATION.md#unreleased-after-0-8-0) and are not in `0.8.0`.
 
 ## Requirements
 
@@ -112,6 +112,7 @@ Rules worth knowing before the first write:
 - `.standaloneDate`, `.releaseDate`, and `.originalReleaseDate` are independent fields. `BasicMetadata.date` carries the standalone DATE projection.
 - Existing ID3v2.3 tags reject independent date edits. Inspect `StructuredMetadata.id3v2MajorVersion` before enabling those controls.
 - Unrelated edits preserve existing native date owners and their arrays. In particular, do not round-trip a scalar `BasicMetadata` date through an unrelated save and assume that proves the native collection was preserved; the writer retains it, but the scalar model cannot display the full state.
+- Track/disc edits resolve omitted components automatically: explicit value first, then the canonical native sibling, then unambiguous legacy evidence. `5/0` means an explicit zero and is never replaced by the old total. See [Writing metadata](WRITING.md#track-disc-and-formatted-number-text).
 - On MP4, typed `.comment` and `.lyrics` patches write the native `©cmt`/`©lyr` atoms. The structured `comments`/`lyrics` collections are a different surface and are ignored on MP4.
 
 See [Writing metadata](WRITING.md) for the complete patch, raw, Basic, structured, and erase surface.

@@ -3,6 +3,25 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Post-`0.8.0` numbering behavior. These changes keep mapping contract 2.2, the TagLib 2.3.1-r2 binary, and all public signatures unchanged. They are accepted for the package-only Debug lane at `558df00`, not a release.
+
+### Numbering
+
+- Resolve ordinary typed, Basic and `MetadataPatch.numberText` track/disc edits, plus the direct `writeTrackNumberText` API, atomically: explicit component first, canonical native sibling next, unambiguous legacy evidence last. Retire recognized `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` provenance of the edited group in the same staged transaction; untouched groups, foreign namespaces and unrelated fields survive.
+- Treat explicit zero as presence intent. `5/0` and an empty total after a slash store zero and never recover the previous total; only an omitted total resolves. Apply the rule consistently through the Swift facade, direct bridge, MP4 native and PropertyMap paths, and ID3 inventory parsing.
+- Reject opaque partial recovery. Malformed or multi-value private evidence cannot supply a missing canonical component; typed and number-text writes fail with `ambiguousNumberRecovery` before staging, while a valid native component remains authoritative and a full explicit replacement succeeds.
+- Retain the documented boundaries: a Basic full-model edit that leaves an already-zero total unchanged is not clear intent, and low-level bridge/raw writes still preserve unmodeled private owners.
+
+### Tests
+
+- Add the 60-cell facade/bridge intent matrix, the 30-cell verification-disabled matrix, recovery/opaque/retirement/ID3 sequences, contract scenarios, assertion budgets and ten targeted calibration mutants across the two repairs. The canonical lane now reconciles 36 contracts, 81 scenarios and 23 mutants, with 306 Swift Testing declarations in 55 suites and 97 policy regressions.
+
+### Documentation
+
+- Separate the `0.8.0` release boundary from current `main`, refresh the hub, status, migration, preservation, writing, architecture, testing and mapping-test pages, and add the post-`0.8.0` behavior to this unreleased section.
+
 ## [0.8.0] - 2026-11-15
 
 ### Breaking API cleanup

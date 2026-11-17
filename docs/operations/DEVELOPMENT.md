@@ -117,7 +117,7 @@ Do not hand-edit generated content. Change the source, run the generator with `-
 
 ### Test gate maintenance
 
-The canonical acceptance entry point is `scripts/validate-contracts.sh`; it accepts only `debug` or `release` and rejects filters or extra arguments, and its inner gate rejects claim-blessing mode. It runs `scripts/tests/`, reconciles the reviewed public-surface inventory against `scripts/package-test-system/`, requires a source-bound calibration result that killed all 13 review-defined faults, then calls `scripts/validate-tests.sh` for the complete framework gate. `validate-tests.sh` writes before/after manifests, logs, scenario records and a `summary.json` under `.build/test-evidence/`, and `scripts/summarize-test-run.py` fails closed on missing XCTest/Swift Testing summaries, changed source identity, unexpected skips, failed named tests, missing required suites/contracts/adapters, and parameterized case counts below the frozen minima.
+The canonical acceptance entry point is `scripts/validate-contracts.sh`; it accepts only `debug` or `release` and rejects filters or extra arguments, and its inner gate rejects claim-blessing mode. It runs `scripts/tests/`, reconciles the reviewed public-surface inventory against `scripts/package-test-system/`, requires a source-bound calibration result that killed all 23 review-defined faults, then calls `scripts/validate-tests.sh` for the complete framework gate. `validate-tests.sh` writes before/after manifests, logs, scenario records and a `summary.json` under `.build/test-evidence/`, and `scripts/summarize-test-run.py` fails closed on missing XCTest/Swift Testing summaries, changed source identity, unexpected skips, failed named tests, missing required suites/contracts/adapters, and parameterized case counts below the frozen minima.
 
 Do not weaken a gate minimum, allow a new skip, or make a matrix expectation match a broken implementation to obtain a green result. The matrix inventory and case minima are owned by [Mapping test acceptance](MAPPING_TEST_STRATEGY.md); contract-system details, commands, and evidence limits are owned by [Testing](TESTING.md).
 
@@ -157,7 +157,7 @@ Use [records/CONVENTIONS.md](../records/CONVENTIONS.md) and [records/TEMPLATE.md
 
 ## Release process
 
-1. Ensure the changelog's current release section describes the release and current docs match the code. Version `0.8.0` is the current release; later work belongs under `[Unreleased]`, not under `0.8.0`.
+1. Ensure the changelog's current release section describes the release and current docs match the code. Version `0.8.0` is the latest published release; later work belongs under `[Unreleased]`, not under `0.8.0`.
 2. Confirm the pinned binary identity in `Package.swift` and `scripts/taglib-binary-version.env`.
 3. Run the test, sanitizer, release, strict-platform, consumer, and documentation checks that apply.
 4. Create a tag from the reviewed commit. The tag is the release boundary; do not rewrite it.
