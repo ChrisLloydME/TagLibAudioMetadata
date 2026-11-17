@@ -3,9 +3,9 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.8.1] - 2026-11-17
 
-Post-`0.8.0` numbering behavior. These changes keep mapping contract 2.2, the TagLib 2.3.1-r2 binary, and all public signatures unchanged. They are accepted for the package-only Debug lane at `558df00`, not a release.
+Released from the package-only Debug acceptance of source `558df00`; see [Status](docs/operations/STATUS.md) for the recorded gates and their limits. The release keeps mapping contract 2.2, the TagLib 2.3.1-r2 binary and every public signature. The behavior changes below are consumer-visible; read [Migration](docs/operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1).
 
 ### Numbering
 
@@ -20,7 +20,8 @@ Post-`0.8.0` numbering behavior. These changes keep mapping contract 2.2, the Ta
 
 ### Documentation
 
-- Separate the `0.8.0` release boundary from current `main`, refresh the hub, status, migration, preservation, writing, architecture, testing and mapping-test pages, and add the post-`0.8.0` behavior to this unreleased section.
+- Separate the `0.8.0` release boundary from the then-unreleased numbering work, and refresh the hub, status, migration, preservation, writing, architecture, testing and mapping-test pages.
+- Finalize the guide, reference, operations and records pages for the `0.8.1` release boundary, including the 0.8.0-to-0.8.1 migration path, the expanded contract lane and the refreshed records index.
 
 ## [0.8.0] - 2026-11-15
 

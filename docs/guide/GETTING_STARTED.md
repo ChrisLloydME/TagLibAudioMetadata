@@ -2,7 +2,7 @@
 
 `TagLibAudioMetadata` reads, edits, verifies, and erases audio metadata on macOS and iOS. A Swift facade wraps an Objective-C++ bridge to a checksum-pinned TagLib 2.3.1 XCFramework. This guide takes you from package resolution to a first read and a first verified patch.
 
-Version `0.8.0` (tag `9e986eb`) is the latest published release and is explicitly breaking: compatibility-only API was removed, so read the [migration guide](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading from `0.7.x`. Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit and native-mapping repairs; `0.7.3` added state-preservation repairs; `0.8.0` adds write-contract validation, selective I/O and the contract test system. The `main` branch additionally carries unreleased numbering repairs; they are documented in [Migration](../operations/MIGRATION.md#unreleased-after-0-8-0) and are not in `0.8.0`.
+Version `0.8.1` (2026-11-17) is the current release. It is a patch release that changes numbering behavior; read [Migration](../operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1) before upgrading from `0.8.0`. Version `0.8.0` (tag `9e986eb`) was explicitly breaking: compatibility-only API was removed, so if you are upgrading from `0.7.x`, also read [that section](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0). Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` to `0.7.3` added date/ownership, native-mapping and state-preservation repairs; `0.8.0` added write-contract validation, selective I/O and the contract test system; `0.8.1` adds automatic number resolution, explicit-zero intent and opaque-recovery rejection.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ The TagLib binary is a dynamic framework. The final app or archive must embed an
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.8.0"
+        from: "0.8.1"
     )
 ]
 ```

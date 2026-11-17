@@ -1,8 +1,8 @@
 # Compatibility and migration
 
-## Unreleased after 0.8.0
+## Migrating from 0.8.0 to 0.8.1
 
-These changes are on `main` after the `0.8.0` tag (`9e986eb`). They add no public API, dependency, mapping-contract or TagLib binary change. The repaired source `558df00` has package-only Debug acceptance; no Release lane or publication was performed. See [Status](STATUS.md) and [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
+Version `0.8.1` (2026-11-17) is a patch release over `0.8.0`. It removes no public API and changes no dependency, mapping-contract identity or TagLib binary. It does change numbering behavior, and some previously accepted ambiguous recovery now rejects. Release source `558df00` has package-only Debug acceptance. See [Status](STATUS.md) and [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
 
 ### Automatic numbering and provenance retirement
 
@@ -29,7 +29,7 @@ A Basic full-model edit that leaves an already-zero total unchanged is not clear
 1. Remove any mandatory normalization-preview step from ordinary track/disc editing. Present the edited pair directly; keep normalization for headless cleanup.
 2. Express a cleared total as an explicit zero (`5/0` or `5/`) where the container supports it. Do not rely on an omitted total to clear it.
 3. If a component is missing and private evidence is ambiguous, supply both components explicitly or surface the `ambiguousNumberRecovery` error for user resolution.
-4. Keep production dependencies on `0.8.0`; pin an exact revision to evaluate `main`, and do not treat the package-only Debug acceptance as a Release.
+4. Pin production dependencies to a tagged release; use `0.8.1` or later rather than an untagged branch state.
 
 ## Migrating from 0.7.3 to 0.8.0
 
@@ -49,7 +49,7 @@ Version `0.8.0` intentionally removes compatibility-only API. It is not a patch-
 Existing native-file aliases and the legacy numbering inventory/explicit recovery plan remain supported. They preserve user data and do not reintroduce removed API meanings. Raw engine `DATE` can still denote YEAR on MP4/ID3; typed native ownership must be obtained from the catalog, not inferred from that engine key. Bridge `metadataFieldMappings()` now lists YEAR as the canonical PropertyMap spelling and DATE as its engine alias; consumers inspecting ordered descriptors must use that order. This is not a native-file rewrite. Old runtime bridge-selector probing and contradictory ignored native-target hints have been removed.
 
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.8.0` (tag `9e986eb`, 2026-11-15) is the latest published release; the section above describes unreleased `main` behavior. Sections are newest first, and the unreleased section supersedes earlier numbering guidance. Review the behavioral changes that apply to your starting version.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.8.1` (2026-11-17) is the current release; `0.8.0` (tag `9e986eb`, 2026-11-15) is the previous release. Sections are newest first, and the `0.8.1` section supersedes earlier numbering guidance. Review the behavioral changes that apply to your starting version.
 
 ### Diagnostic repair follow-up
 
@@ -70,7 +70,7 @@ The unused facade `MetadataExtractionOptions` type is removed. No public facade 
 These behavior changes are part of the same release. They do not change public signatures, the binary pin, the mapping-contract ID, or the independent date model.
 
 - **All public writers share native validation.** Scalar, whole-model, structured, and raw writes reject numeric input outside the destination's native representation, including MP4 pair, BPM, byte/media-kind, and store-ID limits. Structured atom validation uses the pinned engine's encoder class; a supplied type cannot override it, and missing scalar values are not implicit zero or empty writes. Explicit structured removals remain distinct.
-- **Whole-model writes preserve unmodeled owners.** Schema-known but unmodeled native owners, unknown owners, and private numbering provenance survive a whole-model write; modeled `nil` still removes the modeled value. At `0.8.0`, private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms were retired only by the explicit normalization plan; the unreleased numbering change above adds retirement of the edited group's recognized provenance during ordinary edits.
+- **Whole-model writes preserve unmodeled owners.** Schema-known but unmodeled native owners, unknown owners, and private numbering provenance survive a whole-model write; modeled `nil` still removes the modeled value. At `0.8.0`, private `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` atoms were retired only by the explicit normalization plan; `0.8.1` adds retirement of the edited group's recognized provenance during ordinary edits.
 - **Legacy readings are literal and protected.** Legal ID3v2.3 status/format/group flags are read literally, DSDIFF `ID3` is located only through declared `PROP` children, and WAV/AIFF saves retain the observed ID3 version. Reading legal protected dates remains supported; a write that cannot preserve them fails before commit. Independent date edits on a concrete v2.3 tag remain rejected.
 - **Number formatting is bounded and preflighted.** Unsupported generated padding, including inherited width above 64, rejects instead of removing the number owner. `numberText` rejects malformed components before staging, and an explicit zero total is retained as that intent; only number-only input recovers an existing total.
 - **Container-specific routes are explicit.** XM tracker names now use a narrowly allowlisted typed route, case-insensitive MusicBrainz TXXX alias cleanup writes the canonical UFID, and canonical-key MP4 freeform raw edits address the exact native item while native `----:` keys remain rejected at raw boundaries. Collections the destination does not consume reject before staging.
@@ -168,7 +168,7 @@ These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described 
 - MP4 `©day` is the YEAR slot. RELEASEDATE is the `RELEASEDATE` freeform; DATE is the `DATE` freeform. Applications that previously wrote full release dates to `©day` must migrate to `.releaseDate`.
 - `.date` is a legacy YEAR spelling and writes the same YEAR target as `.year` where that target is writable. It is not marked `@available(*, deprecated)` in the enum; treat it as legacy in new code.
 - `publisher` writes MP4 `©pub`, `conductor` writes `©con`, `work` writes `©wrk`, `contentGroup` writes `©grp`, `grouping` writes `GROUPING`, `encodedBy` writes `©enc`, `encoderSettings` writes `©too`, and `mediaType` writes the `MEDIA` freeform.
-- Both `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` MP4 namespaces are legacy provenance. No default write surface, including formatted-number APIs, creates or renames them. At `0.7.0`, they remained readable and were preserved until an explicit normalization plan retired them; the unreleased numbering change above also retires selected-group provenance during ordinary edits.
+- Both `AUDIOMATOR_*_TEXT` and `TAGLIBAUDIOMETADATA_*_TEXT` MP4 namespaces are legacy provenance. No default write surface, including formatted-number APIs, creates or renames them. At `0.7.0`, they remained readable and were preserved until an explicit normalization plan retired them; the `0.8.1` change also retires selected-group provenance during ordinary edits.
 - Formatted MP4 number text no longer persists padding. It writes the native pair and displays the normalized pair. A number-only formatted value preserves the resolved existing total.
 - Typed pair edits recover a sole valid orphan total before writing, so `TRCK=3` plus `TXXX:TRACKTOTAL=12` becomes `3/12`. Contradictory aliases are `.ambiguous` and block the edit without mutation.
 - Removing a first track/disc component with a retained total remains supported on MP4 (`0/total`) and ID3-backed formats (`/total`). ASF is the format that rejects a number-zero-plus-total request; earlier documentation that listed most formats was incorrect.
@@ -191,9 +191,9 @@ These changes implement the package-side `AM-TLAM-MAPPING-2.2` target described 
 1. Replace `.date` with `.year` for Year edits and `.standaloneDate` for a standalone Date edit. Do not supply both `date` and `year`.
 2. Stop inferring Year from Release Date. Display and validate the two fields independently.
 3. Migrate MP4 Release Date edits from `©day` to `.releaseDate`; keep `.year` for `©day`.
-4. Stop writing or renaming private `AUDIOMATOR_*_TEXT`/`TAGLIBAUDIOMETADATA_*_TEXT` atoms. At `0.7.0`, if cleanup was required, present `planNumberNormalization` output for preview and apply that exact plan under the captured version. The unreleased change above also retires selected-group provenance during ordinary edits; use the explicit plan only for headless cleanup.
+4. Stop writing or renaming private `AUDIOMATOR_*_TEXT`/`TAGLIBAUDIOMETADATA_*_TEXT` atoms. At `0.7.0`, if cleanup was required, present `planNumberNormalization` output for preview and apply that exact plan under the captured version. The `0.8.1` change also retires selected-group provenance during ordinary edits; use the explicit plan only for headless cleanup.
 5. Replace any assumption that zero is absence for `ITUNESADVISORY`, `pgap`, `hdvd`, or `shwm`. Present `0` as a present false/not-explicit value.
-6. Read `numberingInventory` before a number edit when the file may contain legacy standalone totals; surface `.ambiguous` instead of choosing a value. Under the unreleased behavior, complete canonical pairs resolve automatically; the inventory remains the read model for unresolved components.
+6. Read `numberingInventory` before a number edit when the file may contain legacy standalone totals; surface `.ambiguous` instead of choosing a value. Under the `0.8.1` behavior, complete canonical pairs resolve automatically; the inventory remains the read model for unresolved components.
 7. Treat the MP4-exclusive fields as container-specific and patch-only at the Basic surface. Do not advertise them for non-MP4 families; `rate` is read-only for typed writes.
 8. Do not expect `replaceBasicMetadata` to write MP4-exclusive fields; use `applyMetadataPatch` or `writeStructuredMetadataWithVerification`.
 
@@ -285,7 +285,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 ## Migration checklist
 
 - [ ] Resolve the package at a tag or an explicit revision; do not rely on an unnamed branch state.
-- [ ] Pin production dependencies to `0.8.0` or an earlier tagged release; do not rely on an untagged `main` state.
+- [ ] Pin production dependencies to `0.8.1` or an earlier tagged release; do not rely on an untagged `main` state.
 - [ ] Add the low-level product only if you directly use bridge declarations.
 - [ ] Replace deprecated reads/writes with the named alternatives.
 - [ ] Remove `failurePolicy:` arguments and handle thrown verification failures.

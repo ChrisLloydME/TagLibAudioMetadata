@@ -66,3 +66,7 @@ These checks establish structural documentation consistency and the current poli
 - Commits: `9e986eb` `docs: prepare 0.8.0 release`; `44fe742` `fix: resolve ordinary numbering edits atomically`; `51c05d1` `fix: honor explicit numbering intent across write surfaces`; `558df00` accepted source; `e42d085` current documentation HEAD.
 - Records: [REM-2026-11-16-automatic-numbering](../remediation/REM-2026-11-16-automatic-numbering.md), [REM-2026-11-17-numbering-contract-repairs](../remediation/REM-2026-11-17-numbering-contract-repairs.md), [AUD-2026-11-17-pre-release](../audits/AUD-2026-11-17-pre-release.md).
 - Current documentation: [hub](../../README.md), [status](../../operations/STATUS.md), [migration](../../operations/MIGRATION.md), [preservation](../../explanation/PRESERVATION.md), [testing](../../operations/TESTING.md).
+
+## Addendum — 0.8.1 release inclusion
+
+This record was written while the numbering repairs were accepted but unreleased. The maintainer subsequently prepared `0.8.1` from that source: the release commit assigns the version in the changelog, moves `[Unreleased]` under `0.8.1`, updates the release boundary across the README, hub, guides, reference and operations pages, and adds no automatic user-file migration. Tag creation and publication remain maintainer-owned and are not part of this record. The findings, evidence and limits above are unchanged; the statement that no later tag existed describes the revision this record examined, and the current release boundary belongs to [Status](../../operations/STATUS.md).

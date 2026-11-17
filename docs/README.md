@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe the code on `main`; the latest accepted source is `558df00`, and changes after it are documentation and tooling only. The latest published release remains `0.8.0` (tag `9e986eb`, 2026-11-15), an explicitly breaking release; post-`0.8.0` numbering behavior is documented as **unreleased** and is not part of that tag. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe version `0.8.1` (2026-11-17), a patch release over `0.8.0` that changes numbering behavior without changing public signatures, mapping contract 2.2 or the TagLib binary. The `0.8.1` release source is `558df00`; the release commit changes documentation only. The previous release, `0.8.0` (tag `9e986eb`), remains an explicitly breaking release. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 
@@ -8,15 +8,15 @@ The source code, `Package.swift`, and the test target are the final authority fo
 
 | Item | State |
 | --- | --- |
-| Latest published release | `0.8.0`, tag `9e986eb`, declared 2026-11-15 |
-| Current source | `main` after accepted source `558df00`; later changes are documentation and tooling only |
-| Latest accepted source | `558df00` for the current `main` (package-only Debug numbering-contract acceptance) |
-| `0.8.0` release source | `959d688` (package-only gates, sanitizers, consumers, and five minimum-platform builds); release preparation changed documentation only |
+| Current release | `0.8.1`, declared 2026-11-17 |
+| Source | `main` at the `0.8.1` release commit; release preparation changes documentation only |
+| Latest accepted source | `558df00` (package-only Debug acceptance: numbering-contract repairs, consumers, focused sanitizers, five minimum-platform builds) |
+| Previous release | `0.8.0`, tag `9e986eb`, declared 2026-11-15; release source `959d688` |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
-| Documentation scope | Current pages describe current `main`; tag-only behavior is identified explicitly. |
-| Install target | `0.8.0` for production; pin an exact revision to evaluate unreleased `main` work |
+| Documentation scope | Current pages describe `0.8.1`; behavior specific to `0.8.0` is identified in [Migration](operations/MIGRATION.md) |
+| Install target | `0.8.1` for production |
 
-Version `0.8.0` is a breaking release. It removes compatibility-only API and adds stricter write validation, selective I/O and the independent contract test system, while keeping mapping contract `AM-TLAM-MAPPING-2.2` and every registered native target. See [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) for the removal table and migration actions. After the tag, `main` adds automatic numbering resolution, group-scoped private-provenance retirement, authoritative explicit-zero totals and fail-closed opaque recovery; these are package-only Debug accepted at `558df00`, not a release. See [Status](operations/STATUS.md) and [Migration](operations/MIGRATION.md#unreleased-after-0-8-0). For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
+Version `0.8.1` is a patch release. It adds automatic numbering resolution, group-scoped private-provenance retirement, authoritative explicit-zero totals and fail-closed opaque recovery, while keeping every public signature, mapping contract `AM-TLAM-MAPPING-2.2` and every registered native target. See [Migration](operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1), [Status](operations/STATUS.md) and the [repair record](records/remediation/REM-2026-11-17-numbering-contract-repairs.md). Version `0.8.0` remains the breaking release that removed compatibility-only API and added stricter write validation, selective I/O and the independent contract test system; read [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) when coming from `0.7.x`. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
 
 ## Reading paths
 
@@ -31,7 +31,7 @@ Version `0.8.0` is a breaking release. It removes compatibility-only API and add
 
 ### I am updating from 0.8.0
 
-1. [Migration](operations/MIGRATION.md#unreleased-after-0-8-0) — the unreleased numbering behavior changes and their migration actions.
+1. [Migration](operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1) — the 0.8.1 numbering behavior changes and their migration actions.
 2. [Status](operations/STATUS.md) — the package-only Debug acceptance at `558df00` and its limits.
 3. [Write semantics](explanation/PRESERVATION.md#number-pairs-and-native-bounds) — automatic resolution, explicit-zero intent and provenance retirement.
 4. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — the expanded contract lane and current evidence.
@@ -67,16 +67,16 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 7. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
 8. [Engineering records](records/README.md) — past investigations and open findings.
 
-## Release and unreleased contents
+## Release contents
 
-Version `0.8.0` packages three previously separate changes. Each links to its own evidence, and the migration guide owns the consumer-visible delta. The post-tag numbering repairs are listed separately because they are not in `0.8.0`.
+Version `0.8.1` adds one change on top of the three that shipped in `0.8.0`. Each links to its own evidence, and the migration guides own the consumer-visible deltas.
 
 | Change | What it covers | Evidence |
 | --- | --- | --- |
 | Breaking API cleanup and selective I/O | Removed compatibility-only API, explicit storage/read/model boundaries, projection skipping and measured I/O profiles | [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0), [architecture record](records/remediation/REM-2026-11-14-package-architecture.md) |
 | Public write-contract repairs (F-01…F-15) | Shared destination validation, owner preservation, legacy-read and container-route repairs | [Remediation record](records/remediation/REM-2026-11-15-public-write-contract.md), [acceptance record](records/verification/VER-2026-11-15-public-write-release-acceptance.md) |
 | Independent contract test system | Public-surface inventory, contract catalog, adapters, native oracles, calibration and the canonical acceptance lane | [Implementation record](records/verification/VER-2026-11-15-package-test-system.md), [acceptance record](records/remediation/REM-2026-11-15-test-system-acceptance.md) |
-| **Unreleased** numbering repairs | Automatic track/disc resolution, selected-group provenance retirement, explicit-zero intent and opaque-recovery rejection; 36 contracts, 81 scenarios and 23 mutants | [Repair record](records/remediation/REM-2026-11-17-numbering-contract-repairs.md), [status](operations/STATUS.md) |
+| **`0.8.1`** numbering repairs | Automatic track/disc resolution, selected-group provenance retirement, explicit-zero intent and opaque-recovery rejection; 36 contracts, 81 scenarios and 23 mutants | [Migration](operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1), [repair record](records/remediation/REM-2026-11-17-numbering-contract-repairs.md), [status](operations/STATUS.md) |
 
 The assignment plans that authorized this work, including the 2026-11-15 write-contract and contract-system assignments, are preserved under [assignments](records/assignments/README.md). They are historical instructions, not current contracts or a live backlog.
 
@@ -85,7 +85,7 @@ The assignment plans that authorized this work, including the 2026-11-15 write-c
 | Topic | Canonical document | Owns | Does not cover |
 | --- | --- | --- | --- |
 | Project introduction | [README](../README.md) | Purpose, requirements, install command, first examples. | Detailed contracts. |
-| Release history | [CHANGELOG](../CHANGELOG.md) | Per-release additions, changes and fixes, including the unreleased section. | Current behavior contracts or migration actions. |
+| Release history | [CHANGELOG](../CHANGELOG.md) | Per-release additions, changes and fixes. | Current behavior contracts or migration actions. |
 | Navigation and ownership | This hub | Reading paths, document map, evidence vocabulary. | Technical behavior. |
 | Getting started | [guide/GETTING_STARTED.md](guide/GETTING_STARTED.md) | First read, first patch, next steps. | Complete signatures or edge cases. |
 | Reading | [guide/READING.md](guide/READING.md) | Snapshot, Basic, raw, structured reads, versions, extraction options. | Write semantics. |
@@ -158,7 +158,7 @@ A passing test establishes that the executed assertions passed in that environme
 - Do not describe a configured CI job as a passing result for a revision that did not run it.
 - Do not present `fixtureCovered` as universal format support.
 - Distinguish the latest published tag from the current source. Never describe unreleased behavior as part of a tagged release.
-- Keep [`CHANGELOG.md`](../CHANGELOG.md)'s `[Unreleased]` section current for behavior on `main`, and move entries into a version section only in the release commit.
+- Record behavior changes in [`CHANGELOG.md`](../CHANGELOG.md): under `[Unreleased]` for work after a release, and in a version section in the release commit.
 - Update [Status](operations/STATUS.md) only after a validation campaign that changes the latest known state. Put the campaign narrative in a record.
 - Update [Migration](operations/MIGRATION.md) when a public API is deprecated, its semantics change, or a post-release branch adds a consumer-visible behavior change.
 - Once an assignment is implemented, move its plan and startup prompt under [records/assignments](records/assignments/README.md) and link the resulting record. Do not leave completed work in the hub as pending.
