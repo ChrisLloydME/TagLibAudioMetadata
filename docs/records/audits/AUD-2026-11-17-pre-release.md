@@ -340,7 +340,11 @@ minimum-OS runtime, or an embedding application.
   retirement both namespaces/both groups, partial-malformed rejection), tighten
   the title-only control to atom absence, seed both namespaces in the fixture
   tests that assert both, add the corresponding calibration mutants, and refresh
-  the current counts after the test additions are reviewed.
+  the current counts after the test additions are reviewed. The committed
+  `PreReleaseAuditTests` regressions currently fail the suite but are not listed
+  in `REQUIRED_TESTS`/`required-test-inventory.json`; the repair task should add
+  them to the frozen required inventory once they pass so deleting them cannot
+  restore a green lane.
 
 ### F-05 — Basic full-model edits can recover a hidden private total when the model's zero is unchanged
 
