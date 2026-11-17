@@ -12,6 +12,9 @@ This page is a snapshot of the latest known validation state for the current sou
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
 | Latest accepted source | `959d688`; the `05416aa` merge and this release preparation change documentation and evidence only |
 | Documentation scope | Current pages describe `0.8.0`; release-specific behavior is identified in [Migration](MIGRATION.md) |
+| Current candidate audit | **NOT READY** for `main` at `2df2525`: [AUD-2026-11-17-pre-release](../records/audits/AUD-2026-11-17-pre-release.md) reproduces public number-write defects F-01–F-03 and gate-coverage gap F-04; the clean candidate's Debug lane is accepted but does not cover them. |
+
+The post-`0.8.0` automatic-numbering candidate is not accepted. Its clean Debug lane passed with 181 XCTest declarations (179 passed, two reviewed skips), 280 Swift Testing declarations in 52 suites, 75/75 scenarios, 93 policy regressions, 16/16 calibrated mutants, both consumers, focused sanitizers and five minimum-platform builds, but the independent audit reproduced F-01–F-03 and added failing `PreReleaseAuditTests` reproductions. Do not read the accepted `0.8.0` lane below as acceptance of this candidate.
 
 Version `0.8.0` includes mapping contract 2.2, the `0.7.1` through `0.7.3` corrections, and the breaking API cleanup, public write-contract repairs and independent contract test system finalized for this release. The TagLib binary and mapping contract ID are unchanged from `0.7.3`. Release notes are in the [changelog](../../CHANGELOG.md).
 
