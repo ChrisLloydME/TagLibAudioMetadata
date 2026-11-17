@@ -91,8 +91,7 @@ struct ContractNumberIntentTests {
             var evidence = ContractCase(
                 scenario: "S-MP4-INTENT-03",
                 runtimeTest: "contractNumberIntentAndRetirement",
-                adapter: "facade.applyPatch",
-                outcome: "unsupported_reject"
+                adapter: "facade.applyPatch"
             )
             _ = try Self.seedPayloads(url, &evidence, opaque: true)
             try ContractAssertions.expectRejection(&evidence, name: "numberText", file: url) {
