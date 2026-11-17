@@ -117,7 +117,7 @@
         {
           "file": "Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift",
           "find": "let hasExplicitTotal = trimmed.contains(\"/\")",
-          "replace": "let hasExplicitTotal = false"
+          "replace": "let hasExplicitTotal = trimmed.contains(\"///\")"
         }
       ],
       "test_filter": "explicitZeroTotalIsNotRecoveredFromOldNumberText",
