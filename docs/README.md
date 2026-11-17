@@ -52,11 +52,12 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 
 1. [Architecture](explanation/ARCHITECTURE.md) — modules, flows, invariants, source and test layout.
 2. [Development](operations/DEVELOPMENT.md) — change workflow, documentation pipeline, release, binary maintenance.
-3. [Testing](operations/TESTING.md) — commands, CI, opt-ins, evidence limits.
-4. [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — lifecycle and sparse-state matrices, contract inventory, gate policy, coverage limits.
-5. [Status](operations/STATUS.md) — latest observed validation state.
-6. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
-7. [Engineering records](records/README.md) — past investigations and open findings.
+3. [Commit messages](operations/COMMIT_MESSAGES.md) — the subject and body contract every commit follows, with examples and a checker.
+4. [Testing](operations/TESTING.md) — commands, CI, opt-ins, evidence limits.
+5. [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — lifecycle and sparse-state matrices, contract inventory, gate policy, coverage limits.
+6. [Status](operations/STATUS.md) — latest observed validation state.
+7. [Migration](operations/MIGRATION.md) — deprecations and behavioral changes.
+8. [Engineering records](records/README.md) — past investigations and open findings.
 
 ## Release contents
 
@@ -96,6 +97,7 @@ The assignment plans that authorized this work, including the 2026-11-15 write-c
 | Mapping test acceptance | [operations/MAPPING_TEST_STRATEGY.md](operations/MAPPING_TEST_STRATEGY.md) | Required lifecycle matrices, contract inventory, independent oracles, contract gate, minimum case counts, coverage limits. | General test commands or current status. |
 | Validation status | [operations/STATUS.md](operations/STATUS.md) | Latest observed run, environment, counts, skips, known failures, release boundary, limitations. | Historical campaigns. |
 | Development | [operations/DEVELOPMENT.md](operations/DEVELOPMENT.md) | Repository layout, source-of-truth rules, documentation pipeline, release, binary maintenance. | Application usage. |
+| Commit messages | [operations/COMMIT_MESSAGES.md](operations/COMMIT_MESSAGES.md) | Commit-message format, types, subject and body rules, merge and release conventions, checker usage. | Behavior contracts or record conventions. |
 | Compatibility and migration | [operations/MIGRATION.md](operations/MIGRATION.md) | Release boundary, consumer-visible changes, deprecation map, migration actions. | Release notes for every version. |
 | Third-party licensing | [operations/THIRD_PARTY_NOTICES.md](operations/THIRD_PARTY_NOTICES.md) | TagLib and utf8cpp provenance, licenses, corresponding source. | Behavior. |
 | Historical evidence | [records/README.md](records/README.md) | Audits, reviews, remediation, verification, migrations, maintenance logs. | Current contracts. |

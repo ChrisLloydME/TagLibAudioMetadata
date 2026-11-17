@@ -13,7 +13,7 @@ This document is for contributors and automated agents working on the package it
 | `Sources/CTagLibBridge/include/` | Public bridge header. Foundation-only; no C++ types. |
 | `Tests/TagLibAudioMetadataTests/` | Single test target, physically organized by layer, including `ContractSystem/`. |
 | `IntegrationTests/Consumer/` | Facade-only and low-level consumer packages. |
-| `scripts/` | Binary build, preservation-corpus generation, documentation generators/checks, contract inventory/catalog reconciliation, calibration, the full-suite test gate, evidence summarizer, and gate-policy tests. |
+| `scripts/` | Binary build, preservation-corpus generation, documentation generators/checks, commit-message checking, contract inventory/catalog reconciliation, calibration, the full-suite test gate, evidence summarizer, and gate-policy tests. |
 | `ThirdParty/TagLib/` | TagLib and utf8cpp license texts. |
 | `docs/guide/` | Task-based guides: getting started, reading, writing, capabilities. |
 | `docs/reference/` | API, models, fields, formats, bridge, mapping contract, generated matrix. |
@@ -39,14 +39,14 @@ This document is for contributors and automated agents working on the package it
 
 1. Inspect the current branch, HEAD, and working tree before editing.
 2. Create a focused branch from the current development state. Do not rewrite existing history.
-3. Make logically coherent commits as work progresses. Do not accumulate an entire assignment into one commit.
+3. Make logically coherent commits as work progresses, following [Commit messages](COMMIT_MESSAGES.md). Do not accumulate an entire assignment into one commit.
 4. Keep production changes and documentation changes reviewable. Do not modify tests merely to make a documentation claim true.
 5. Run the relevant checks from [Testing](TESTING.md). Use `bash scripts/validate-contracts.sh debug` (or `release`) for complete acceptance; a bare `swift test` count is not gate evidence.
 6. Update the canonical document for any behavior change. If the change is an investigation or campaign, add a record.
 7. Run the documentation generators and `python3 scripts/check-docs.py`.
 8. Review the diff and internal links before committing.
 
-Existing commit messages are imperative and capitalized. Do not amend, squash, rebase, reset, force-push, or merge into `main` as part of a normal documentation or maintenance branch.
+Commit messages follow [Commit messages](COMMIT_MESSAGES.md). Do not amend, squash, rebase, reset, force-push, or merge into `main` as part of a normal documentation or maintenance branch.
 
 ## Documentation system
 
@@ -80,6 +80,7 @@ docs/
     TESTING.md                             test layers, commands, CI, evidence limits
     STATUS.md                              latest observed validation state
     DEVELOPMENT.md                         this document
+    COMMIT_MESSAGES.md                     commit-message contract
     MIGRATION.md                           deprecations and release changes
     THIRD_PARTY_NOTICES.md                 licensing and provenance
   records/                                 immutable historical evidence

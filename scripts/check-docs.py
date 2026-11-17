@@ -53,6 +53,7 @@ CURRENT_DOCUMENTS = (
     "operations/MAPPING_TEST_STRATEGY.md",
     "operations/STATUS.md",
     "operations/DEVELOPMENT.md",
+    "operations/COMMIT_MESSAGES.md",
     "operations/MIGRATION.md",
     "operations/THIRD_PARTY_NOTICES.md",
 )

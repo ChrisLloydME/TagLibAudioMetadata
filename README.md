@@ -223,6 +223,7 @@ Start at the [documentation hub](docs/README.md), which maps tasks to the canoni
 | Mapping test acceptance | [docs/operations/MAPPING_TEST_STRATEGY.md](docs/operations/MAPPING_TEST_STRATEGY.md) |
 | Current validation status | [docs/operations/STATUS.md](docs/operations/STATUS.md) |
 | Development and maintenance | [docs/operations/DEVELOPMENT.md](docs/operations/DEVELOPMENT.md) |
+| Commit messages | [docs/operations/COMMIT_MESSAGES.md](docs/operations/COMMIT_MESSAGES.md) |
 | Compatibility and migration | [docs/operations/MIGRATION.md](docs/operations/MIGRATION.md) |
 | Third-party notices | [docs/operations/THIRD_PARTY_NOTICES.md](docs/operations/THIRD_PARTY_NOTICES.md) |
 | Historical audits and reviews | [docs/records/README.md](docs/records/README.md) |
