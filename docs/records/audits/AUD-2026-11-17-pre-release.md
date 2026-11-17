@@ -6,7 +6,7 @@
 | Type | Audit |
 | Date | `2026-11-17` |
 | Status | Final |
-| Examined revision | `2df252584aa12c3d0e5a088da8cb24a44b99197b` (candidate start); the audit branch adds test/record commits only |
+| Examined revision | `2df252584aa12c3d0e5a088da8cb24a44b99197b` (candidate start; canonical lane); regression tests committed as `b4d6b2b`; the record/index/status commit is a documentation-only follow-up. `git diff 2df2525..HEAD -- Sources` is empty. |
 | Branch | `codex/pre-release-audit-20261117`, created from `main` at the candidate HEAD |
 | Environment | macOS 27.2.1 (26B131), arm64; Xcode 27.2 (27B52); Swift 6.4.2 (swiftlang-6.4.2.1.9, clang-2100.4.1.1); TagLib 2.3.1-r2 (upstream `54ae7d8ac45755e286a5c574280f48d5bef93aef`, SwiftPM ZIP checksum `d7a36b2492266a17fcd97bd776cd841d9fc85275270bc0c3cb9621395b3178c7`) |
 | Supersedes | `none` (qualifies the automatic-numbering acceptance in `REM-2026-11-16-automatic-numbering` for the current candidate) |
@@ -86,6 +86,11 @@ minimum-OS runtime, or an embedding application.
   revision; the merge commit and the later commit are documentation-only. The
   old evidence's commit and source hash are still stale for this candidate, so
   every acceptance artifact below was generated fresh.
+- Audit branch: `codex/pre-release-audit-20261117`; regression test commit
+  `b4d6b2b`; the final record/index/status commit is documentation-only. The
+  worktree was clean at the final revision. The only changes from `2df2525` are
+  the audit regression test and the audit record/index/status edits; no
+  production source changed.
 - Binary/dependency identity: TagLib 2.3.1-r2, upstream source commit
   `54ae7d8ac45755e286a5c574280f48d5bef93aef`, SwiftPM checksum
   `d7a36b2492266a17fcd97bd776cd841d9fc85275270bc0c3cb9621395b3178c7`. Resolved
@@ -478,7 +483,7 @@ subsequent repair task. In priority order:
 | `TAGLIB_DISABLE_MANIFEST_SANDBOX=1 TAGLIB_EVIDENCE_ID=pre-release-audit-20261117 bash scripts/validate-contracts.sh debug` (authorized wider-access mode) | **accepted** | 181 XCTest declarations, 179 passed and the two reviewed skips; 280 Swift Testing declarations in 52 suites; 75/75 scenarios; runner exit 0; source hash `051ed48e06d1131cef9d5aa0ccc5e55567cd57d1e9d344bd2235a63243a9f31b`; commit `2df2525`; manifest before/after identical |
 | Calibration inside the lane | **accepted, 16/16 killed** | `.build/test-calibration/20261117T101902-8014/calibration.json`; each mutant `build_exit_status=0`, behavioral `named_failure=true`, `restored=true`; control build/run pass; `source_restored=true`; definition hash `d77e700002b9d4322629348948f011dbd91f7a071947b63e6ccf76db8319e9fd` |
 | Focused existing numbering tests | pass | `AutomaticNumberingTests` 6 declarations / 21 lifecycle cases / 4 number-text cases; the pre-audit focused run passed |
-| Focused audit regressions after test additions | **fail as reproduced** | `PreReleaseAuditTests` 10 declarations, 12 issues: `convenienceNumberTextExplicitZeroIsAuthoritative` 3 (m4a/flac/ogg; mp3 control passes), `convenienceDiscExplicitZeroIsAuthoritative` 3 (m4a/flac/ogg), `convenienceNumberTextRetiresEditedGroupProvenance` 2 (both private identities remain), `partialMalformedPrivateTextMustNotSupplyMissingSibling` 4 (two parameter cases × throw + byte-equality). The 3-case `metadataPatchNumberTextExplicitZeroIsAuthoritative`, strict-evidence, title-only, read-stability, zero-component and full-replacement controls pass. Log: `.build/pre-release-audit-regressions.log` (runner exit 1, as expected before repair). |
+| Focused audit regressions after test additions | **fail as reproduced** | `PreReleaseAuditTests` at test commit `b4d6b2b`, with production source at `2df2525`: 10 declarations, 12 issues: `convenienceNumberTextExplicitZeroIsAuthoritative` 3 (m4a/flac/ogg; mp3 control passes), `convenienceDiscExplicitZeroIsAuthoritative` 3 (m4a/flac/ogg), `convenienceNumberTextRetiresEditedGroupProvenance` 2 (both private identities remain), `partialMalformedPrivateTextMustNotSupplyMissingSibling` 4 (two parameter cases × throw + byte-equality). The 3-case `metadataPatchNumberTextExplicitZeroIsAuthoritative`, strict-evidence, title-only, read-stability, zero-component and full-replacement controls pass. Log: `.build/pre-release-audit-regressions-final.log` (runner exit 1, as expected before repair). |
 | `python3 scripts/check-docs.py` | pass | 70 Markdown files; link/heading/table/generated-reference checks |
 | `bash scripts/validate-consumers.sh` | pass | Both `TagLibAudioMetadataConsumer` and `TagLibAudioMetadataLowLevelConsumer`; real facade/bridge writes, independent native/audio/stale checks; log `.build/pre-release-audit-consumers.log` |
 | Focused AddressSanitizer | pass | `swift test --sanitize=address --filter AutomaticNumberingTests`: 6 declarations, 21 lifecycle cases, 4 number-text cases; no sanitizer finding; log `.build/pre-release-audit-asan.log`; pinned TagLib binary uninstrumented |
