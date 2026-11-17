@@ -10,8 +10,8 @@
 | Branch | `codex/pre-release-audit-20261117`, created from `main` at the candidate HEAD |
 | Environment | macOS 27.2.1 (26B131), arm64; Xcode 27.2 (27B52); Swift 6.4.2 (swiftlang-6.4.2.1.9, clang-2100.4.1.1); TagLib 2.3.1-r2 (upstream `54ae7d8ac45755e286a5c574280f48d5bef93aef`, SwiftPM ZIP checksum `d7a36b2492266a17fcd97bd776cd841d9fc85275270bc0c3cb9621395b3178c7`) |
 | Supersedes | `none` (qualifies the automatic-numbering acceptance in `REM-2026-11-16-automatic-numbering` for the current candidate) |
-| Superseded by | `none` |
-| Related records | `REM-2026-11-16-automatic-numbering`, `REM-2026-11-15-test-system-acceptance`, `VER-2026-11-15-package-test-system`, `AUD-2026-11-11-package-audit` |
+| Superseded by | [REM-2026-11-17-numbering-contract-repairs](../remediation/REM-2026-11-17-numbering-contract-repairs.md) (repair/disposition record) |
+| Related records | `REM-2026-11-17-numbering-contract-repairs`, `REM-2026-11-16-automatic-numbering`, `REM-2026-11-15-test-system-acceptance`, `VER-2026-11-15-package-test-system`, `AUD-2026-11-11-package-audit` |
 | Scope | Independent package-only pre-release audit of the current candidate: automatic numbering, public write surfaces, native ownership/preservation, transactions, the test system, focused sanitizers, both package-owned consumers and minimum-platform Debug builds. No application repository, no Release build or Release test lane, no production repair, and no publication action. |
 
 ## Summary
@@ -63,6 +63,14 @@ those failures directly.
 Release builds and Release test lanes were excluded by instruction. The
 verdict therefore does not speak to Release behavior, hosted CI, device or
 minimum-OS runtime, or an embedding application.
+
+> **Post-audit status (2026-11-17):** the findings below are retained as the
+> historical audit evidence. F-01, F-02, F-03, F-04 and F-07 were repaired and
+> the repaired candidate's strict Debug campaign was accepted on source commit
+> `558df00db502044e23d9935aa0b9fb328f237369` (source hash
+> `5cbc2ba2b6030751e624dc5f523fd6352ce9ac46e726c753e71df68ebb9b1032`);
+> see [REM-2026-11-17-numbering-contract-repairs](../remediation/REM-2026-11-17-numbering-contract-repairs.md).
+> F-05 and F-10 remain deliberate boundaries of the amended contract.
 
 ## Scope and revision
 
@@ -620,7 +628,8 @@ witness (for example the omitted-retirement mutant fails the native
   [Numbering inventory and preservation](../../explanation/PRESERVATION.md),
   [Mapping specification](../../reference/MAPPING_SPEC.md),
   [Writing guide](../../guide/WRITING.md).
-- Related records: [REM-2026-11-16-automatic-numbering](../remediation/REM-2026-11-16-automatic-numbering.md),
+- Related records: [REM-2026-11-17-numbering-contract-repairs](../remediation/REM-2026-11-17-numbering-contract-repairs.md),
+  [REM-2026-11-16-automatic-numbering](../remediation/REM-2026-11-16-automatic-numbering.md),
   [REM-2026-11-15-test-system-acceptance](../remediation/REM-2026-11-15-test-system-acceptance.md),
   [VER-2026-11-15-package-test-system](../verification/VER-2026-11-15-package-test-system.md),
   [AUD-2026-11-11-package-audit](./AUD-2026-11-11-package-audit.md).

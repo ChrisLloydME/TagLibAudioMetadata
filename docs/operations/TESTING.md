@@ -16,12 +16,12 @@ The canonical gate is no longer only a collection of named matrices. Five indepe
 | Builders and oracles | `ContractFixtureBuilders.swift`, `ContractNativeOracles.swift` and the retained independent probes | Bounded native readers that never decide expected values through the package reader. Builders are self-tested on literal synchsafe, atom-size, chunk-alignment, flag/grouping, integer and malformed-input vectors. Every seed is independently verified; a failed seed fails the test. |
 | Evidence gate | `scripts/test_manifest.py`, `scripts/summarize-test-run.py`, `scripts/validate-tests.sh`, `scripts/validate-contracts.sh` | Fresh commit/diff/source/toolchain manifests, exact scenario-set and assertion-budget comparison, complete framework outcomes, exact optional-skip identities, and runner exit status. Counts and suite banners are supporting evidence only. |
 
-The catalog declares 34 contracts, 71 metadata-operation scenarios and four audit scenarios; the reviewed inventory covers 907 public-surface rows and 62 execution adapters. The audit scenarios reconcile all 100 advertised fields, all advertised writable format families, and the catalog/declaration/adapter sets at runtime. The required minima are **181 XCTest declarations** (179 passed and the two reviewed opt-in skips), **274 Swift Testing declarations in 51 suites** and **92 Python policy regressions**. These are floors, not a claim that every possible file or caller is covered.
+The catalog declares 36 contracts, 77 metadata-operation scenarios and four audit scenarios; the reviewed inventory covers 907 public-surface rows and 62 execution adapters. The audit scenarios reconcile all 100 advertised fields, all advertised writable format families, and the catalog/declaration/adapter sets at runtime. The required minima are **181 XCTest declarations** (179 passed and the two reviewed opt-in skips), **306 Swift Testing declarations in 55 suites**, **81 catalog scenarios** and **97 Python policy regressions**. These are floors, not a claim that every possible file or caller is covered.
 
 ### Contract commands
 
 ```sh
-# Canonical contract lane: policy reconciliation, 13-defect calibration and a
+# Canonical contract lane: policy reconciliation, 23-defect calibration and a
 # complete strict gate. This is the acceptance entry point.
 bash scripts/validate-contracts.sh debug
 bash scripts/validate-contracts.sh release
@@ -78,7 +78,7 @@ The contract lane (`scripts/validate-contracts.sh`) runs the policy and inventor
 
 The current upgraded gate requires the legacy sparse-state matrices, the new
 contract scenarios and the calibration set. The reviewed floors are 181 XCTest,
-274 Swift Testing declarations in 51 suites and 92 Python policy regressions.
+306 Swift Testing declarations in 55 suites, 81 catalog scenarios and 97 Python policy regressions.
 The latest observed result and environment belong to [Status](STATUS.md);
 historical counts below certify only their recorded revisions. Do not compare
 counts across revisions without checking scope and opt-ins.
@@ -197,7 +197,7 @@ TAGLIB_BENCHMARK=1 swift test -c release --disable-sandbox \
 
 The benchmark keeps fixture setup outside timing and prints warmed snapshot throughput, verified write batches, and flush samples. It also measures MP3/M4A/FLAC ordinary and 64-key metadata-heavy Basic/snapshot reads, typed/Basic/raw title writes, and declared-capability lookups. Each profile reports five batch-average latencies: `medianMs` is their median and `p95Ms` is their maximum (the nearest-rank 95th percentile of five samples), not a per-operation tail percentile. Reads assert byte immutability; writes include actual staging, verification and durability. It has no performance threshold and is not a gating test. Treat its numbers as local observations, not throughput promises. Baseline and optimized evidence are in the [API/performance record](../records/remediation/REM-2026-11-12-api-mapping-performance.md).
 
-The current gate requires at least 181 XCTest and 274 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the per-read lookup preservation regressions, transaction-readability regressions, every contract scenario and the calibration lane. An unchanged total count cannot substitute for those tests.
+The current gate requires at least 181 XCTest and 306 Swift Testing declarations, plus named passing evidence for descriptor fidelity, the per-read lookup preservation regressions, transaction-readability regressions, every contract scenario and the calibration lane. An unchanged total count cannot substitute for those tests.
 
 ### Selective extraction profile and mandatory contracts
 
