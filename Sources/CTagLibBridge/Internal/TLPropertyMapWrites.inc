@@ -122,7 +122,10 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
         NSInteger padWidth = 0;
         ParseNumberPairFromNSString(trimmedTrackNumberText, explicitTrackNumber, explicitTrackTotal, padWidth);
         (void)padWidth;
-        NSInteger effectiveTrackTotal = explicitTrackTotal > 0
+        // A slash makes the total explicit, including explicit zero. Only an
+        // omitted total preserves/resolves the existing generic-storage total.
+        BOOL trackTotalExplicit = [trimmedTrackNumberText containsString:@"/"];
+        NSInteger effectiveTrackTotal = trackTotalExplicit
             ? explicitTrackTotal
             : PropertyMapNumberTotal(properties, "TRACKNUMBER", "TRACKTOTAL", "TOTALTRACKS");
 
@@ -131,22 +134,15 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
             "TRACKNUMBER",
             BuildPropertyMapNumberTextPreservingFormatting(trimmedTrackNumberText, explicitTrackNumber)
         );
-        if (explicitTrackTotal > 0) {
-            SetPropertyMapString(
-                properties,
-                "TRACKTOTAL",
-                [NSString stringWithFormat:@"%ld", (long)explicitTrackTotal]
-            );
-            SetPropertyMapString(properties, "TOTALTRACKS", nil);
-        } else if (effectiveTrackTotal <= 0) {
-            SetPropertyMapString(properties, "TRACKTOTAL", nil);
-            SetPropertyMapString(properties, "TOTALTRACKS", nil);
-        } else {
+        if (effectiveTrackTotal > 0) {
             SetPropertyMapString(
                 properties,
                 "TRACKTOTAL",
                 [NSString stringWithFormat:@"%ld", (long)effectiveTrackTotal]
             );
+            SetPropertyMapString(properties, "TOTALTRACKS", nil);
+        } else {
+            SetPropertyMapString(properties, "TRACKTOTAL", nil);
             SetPropertyMapString(properties, "TOTALTRACKS", nil);
         }
         } else {
@@ -164,7 +160,8 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
             NSInteger padWidth = 0;
             ParseNumberPairFromNSString(trimmedDiscNumberText, explicitDiscNumber, explicitDiscTotal, padWidth);
             (void)padWidth;
-            NSInteger effectiveDiscTotal = explicitDiscTotal > 0
+            BOOL discTotalExplicit = [trimmedDiscNumberText containsString:@"/"];
+            NSInteger effectiveDiscTotal = discTotalExplicit
                 ? explicitDiscTotal
                 : PropertyMapNumberTotal(properties, "DISCNUMBER", "DISCTOTAL", "TOTALDISCS");
 
@@ -173,22 +170,15 @@ static bool WritePropertyMapNumberTextToFile(FileType &file,
                 "DISCNUMBER",
                 BuildPropertyMapNumberTextPreservingFormatting(trimmedDiscNumberText, explicitDiscNumber)
             );
-            if (explicitDiscTotal > 0) {
-                SetPropertyMapString(
-                    properties,
-                    "DISCTOTAL",
-                    [NSString stringWithFormat:@"%ld", (long)explicitDiscTotal]
-                );
-                SetPropertyMapString(properties, "TOTALDISCS", nil);
-            } else if (effectiveDiscTotal <= 0) {
-                SetPropertyMapString(properties, "DISCTOTAL", nil);
-                SetPropertyMapString(properties, "TOTALDISCS", nil);
-            } else {
+            if (effectiveDiscTotal > 0) {
                 SetPropertyMapString(
                     properties,
                     "DISCTOTAL",
                     [NSString stringWithFormat:@"%ld", (long)effectiveDiscTotal]
                 );
+                SetPropertyMapString(properties, "TOTALDISCS", nil);
+            } else {
+                SetPropertyMapString(properties, "DISCTOTAL", nil);
                 SetPropertyMapString(properties, "TOTALDISCS", nil);
             }
         } else {

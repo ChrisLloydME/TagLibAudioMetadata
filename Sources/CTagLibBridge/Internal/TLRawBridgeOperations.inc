@@ -626,7 +626,10 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
             NSInteger totalTracks = 0;
             NSInteger padWidth = 0;
             ParseNumberPairFromNSString(trimmedTrackText, trackNumber, totalTracks, padWidth);
-            if (totalTracks <= 0 && mp4Tag->itemMap().contains("trkn")) {
+            // A slash makes the total explicit, including explicit zero. Only
+            // an omitted total preserves the existing native total.
+            if (![trimmedTrackText containsString:@"/"] && totalTracks <= 0 &&
+                mp4Tag->itemMap().contains("trkn")) {
                 totalTracks = MP4UnsignedPair(mp4Tag->itemMap()["trkn"]).second;
             }
             (void)padWidth;
@@ -647,7 +650,8 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
                 NSInteger totalDiscs = 0;
                 NSInteger padWidth = 0;
                 ParseNumberPairFromNSString(trimmedDiscText, discNumber, totalDiscs, padWidth);
-                if (totalDiscs <= 0 && mp4Tag->itemMap().contains("disk")) {
+                if (![trimmedDiscText containsString:@"/"] && totalDiscs <= 0 &&
+                    mp4Tag->itemMap().contains("disk")) {
                     totalDiscs = MP4UnsignedPair(mp4Tag->itemMap()["disk"]).second;
                 }
                 (void)padWidth;

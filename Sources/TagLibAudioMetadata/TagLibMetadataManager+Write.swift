@@ -204,6 +204,11 @@ extension TagLibMetadataManager {
 
     /// Intentionally writes formatted track/disc number text. Unlike an ordinary
     /// Basic numeric edit, the supplied text is the authoritative input.
+    ///
+    /// Presence is intent: an omitted total resolves from the canonical sibling
+    /// or strictly trustworthy legacy evidence, while a slash makes the total
+    /// explicit (including zero and an empty component). The selected groups'
+    /// exact private provenance is retired in the same staged transaction.
     @discardableResult
     public nonisolated static func writeTrackNumberText(
         _ trackNumberText: String,
@@ -217,62 +222,107 @@ extension TagLibMetadataManager {
             throw TagLibManagerError.unsupportedFormat
         }
 
+        // Reject malformed/out-of-range text and unresolved untouched siblings
+        // before creating a staging copy, matching the number-text patch path.
+        let preflightVersion = try fileVersion(at: url)
+        if let expectedVersion, expectedVersion != preflightVersion {
+            throw TagLibManagerError.fileChanged
+        }
+        let preflightSnapshot = try readSnapshot(from: url)
+        _ = try resolveNumberTextPairs(
+            MetadataNumberTextPatch(trackNumberText: trackNumberText, discNumberText: discNumberText),
+            from: preflightSnapshot, fileURL: url
+        )
+
         return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
-            let inventory = try numberingInventory(at: mutationURL)
-            for (selected, group, name) in [
-                (true, inventory.track, "track"),
-                (discNumberText != nil, inventory.disc, "disc"),
-            ] where selected && group.hasUnresolvedComponents {
-                throw MetadataPatchValidationError.ambiguousNumberRecovery(
-                    field: name, identities: group.number.identities + group.total.identities
-                )
-            }
-            let trackInput = parseNumberPair(trackNumberText)
-            let discInput = discNumberText.map(parseNumberPair)
-            let recoverTrack = !trackNumberText.isEmpty && trackInput.total == 0
-                && inventory.track.total.state == .recoveredLegacy
-            let recoverDisc = discNumberText?.isEmpty == false && discInput?.total == 0
-                && inventory.disc.total.state == .recoveredLegacy
-            if recoverTrack || recoverDisc {
+            let before = try readSnapshot(from: mutationURL)
+            let beforeInventory = numberingInventory(from: before)
+            let resolved = try resolveNumberTextPairs(
+                MetadataNumberTextPatch(trackNumberText: trackNumberText, discNumberText: discNumberText),
+                from: before, fileURL: mutationURL
+            )
+
+            if resolved.track != nil || resolved.disc != nil {
                 try TagLibMetadataExtractor.writeNumberPairsInPlace(
-                    trackNumber: trackInput.number,
-                    totalTracks: inventory.track.total.recoveredValue ?? 0,
-                    updateTrackPair: recoverTrack,
-                    discNumber: discInput?.number ?? 0,
-                    totalDiscs: inventory.disc.total.recoveredValue ?? 0,
-                    updateDiscPair: recoverDisc,
+                    trackNumber: resolved.track?.number ?? 0,
+                    totalTracks: resolved.track?.total ?? 0,
+                    updateTrackPair: resolved.track != nil,
+                    discNumber: resolved.disc?.number ?? 0,
+                    totalDiscs: resolved.disc?.total ?? 0,
+                    updateDiscPair: resolved.disc != nil,
+                    movementNumber: 0,
+                    movementCount: 0,
+                    updateMovementPair: false,
                     to: mutationURL
                 )
             }
-            let beforeWrite = verifyAfterWrite ? try readMetadataResult(from: mutationURL) : nil
             try TagLibMetadataExtractor.writeTrackNumberTextInPlace(
                 trackNumberText,
                 discNumberText: discNumberText,
                 to: mutationURL
             )
 
-            if !verifyAfterWrite {
-                return MetadataWriteResult(warnings: [])
+            var selectedGroups = Set<MetadataNumberGroup>()
+            if resolved.track != nil { selectedGroups.insert(.track) }
+            if resolved.disc != nil { selectedGroups.insert(.disc) }
+            let retiredIdentities = selectedGroups
+                .flatMap { ($0 == .track ? beforeInventory.track : beforeInventory.disc).privateTexts.map(\.identity) }
+                .sorted()
+            if !retiredIdentities.isEmpty {
+                let removals = retiredIdentities.map {
+                    StructuredMP4Atom(key: $0, type: "stringList", remove: true)
+                }
+                try TagLibMetadataExtractor.writeStructuredMetadataInPlace(
+                    bridgePayload(
+                        from: StructuredMetadata(mp4Atoms: removals),
+                        includeProperties: false,
+                        replacingCollections: [],
+                        riffPolicy: .preserveInfo
+                    ),
+                    to: mutationURL
+                )
             }
 
-            let expectedTrackPair = parseNumberPair(trackNumberText)
-            let expectedDiscPair = parseNumberPair(normalizedTrimmed(discNumberText))
-            let verifiesExactTrackText = expectedTrackPair.total > 0 || (beforeWrite?.trackTotal ?? 0) == 0
-            let verifiesExactDiscText = expectedDiscPair.total > 0 || (beforeWrite?.discTotal ?? 0) == 0
+            guard verifyAfterWrite else { return MetadataWriteResult(warnings: []) }
 
-            let warnings = metadataWriteWarnings(
-                for: mutationURL,
-                verification: MetadataWriteVerificationContext(
-                    expectedTrackNumber: expectedTrackPair.number > 0 ? expectedTrackPair.number : nil,
-                    expectedTrackTotal: expectedTrackPair.total > 0 ? expectedTrackPair.total : nil,
-                    expectedTrackNumberText: verifiesExactTrackText ? trackNumberText : nil,
-                    expectedDiscNumber: expectedDiscPair.number > 0 ? expectedDiscPair.number : nil,
-                    expectedDiscTotal: expectedDiscPair.total > 0 ? expectedDiscPair.total : nil,
-                    expectedDiscNumberText: verifiesExactDiscText ? discNumberText : nil,
-                    artworkExpectation: .skip,
-                    customFieldKeys: []
-                )
+            let projections = try MetadataProjectionReader.complete(from: mutationURL)
+            let afterRaw = rawMetadataDump(fromBridgeDictionary: projections.raw)
+            let afterStructured = structuredMetadata(fromBridgeDictionary: projections.structured)
+            let afterBasic = basicMetadata(
+                fromBridgeMetadata: projections.basic,
+                rawDump: afterRaw,
+                fileExtension: mutationURL.pathExtension,
+                structured: afterStructured
             )
+            var warnings: [String] = []
+            if let track = resolved.track {
+                if afterBasic.track != track.number {
+                    warnings.append("Track number differs after save (expected \(track.number), got \(afterBasic.track)).")
+                }
+                if afterBasic.trackTotal != track.total {
+                    warnings.append("Total tracks differs after save (expected \(track.total), got \(afterBasic.trackTotal)).")
+                }
+            }
+            if let disc = resolved.disc {
+                if afterBasic.disc != disc.number {
+                    warnings.append("Disc number differs after save (expected \(disc.number), got \(afterBasic.disc)).")
+                }
+                if afterBasic.discTotal != disc.total {
+                    warnings.append("Total discs differs after save (expected \(disc.total), got \(afterBasic.discTotal)).")
+                }
+            }
+            for identity in retiredIdentities
+                where afterStructured.mp4Atoms.contains(where: { $0.key == identity }) {
+                warnings.append("Edited numbering provenance remains after save: \(identity).")
+            }
+            for group in MetadataNumberGroup.allCases where !selectedGroups.contains(group) {
+                let identities = Set((group == .track ? beforeInventory.track : beforeInventory.disc)
+                    .privateTexts.map(\.identity))
+                if before.structured.mp4Atoms.filter({ identities.contains($0.key) })
+                    != afterStructured.mp4Atoms.filter({ identities.contains($0.key) }) {
+                    warnings.append("Unedited numbering provenance changed during save.")
+                }
+            }
             try throwOnVerificationFailures(warnings)
             return MetadataWriteResult(warnings: warnings)
         }

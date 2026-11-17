@@ -424,7 +424,21 @@
       "contract.C-FULL-ALIAS.unique",
       "contract.C-FULL-ALIAS.outcome",
       "contract.C-FULL-ALIAS.adapters",
-      "scenario.S-FULL-ALIAS-01.budget"
+      "scenario.S-FULL-ALIAS-01.budget",
+      "contract.C-MP4-NUMBER-INTENT.id",
+      "contract.C-MP4-NUMBER-INTENT.unique",
+      "contract.C-MP4-NUMBER-INTENT.outcome",
+      "contract.C-MP4-NUMBER-INTENT.adapters",
+      "contract.C-ID3-NUMBER-INTENT.id",
+      "contract.C-ID3-NUMBER-INTENT.unique",
+      "contract.C-ID3-NUMBER-INTENT.outcome",
+      "contract.C-ID3-NUMBER-INTENT.adapters",
+      "scenario.S-MP4-INTENT-01.budget",
+      "scenario.S-MP4-INTENT-02.budget",
+      "scenario.S-MP4-INTENT-03.budget",
+      "scenario.S-MP4-INTENT-04.budget",
+      "scenario.S-ID3-INTENT-01.budget",
+      "scenario.S-ID3-INTENT-02.budget"
     ]
   },
   "S-ENC-01": {
@@ -1378,6 +1392,96 @@
       "audio.preserved",
       "seed.alias",
       "release.alias.absent"
+    ]
+  },
+  "S-MP4-INTENT-01": {
+    "runtime_test": "contractNumberIntentAndRetirement",
+    "adapter_label": "facade.writeTrackNumberText",
+    "checks": [
+      "seed.container",
+      "seed.trkn",
+      "seed.----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+      "seed.----:org.example:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.audio",
+      "write.returned",
+      "native.trkn.zero",
+      "private.retired",
+      "foreign.preserved",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-INTENT-02": {
+    "runtime_test": "contractNumberIntentAndRetirement",
+    "adapter_label": "bridge.writeTrackNumberText",
+    "checks": [
+      "seed.container",
+      "seed.trkn",
+      "seed.----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+      "seed.----:org.example:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.audio",
+      "write.returned",
+      "native.trkn.zero",
+      "private.preserved",
+      "foreign.preserved",
+      "audio.unchanged"
+    ]
+  },
+  "S-MP4-INTENT-03": {
+    "runtime_test": "contractNumberIntentAndRetirement",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "seed.container",
+      "seed.trkn",
+      "seed.----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+      "seed.----:org.example:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.audio",
+      "numberText",
+      "numberText.unchanged-bytes"
+    ]
+  },
+  "S-MP4-INTENT-04": {
+    "runtime_test": "contractNumberIntentAndRetirement",
+    "adapter_label": "facade.writeTrackNumberText",
+    "checks": [
+      "seed.container",
+      "seed.trkn",
+      "seed.----:com.apple.iTunes:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.----:com.apple.iTunes:TAGLIBAUDIOMETADATA_TRACKNUMBER_TEXT",
+      "seed.----:org.example:AUDIOMATOR_TRACKNUMBER_TEXT",
+      "seed.audio",
+      "write.returned",
+      "native.trkn",
+      "private.retired",
+      "audio.unchanged"
+    ]
+  },
+  "S-ID3-INTENT-01": {
+    "runtime_test": "contractID3NumberIntent",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "write.returned",
+      "zero.text",
+      "inventory.number",
+      "inventory.total.absent",
+      "followup.returned",
+      "followup.text",
+      "audio.unchanged"
+    ]
+  },
+  "S-ID3-INTENT-02": {
+    "runtime_test": "contractID3NumberIntent",
+    "adapter_label": "facade.applyPatch",
+    "checks": [
+      "write.returned",
+      "zero.text",
+      "inventory.number",
+      "inventory.total.absent",
+      "followup.returned",
+      "followup.text",
+      "audio.unchanged"
     ]
   }
 }

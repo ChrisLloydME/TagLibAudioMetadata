@@ -47,9 +47,9 @@ def build_pass_log() -> str:
             extra.append(f"Suite {suite} passed.")
     log = log.replace(
         'Test run with 231 tests in 42 suites passed after 8 seconds.',
-        'Test run with 280 tests in 52 suites passed after 8 seconds.',
+        'Test run with 306 tests in 55 suites passed after 8 seconds.',
     )
-    final = 'Test run with 280 tests in 52 suites passed after 8 seconds.'
+    final = 'Test run with 306 tests in 55 suites passed after 8 seconds.'
     if final in log:
         log = log.replace(final, '\n'.join(extra) + '\n' + final if extra else final)
     else:
@@ -193,8 +193,8 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 280 tests', 'run with 279 tests')))
-        self.assertFalse(self.accepted(PASS.replace('in 52 suites', 'in 51 suites')))
+        self.assertFalse(self.accepted(PASS.replace('run with 306 tests', 'run with 305 tests')))
+        self.assertFalse(self.accepted(PASS.replace('in 55 suites', 'in 54 suites')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -388,7 +388,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(lines[:-1]) + '\n'))
 
     def test_missing_framework_completion_is_rejected(self):
-        self.assertFalse(self.accepted(PASS.replace('Test run with 280 tests in 52 suites passed after 8 seconds.\n', '')))
+        self.assertFalse(self.accepted(PASS.replace('Test run with 306 tests in 55 suites passed after 8 seconds.\n', '')))
 
     def test_contract_suite_cannot_be_filtered(self):
         for suite in ('ContractBuilderOracleSelfTests', 'ContractMP4ScenarioTests',
@@ -492,3 +492,38 @@ class TestGatePolicy(unittest.TestCase):
                      "malformedMissingSiblingDoesNotDisappearDuringPartialEdit", "staleAndInvalidMixedWritesCannotPartiallyCleanPrivateData"):
             with self.subTest(name=name):
                 self.assertFalse(self.accepted("\n".join(line for line in PASS.splitlines() if name not in line)))
+
+    def test_new_numbering_execution_cannot_be_removed_or_shrunk(self):
+        self.assertFalse(self.accepted("\n".join(
+            line for line in PASS.splitlines() if "explicitIntentMatrix() with 60 test cases passed" not in line)))
+        self.assertFalse(self.accepted(PASS.replace(
+            "explicitIntentMatrix() with 60 test cases", "explicitIntentMatrix() with 59 test cases")))
+        self.assertFalse(self.accepted("\n".join(
+            line for line in PASS.splitlines() if "id3ExplicitZeroReopensAndAllowsTotalOnlyEdit" not in line)))
+
+    def test_new_contract_scenarios_cannot_be_missing_duplicated_or_weakened(self):
+        def missing(directory):
+            next(directory.glob("*S-MP4-INTENT-01.json")).unlink()
+        def duplicate(directory):
+            source = next(directory.glob("*S-MP4-INTENT-01.json"))
+            shutil.copy(source, directory / "duplicate-scenario.json")
+        def weakened(directory):
+            path = next(directory.glob("*S-MP4-INTENT-01.json"))
+            row = json.loads(path.read_text())
+            row["checks"] = [check for check in row["checks"] if check["name"] != "private.retired"]
+            row["check_count"] = len(row["checks"])
+            path.write_text(json.dumps(row))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=missing))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=duplicate))
+        self.assertFalse(self.accepted(PASS, evidence_mutator=weakened))
+
+    def test_new_numbering_calibration_identity_cannot_be_stale(self):
+        def stale(row):
+            row["expected_mutant_ids"] = [m for m in row["expected_mutant_ids"] if m != "weakened-contract-preservation-assertion"]
+        self.assertFalse(self.accepted(PASS, calibration_mutator=stale))
+
+    def test_hidden_new_numbering_named_failure_is_rejected(self):
+        final = "Test run with 306 tests in 55 suites passed after 8 seconds."
+        self.assertFalse(self.accepted(PASS.replace(
+            final, "Test explicitIntentMatrix(_:) failed after 1 second.\n" + final)))
+

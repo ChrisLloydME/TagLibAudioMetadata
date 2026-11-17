@@ -1509,6 +1509,7 @@
         "bridge.writeTrackNumberText"
       ],
       "catalog_contracts": [
+        "C-MP4-NUMBER-INTENT",
         "C-MP4-NUMBER-TEXT"
       ],
       "rationale": "Exported formatted number-text write."
@@ -11498,11 +11499,13 @@
         "C-ASF-PARTIAL-PAIR-REJECT",
         "C-FLAC-ARRAYS",
         "C-FLAC-REMOVAL",
+        "C-ID3-NUMBER-INTENT",
         "C-ID3-PRIVATE",
         "C-ID3-V23-DATE-REJECT",
         "C-ID3-V23-FLAGS",
         "C-MP4-BATCH",
         "C-MP4-BATCH-REJECT",
+        "C-MP4-NUMBER-INTENT",
         "C-MP4-NUMBER-TEXT-INVALID",
         "C-MP4-NUMERIC-BOUNDS",
         "C-MP4-NUMERIC-OVERFLOW-REJECT",
@@ -11994,6 +11997,7 @@
         "facade.writeTrackNumberText"
       ],
       "catalog_contracts": [
+        "C-MP4-NUMBER-INTENT",
         "C-MP4-NUMBER-TEXT"
       ],
       "rationale": "Formatted number-text writer; facade adapter is separate from the bridge adapter."

@@ -196,6 +196,18 @@
     "contractWAVAndAIFFID3": [
       "facade.applyPatch|returned",
       "facade.applyPatch|returned"
+    ],
+    "contractNumberIntentAndRetirement": [
+      "facade.writeTrackNumberText|returned",
+      "bridge.writeTrackNumberText|returned",
+      "facade.applyPatch|threw",
+      "facade.writeTrackNumberText|returned"
+    ],
+    "contractID3NumberIntent": [
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned",
+      "facade.applyPatch|returned"
     ]
   }
 }

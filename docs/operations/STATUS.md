@@ -10,12 +10,30 @@ This page is a snapshot of the latest known validation state for the current sou
 | Source | `main` at the `0.8.0` release commit |
 | Later tag | None |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
-| Latest accepted source | `959d688`; the `05416aa` merge and this release preparation change documentation and evidence only |
+| Latest accepted source | Release source `959d688`; current candidate source `558df00` (package-only Debug acceptance; not a release) |
 | Documentation scope | Current pages describe `0.8.0`; release-specific behavior is identified in [Migration](MIGRATION.md) |
+| Current candidate audit | **READY for package-only Debug acceptance** on `558df00`: [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md) closes F-01, F-02, F-03, F-04 and F-07 from [AUD-2026-11-17-pre-release](../records/audits/AUD-2026-11-17-pre-release.md). The historical audit remains linked. |
+
+The post-`0.8.0` numbering-contract repairs are accepted for the package-only **Debug** lane on source commit `558df00`. The complete strict campaign accepted 181 XCTest declarations (179 passed, two reviewed opt-in skips), 306 Swift Testing declarations in 55 suites, 81/81 contract scenarios, 97 policy regressions and 23/23 killed calibration mutants; both package-owned consumers, focused ASan/TSan and five minimum-platform builds also passed. This is not a Release acceptance, does not change the `0.8.0` release boundary, and does not establish application, hosted-CI, device or external-decoder behavior. The historical audit that found F-01–F-04 remains in the records index and is not rewritten as a pass.
 
 Version `0.8.0` includes mapping contract 2.2, the `0.7.1` through `0.7.3` corrections, and the breaking API cleanup, public write-contract repairs and independent contract test system finalized for this release. The TagLib binary and mapping contract ID are unchanged from `0.7.3`. Release notes are in the [changelog](../../CHANGELOG.md).
 
 This is an explicitly breaking release: compatibility-only API was removed and several write paths validate or preserve more strictly. Consumers must review [Migration](MIGRATION.md#migrating-from-0-7-3-to-0-8-0) before upgrading. No user-file migration is automatic.
+
+## Current repaired candidate acceptance (2026-11-17)
+
+The repaired candidate is accepted for the package-only **Debug** contract campaign on source commit `558df00db502044e23d9935aa0b9fb328f237369` (branch `codex/numbering-contract-repairs-20261117`). The campaign source hash was `5cbc2ba2b6030751e624dc5f523fd6352ce9ac46e726c753e71df68ebb9b1032`; the before/after manifests were identical and the tracked diff was empty. This acceptance does not create a release, tag or publication.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Canonical Debug | **accepted: true**; 181 XCTest (179 passed, two reviewed opt-in skips), 306 Swift Testing declarations in 55 suites, 81/81 scenarios, no named failures or unexpected skips | `.build/test-evidence/debug-numbering-repairs-accepted2-20261117/` |
+| Calibration | **23/23 killed**; control build/run pass; all mutants restored; source restored | `.build/test-calibration/20261117T122517-35984/calibration.json` |
+| Policy and inventory | 97 policy regressions; 907 public-surface rows, 36 contracts, 81 scenarios, 62 adapters reconcile | `.build/numbering-repairs-accepted2-gate.log` |
+| Consumers | Both package-owned consumers passed real writes, native assertions and audio checks | `.build/numbering-repairs-consumers.log` |
+| Focused sanitizers | ASan and TSan each passed 26 tests in 3 suites without findings | `.build/numbering-repairs-asan.log`, `.build/numbering-repairs-tsan.log` |
+| Minimum platforms | 5/5 strict Debug builds: macOS 13 arm64/x86_64, iOS 16 device arm64, iOS 16 simulator arm64/x86_64 | `.build/platform-*.log` |
+
+The acceptance closes F-01, F-02, F-03, F-04 and F-07 from the [pre-release audit](../records/audits/AUD-2026-11-17-pre-release.md). F-05 (Basic unchanged-zero semantics) and F-10 (low-level private-owner preservation) remain deliberate boundaries. The record/index/status edits that describe this result are documentation-only; the accepted source commit is the gate commit. See [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
 
 ## Accepted 0.8.0 source
 
@@ -135,7 +153,8 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 | --- | --- | --- |
 | `0.8.0` | Current release, declared 2026-11-15; accepted source `959d688`; release preparation changes documentation only | Packages the breaking API cleanup, public write-contract repairs and contract test system above |
 | `05416aa` | Merge of the contract-system upgrade; documentation and evidence only after `959d688` | Included in `0.8.0`; production code unchanged |
-| `959d688` | Final package-only acceptance: 181 XCTest / 274 Swift Testing / 75 scenarios / 92 policy / 13 calibration mutants, full ASan/TSan | Latest accepted source; included in `0.8.0` |
+| `558df00` | Numbering-contract repair Debug acceptance: 181 XCTest / 306 Swift Testing / 81 scenarios / 97 policy / 23 calibration mutants, focused ASan/TSan, consumers, five platform builds | Current package-only Debug accepted source; not a release |
+| `959d688` | Final `0.8.0` package-only acceptance: 181 XCTest / 274 Swift Testing / 75 scenarios / 92 policy / 13 calibration mutants, full ASan/TSan | Release source; included in `0.8.0` |
 | `c3c655e` | Public write-contract acceptance: 181 XCTest / 231 Swift Testing / 41 policy | Superseded counts; production repairs are included in `0.8.0` |
 | `0.7.3` | Release tag, declared 2026-11-12; source branch merged as `e9337f2` | Previous release; includes the native-owner state-preservation repairs above |
 | `0.7.2` | Release tag, declared 2026-11-11 | Previous release; includes the audit, native-mapping, test-system and MP4 Content Group repairs; does not include `0.7.3` |
