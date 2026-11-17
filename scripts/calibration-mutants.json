@@ -121,7 +121,7 @@
         }
       ],
       "test_filter": "explicitZeroTotalIsNotRecoveredFromOldNumberText",
-      "witness": "after.trackTotal == 0"
+      "witness": "explicitZeroTotalIsNotRecoveredFromOldNumberText"
     },
     {
       "id": "advertised-unreachable-route",
