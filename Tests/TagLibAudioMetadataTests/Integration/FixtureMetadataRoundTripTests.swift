@@ -1070,9 +1070,13 @@ final class FixtureMetadataRoundTripTests: XCTestCase {
         XCTAssertEqual(result.trackTotal, 12, "Native trkn must override a conflicting freeform total.")
         XCTAssertEqual(result.discTotal, 2, "Native disk must override a conflicting freeform total.")
 
-        let conflictedBytes = try Data(contentsOf: url)
-        XCTAssertThrowsError(try TagLibMetadataManager.writeTrackNumberText("5", discNumberText: nil, to: url))
-        XCTAssertEqual(try Data(contentsOf: url), conflictedBytes)
+        // Canonical native values are authoritative for ordinary number-text
+        // writes; the conflicting freeform total is a diagnostic alias, not a
+        // blanket write rejection. An explicit normalization policy remains
+        // available for callers that want the native surface cleaned up.
+        try TagLibMetadataManager.writeTrackNumberText("5", discNumberText: nil, to: url)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).track, 5)
+        XCTAssertEqual(try TagLibMetadataManager.readMetadataResult(from: url).trackTotal, 12)
         let resolution = try TagLibMetadataManager.planNumberNormalization(at: url, policy: .useNative)
         _ = try TagLibMetadataManager.applyNumberNormalization(resolution, to: url)
 

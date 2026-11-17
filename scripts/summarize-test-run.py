@@ -67,6 +67,32 @@ REQUIRED_TESTS = {
     "ambiguousMissingSiblingNeedsValueButFullReplacementSucceeds": 1,
     "malformedMissingSiblingDoesNotDisappearDuringPartialEdit": 1,
     "staleAndInvalidMixedWritesCannotPartiallyCleanPrivateData": 1,
+    "convenienceNumberTextExplicitZeroIsAuthoritative": 4,
+    "metadataPatchNumberTextExplicitZeroIsAuthoritative": 3,
+    "convenienceDiscExplicitZeroIsAuthoritative": 3,
+    "convenienceNumberTextRetiresEditedGroupProvenance": 1,
+    "partialMalformedPrivateTextMustNotSupplyMissingSibling": 2,
+    "strictPrivateTextStillRecoversMissingSibling": 1,
+    "zeroValuedNativeComponentUsesCanonicalOrRecoveredCounterpart": 1,
+    "titleOnlyWriteDoesNotCreateOrMigrateNumberPair": 1,
+    "readsDoNotMutateBytesOrVersion": 1,
+    "fullExplicitReplacementRetiresOnlyEditedGroup": 1,
+    "explicitIntentMatrix": 60,
+    "explicitIntentFacadeVerificationDisabled": 30,
+    "opaquePrivateEvidenceIsNotRecovered": 2,
+    "canonicalNativeTotalBeatsOpaquePrivateEvidence": 1,
+    "strictSinglePrivateEvidenceStillRecoversMissingSibling": 2,
+    "matchingStrictNamespacesRecoverAndBothRetire": 1,
+    "conflictingStrictNamespacesRejectWithoutMutation": 1,
+    "id3ExplicitZeroReopensAndAllowsTotalOnlyEdit": 2,
+    "id3ZeroPaddedExplicitZeroRoundTrips": 1,
+    "convenienceRetiresBothSelectedGroupsAndPreservesOthers": 1,
+    "convenienceTrackSelectionRetiresEvenWhenValueUnchanged": 1,
+    "facadeAndPatchUseOneStage": 1,
+    "lowLevelBridgePreservesUnmodeledPrivateOwners": 1,
+    "facadeDoesNotCreatePrivateAtoms": 1,
+    "contractNumberIntentAndRetirement": 1,
+    "contractID3NumberIntent": 1,
 
     "contractFullModelRetiresEditedReleaseAlias": 1,
     "contractPreviouslyUnobservedSurfaces": 1,
@@ -231,13 +257,13 @@ REQUIRED_SUITES = (
     'ID3SemanticLifecycleTests', 'NativeProbeContractTests', 'BasicIntegrityMatrixTests',
     'AdditionalContainerLifecycleTests', 'ASFNativeLifecycleTests', 'AuditProbeTests',
     'ID3ContainerLifecycleTests', 'PublicWriteContractRepairTests', 'ReleaseAcceptanceTests',
-    'AutomaticNumberingTests', 'ContractBuilderOracleSelfTests', 'ContractClaimsTests', 'ContractMP4ScenarioTests',
+    'AutomaticNumberingTests', 'PreReleaseAuditTests', 'NumberingContractRepairTests', 'ContractNumberIntentTests', 'ContractBuilderOracleSelfTests', 'ContractClaimsTests', 'ContractMP4ScenarioTests',
     'ContractBridgeAndEncodingTests', 'ContractNativeContainerTests', 'ContractFieldCoverageTests',
 )
 
 XCTEST_MINIMUM = 181
-SWIFT_TESTING_MINIMUM = 280
-SWIFT_SUITE_MINIMUM = 52
+SWIFT_TESTING_MINIMUM = 306
+SWIFT_SUITE_MINIMUM = 55
 
 
 def xctest_identity(name: str):

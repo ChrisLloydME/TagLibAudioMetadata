@@ -2206,6 +2206,158 @@
       "validation_phase": "saved_native_readback",
       "evidence_tier": "runtime",
       "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-NUMBER-INTENT",
+      "surface_id": "swift.TagLibMetadataManager.func.writeTrackNumberText",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.writeTrackNumberText",
+        "bridge.TagLibMetadataExtractor.class_method.writeTrackNumberText",
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.writeTrackNumberText",
+        "bridge.writeTrackNumberText",
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "track",
+        "trackTotal"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "text",
+        "int_pair"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "numeric_boundary",
+      "operation": "explicit number-text intent, selected-group retirement, opaque rejection and explicit replacement",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "contractNumberIntentAndRetirement",
+      "ownership": {
+        "edited": [
+          "trkn"
+        ],
+        "untouched": [
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "number_text"
+        ],
+        "verification": [
+          "enabled",
+          "disabled"
+        ],
+        "number_text": [
+          "set",
+          "remove"
+        ],
+        "input_representation": [
+          "text",
+          "nil"
+        ],
+        "adapter_kind": [
+          "facade",
+          "bridge"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-INTENT-01",
+          "expected_assertions": 11
+        },
+        {
+          "scenario_id": "S-MP4-INTENT-02",
+          "expected_assertions": 11
+        },
+        {
+          "scenario_id": "S-MP4-INTENT-03",
+          "expected_assertions": 8
+        },
+        {
+          "scenario_id": "S-MP4-INTENT-04",
+          "expected_assertions": 10
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-ID3-NUMBER-INTENT",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMetadataPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMetadataPatch"
+      ],
+      "adapters": [
+        "facade.applyPatch"
+      ],
+      "field_family": [
+        "track",
+        "trackTotal",
+        "disc",
+        "discTotal"
+      ],
+      "format_family": [
+        "id3v24"
+      ],
+      "encoding_families": [
+        "text"
+      ],
+      "fixture_id": "fixture.mp3",
+      "partition": "numeric_boundary",
+      "operation": "package-written explicit-zero ID3 text and total-only follow-up edits",
+      "oracle": "ContractID3Oracle",
+      "runtime_test": "contractID3NumberIntent",
+      "ownership": {
+        "edited": [
+          "TRCK",
+          "TPOS"
+        ],
+        "untouched": [],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "write_mode": [
+          "number_text",
+          "typed_patch"
+        ],
+        "number_text": [
+          "set"
+        ],
+        "input_representation": [
+          "text"
+        ],
+        "adapter_kind": [
+          "facade"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-ID3-INTENT-01",
+          "expected_assertions": 7
+        },
+        {
+          "scenario_id": "S-ID3-INTENT-02",
+          "expected_assertions": 7
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "test-owned literal expectations; no production-derived targets",
+      "validation_phase": "preflight",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
     }
   ],
   "field_decisions": [
@@ -3901,7 +4053,7 @@
     {
       "scenario_id": "S-CATALOG-RECONCILIATION-01",
       "runtime_test": "contractCatalogReconciliation",
-      "expected_assertions": 212,
+      "expected_assertions": 226,
       "purpose": "contracts, adapters, scenario declarations and assertion budgets reconcile without duplicates"
     },
     {

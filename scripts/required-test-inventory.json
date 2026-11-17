@@ -19,6 +19,10 @@
     "suite": "MP4DateStateCoverageTests",
     "path": "Integration/MP4DateStateCoverageTests.swift"
   },
+  "ambiguousMissingSiblingNeedsValueButFullReplacementSucceeds": {
+    "suite": "AutomaticNumberingTests",
+    "path": "Integration/AutomaticNumberingTests.swift"
+  },
   "apeNativeItemLifecycle": {
     "suite": "AdditionalContainerLifecycleTests",
     "path": "Integration/AdditionalContainerLifecycleTests.swift"
@@ -131,6 +135,186 @@
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
   },
+  "canonicalNativeTotalBeatsOpaquePrivateEvidence": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
+  "canonicalNativeValueWinsDespiteLegacyAliasDiagnostic": {
+    "suite": "IndependentAcceptanceProbes",
+    "path": "Integration/IndependentAcceptanceProbes.swift"
+  },
+  "canonicalNumbersBeatConflictingOrMalformedPrivateProvenance": {
+    "suite": "AutomaticNumberingTests",
+    "path": "Integration/AutomaticNumberingTests.swift"
+  },
+  "conflictingStrictNamespacesRejectWithoutMutation": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
+  "contractASFAdvisoryPreservation": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractASFPartialPairRejects": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractArtworkAndQualifiedCollections": {
+    "suite": "ContractBridgeAndEncodingTests",
+    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
+  },
+  "contractBatchPerFile": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractBridgeReadsRegistry": {
+    "suite": "ContractBridgeAndEncodingTests",
+    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
+  },
+  "contractBridgeStructuredValidation": {
+    "suite": "ContractBridgeAndEncodingTests",
+    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
+  },
+  "contractBridgeWipe": {
+    "suite": "ContractBridgeAndEncodingTests",
+    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
+  },
+  "contractCatalogReconciliation": {
+    "suite": "ContractFieldCoverageTests",
+    "path": "ContractSystem/ContractFieldCoverageTests.swift"
+  },
+  "contractEncodingFamilies": {
+    "suite": "ContractBridgeAndEncodingTests",
+    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
+  },
+  "contractEraseAndReopen": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractEveryFieldHasCoverageDecision": {
+    "suite": "ContractFieldCoverageTests",
+    "path": "ContractSystem/ContractFieldCoverageTests.swift"
+  },
+  "contractEveryFormatHasCoverageDecision": {
+    "suite": "ContractFieldCoverageTests",
+    "path": "ContractSystem/ContractFieldCoverageTests.swift"
+  },
+  "contractFLACArrayPreservation": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractFLACExplicitRemoval": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractFullModelRetention": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractFullModelRetiresEditedReleaseAlias": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractID3NumberIntent": {
+    "suite": "ContractNumberIntentTests",
+    "path": "ContractSystem/ContractNumberIntentTests.swift"
+  },
+  "contractInvalidNumberTextRejects": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractMP4NumericBounds": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractMP4PublicSequence": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractMP4TypedVertical": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractNativeTextOtherFamilies": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractNormalizationPlan": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractNumberIntentAndRetirement": {
+    "suite": "ContractNumberIntentTests",
+    "path": "ContractSystem/ContractNumberIntentTests.swift"
+  },
+  "contractNumberTextSurfaces": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractPreviouslyUnobservedSurfaces": {
+    "suite": "ContractFieldCoverageTests",
+    "path": "ContractSystem/ContractFieldCoverageTests.swift"
+  },
+  "contractPrivateProvenance": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractRawDeltaAndBridgeReplace": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractRawValueModes": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractStaleGuards": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractTrackerRoute": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractUnsupportedRoutesReject": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractV23DateRejections": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractV23FlaggedPreservation": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "contractVerificationDisabled": {
+    "suite": "ContractMP4ScenarioTests",
+    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
+  },
+  "contractWAVAndAIFFID3": {
+    "suite": "ContractNativeContainerTests",
+    "path": "ContractSystem/ContractNativeContainerTests.swift"
+  },
+  "convenienceDiscExplicitZeroIsAuthoritative": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
+  },
+  "convenienceNumberTextExplicitZeroIsAuthoritative": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
+  },
+  "convenienceNumberTextRetiresEditedGroupProvenance": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
+  },
+  "convenienceRetiresBothSelectedGroupsAndPreservesOthers": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
+  "convenienceTrackSelectionRetiresEvenWhenValueUnchanged": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
   "crossFormatStructuredCollectionsRejectAtomically": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
@@ -179,6 +363,14 @@
     "suite": "ReleaseAcceptanceTests",
     "path": "Integration/ReleaseAcceptanceTests.swift"
   },
+  "explicitIntentFacadeVerificationDisabled": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
+  "explicitIntentMatrix": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
   "explicitYearWritesOnlyTheYearSlot": {
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
@@ -187,9 +379,33 @@
     "suite": "ReleaseAcceptanceTests",
     "path": "Integration/ReleaseAcceptanceTests.swift"
   },
+  "facadeAndPatchUseOneStage": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
+  "facadeDoesNotCreatePrivateAtoms": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
+  "fieldSchemaMatchesReviewedClaims": {
+    "suite": "ContractClaimsTests",
+    "path": "ContractSystem/ContractClaimsTests.swift"
+  },
+  "flacBuilderPreservesDuplicatesWhitespaceAndAudio": {
+    "suite": "ContractBuilderOracleSelfTests",
+    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
+  },
   "flacKnownVectorKeepsDuplicateCommentEntriesAndAudio": {
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "formatCapabilitiesMatchReviewedClaims": {
+    "suite": "ContractClaimsTests",
+    "path": "ContractSystem/ContractClaimsTests.swift"
+  },
+  "fullExplicitReplacementRetiresOnlyEditedGroup": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
   },
   "fullModelPreservesUnmodeledOwners": {
     "suite": "PublicWriteContractRepairTests",
@@ -215,9 +431,25 @@
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
   },
+  "id3ExplicitZeroReopensAndAllowsTotalOnlyEdit": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
+  "id3FlagsGroupingAndTagFlagsRoundTrip": {
+    "suite": "ContractBuilderOracleSelfTests",
+    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
+  },
+  "id3FrameSizesAndVersionLayouts": {
+    "suite": "ContractBuilderOracleSelfTests",
+    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
+  },
   "id3KnownVectorAndUnsupportedHeaderBounds": {
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
+  },
+  "id3ZeroPaddedExplicitZeroRoundTrips": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
   },
   "id3v23DateWritesRejectBeforeMutation": {
     "suite": "AuditProbeTests",
@@ -251,6 +483,10 @@
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
   },
+  "lowLevelBridgePreservesUnmodeledPrivateOwners": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
   "lowLevelClearMustNotResurrectOldMP4Values": {
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
@@ -267,13 +503,29 @@
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
   },
+  "malformedMissingSiblingDoesNotDisappearDuringPartialEdit": {
+    "suite": "AutomaticNumberingTests",
+    "path": "Integration/AutomaticNumberingTests.swift"
+  },
+  "malformedNativeEvidenceIsRejected": {
+    "suite": "ContractBuilderOracleSelfTests",
+    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
+  },
   "malformedNumberTextCannotEraseExistingPairs": {
     "suite": "ReleaseAcceptanceTests",
     "path": "Integration/ReleaseAcceptanceTests.swift"
   },
+  "matchingStrictNamespacesRecoverAndBothRetire": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
   "maximumGeneratedPaddingStillWrites": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "metadataPatchNumberTextExplicitZeroIsAuthoritative": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
   },
   "movementAndReleaseOwnersAgreeAcrossEntrypoints": {
     "suite": "IndependentDiagnosticRepairTests",
@@ -286,6 +538,10 @@
   "mp4IntPairOverflowRejectsWithoutMutation": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "mp4IntegerEncodingsAndBounds": {
+    "suite": "ContractBuilderOracleSelfTests",
+    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
   },
   "mp4KnownAtomCannotChangeCodec": {
     "suite": "PublicWriteContractRepairTests",
@@ -339,13 +595,29 @@
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
   },
+  "numberTextRetiresProvenanceInSameSave": {
+    "suite": "AutomaticNumberingTests",
+    "path": "Integration/AutomaticNumberingTests.swift"
+  },
   "oggNativeCommentLifecycle": {
     "suite": "AdditionalContainerLifecycleTests",
     "path": "Integration/AdditionalContainerLifecycleTests.swift"
   },
+  "opaquePrivateEvidenceIsNotRecovered": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
   "ordinaryAliasRetiresOnlyForEditedPair": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "ordinaryNumberEditsRecoverAndRetireOnlyOwnedGroup": {
+    "suite": "AutomaticNumberingTests",
+    "path": "Integration/AutomaticNumberingTests.swift"
+  },
+  "partialMalformedPrivateTextMustNotSupplyMissingSibling": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
   },
   "privateProvenanceSurvivesOrdinaryWrites": {
     "suite": "PublicWriteContractRepairTests",
@@ -363,9 +635,17 @@
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
   },
+  "readsDoNotMutateBytesOrVersion": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
+  },
   "registrySemanticAndTotalProjectionsAreConsistent": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
+  },
+  "riffChunkBoundsAlignmentAndTruncation": {
+    "suite": "ContractBuilderOracleSelfTests",
+    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
   },
   "roleQualifiedTypedPatchStillRejects": {
     "suite": "PublicWriteContractRepairTests",
@@ -375,6 +655,18 @@
     "suite": "AuditProbeTests",
     "path": "Integration/AuditProbeTests.swift"
   },
+  "staleAndInvalidMixedWritesCannotPartiallyCleanPrivateData": {
+    "suite": "AutomaticNumberingTests",
+    "path": "Integration/AutomaticNumberingTests.swift"
+  },
+  "strictPrivateTextStillRecoversMissingSibling": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
+  },
+  "strictSinglePrivateEvidenceStillRecoversMissingSibling": {
+    "suite": "NumberingContractRepairTests",
+    "path": "Integration/NumberingContractRepairTests.swift"
+  },
   "structuredMP4RejectsEncodingAndRangeBypasses": {
     "suite": "ReleaseAcceptanceTests",
     "path": "Integration/ReleaseAcceptanceTests.swift"
@@ -383,9 +675,17 @@
     "suite": "ReleaseAcceptanceTests",
     "path": "Integration/ReleaseAcceptanceTests.swift"
   },
+  "synchsafeBoundariesAndLiteralVectors": {
+    "suite": "ContractBuilderOracleSelfTests",
+    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
+  },
   "textLifecyclePreservesEveryDatePresenceState": {
     "suite": "MP4DateStateCoverageTests",
     "path": "Integration/MP4DateStateCoverageTests.swift"
+  },
+  "titleOnlyWriteDoesNotCreateOrMigrateNumberPair": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
   },
   "typedASFAdvisoryPersistsNativeAttribute": {
     "suite": "IndependentDiagnosticRepairTests",
@@ -443,204 +743,8 @@
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"
   },
-  "synchsafeBoundariesAndLiteralVectors": {
-    "suite": "ContractBuilderOracleSelfTests",
-    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
-  },
-  "id3FrameSizesAndVersionLayouts": {
-    "suite": "ContractBuilderOracleSelfTests",
-    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
-  },
-  "id3FlagsGroupingAndTagFlagsRoundTrip": {
-    "suite": "ContractBuilderOracleSelfTests",
-    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
-  },
-  "mp4IntegerEncodingsAndBounds": {
-    "suite": "ContractBuilderOracleSelfTests",
-    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
-  },
-  "riffChunkBoundsAlignmentAndTruncation": {
-    "suite": "ContractBuilderOracleSelfTests",
-    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
-  },
-  "flacBuilderPreservesDuplicatesWhitespaceAndAudio": {
-    "suite": "ContractBuilderOracleSelfTests",
-    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
-  },
-  "malformedNativeEvidenceIsRejected": {
-    "suite": "ContractBuilderOracleSelfTests",
-    "path": "ContractSystem/ContractBuilderOracleSelfTests.swift"
-  },
-  "fieldSchemaMatchesReviewedClaims": {
-    "suite": "ContractClaimsTests",
-    "path": "ContractSystem/ContractClaimsTests.swift"
-  },
-  "formatCapabilitiesMatchReviewedClaims": {
-    "suite": "ContractClaimsTests",
-    "path": "ContractSystem/ContractClaimsTests.swift"
-  },
-  "contractMP4TypedVertical": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractMP4PublicSequence": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractFullModelRetention": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractRawValueModes": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractRawDeltaAndBridgeReplace": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractNumberTextSurfaces": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractMP4NumericBounds": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractInvalidNumberTextRejects": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractVerificationDisabled": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractEraseAndReopen": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractStaleGuards": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractBatchPerFile": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractBridgeReadsRegistry": {
-    "suite": "ContractBridgeAndEncodingTests",
-    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
-  },
-  "contractBridgeStructuredValidation": {
-    "suite": "ContractBridgeAndEncodingTests",
-    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
-  },
-  "contractBridgeWipe": {
-    "suite": "ContractBridgeAndEncodingTests",
-    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
-  },
-  "contractEncodingFamilies": {
-    "suite": "ContractBridgeAndEncodingTests",
-    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
-  },
-  "contractArtworkAndQualifiedCollections": {
-    "suite": "ContractBridgeAndEncodingTests",
-    "path": "ContractSystem/ContractBridgeAndEncodingTests.swift"
-  },
-  "contractV23FlaggedPreservation": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractV23DateRejections": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractPrivateProvenance": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractFLACArrayPreservation": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractFLACExplicitRemoval": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractWAVAndAIFFID3": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractASFAdvisoryPreservation": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractASFPartialPairRejects": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractTrackerRoute": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractUnsupportedRoutesReject": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractNormalizationPlan": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractNativeTextOtherFamilies": {
-    "suite": "ContractNativeContainerTests",
-    "path": "ContractSystem/ContractNativeContainerTests.swift"
-  },
-  "contractEveryFieldHasCoverageDecision": {
-    "suite": "ContractFieldCoverageTests",
-    "path": "ContractSystem/ContractFieldCoverageTests.swift"
-  },
-  "contractEveryFormatHasCoverageDecision": {
-    "suite": "ContractFieldCoverageTests",
-    "path": "ContractSystem/ContractFieldCoverageTests.swift"
-  },
-  "contractCatalogReconciliation": {
-    "suite": "ContractFieldCoverageTests",
-    "path": "ContractSystem/ContractFieldCoverageTests.swift"
-  },
-  "contractFullModelRetiresEditedReleaseAlias": {
-    "suite": "ContractMP4ScenarioTests",
-    "path": "ContractSystem/ContractMP4ScenarioTests.swift"
-  },
-  "contractPreviouslyUnobservedSurfaces": {
-    "suite": "ContractFieldCoverageTests",
-    "path": "ContractSystem/ContractFieldCoverageTests.swift"
-  },
-  "ordinaryNumberEditsRecoverAndRetireOnlyOwnedGroup": {
-    "suite": "AutomaticNumberingTests",
-    "path": "Integration/AutomaticNumberingTests.swift"
-  },
-  "numberTextRetiresProvenanceInSameSave": {
-    "suite": "AutomaticNumberingTests",
-    "path": "Integration/AutomaticNumberingTests.swift"
-  },
-  "canonicalNumbersBeatConflictingOrMalformedPrivateProvenance": {
-    "suite": "AutomaticNumberingTests",
-    "path": "Integration/AutomaticNumberingTests.swift"
-  },
-  "ambiguousMissingSiblingNeedsValueButFullReplacementSucceeds": {
-    "suite": "AutomaticNumberingTests",
-    "path": "Integration/AutomaticNumberingTests.swift"
-  },
-  "malformedMissingSiblingDoesNotDisappearDuringPartialEdit": {
-    "suite": "AutomaticNumberingTests",
-    "path": "Integration/AutomaticNumberingTests.swift"
-  },
-  "staleAndInvalidMixedWritesCannotPartiallyCleanPrivateData": {
-    "suite": "AutomaticNumberingTests",
-    "path": "Integration/AutomaticNumberingTests.swift"
-  },
-  "canonicalNativeValueWinsDespiteLegacyAliasDiagnostic": {
-    "suite": "IndependentAcceptanceProbes",
-    "path": "Integration/IndependentAcceptanceProbes.swift"
+  "zeroValuedNativeComponentUsesCanonicalOrRecoveredCounterpart": {
+    "suite": "PreReleaseAuditTests",
+    "path": "Integration/PreReleaseAuditTests.swift"
   }
 }

@@ -213,7 +213,11 @@ extension TagLibMetadataManager {
             number = parsed
         }
         if parts.count == 2 {
-            guard let total = parseStrictNumber(String(parts[1])) else { return nil }
+            // The bridge's number-text grammar supports an omitted
+            // component. A slash makes the total explicit; an empty total
+            // is the explicit-zero component, not an omitted total.
+            if parts[1].isEmpty { return (number, 0) }
+            guard let total = parseStrictNumber(String(parts[1]), allowZero: true) else { return nil }
             return (number, total)
         }
         return (number, nil)
@@ -226,7 +230,8 @@ extension TagLibMetadataManager {
     }
 
     nonisolated private static func resolveNumberComponent(
-        native: [NumberCandidate], legacy: [NumberCandidate]
+        native: [NumberCandidate], legacy: [NumberCandidate],
+        opaque: Bool = false
     ) -> MetadataNumberComponentInventory {
         let nativeValues = Set(native.compactMap(\.value))
         let legacyValues = Set(legacy.compactMap(\.value))
@@ -235,9 +240,14 @@ extension TagLibMetadataManager {
             || nativeValues.count > 1
         let legacyInvalid = legacy.contains { $0.value == nil }
             || Dictionary(grouping: legacy, by: \.identity).values.contains { $0.count > 1 }
-        let nativeValue = !nativeInvalid && nativeValues.count == 1 ? nativeValues.first : nil
+        // A zero component is the absence sentinel. Native candidates skip it
+        // while legacy candidates retain it for conflict detection; a single
+        // zero-only legacy component is absent, not recovered.
+        let nativeValue = !nativeInvalid && nativeValues.count == 1
+            ? nativeValues.first.flatMap { $0 > 0 ? $0 : nil } : nil
         let invalid = (native + legacy).contains { $0.value == nil }
         let distinct = nativeValues.union(legacyValues)
+        let legacyOnlyZero = legacyValues.count == 1 && legacyValues.first == 0
         let state: MetadataNumberComponentState
         if invalid && distinct.isEmpty {
             state = .invalid
@@ -245,6 +255,12 @@ extension TagLibMetadataManager {
             state = .ambiguous
         } else if nativeValue != nil {
             state = .native
+        } else if opaque {
+            // Non-strict/opaque private evidence cannot supply a missing
+            // canonical component. Keep the read projection safe as well.
+            state = .ambiguous
+        } else if legacyOnlyZero {
+            state = .absent
         } else if !legacyValues.isEmpty {
             state = .recoveredLegacy
         } else {
@@ -253,8 +269,8 @@ extension TagLibMetadataManager {
         return MetadataNumberComponentInventory(
             state: state,
             nativeValue: nativeValue,
-            recoveredValue: legacyValues.count == 1 && !legacyInvalid
-                ? legacyValues.first : nil,
+            recoveredValue: !opaque && !legacyInvalid && legacyValues.count == 1
+                && legacyValues.first != 0 ? legacyValues.first : nil,
             candidates: legacy.map(\.text),
             identities: legacy.map(\.identity), hasUnresolvedNativeValues: nativeInvalid
         )
@@ -273,7 +289,7 @@ extension TagLibMetadataManager {
         if !component.hasUnresolvedNativeValues, let native = component.nativeValue { return native }
         let opaquePair = group.privateTexts.contains { !$0.isStrictlyNumeric }
             || group.number.hasUnresolvedNativeValues || group.total.hasUnresolvedNativeValues
-        if component.isUnresolved || (component.state == .absent && opaquePair) {
+        if component.isUnresolved || (opaquePair && component.nativeValue == nil) {
             throw MetadataPatchValidationError.ambiguousNumberRecovery(field: field, identities: component.identities)
         }
         return component.resolvedValue ?? 0
@@ -324,13 +340,21 @@ extension TagLibMetadataManager {
                     if native { nativeNumbers.append(invalid) } else { legacyNumbers.append(invalid) }
                     return
                 }
-                if parsed.number > 0 {
-                    let candidate = NumberCandidate(identity: identity, text: text, value: parsed.number)
-                    if native { nativeNumbers.append(candidate) } else { legacyNumbers.append(candidate) }
-                }
-                if let total = parsed.total {
-                    let candidate = NumberCandidate(identity: identity, text: text, value: total)
-                    if native { nativeTotals.append(candidate) } else { legacyTotals.append(candidate) }
+                if native {
+                    if parsed.number > 0 {
+                        nativeNumbers.append(NumberCandidate(identity: identity, text: text, value: parsed.number))
+                    }
+                    if let total = parsed.total, total > 0 {
+                        nativeTotals.append(NumberCandidate(identity: identity, text: text, value: total))
+                    }
+                } else {
+                    // Legacy/private zero components are retained so a strict
+                    // explicit zero can conflict with another positive value;
+                    // a sole zero is classified as absence below.
+                    legacyNumbers.append(NumberCandidate(identity: identity, text: text, value: parsed.number))
+                    if let total = parsed.total {
+                        legacyTotals.append(NumberCandidate(identity: identity, text: text, value: total))
+                    }
                 }
             }
             if isMP4 {
@@ -403,9 +427,10 @@ extension TagLibMetadataManager {
                     }
                 }
             }
+            let opaquePrivate = privateTexts.contains { !$0.isStrictlyNumeric }
             return MetadataNumberGroupInventory(
-                number: resolveNumberComponent(native: nativeNumbers, legacy: legacyNumbers),
-                total: resolveNumberComponent(native: nativeTotals, legacy: legacyTotals),
+                number: resolveNumberComponent(native: nativeNumbers, legacy: legacyNumbers, opaque: opaquePrivate),
+                total: resolveNumberComponent(native: nativeTotals, legacy: legacyTotals, opaque: opaquePrivate),
                 nativeIdentities: nativeIdentities, legacyAliasIdentities: aliasIdentities,
                 privateTexts: privateTexts, warnings: []
             )
@@ -433,10 +458,11 @@ extension TagLibMetadataManager {
             case .useLegacy:
                 func component(_ item: MetadataNumberComponentInventory) throws -> Int? {
                     if !item.candidates.isEmpty {
-                        guard let recovered = item.recoveredValue else {
-                            throw MetadataPatchValidationError.ambiguousNumberRecovery(field: group.rawValue, identities: item.identities)
-                        }
-                        return recovered
+                        if let recovered = item.recoveredValue { return recovered }
+                        // A sole explicit-zero legacy component is a valid
+                        // absence, not ambiguous malformed evidence.
+                        if item.state == .absent { return nil }
+                        throw MetadataPatchValidationError.ambiguousNumberRecovery(field: group.rawValue, identities: item.identities)
                     }
                     guard !item.isUnresolved else {
                         throw MetadataPatchValidationError.ambiguousNumberRecovery(field: group.rawValue, identities: value.nativeIdentities)

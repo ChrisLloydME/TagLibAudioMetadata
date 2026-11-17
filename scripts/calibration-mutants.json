@@ -112,12 +112,12 @@
     },
     {
       "id": "explicit-zero-total-recovery",
-      "description": "Recover a deliberately zero total from the old pair instead of honoring explicit zero.",
+      "description": "Treat every supplied number text as omitting the total, so explicit zero recovers the old pair.",
       "patches": [
         {
           "file": "Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift",
-          "find": "           numberText.trackNumberText?.contains(\"/\") == false {",
-          "replace": "           numberText.trackNumberText?.contains(\"///\") == false {"
+          "find": "let hasExplicitTotal = trimmed.contains(\"/\")",
+          "replace": "let hasExplicitTotal = false"
         }
       ],
       "test_filter": "explicitZeroTotalIsNotRecoveredFromOldNumberText",
@@ -213,6 +213,97 @@
       ],
       "test_filter": "canonicalNumbersBeatConflictingOrMalformedPrivateProvenance",
       "witness": "ambiguousNumberRecovery"
+    },
+    {
+      "id": "swift-pre-recovery-explicit-intent",
+      "description": "Ignore the explicit-total flag during facade/patch pre-recovery of the track total.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataSnapshotPatch.swift",
+          "find": "if var pair = track, !pair.hasExplicitTotal, !pair.isEmpty {",
+          "replace": "if var pair = track, !pair.isEmpty {"
+        }
+      ],
+      "test_filter": "convenienceNumberTextExplicitZeroIsAuthoritative",
+      "witness": "convenienceNumberTextExplicitZeroIsAuthoritative"
+    },
+    {
+      "id": "mp4-native-zero-preservation",
+      "description": "Let the MP4 number-text branch preserve an existing total even when the supplied text makes zero explicit.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLRawBridgeOperations.inc",
+          "find": "![trimmedTrackText containsString:@\"/\"]",
+          "replace": "true"
+        }
+      ],
+      "test_filter": "explicitIntentMatrix",
+      "witness": "explicitIntentMatrix"
+    },
+    {
+      "id": "propertymap-native-zero-preservation",
+      "description": "Let the PropertyMap number-text branch preserve an existing total for explicit zero.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
+          "find": "BOOL trackTotalExplicit = [trimmedTrackNumberText containsString:@\"/\"];",
+          "replace": "BOOL trackTotalExplicit = NO;"
+        }
+      ],
+      "test_filter": "explicitIntentMatrix",
+      "witness": "explicitIntentMatrix"
+    },
+    {
+      "id": "omitted-convenience-provenance-retirement",
+      "description": "Keep private provenance after a facade convenience numbering edit.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/TagLibMetadataManager+Write.swift",
+          "find": "let retiredIdentities = selectedGroups\n                .flatMap { ($0 == .track ? beforeInventory.track : beforeInventory.disc).privateTexts.map(\\.identity) }\n                .sorted()",
+          "replace": "let retiredIdentities: [String] = []"
+        }
+      ],
+      "test_filter": "convenienceNumberTextRetiresEditedGroupProvenance",
+      "witness": "convenienceNumberTextRetiresEditedGroupProvenance"
+    },
+    {
+      "id": "opaque-private-recovery",
+      "description": "Classify non-strict private evidence as recoverable, allowing partial/malformed text to supply a missing sibling.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataNumberInventory.swift",
+          "find": "let opaquePrivate = privateTexts.contains { !$0.isStrictlyNumeric }",
+          "replace": "let opaquePrivate = false"
+        }
+      ],
+      "test_filter": "opaquePrivateEvidenceIsNotRecovered",
+      "witness": "opaquePrivateEvidenceIsNotRecovered"
+    },
+    {
+      "id": "id3-explicit-zero-parse",
+      "description": "Reject the package-written ID3 explicit-zero total during inventory parsing.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MetadataNumberInventory.swift",
+          "find": "guard let total = parseStrictNumber(String(parts[1]), allowZero: true) else { return nil }",
+          "replace": "guard let total = parseStrictNumber(String(parts[1]), allowZero: false) else { return nil }"
+        }
+      ],
+      "test_filter": "id3ExplicitZeroReopensAndAllowsTotalOnlyEdit",
+      "witness": "id3ExplicitZeroReopensAndAllowsTotalOnlyEdit"
+    },
+    {
+      "id": "weakened-contract-preservation-assertion",
+      "description": "Remove a contract scenario native retirement assertion; the assertion-budget gate must reject the weakened evidence.",
+      "patches": [
+        {
+          "file": "Tests/TagLibAudioMetadataTests/ContractSystem/ContractMP4ScenarioTests.swift",
+          "find": "evidence.check(\"native.trkn\", pair5.first == 5 && pair5.second == 12)",
+          "replace": "_ = pair5"
+        }
+      ],
+      "test_filter": "contractNumberTextSurfaces",
+      "witness": "contractNumberTextSurfaces"
     }
   ]
 }

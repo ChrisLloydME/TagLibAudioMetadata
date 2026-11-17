@@ -338,18 +338,40 @@ extension TagLibMetadataManager {
         )
     }
 
+    struct ResolvedNumberTextPair: Hashable, Sendable {
+        var number: Int
+        var total: Int
+        var hasExplicitTotal: Bool
+        var isEmpty: Bool
+        var text: String
+    }
+
+    struct ResolvedNumberTextPairs: Hashable, Sendable {
+        var track: ResolvedNumberTextPair?
+        var disc: ResolvedNumberTextPair?
+    }
+
     /// Resolve a formatted numberText patch against a captured snapshot.
     /// This is the single preflight and staged-file implementation: both
     /// stages use the same inventory/version and range checks.
-    nonisolated private static func resolveNumberTextPairs(
+    ///
+    /// Presence is intent. A slash makes the total explicit, including zero
+    /// and an empty total component; an omitted total is resolved from the
+    /// canonical sibling or strictly trustworthy legacy evidence.
+    nonisolated static func resolveNumberTextPairs(
         _ numberText: MetadataNumberTextPatch,
         from snapshot: MetadataSnapshot,
         fileURL: URL
-    ) throws -> (track: (number: Int, total: Int)?, disc: (number: Int, total: Int)?) {
+    ) throws -> ResolvedNumberTextPairs {
         let inventory = numberingInventory(from: snapshot)
-        func inputPair(_ text: String, field: String) throws -> (number: Int, total: Int) {
+        func inputPair(_ text: String, field: String) throws -> ResolvedNumberTextPair {
             let trimmed = normalizedTrimmed(text)
-            if trimmed.isEmpty { return (0, 0) }
+            if trimmed.isEmpty {
+                return ResolvedNumberTextPair(
+                    number: 0, total: 0, hasExplicitTotal: false,
+                    isEmpty: true, text: text
+                )
+            }
             let components = trimmed.split(separator: "/", omittingEmptySubsequences: false)
             guard components.count <= 2,
                   components.contains(where: { !normalizedTrimmed(String($0)).isEmpty }) else {
@@ -364,31 +386,36 @@ extension TagLibMetadataManager {
                 }
                 values.append(integer)
             }
-            return (values[0], values.count == 2 ? values[1] : 0)
-        }
-        var trackPair = try numberText.trackNumberText.map { try inputPair($0, field: "track") }
-        var discPair = try numberText.discNumberText.map { try inputPair($0, field: "disc") }
-        if let pair = trackPair, pair.total == 0,
-           numberText.trackNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
-           numberText.trackNumberText?.contains("/") == false {
-            trackPair?.total = try automaticNumberValue(in: inventory.track, number: false, field: "trackTotal")
-        }
-        if let pair = discPair, pair.total == 0,
-           numberText.discNumberText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
-           numberText.discNumberText?.contains("/") == false {
-            discPair?.total = try automaticNumberValue(in: inventory.disc, number: false, field: "discTotal")
-        }
-        if let trackPair {
-            try validateNativeNumberPair(
-                number: trackPair.number, total: trackPair.total, field: .track, for: fileURL
+            let hasExplicitTotal = trimmed.contains("/")
+            return ResolvedNumberTextPair(
+                number: values[0],
+                total: hasExplicitTotal ? (values.count == 2 ? values[1] : 0) : 0,
+                hasExplicitTotal: hasExplicitTotal,
+                isEmpty: false,
+                text: text
             )
         }
-        if let discPair {
+        var track = try numberText.trackNumberText.map { try inputPair($0, field: "track") }
+        var disc = try numberText.discNumberText.map { try inputPair($0, field: "disc") }
+        if var pair = track, !pair.hasExplicitTotal, !pair.isEmpty {
+            pair.total = try automaticNumberValue(in: inventory.track, number: false, field: "trackTotal")
+            track = pair
+        }
+        if var pair = disc, !pair.hasExplicitTotal, !pair.isEmpty {
+            pair.total = try automaticNumberValue(in: inventory.disc, number: false, field: "discTotal")
+            disc = pair
+        }
+        if let pair = track {
             try validateNativeNumberPair(
-                number: discPair.number, total: discPair.total, field: .disc, for: fileURL
+                number: pair.number, total: pair.total, field: .track, for: fileURL
             )
         }
-        return (trackPair, discPair)
+        if let pair = disc {
+            try validateNativeNumberPair(
+                number: pair.number, total: pair.total, field: .disc, for: fileURL
+            )
+        }
+        return ResolvedNumberTextPairs(track: track, disc: disc)
     }
 
     nonisolated private static func applyMetadataPatchValidatingAudio(
@@ -570,9 +597,11 @@ extension TagLibMetadataManager {
 
             if let numberText = patch.numberText {
                 if numberInventory == nil { numberInventory = numberingInventory(from: before) }
-                let (trackPair, discPair) = try resolveNumberTextPairs(
+                let resolved = try resolveNumberTextPairs(
                     numberText, from: before, fileURL: mutationURL
                 )
+                let trackPair = resolved.track
+                let discPair = resolved.disc
                 numberMutations.append {
                     try TagLibMetadataExtractor.writeNumberPairsInPlace(
                         trackNumber: trackPair?.number ?? 0,
