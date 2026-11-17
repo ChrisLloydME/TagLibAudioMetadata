@@ -183,10 +183,11 @@ minimum-OS runtime, or an embedding application.
   is `PreReleaseAuditTests.convenienceNumberTextExplicitZeroIsAuthoritative` and
   `convenienceDiscExplicitZeroIsAuthoritative`; the MP4 control is
   `metadataPatchNumberTextExplicitZeroIsAuthoritative`.
-- **Native evidence:** MP4 `trkn` payload `[0,5,0,12,0,0]` (number 5, total 12)
-  after the requested clear; FLAC/Ogg Vorbis comment `TRACKTOTAL=12`. The ID3
-  control writes `TRCK=5/0`; the ordinary number-text patch control writes
-  `trkn 5/0`/removes `TRACKTOTAL`.
+- **Native evidence:** MP4 `trkn` encodes number 5, total 12 after the requested
+  clear (the `IndependentMP4Probe` test helper accepts both 6- and 8-byte pair
+  payloads; this fixture produced an 8-byte payload); FLAC/Ogg Vorbis comment
+  `TRACKTOTAL=12`. The ID3 control writes `TRCK=5/0`; the ordinary number-text
+  patch control writes `trkn 5/0`/removes `TRACKTOTAL`.
 - **Release impact:** a public, documented number-formatting entry point silently
   fails to perform the requested write and reports durable success. This is
   exactly the "incorrect success" class the release audit is required to catch.
