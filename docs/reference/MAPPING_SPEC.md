@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` added native-owner state preservation; `0.8.0` added destination-aware write validation and the contract test system; `0.8.1` adds automatic numbering resolution and explicit-number-intent semantics without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` added native-owner state preservation; `0.8.0` added destination-aware write validation and the contract test system; `0.8.1` adds automatic numbering resolution and explicit-number-intent semantics; `0.8.2` fixes MP4 diagnostic text formatting, without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -184,6 +184,10 @@ Version `0.8.0` keeps contract 2.2 and the same native target registrations. The
 ### 0.8.1 release
 
 Version `0.8.1` keeps contract 2.2 and every native target registration. It changes track/disc resolution and private-provenance retirement as described in section 4, adds explicit-zero intent through the facade, direct bridge, MP4 native and PropertyMap paths, and rejects opaque partial recovery that cannot name a canonical component. There is no new public API, mapping identity or binary dependency. Release source `558df00` has package-only Debug acceptance; see [Migration](../operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1) and the [repair record](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
+
+### 0.8.2 release
+
+Version `0.8.2` keeps contract 2.2 and every native target registration. It changes only human-readable diagnostics: MP4 ItemMap values are formatted by native item type, and `covr` reports the number of cover images and each image's byte size. There is no new public API, mapping identity or binary dependency. See [Migration](../operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2), [Reading raw metadata](../guide/READING.md#read-raw-metadata) and the [changelog](../../CHANGELOG.md).
 
 ## Related references
 

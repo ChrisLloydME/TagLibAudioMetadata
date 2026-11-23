@@ -2,7 +2,7 @@
 
 `TagLibAudioMetadata` reads, edits, verifies, and erases audio metadata on macOS and iOS. A Swift facade wraps an Objective-C++ bridge to a checksum-pinned TagLib 2.3.1 XCFramework. This guide takes you from package resolution to a first read and a first verified patch.
 
-Version `0.8.1` (2026-11-17) is the current release. It is a patch release that changes numbering behavior; read [Migration](../operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1) before upgrading from `0.8.0`. Version `0.8.0` (tag `9e986eb`) was explicitly breaking: compatibility-only API was removed, so if you are upgrading from `0.7.x`, also read [that section](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0). Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` to `0.7.3` added date/ownership, native-mapping and state-preservation repairs; `0.8.0` added write-contract validation, selective I/O and the contract test system; `0.8.1` adds automatic number resolution, explicit-zero intent and opaque-recovery rejection.
+Version `0.8.2` (2026-11-23) is the current release. It is a diagnostics patch: MP4 ItemMap text now dispatches by native item type and reports cover image count and sizes; read [Migration](../operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2) before upgrading from `0.8.1`. Version `0.8.1` changed numbering behavior; read [that section](../operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1) when coming from `0.8.0`. Version `0.8.0` (tag `9e986eb`) was explicitly breaking: compatibility-only API was removed, so if you are upgrading from `0.7.x`, also read [that section](../operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0). Mapping contract 2.2 was introduced in `0.7.0`; `0.7.1` to `0.7.3` added date/ownership, native-mapping and state-preservation repairs; `0.8.0` added write-contract validation, selective I/O and the contract test system; `0.8.1` added automatic number resolution, explicit-zero intent and opaque-recovery rejection; `0.8.2` fixes MP4 diagnostic formatting.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ The TagLib binary is a dynamic framework. The final app or archive must embed an
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.8.1"
+        from: "0.8.2"
     )
 ]
 ```

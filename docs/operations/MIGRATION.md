@@ -1,8 +1,20 @@
 # Compatibility and migration
 
-## Unreleased changes
+## Migrating from 0.8.1 to 0.8.2
 
-`bestEffortRawMetadataText(from:)` and the bridge's `dumpMetadataText(from:)` now format MP4 ItemMap values by native type, including cover artwork summaries. Update any snapshot expectations that compare the diagnostic strings. Use structured metadata reads for programmatic access. See [Reading raw metadata](../guide/READING.md#read-raw-metadata) for the display format.
+Version `0.8.2` (2026-11-23) is a patch release over `0.8.1`. It removes no public API and changes no dependency, mapping-contract identity or TagLib binary. It changes only diagnostic text: `bestEffortRawMetadataText(from:)` and the bridge's `dumpMetadataText(from:)` now format MP4 ItemMap values by native type, including cover artwork summaries. See [Reading raw metadata](../guide/READING.md#read-raw-metadata) for the display format.
+
+### Diagnostic formatting
+
+MP4 ItemMap values are dispatched by their native item type instead of being probed through scalar accessors. String lists, integers, bytes, unsigned integers, 64-bit integers, integer pairs, Booleans and cover-art lists each use their own representation. In particular, `covr` now reports the number of embedded images and each image's byte size in item order, for example `<CoverArt: 2 images, 1200 bytes, 840 bytes>`, rather than a type-specific placeholder. Other MP4 value types that the bridge does not format are reported as `<unavailable>`.
+
+This is display-only behavior. The public read models, artwork bytes, native ownership, write contracts and verification are unchanged.
+
+### Migration actions
+
+1. Refresh any test, fixture, log or UI snapshot that compares `bestEffortRawMetadataText(from:)` or `dumpMetadataText(from:)` output; MP4 values now use their native item type and `covr` reports cover count and sizes.
+2. Read artwork and other values through `readStructuredMetadataResult(from:)` when the data drives behavior rather than display.
+3. Pin production dependencies to a tagged release; use `0.8.2` or later rather than an untagged branch state.
 
 ## Migrating from 0.8.0 to 0.8.1
 
@@ -53,7 +65,7 @@ Version `0.8.0` intentionally removes compatibility-only API. It is not a patch-
 Existing native-file aliases and the legacy numbering inventory/explicit recovery plan remain supported. They preserve user data and do not reintroduce removed API meanings. Raw engine `DATE` can still denote YEAR on MP4/ID3; typed native ownership must be obtained from the catalog, not inferred from that engine key. Bridge `metadataFieldMappings()` now lists YEAR as the canonical PropertyMap spelling and DATE as its engine alias; consumers inspecting ordered descriptors must use that order. This is not a native-file rewrite. Old runtime bridge-selector probing and contradictory ignored native-target hints have been removed.
 
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases or when adopting unreleased APIs. Version `0.8.1` (2026-11-17) is the current release; `0.8.0` (tag `9e986eb`, 2026-11-15) is the previous release. Sections are newest first, and the `0.8.1` section supersedes earlier numbering guidance. Review the behavioral changes that apply to your starting version.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases. Version `0.8.2` (2026-11-23) is the current release; `0.8.1` (tag `b8ed547`, 2026-11-17) and `0.8.0` (tag `9e986eb`, 2026-11-15) are previous releases. Sections are newest first, and the `0.8.1` section supersedes earlier numbering guidance. Review the behavioral changes that apply to your starting version.
 
 ### Diagnostic repair follow-up
 
@@ -289,7 +301,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 ## Migration checklist
 
 - [ ] Resolve the package at a tag or an explicit revision; do not rely on an unnamed branch state.
-- [ ] Pin production dependencies to `0.8.1` or an earlier tagged release; do not rely on an untagged `main` state.
+- [ ] Pin production dependencies to `0.8.2` or an earlier tagged release; do not rely on an untagged `main` state.
 - [ ] Add the low-level product only if you directly use bridge declarations.
 - [ ] Replace deprecated reads/writes with the named alternatives.
 - [ ] Remove `failurePolicy:` arguments and handle thrown verification failures.
