@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe version `0.8.1` (2026-11-17), a patch release over `0.8.0` that changes numbering behavior without changing public signatures, mapping contract 2.2 or the TagLib binary. The `0.8.1` release source is `558df00`; the release commit changes documentation only. The previous release, `0.8.0` (tag `9e986eb`), remains an explicitly breaking release. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe the development source, with [unreleased changes](operations/MIGRATION.md#unreleased-changes) tracked in Migration. The current release, `0.8.1` (2026-11-17), changes numbering behavior while retaining public signatures, mapping contract 2.2 and the TagLib binary. The `0.8.1` release source is `558df00`; the release commit changes documentation only. The previous release, `0.8.0` (tag `9e986eb`), remains an explicitly breaking release. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 
@@ -9,11 +9,11 @@ The source code, `Package.swift`, and the test target are the final authority fo
 | Item | State |
 | --- | --- |
 | Current release | `0.8.1`, declared 2026-11-17 |
-| Source | `main` at the `0.8.1` release commit; release preparation changes documentation only |
+| Release source | `558df00`; release preparation changes documentation only |
 | Latest accepted source | `558df00` (package-only Debug acceptance: numbering-contract repairs, consumers, focused sanitizers, five minimum-platform builds) |
 | Previous release | `0.8.0`, tag `9e986eb`, declared 2026-11-15; release source `959d688` |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
-| Documentation scope | Current pages describe `0.8.1`; behavior specific to `0.8.0` is identified in [Migration](operations/MIGRATION.md) |
+| Documentation scope | Current development source and [release-specific changes](operations/MIGRATION.md) |
 | Install target | `0.8.1` for production |
 
 Version `0.8.1` is a patch release. It adds automatic numbering resolution, group-scoped private-provenance retirement, authoritative explicit-zero totals and fail-closed opaque recovery, while keeping every public signature, mapping contract `AM-TLAM-MAPPING-2.2` and every registered native target. See [Migration](operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1), [Status](operations/STATUS.md) and the [repair record](records/remediation/REM-2026-11-17-numbering-contract-repairs.md). Version `0.8.0` remains the breaking release that removed compatibility-only API and added stricter write validation, selective I/O and the independent contract test system; read [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) when coming from `0.7.x`. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.

@@ -7,12 +7,12 @@ This page is a snapshot of the latest known validation state for the current sou
 | Item | State |
 | --- | --- |
 | Current release | `0.8.1`, declared 2026-11-17 |
-| Source | `main` at the `0.8.1` release commit; release preparation changes documentation only |
+| Release source | `558df00`; release preparation changes documentation only |
 | Release source | `558df00` (package-only Debug acceptance; `Sources/`, `Tests/` and `scripts/` are unchanged by the release commit) |
 | Previous release | `0.8.0`, tag `9e986eb`, declared 2026-11-15; release source `959d688` |
 | Later tag | None |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
-| Documentation scope | Current pages describe `0.8.1`; `0.8.0`-only behavior is identified in [Migration](MIGRATION.md) and the [changelog](../../CHANGELOG.md) |
+| Documentation scope | This page records release evidence. See [Migration](MIGRATION.md) and the [changelog](../../CHANGELOG.md) for release and development changes. |
 | Current state | **Accepted for package-only Debug** on `558df00`: [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md) closes F-01, F-02, F-03, F-04 and F-07 from [AUD-2026-11-17-pre-release](../records/audits/AUD-2026-11-17-pre-release.md). The historical audit remains linked. |
 
 The `0.8.1` source is accepted for the package-only **Debug** lane at commit `558df00`. The complete strict campaign accepted 181 XCTest declarations (179 passed, two reviewed opt-in skips), 306 Swift Testing declarations in 55 suites, 81/81 contract scenarios, 97 policy regressions and 23/23 killed calibration mutants; both package-owned consumers, focused ASan/TSan and five minimum-platform builds also passed. No Release lane, hosted CI, device run or application acceptance was performed for this source, and the release commit itself changes documentation only. The historical audit that found F-01–F-04 remains in the records index and is not rewritten as a pass.
