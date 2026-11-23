@@ -3,6 +3,10 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+- Format MP4 diagnostic items using their native types. The ItemMap reports the number of embedded covers and each cover's size in bytes.
+
 ## [0.8.1] - 2026-11-17
 
 Released from the package-only Debug acceptance of source `558df00`; see [Status](docs/operations/STATUS.md) for the recorded gates and their limits. The release keeps mapping contract 2.2, the TagLib 2.3.1-r2 binary and every public signature. The behavior changes below are consumer-visible; read [Migration](docs/operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1).

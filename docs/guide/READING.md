@@ -97,6 +97,8 @@ if let text = TagLibMetadataManager.bestEffortRawMetadataText(from: url) {
 }
 ```
 
+The MP4 ItemMap section shows `covr` as a cover count followed by the byte size of each image in item order. For example, `covr = <CoverArt: 2 images, 1200 bytes, 840 bytes>`. Use `readStructuredMetadataResult` to access the artwork data.
+
 Raw ID3v2 frame summaries are populated for the extraction paths that request them. Containers such as MP4, ASF, FLAC, Ogg, APE, DSD, and tracker formats may expose structured collections instead. Do not assume `id3v2Frames` is populated for every file.
 
 ## Read structured metadata

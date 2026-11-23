@@ -76,47 +76,39 @@ static void AppendPropertyMap(NSMutableString *out, const TagLib::PropertyMap &p
 }
 
 static NSString *MP4ItemToDisplayString(const TagLib::MP4::Item &item) {
-    // Prefer string list (many atoms map cleanly here).
-    TagLib::StringList sl = item.toStringList();
-    if (!sl.isEmpty()) {
-        return TagStringToNSString(sl.toString("; ")) ?: @"";
-    }
-
-    // Try common scalar representations.
-    // Note: We intentionally avoid calling `isEmpty()` on MP4::Item (not available in some TagLib versions).
-    // Also avoid throwing conversions by keeping them simple.
-    @try {
-        int v = item.toInt();
-        return [NSString stringWithFormat:@"%d", v];
-    } @catch (...) {
-        // ignore
-    }
-
-    @try {
-        TagLib::MP4::Item::IntPair p = MP4UnsignedPair(item);
-        return [NSString stringWithFormat:@"%d/%d", p.first, p.second];
-    } @catch (...) {
-        // ignore
-    }
-
-    @try {
-        bool b = item.toBool();
-        return b ? @"true" : @"false";
-    } @catch (...) {
-        // ignore
-    }
-
-    // Binary-like / artwork atoms: show a placeholder.
-    @try {
-        TagLib::MP4::CoverArtList arts = item.toCoverArtList();
-        if (!arts.isEmpty()) {
-            return [NSString stringWithFormat:@"<CoverArtList: %lu item(s)>", (unsigned long)arts.size()];
+    using Type = TagLib::MP4::Item::Type;
+    switch (item.type()) {
+        case Type::StringList:
+            return TagStringToNSString(item.toStringList().toString("; ")) ?: @"";
+        case Type::Int:
+            return [NSString stringWithFormat:@"%d", item.toInt()];
+        case Type::Byte:
+            return [NSString stringWithFormat:@"%hhu", item.toByte()];
+        case Type::UInt:
+            return [NSString stringWithFormat:@"%u", item.toUInt()];
+        case Type::LongLong:
+            return [NSString stringWithFormat:@"%lld", item.toLongLong()];
+        case Type::IntPair: {
+            const auto pair = MP4UnsignedPair(item);
+            return [NSString stringWithFormat:@"%d/%d", pair.first, pair.second];
         }
-    } @catch (...) {
-        // ignore
+        case Type::Bool:
+            return item.toBool() ? @"true" : @"false";
+        case Type::CoverArtList: {
+            const auto covers = item.toCoverArtList();
+            const auto count = covers.size();
+            NSString *noun = count == 1 ? @"image" : @"images";
+            NSMutableString *summary = [NSMutableString stringWithFormat:@"<CoverArt: %lu %@",
+                                        (unsigned long)count, noun];
+            for (const auto &cover : covers) {
+                [summary appendFormat:@", %lu bytes", (unsigned long)cover.data().size()];
+            }
+            [summary appendString:@">"];
+            return summary;
+        }
+        default:
+            return @"<unavailable>";
     }
-
-    return @"<unavailable>";
 }
 
 static void AppendID3v2FramesSection(NSMutableString *out,
