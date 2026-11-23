@@ -97,6 +97,10 @@ if let text = TagLibMetadataManager.bestEffortRawMetadataText(from: url) {
 }
 ```
 
+The bridge's MP4 ItemMap section formats items by their native types. For example, `trkn = 3/12` shows both track components, `cpil = true` shows a Boolean, and large integers retain their full decimal value.
+
+The `covr` line shows the cover count followed by each image's size in bytes, in item order. For example, `covr = <CoverArt: 2 images, 1200 bytes, 840 bytes>`. When the file has no `covr` item, the section omits that line. Use `readStructuredMetadataResult` to access the artwork data.
+
 Raw ID3v2 frame summaries are populated for the extraction paths that request them. Containers such as MP4, ASF, FLAC, Ogg, APE, DSD, and tracker formats may expose structured collections instead. Do not assume `id3v2Frames` is populated for every file.
 
 ## Read structured metadata

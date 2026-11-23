@@ -1,5 +1,9 @@
 # Compatibility and migration
 
+## Unreleased changes
+
+`bestEffortRawMetadataText(from:)` and the bridge's `dumpMetadataText(from:)` now format MP4 ItemMap values by native type, including cover artwork summaries. Update any snapshot expectations that compare the diagnostic strings. Use structured metadata reads for programmatic access. See [Reading raw metadata](../guide/READING.md#read-raw-metadata) for the display format.
+
 ## Migrating from 0.8.0 to 0.8.1
 
 Version `0.8.1` (2026-11-17) is a patch release over `0.8.0`. It removes no public API and changes no dependency, mapping-contract identity or TagLib binary. It does change numbering behavior, and some previously accepted ambiguous recovery now rejects. Release source `558df00` has package-only Debug acceptance. See [Status](STATUS.md) and [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).

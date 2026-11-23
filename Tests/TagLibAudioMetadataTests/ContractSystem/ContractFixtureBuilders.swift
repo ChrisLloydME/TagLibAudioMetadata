@@ -169,6 +169,7 @@ struct ContractMP4Item {
         case integer(Int, byteCount: Int)
         case boolean(Bool)
         case binary(Data)
+        case jpegCovers([Data])
     }
 
     var key: String
@@ -275,13 +276,22 @@ enum ContractMP4Seed {
                 result += makeDataItem(item.key, type: 21, payload: Data([flag ? 1 : 0]))
             case .binary(let payload):
                 result += makeDataItem(item.key, type: 0, payload: payload)
+            case .jpegCovers(let covers):
+                let fields = covers.reduce(into: Data()) { atoms, cover in
+                    atoms += makeDataAtom(type: 13, payload: cover)
+                }
+                result += atom(item.key, fields)
             }
         }
         return result
     }
 
+    private static func makeDataAtom(type: Int, payload: Data) -> Data {
+        atom("data", ContractFixture.number(UInt64(type), bytes: 4) + Data([0, 0, 0, 0]) + payload)
+    }
+
     private static func makeDataItem(_ key: String, type: Int, payload: Data) -> Data {
-        let dataAtom = atom("data", ContractFixture.number(UInt64(type), bytes: 4) + Data([0, 0, 0, 0]) + payload)
+        let dataAtom = makeDataAtom(type: type, payload: payload)
         if key.hasPrefix("----:") {
             let parts = key.split(separator: ":", maxSplits: 2, omittingEmptySubsequences: false)
             guard parts.count == 3 else { preconditionFailure("freeform identity must have mean and name") }

@@ -101,7 +101,7 @@ The table uses the Swift-imported names; the Objective-C selector column is the 
 | `writeStructuredMetadata(_:to:)` | `writeStructuredMetadata:toURL:error:` | Structured mutation; omitted collections are preserved. |
 | `wipeMetadata(from:)` | `wipeMetadataFromURL:error:` | Native metadata-container wipe where TagLib supports stripping. |
 | `rawMetadata(for:)` | `rawMetadataForURL:error:` | Property-map/frame dictionary. |
-| `dumpMetadataText(from:)` | `dumpMetadataTextFromURL:error:` | Human-readable diagnostic text. |
+| `dumpMetadataText(from:)` | `dumpMetadataTextFromURL:error:` | Human-readable diagnostic text. See [raw metadata output](../guide/READING.md#read-raw-metadata). |
 | `isSupportedFormat(_:)` | `isSupportedFormat:` | Declared readable-extension lookup. |
 | `isWritableFormat(_:)` | `isWritableFormat:` | Declared writable-extension lookup. |
 | `supportedExtensions()` | `supportedExtensions` | All registered extensions in registry order. |

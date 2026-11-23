@@ -637,12 +637,12 @@ extension TagLibMetadataManager {
         return rawMetadataDump(fromBridgeDictionary: bridgeRaw)
     }
 
-    /// Formats *raw* metadata (as seen by TagLib) into a single text blob for GUI display.
+    /// Returns human-readable metadata diagnostics for display.
     ///
-    /// This is intentionally **not** the same as the structured fields shown in the right inspector.
-    /// It surfaces:
-    /// - TagLib `PropertyMap` entries (including multi-value fields)
-    /// - ID3v2 frames (MP3 only), including TXXX/COMM details when available
+    /// Uses the bridge text when available, including format-specific sections such as MP4 ItemMap.
+    /// Falls back to a text summary of raw properties and ID3v2 frames.
+    /// Use `readStructuredMetadataResult(from:)` to inspect native values programmatically.
+    /// Returns `nil` if neither read succeeds.
     public nonisolated static func bestEffortRawMetadataText(from url: URL) -> String? {
         // Prefer a direct text dump from the bridge if available.
         if let text = bridgeTextDumpIfAvailable(for: url) {
