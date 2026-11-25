@@ -350,6 +350,11 @@ def parse_patch_policy(fields: list[dict[str, object]]) -> list[dict[str, object
         accepted = kinds.get(key)
         if accepted is None:
             accepted = list(default_kinds) if multi.get(key) else [default_kinds[0]]
+        # acceptedPatchValueKinds returns an empty set for role-qualified
+        # fields before consulting the per-key switch; the generated table
+        # must show the same policy rather than the schema's nominal kinds.
+        if str(field.get("role", False)).lower() == "true":
+            accepted = []
         minimum, maximum = constraints.get(key, ("", ""))
         minimum = minimum.strip()
         maximum = maximum.strip()

@@ -265,12 +265,12 @@ Global typed integer constraints are not a guarantee of native precision for eve
 | `.composer` | `.text`, `.values` | — | — |
 | `.conductor` | `.text`, `.values` | — | — |
 | `.remixer` | `.text`, `.values` | — | — |
-| `.performer` | `.text`, `.values` | — | role-qualified: typed patch rejects; use raw/structured |
+| `.performer` | none | — | role-qualified: typed patch rejects; use raw/structured |
 | `.producer` | `.text`, `.values` | — | — |
 | `.engineer` | `.text`, `.values` | — | — |
 | `.lyricist` | `.text`, `.values` | — | — |
-| `.involvedPeople` | `.text`, `.values` | — | role-qualified: typed patch rejects; use raw/structured |
-| `.musicianCredits` | `.text`, `.values` | — | role-qualified: typed patch rejects; use raw/structured |
+| `.involvedPeople` | none | — | role-qualified: typed patch rejects; use raw/structured |
+| `.musicianCredits` | none | — | role-qualified: typed patch rejects; use raw/structured |
 | `.publisher` | `.text` | — | — |
 | `.copyright` | `.text` | — | — |
 | `.encodedBy` | `.text` | — | — |
