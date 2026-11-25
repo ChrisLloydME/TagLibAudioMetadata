@@ -6,20 +6,20 @@ This page is a snapshot of the latest known validation state for the current sou
 
 | Item | State |
 | --- | --- |
-| Current release | `0.8.2`, declared 2026-11-23 |
-| Release source | `ac175ad`; release preparation changes documentation only |
-| Latest accepted source | `558df00` (package-only Debug acceptance recorded for `0.8.1`; no new campaign was recorded for `0.8.2`) |
-| Previous release | `0.8.1`, tag `b8ed547`, declared 2026-11-17; release source `558df00` |
+| Current release | `0.8.3`, declared 2026-11-25 |
+| Release source | `5b0bf5f`; release preparation changes documentation only |
+| Latest accepted source | `558df00` (package-only Debug acceptance recorded for `0.8.1`; no new campaign was recorded for `0.8.2` or `0.8.3`) |
+| Previous release | `0.8.2`, tag `6b03cb9`, declared 2026-11-23; release source `ac175ad` |
 | Later tag | None |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
 | Documentation scope | This page records release evidence. See [Migration](MIGRATION.md) and the [changelog](../../CHANGELOG.md) for release and development changes. |
-| Current state | `0.8.2` adds the MP4 diagnostic formatting fix over `0.8.1`. The latest recorded package-only Debug acceptance remains `0.8.1` at `558df00`; the `0.8.2` source has no separate recorded gate. |
+| Current state | `0.8.3` adds the Store ID validation fix over `0.8.2`. The latest recorded package-only Debug acceptance remains `0.8.1` at `558df00`; the `0.8.2` and `0.8.3` sources have no separate recorded gate. |
 
-The `0.8.2` source is `ac175ad`, the merge of the MP4 diagnostic fix. It dispatches MP4 ItemMap diagnostics by native item type and summarizes cover artwork by image count and byte size; the fix adds a zero/one/two-cover regression test. No new acceptance campaign was recorded for this source, and the release commit changes documentation only relative to it. The latest recorded package-only Debug acceptance remains the `0.8.1` source at `558df00`, described below; it does not cover the `0.8.2` diagnostic change. Tag creation and publication are maintainer-owned.
+The `0.8.3` source is `5b0bf5f`, the merge of the Store ID validation fix. It preserves large Album, Artist, Catalog and Genre Store IDs in text-backed tags, uses 64-bit signed MP4 Album and Catalog atom widths and keeps MP4 Artist and Genre IDs in the unsigned 32-bit range; the fix adds focused readback and rejection tests. No new acceptance campaign was recorded for this source, and the release commit changes documentation only relative to it. The latest recorded package-only Debug acceptance remains the `0.8.1` source at `558df00`, described below; it does not cover the `0.8.2` diagnostic or `0.8.3` Store ID validation changes. Tag creation and publication are maintainer-owned.
 
-Version `0.8.2` includes mapping contract 2.2, the `0.7.1` through `0.7.3` corrections, the `0.8.0` breaking API cleanup, public write-contract repairs and contract test system, the `0.8.1` numbering repairs, and the `0.8.2` MP4 diagnostic formatting fix. The TagLib binary and mapping contract ID are unchanged from `0.7.3`. Release notes are in the [changelog](../../CHANGELOG.md).
+Version `0.8.3` includes mapping contract 2.2, the `0.7.1` through `0.7.3` corrections, the `0.8.0` breaking API cleanup, public write-contract repairs and contract test system, the `0.8.1` numbering repairs, the `0.8.2` MP4 diagnostic formatting fix, and the `0.8.3` Store ID validation fix. The TagLib binary and mapping contract ID are unchanged from `0.7.3`. Release notes are in the [changelog](../../CHANGELOG.md).
 
-`0.8.2` is a patch release: no public signature was removed, and only the MP4 diagnostic text changed. Consumers should review [Migration](MIGRATION.md#migrating-from-0-8-1-to-0-8-2). Version `0.8.1` changed numbering behavior and some previously accepted ambiguous recovery now rejects; consumers upgrading from `0.8.0` should review [that section](MIGRATION.md#migrating-from-0-8-0-to-0-8-1). Version `0.8.0` remains the breaking release that removed compatibility-only API; consumers upgrading from `0.7.x` must also review [that section](MIGRATION.md#migrating-from-0-7-3-to-0-8-0). No user-file migration is automatic.
+`0.8.3` is a patch release: no public signature was removed; Store ID validation and preservation changed. Consumers should review [Migration](MIGRATION.md#migrating-from-0-8-2-to-0-8-3). Version `0.8.2` changed the MP4 diagnostic text, `0.8.1` changed numbering behavior, and `0.8.0` remains the breaking release that removed compatibility-only API; consumers upgrading from `0.7.x` must also review [that section](MIGRATION.md#migrating-from-0-7-3-to-0-8-0). No user-file migration is automatic.
 
 ## Recorded 0.8.1 acceptance (2026-11-17)
 
@@ -37,6 +37,12 @@ The `0.8.1` release source is accepted for the package-only **Debug** contract c
 | Minimum platforms | 5/5 strict Debug builds: macOS 13 arm64/x86_64, iOS 16 device arm64, iOS 16 simulator arm64/x86_64 | `.build/platform-*.log` |
 
 The acceptance closes F-01, F-02, F-03, F-04 and F-07 from the [pre-release audit](../records/audits/AUD-2026-11-17-pre-release.md). F-05 (Basic unchanged-zero semantics), F-06 (exact alias ownership) and F-10 (low-level private-owner preservation) remain deliberate boundaries. The record/index/status and release-preparation edits that describe this result are documentation-only; the accepted source commit is the gate commit. See [REM-2026-11-17-numbering-contract-repairs](../records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
+
+## What changed in 0.8.3
+
+- **Store IDs use destination-native widths.** Album, Artist, Catalog and Genre Store IDs stay nonnegative `Int` values in typed patches. Text-backed tags preserve the full decimal value; MP4 `plID` and `cnID` use 64-bit signed atoms, while `atID` and `geID` keep the unsigned 32-bit bound. The patch writer validates the concrete destination before staging, and the direct bridge writer uses the same widths.
+- **The typed schema exposes format-independent bounds.** `MetadataFieldSchema.integerConstraint` reports `0...Int.max` for those fields, and the narrower MP4 Artist and Genre limit is applied by the destination writer. The fix adds focused readback and rejection coverage in `MP4ExclusiveFieldTests`.
+- **No public or native contract changed.** The release keeps every public signature, mapping contract 2.2 and the TagLib 2.3.1-r2 binary.
 
 ## What changed in 0.8.2
 
@@ -160,15 +166,16 @@ No full accepted gate has been rerun on the exact `0.7.2` release commit. An ear
 - Fixture coverage is finite. `fixtureCovered` does not certify every codec variant, unknown native structure, minimum-OS runtime, device, or external decoder.
 - Ogg Speex, IT and S3M remain explicit unverified catalog decisions with no typed runtime scenario. Matroska registrations remain target-only with no registered family, native codec, or fixture.
 - Calibration proves that the representative defect classes are detectable, not that every future defect will be caught. The pinned TagLib binary is not sanitizer-instrumented and its correctness is not established by package tests.
-- The `0.8.2` release has no recorded acceptance campaign of its own. The latest recorded package-only Debug acceptance is `0.8.1` at `558df00`, and it does not cover the `0.8.2` diagnostic change. No Release lane, hosted CI, device run, minimum-OS runtime, or application acceptance was executed for the `0.8.2` release source.
+- The `0.8.2` and `0.8.3` releases have no recorded acceptance campaigns of their own. The latest recorded package-only Debug acceptance is `0.8.1` at `558df00`, and it does not cover the MP4 diagnostic or Store ID validation changes. No Release lane, hosted CI, device run, minimum-OS runtime or application acceptance was executed for the `0.8.3` release source.
 - A successful package test run does not validate an embedding application's signing, rpath, entitlement, or interactive UI behavior.
 
 ## Historical evidence
 
 | Revision or release | Evidence | Current interpretation |
 | --- | --- | --- |
-| `0.8.2` | Current release, declared 2026-11-23; release source `ac175ad`; release preparation changes documentation only | Packages the MP4 diagnostic formatting fix above; no recorded acceptance campaign, public signature, mapping-contract or binary change |
-| `0.8.1` | Previous release (tag `b8ed547`), declared 2026-11-17; release source `558df00`; release preparation changes documentation only | Packages the numbering repairs, explicit-zero intent and opaque-recovery rejection above; no public signature, mapping-contract or binary change |
+| `0.8.3` | Current release, declared 2026-11-25; release source `5b0bf5f`; release preparation changes documentation only | Packages the Store ID validation and preservation fix above; no recorded acceptance campaign, public signature, mapping-contract or binary change |
+| `0.8.2` | Previous release (tag `6b03cb9`), declared 2026-11-23; release source `ac175ad`; release preparation changes documentation only | Packages the MP4 diagnostic formatting fix above; no recorded acceptance campaign, public signature, mapping-contract or binary change |
+| `0.8.1` | Earlier release (tag `b8ed547`), declared 2026-11-17; release source `558df00`; release preparation changes documentation only | Packages the numbering repairs, explicit-zero intent and opaque-recovery rejection above; no public signature, mapping-contract or binary change |
 | `0.8.0` | Earlier release (tag `9e986eb`), declared 2026-11-15; accepted source `959d688`; release preparation changes documentation only | Packages the breaking API cleanup, public write-contract repairs and contract test system above; does not include the `0.8.1` numbering repairs |
 | `05416aa` | Merge of the contract-system upgrade; documentation and evidence only after `959d688` | Included in `0.8.0`; production code unchanged |
 | `558df00` | Numbering-contract repair Debug acceptance: 181 XCTest / 306 Swift Testing / 81 scenarios / 97 policy / 23 calibration mutants, focused ASan/TSan, consumers, five platform builds | `0.8.1` release source; package-only Debug evidence |

@@ -1,6 +1,6 @@
 # Native mapping contract
 
-Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` added native-owner state preservation; `0.8.0` added destination-aware write validation and the contract test system; `0.8.1` adds automatic numbering resolution and explicit-number-intent semantics; `0.8.2` fixes MP4 diagnostic text formatting, without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
+Contract ID: `AM-TLAM-MAPPING-2.2`. Decision date: `2026-11-09`. This page describes the package-side mapping contract introduced in `0.7.0`. `0.7.1` added date/ownership corrections; `0.7.2` finalized the native read/write/verification consistency repairs; `0.7.3` added native-owner state preservation; `0.8.0` added destination-aware write validation and the contract test system; `0.8.1` adds automatic numbering resolution and explicit-number-intent semantics; `0.8.2` fixes MP4 diagnostic text formatting; `0.8.3` corrects Store ID validation and preservation, without changing the contract ID or registered target layouts. See [Migration](../operations/MIGRATION.md) for release-specific changes.
 
 The package-side source of truth is code:
 
@@ -190,6 +190,10 @@ Version `0.8.1` keeps contract 2.2 and every native target registration. It chan
 ### 0.8.2 release
 
 Version `0.8.2` keeps contract 2.2 and every native target registration. It changes only human-readable diagnostics: MP4 ItemMap values are formatted by native item type, and `covr` reports the number of cover images and each image's byte size. There is no new public API, mapping identity or binary dependency. See [Migration](../operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2), [Reading raw metadata](../guide/READING.md#read-raw-metadata) and the [changelog](../../CHANGELOG.md).
+
+### 0.8.3 release
+
+Version `0.8.3` keeps contract 2.2 and every native target registration. It corrects Store ID validation and preservation: text-backed tags retain the full nonnegative `Int` range, MP4 `plID` and `cnID` use 64-bit signed atoms, and MP4 `atID` and `geID` retain the unsigned 32-bit bound. The typed schema exposes the format-independent range and the patch writer applies the concrete MP4 limit. There is no new public API, mapping identity or binary dependency. See [Migration](../operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3) and the [changelog](../../CHANGELOG.md).
 
 ## Related references
 

@@ -4,11 +4,11 @@
 
 The package exposes normalized common tags, container-aware ID3v2, MP4, ASF, Xiph, APE, FLAC, and RIFF metadata, artwork, MusicBrainz and AcoustID identifiers, ReplayGain, exact multi-value `PropertyMap` data, structured frames/atoms/attributes, automatic track/disc number resolution, and an explicit number-normalization API. It is a semantic metadata editor, not a lossless native-tag archive: metadata the package does not expose may still survive because TagLib saves the native tag, but byte-for-byte reconstruction is not promised.
 
-> **Release status.** Version `0.8.2` (2026-11-23) is the current release. It is a patch release: no public signature was removed, mapping contract `AM-TLAM-MAPPING-2.2` and the TagLib 2.3.1-r2 binary are unchanged. It changes the MP4 diagnostic text, so update any snapshot expectations; read [Migration](docs/operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2) before upgrading from `0.8.1`.
+> **Release status.** Version `0.8.3` (2026-11-25) is the current release. It is a patch release: no public signature was removed, mapping contract `AM-TLAM-MAPPING-2.2` and the TagLib 2.3.1-r2 binary are unchanged. It corrects Store ID validation and preservation, so review the native MP4 Store ID limits; read [Migration](docs/operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3) before upgrading from `0.8.2`.
 
-> **Documentation scope.** Current pages describe the `0.8.2` release source `ac175ad`; the release commit itself changes documentation only. The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` added sparse native-owner preservation; `0.8.0` added the breaking API cleanup, public write-contract repairs and independent contract test system; `0.8.1` added automatic numbering resolution, explicit-zero intent and fail-closed opaque recovery; `0.8.2` fixes MP4 diagnostic item formatting. Mapping contract 2.2 and its native target layouts are unchanged.
+> **Documentation scope.** Current pages describe the `0.8.3` release source `5b0bf5f`; the release commit itself changes documentation only. The package-side `AM-TLAM-MAPPING-2.2` contract was introduced in `0.7.0`; `0.7.1` added date/ownership corrections; `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.3` added sparse native-owner preservation; `0.8.0` added the breaking API cleanup, public write-contract repairs and independent contract test system; `0.8.1` added automatic numbering resolution, explicit-zero intent and fail-closed opaque recovery; `0.8.2` fixed MP4 diagnostic item formatting; `0.8.3` corrects Store ID validation and preservation. Mapping contract 2.2 and its native target layouts are unchanged.
 
-The latest recorded package-only Debug campaign is the `0.8.1` source `558df00`; `0.8.2` adds the MP4 diagnostic fix and has no separate recorded acceptance. The recorded gates, environment and limits are in [Status](docs/operations/STATUS.md), and the `0.8.1` repair details are in the [numbering-contract record](docs/records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
+The latest recorded package-only Debug campaign is the `0.8.1` source `558df00`; `0.8.2` and `0.8.3` add the MP4 diagnostic and Store ID fixes and have no separate recorded acceptance. The recorded gates, environment and limits are in [Status](docs/operations/STATUS.md), and the `0.8.1` repair details are in the [numbering-contract record](docs/records/remediation/REM-2026-11-17-numbering-contract-repairs.md).
 
 ## At a glance
 
@@ -20,6 +20,14 @@ The latest recorded package-only Debug campaign is the `0.8.1` source `558df00`;
 | Reads | Basic, raw `PropertyMap`, structured container models, numbering inventory, and an optional audio-content identity |
 | Writes | Typed patches, Basic replacement/update, raw deltas, whole-map replacement/merge, structured writes, automatic number resolution, explicit number normalization, and verified erase |
 | Commit model | Sibling staging copy, atomic rename, file and parent-directory sync; process-local coordination only |
+
+## What changed in 0.8.3
+
+Version `0.8.3` is a Store ID validation patch. It changes no public signature, mapping-contract ID, or TagLib binary.
+
+- **Store IDs use destination-native widths.** Album, Artist, Catalog and Genre Store IDs remain nonnegative `Int` values in typed patches. Text-backed tags preserve the full decimal value; MP4 `plID` and `cnID` use 64-bit signed atoms, while `atID` and `geID` keep the unsigned 32-bit bound. The patch writer validates the concrete destination before staging, and the direct bridge writer uses the same widths. See [native Store ID ranges](docs/reference/MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities).
+- **Schema bounds are format-independent.** `MetadataFieldSchema.integerConstraint` reports `0...Int.max` for those fields; the narrower MP4 Artist and Genre limit is applied by the destination writer. Existing `.integer(Int)` patches compile unchanged.
+- **Scope.** No new acceptance campaign was recorded for `0.8.3`; the latest recorded package-only Debug acceptance remains `0.8.1` at `558df00`. See [Status](docs/operations/STATUS.md).
 
 ## What changed in 0.8.2
 
@@ -53,7 +61,7 @@ The TagLib binary is unchanged from `0.7.3` (2.3.1-r2). Recorded package-only ac
 
 ## Earlier releases
 
-Version `0.8.1` added automatic numbering resolution, group-scoped private-provenance retirement, explicit-zero intent and fail-closed opaque recovery. Version `0.7.3` added sparse native-owner preservation across public write surfaces and low-level reads, including native MP4/ID3 date owners and ASF custom attributes. Version `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.1` corrected date/ownership and verification; `0.7.0` introduced mapping contract 2.2. Release notes are in the [changelog](CHANGELOG.md), and consumer-visible changes are in [Migration](docs/operations/MIGRATION.md).
+Version `0.8.2` fixed MP4 diagnostic item formatting. Version `0.8.1` added automatic numbering resolution, group-scoped private-provenance retirement, explicit-zero intent and fail-closed opaque recovery. Version `0.7.3` added sparse native-owner preservation across public write surfaces and low-level reads, including native MP4/ID3 date owners and ASF custom attributes. Version `0.7.2` finalized the audit, native-mapping, test-system and MP4 Content Group repairs; `0.7.1` corrected date/ownership and verification; `0.7.0` introduced mapping contract 2.2. Release notes are in the [changelog](CHANGELOG.md), and consumer-visible changes are in [Migration](docs/operations/MIGRATION.md).
 
 ## Requirements
 
@@ -69,7 +77,7 @@ Version `0.8.1` added automatic numbering resolution, group-scoped private-prove
 dependencies: [
     .package(
         url: "https://github.com/ChrisLloydME/TagLibAudioMetadata.git",
-        from: "0.8.2"
+        from: "0.8.3"
     )
 ]
 ```

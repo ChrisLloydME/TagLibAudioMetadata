@@ -3,11 +3,21 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.8.3] - 2026-11-25
+
+Released from source `5b0bf5f`, which merges the Store ID validation fix; see [Status](docs/operations/STATUS.md) for the latest recorded evidence and its limits. The release keeps mapping contract 2.2, the TagLib 2.3.1-r2 binary and every public signature. Store ID ranges differ between text-backed tags and MP4 atoms; read [Migration](docs/operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3).
 
 ### Fixed
 
 - Preserve large iTunes Store IDs in text-backed tags and in MP4 Album and Catalog ID atoms. Apply the 32-bit bound to the MP4 Artist and Genre ID atoms.
+
+### Changed
+
+- Expose format-independent `0...Int.max` bounds for Album, Artist, Catalog and Genre Store IDs in the typed schema; the patch writer enforces the narrower MP4 Artist and Genre limits.
+
+### Documentation
+
+- Finalize the guide, migration, status and reference pages for the `0.8.3` release boundary, including the native Store ID ranges and the release source's evidence scope.
 
 ## [0.8.2] - 2026-11-23
 

@@ -1,8 +1,19 @@
 # Compatibility and migration
 
-## Unreleased Store ID validation
+## Migrating from 0.8.2 to 0.8.3
 
-Album, Artist, Catalog and Genre Store ID edits still use `.integer(Int)` in typed patches. Remove any shared `UInt32` input cap in consumers. `MetadataFieldSchema.integerConstraint` describes the format-independent range, and the patch writer validates each destination. See [native Store ID ranges](../reference/MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities) for the narrower MP4 Artist and Genre ID limits.
+Version `0.8.3` (2026-11-25) is a patch release over `0.8.2`. It removes no public API and changes no dependency, mapping-contract identity or TagLib binary. It corrects Store ID validation and preservation: Album, Artist, Catalog and Genre Store IDs remain nonnegative Swift `Int` values in typed patches, text-backed tags preserve the full decimal value, and MP4 uses its native atom widths. See [native Store ID ranges](../reference/MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities).
+
+### Store ID ranges
+
+`MetadataFieldSchema.integerConstraint` reports `0...Int.max` for `.itunesAlbumID`, `.itunesArtistID`, `.itunesCatalogID` and `.itunesGenreID`. That is a format-independent schema bound; a concrete destination can be narrower. On MP4, `plID` and `cnID` use 64-bit signed integer atoms with nonnegative inputs, so Album and Catalog IDs through `Int.max` round-trip. `atID` and `geID` use unsigned 32-bit atoms and reject above `UInt32.max` before staging. ID3, Xiph and APE destinations store the IDs as decimal text and accept the full nonnegative `Int` range. The direct bridge full-model writer applies the same MP4 atom widths.
+
+### Migration actions
+
+1. Remove any shared `UInt32` cap on Album, Artist, Catalog or Genre Store ID inputs. Accept nonnegative `Int` at the shared schema or UI layer and surface `MetadataPatchValidationError.integerOutOfRange` for a concrete destination that is narrower.
+2. Expect MP4 Album and Catalog IDs above `UInt32.max` to round-trip through 64-bit atoms; MP4 Artist and Genre IDs remain limited to `0...UInt32.max`.
+3. Continue to use `MetadataPatch` with `.integer(Int)`; the direct bridge uses decimal strings and the same native widths.
+4. Pin production dependencies to a tagged release; use `0.8.3` or later rather than an untagged branch state.
 
 ## Migrating from 0.8.1 to 0.8.2
 
@@ -69,7 +80,7 @@ Version `0.8.0` intentionally removes compatibility-only API. It is not a patch-
 Existing native-file aliases and the legacy numbering inventory/explicit recovery plan remain supported. They preserve user data and do not reintroduce removed API meanings. Raw engine `DATE` can still denote YEAR on MP4/ID3; typed native ownership must be obtained from the catalog, not inferred from that engine key. Bridge `metadataFieldMappings()` now lists YEAR as the canonical PropertyMap spelling and DATE as its engine alias; consumers inspecting ordered descriptors must use that order. This is not a native-file rewrite. Old runtime bridge-selector probing and contradictory ignored native-target hints have been removed.
 
 
-This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases. Version `0.8.2` (2026-11-23) is the current release; `0.8.1` (tag `b8ed547`, 2026-11-17) and `0.8.0` (tag `9e986eb`, 2026-11-15) are previous releases. Sections are newest first, and the `0.8.1` section supersedes earlier numbering guidance. Review the behavioral changes that apply to your starting version.
+This guide describes source-compatibility expectations and the changes a consumer may need to make between tagged releases. Version `0.8.3` (2026-11-25) is the current release; `0.8.2` (tag `6b03cb9`, 2026-11-23), `0.8.1` (tag `b8ed547`, 2026-11-17) and `0.8.0` (tag `9e986eb`, 2026-11-15) are previous releases. Sections are newest first, and the `0.8.1` section supersedes earlier numbering guidance. Review the behavioral changes that apply to your starting version.
 
 ### Diagnostic repair follow-up
 
@@ -305,7 +316,7 @@ The dependency artifact changed from TagLib 2.1.1 to 2.3.1 during the migration.
 ## Migration checklist
 
 - [ ] Resolve the package at a tag or an explicit revision; do not rely on an unnamed branch state.
-- [ ] Pin production dependencies to `0.8.2` or an earlier tagged release; do not rely on an untagged `main` state.
+- [ ] Pin production dependencies to `0.8.3` or an earlier tagged release; do not rely on an untagged `main` state.
 - [ ] Add the low-level product only if you directly use bridge declarations.
 - [ ] Replace deprecated reads/writes with the named alternatives.
 - [ ] Remove `failurePolicy:` arguments and handle thrown verification failures.

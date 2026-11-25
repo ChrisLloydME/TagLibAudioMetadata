@@ -1,6 +1,6 @@
 # Testing and verification
 
-This guide explains how the package is tested, how to run the checks, and what the results do and do not establish. It is not a claim that every revision passes. The `0.8.2` release source is `ac175ad`, a diagnostics-only change over the `0.8.1` numbering repairs; no new acceptance campaign was recorded for it, so the latest recorded package-only Debug run is `0.8.1` at `558df00`. The previous `0.8.0` release source is `959d688`. Release commits change documentation only. The latest observed result and environment are in [Status](STATUS.md).
+This guide explains how the package is tested, how to run the checks, and what the results do and do not establish. It is not a claim that every revision passes. The `0.8.3` release source is `5b0bf5f`, a Store ID validation change over the `0.8.2` diagnostic fix and `0.8.1` numbering repairs; no new acceptance campaign was recorded for `0.8.2` or `0.8.3`, so the latest recorded package-only Debug run is `0.8.1` at `558df00`. The previous `0.8.0` release source is `959d688`. Release commits change documentation only. The latest observed result and environment are in [Status](STATUS.md).
 
 See [Mapping test acceptance](MAPPING_TEST_STRATEGY.md) for the independent lifecycle matrix, mandatory mixed-framework gate and remaining coverage limits. The audit regressions are mandatory normal tests. Current repaired-source results and historical failures are distinguished in the status page; older passing counts never waive a current failure.
 

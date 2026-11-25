@@ -1,6 +1,6 @@
 # Documentation hub
 
-This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe the `0.8.2` release source, with [release-specific changes](operations/MIGRATION.md) tracked in Migration. The current release, `0.8.2` (2026-11-23), fixes MP4 diagnostic item formatting while retaining public signatures, mapping contract 2.2 and the TagLib binary. The `0.8.2` release source is `ac175ad`; the release commit changes documentation only. The previous release, `0.8.1` (tag `b8ed547`), changed numbering behavior; `0.8.0` (tag `9e986eb`) remains the explicitly breaking release. Historical evidence lives under [records](records/README.md).
+This directory is the maintained documentation for `TagLibAudioMetadata`. The current pages describe the `0.8.3` release source, with [release-specific changes](operations/MIGRATION.md) tracked in Migration. The current release, `0.8.3` (2026-11-25), corrects Store ID validation and preservation while retaining public signatures, mapping contract 2.2 and the TagLib binary. The `0.8.3` release source is `5b0bf5f`; the release commit changes documentation only. The previous release, `0.8.2` (tag `6b03cb9`), fixed MP4 diagnostic formatting; `0.8.1` (tag `b8ed547`) changed numbering behavior; `0.8.0` (tag `9e986eb`) remains the explicitly breaking release. Historical evidence lives under [records](records/README.md).
 
 The source code, `Package.swift`, and the test target are the final authority for behavior and dependency identity. Generated reference pages are views of that source. If a current document and the code disagree, the code wins and the document must be fixed. If a historical record and current behavior disagree, the record is still correct for its revision.
 
@@ -8,15 +8,15 @@ The source code, `Package.swift`, and the test target are the final authority fo
 
 | Item | State |
 | --- | --- |
-| Current release | `0.8.2`, declared 2026-11-23 |
-| Release source | `ac175ad`; release preparation changes documentation only |
-| Latest accepted source | `558df00` (package-only Debug acceptance recorded for `0.8.1`: numbering-contract repairs, consumers, focused sanitizers, five minimum-platform builds); no new campaign was recorded for `0.8.2` |
-| Previous release | `0.8.1`, tag `b8ed547`, declared 2026-11-17; release source `558df00` |
+| Current release | `0.8.3`, declared 2026-11-25 |
+| Release source | `5b0bf5f`; release preparation changes documentation only |
+| Latest accepted source | `558df00` (package-only Debug acceptance recorded for `0.8.1`: numbering-contract repairs, consumers, focused sanitizers, five minimum-platform builds); no new campaign was recorded for `0.8.2` or `0.8.3` |
+| Previous release | `0.8.2`, tag `6b03cb9`, declared 2026-11-23; release source `ac175ad` |
 | Published binary identity | TagLib 2.3.1-r2; unchanged from `0.7.3` |
-| Documentation scope | Current `0.8.2` release source and [release-specific changes](operations/MIGRATION.md) |
-| Install target | `0.8.2` for production |
+| Documentation scope | Current `0.8.3` release source and [release-specific changes](operations/MIGRATION.md) |
+| Install target | `0.8.3` for production |
 
-Version `0.8.2` is a patch release. It dispatches MP4 ItemMap diagnostics by native item type so cover artwork is reported by image count and byte size, while keeping every public signature, mapping contract `AM-TLAM-MAPPING-2.2` and every registered native target. See [Migration](operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2), [Status](operations/STATUS.md) and the [changelog](../CHANGELOG.md). Version `0.8.1` added automatic numbering resolution, group-scoped private-provenance retirement, authoritative explicit-zero totals and fail-closed opaque recovery. Version `0.8.0` remains the breaking release that removed compatibility-only API and added stricter write validation, selective I/O and the independent contract test system; read [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) when coming from `0.7.x`. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
+Version `0.8.3` is a patch release. It corrects Store ID validation and preservation: text-backed tags retain the full nonnegative `Int` range, MP4 Album and Catalog IDs use 64-bit signed atoms, and MP4 Artist and Genre IDs keep the unsigned 32-bit bound, while keeping every public signature, mapping contract `AM-TLAM-MAPPING-2.2` and every registered native target. See [Migration](operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3), [Status](operations/STATUS.md) and the [changelog](../CHANGELOG.md). Version `0.8.2` fixed MP4 diagnostic formatting. Version `0.8.1` added automatic numbering resolution, group-scoped private-provenance retirement, authoritative explicit-zero totals and fail-closed opaque recovery. Version `0.8.0` remains the breaking release that removed compatibility-only API and added stricter write validation, selective I/O and the independent contract test system; read [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) when coming from `0.7.x`. For documentation that matches an earlier release, read the repository at that tag; the tag is the release boundary.
 
 ## Reading paths
 
@@ -29,28 +29,37 @@ Version `0.8.2` is a patch release. It dispatches MP4 ItemMap diagnostics by nat
 5. [Capabilities](guide/CAPABILITIES.md) — declared format and field support.
 6. [Formats](reference/FORMATS.md) — generated matrix and container limits.
 
+### I am updating from 0.8.2
+
+1. [Migration](operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3) — the 0.8.3 Store ID validation change and migration actions.
+2. [Native Store ID ranges](reference/MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities) — text-backed and MP4 atom limits.
+3. [Status](operations/STATUS.md) — release boundary, recorded evidence, and its limits.
+
 ### I am updating from 0.8.1
 
-1. [Migration](operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2) — the 0.8.2 diagnostic text change and snapshot actions.
-2. [Reading raw metadata](guide/READING.md#read-raw-metadata) — the MP4 ItemMap display format.
-3. [Status](operations/STATUS.md) — release boundary, recorded evidence, and its limits.
+1. [Migration](operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3) — the 0.8.3 Store ID validation change and migration actions.
+2. [Migration](operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2) — the 0.8.2 diagnostic text change and snapshot actions.
+3. [Reading raw metadata](guide/READING.md#read-raw-metadata) — the MP4 ItemMap display format.
+4. [Status](operations/STATUS.md) — release boundary, recorded evidence, and its limits.
 
 ### I am updating from 0.8.0
 
-1. [Migration](operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1) — the 0.8.1 numbering behavior changes and their migration actions.
-2. [Migration](operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2) — the 0.8.2 diagnostic text change.
-3. [Status](operations/STATUS.md) — the latest recorded package-only Debug acceptance at `558df00` and its limits.
-4. [Write semantics](explanation/PRESERVATION.md#number-pairs-and-native-bounds) — automatic resolution, explicit-zero intent and provenance retirement.
-5. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — the expanded contract lane and current evidence.
-6. [Engineering record](records/remediation/REM-2026-11-17-numbering-contract-repairs.md) — the repair campaign and finding dispositions.
+1. [Migration](operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3) — the 0.8.3 Store ID validation change.
+2. [Migration](operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1) — the 0.8.1 numbering behavior changes and their migration actions.
+3. [Migration](operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2) — the 0.8.2 diagnostic text change.
+4. [Status](operations/STATUS.md) — the latest recorded package-only Debug acceptance at `558df00` and its limits.
+5. [Write semantics](explanation/PRESERVATION.md#number-pairs-and-native-bounds) — automatic resolution, explicit-zero intent and provenance retirement.
+6. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — the expanded contract lane and current evidence.
+7. [Engineering record](records/remediation/REM-2026-11-17-numbering-contract-repairs.md) — the repair campaign and finding dispositions.
 
 ### I am updating from 0.7.3
 
 1. [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0) — the 0.7.3-to-0.8.0 removals, behavior changes and migration actions.
-2. [Status](operations/STATUS.md) — release boundary, recorded gates, and the limits of that evidence.
-3. [Write semantics](explanation/PRESERVATION.md) — native-owner and PropertyMap replay rules.
-4. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — contract-gate requirements and current evidence.
-5. [Engineering records](records/README.md) — the 2026-11-15 write-contract and contract-system campaigns, the 2026-11-16 automatic-numbering amendment, and the 2026-11-17 numbering-contract repair.
+2. [Migration](operations/MIGRATION.md#migrating-from-0-8-0-to-0-8-1), [0.8.2](operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2) and [0.8.3](operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3) — the later numbering, diagnostic and Store ID changes.
+3. [Status](operations/STATUS.md) — release boundary, recorded gates, and the limits of that evidence.
+4. [Write semantics](explanation/PRESERVATION.md) — native-owner and PropertyMap replay rules.
+5. [Testing](operations/TESTING.md), [Mapping test acceptance](operations/MAPPING_TEST_STRATEGY.md) — contract-gate requirements and current evidence.
+6. [Engineering records](records/README.md) — the 2026-11-15 write-contract and contract-system campaigns, the 2026-11-16 automatic-numbering amendment, and the 2026-11-17 numbering-contract repair.
 
 ### I am implementing an editor
 
@@ -76,10 +85,11 @@ For the normative mapping policy, read the [mapping contract](reference/MAPPING_
 
 ## Release contents
 
-Version `0.8.2` adds the MP4 diagnostic formatting fix on top of the changes in `0.8.1` and `0.8.0`. Each links to its own evidence, and the migration guides own the consumer-visible deltas.
+Version `0.8.3` adds the Store ID validation fix on top of the changes in `0.8.2`, `0.8.1` and `0.8.0`. Each links to its own evidence, and the migration guides own the consumer-visible deltas.
 
 | Change | What it covers | Evidence |
 | --- | --- | --- |
+| **`0.8.3`** Store ID validation | Destination-native Store ID widths: full text-backed IDs, 64-bit MP4 Album/Catalog atoms, and the 32-bit MP4 Artist/Genre bound; no public signature, mapping or binary change | [Migration](operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3), [changelog](../CHANGELOG.md), [native Store ID ranges](reference/MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities) |
 | **`0.8.2`** MP4 diagnostic formatting | Native-type dispatch for MP4 ItemMap diagnostic values, with cover image count and per-image byte sizes; no public signature, mapping or binary change | [Migration](operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2), [changelog](../CHANGELOG.md), [raw metadata output](guide/READING.md#read-raw-metadata) |
 | Breaking API cleanup and selective I/O | Removed compatibility-only API, explicit storage/read/model boundaries, projection skipping and measured I/O profiles | [Migration](operations/MIGRATION.md#migrating-from-0-7-3-to-0-8-0), [architecture record](records/remediation/REM-2026-11-14-package-architecture.md) |
 | Public write-contract repairs (F-01…F-15) | Shared destination validation, owner preservation, legacy-read and container-route repairs | [Remediation record](records/remediation/REM-2026-11-15-public-write-contract.md), [acceptance record](records/verification/VER-2026-11-15-public-write-release-acceptance.md) |
