@@ -1,5 +1,9 @@
 # Compatibility and migration
 
+## Unreleased Store ID validation
+
+Album, Artist, Catalog and Genre Store ID edits still use `.integer(Int)` in typed patches. Remove any shared `UInt32` input cap in consumers. `MetadataFieldSchema.integerConstraint` describes the format-independent range, and the patch writer validates each destination. See [native Store ID ranges](../reference/MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities) for the narrower MP4 Artist and Genre ID limits.
+
 ## Migrating from 0.8.1 to 0.8.2
 
 Version `0.8.2` (2026-11-23) is a patch release over `0.8.1`. It removes no public API and changes no dependency, mapping-contract identity or TagLib binary. It changes only diagnostic text: `bestEffortRawMetadataText(from:)` and the bridge's `dumpMetadataText(from:)` now format MP4 ItemMap values by native type, including cover artwork summaries. See [Reading raw metadata](../guide/READING.md#read-raw-metadata) for the display format.

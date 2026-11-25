@@ -241,7 +241,7 @@ Global typed integer constraints are not a guarantee of native precision for eve
 
 ## Typed-patch value contract
 
-`MetadataFieldSchema.acceptedPatchValueKinds` and `integerConstraint` are the validation tables used by `MetadataPatch` before staging. The table below is generated from those Swift properties and the catalog's `writeUnsupportedReason`.
+`MetadataFieldSchema.acceptedPatchValueKinds` and `integerConstraint` are the validation tables used by `MetadataPatch` before staging. The table below shows format-independent bounds and is generated from those Swift properties and the catalog's `writeUnsupportedReason`. For destination-specific Store ID widths, see the [mapping contract](MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities).
 
 <!-- BEGIN GENERATED PATCH CONTRACT -->
 | Field | Accepted `.MetadataPatchValue` kinds | Numeric range | Typed-write note |
@@ -317,10 +317,10 @@ Global typed integer constraints are not a guarantee of native precision for eve
 | `.replayGainAlbumGain` | `.text` | — | — |
 | `.replayGainTrackPeak` | `.text` | — | — |
 | `.replayGainAlbumPeak` | `.text` | — | — |
-| `.itunesAlbumID` | `.integer` | `0...UInt32.max` | — |
-| `.itunesArtistID` | `.integer` | `0...UInt32.max` | — |
-| `.itunesCatalogID` | `.integer` | `0...UInt32.max` | — |
-| `.itunesGenreID` | `.integer` | `0...UInt32.max` | — |
+| `.itunesAlbumID` | `.integer` | `0...Int.max` | — |
+| `.itunesArtistID` | `.integer` | `0...Int.max` | — |
+| `.itunesCatalogID` | `.integer` | `0...Int.max` | — |
+| `.itunesGenreID` | `.integer` | `0...Int.max` | — |
 | `.itunesMediaType` | `.integer` | `0...255` | — |
 | `.itunesPurchaseDate` | `.text` | — | — |
 | `.itunesNorm` | `.text` | — | — |

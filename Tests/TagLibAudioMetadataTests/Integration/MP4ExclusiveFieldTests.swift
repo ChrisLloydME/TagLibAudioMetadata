@@ -1,4 +1,5 @@
 import Foundation
+import CTagLibBridge
 import Testing
 import TagLibAudioMetadata
 
@@ -7,6 +8,7 @@ struct MP4ExclusiveFieldTests {
         let source = try #require(
             Bundle.module.url(forResource: "testAudioFile", withExtension: ext, subdirectory: "Audio")
                 ?? Bundle.module.url(forResource: "testAudioFile", withExtension: ext)
+                ?? (ext == "aiff" ? Bundle.module.url(forResource: "clean-room", withExtension: ext) : nil)
         )
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -27,9 +29,9 @@ struct MP4ExclusiveFieldTests {
             let legacy: String?
         }
         let cases = [
-            Case(field: .itunesAlbumID, key: "plID", value: 1_234_567_890, legacy: nil),
-            Case(field: .itunesArtistID, key: "atID", value: 42, legacy: nil),
-            Case(field: .itunesCatalogID, key: "cnID", value: 765_432_109, legacy: nil),
+            Case(field: .itunesAlbumID, key: "plID", value: 6_829_122_413, legacy: nil),
+            Case(field: .itunesArtistID, key: "atID", value: Int(UInt32.max), legacy: nil),
+            Case(field: .itunesCatalogID, key: "cnID", value: Int.max, legacy: nil),
             Case(field: .itunesGenreID, key: "geID", value: 6007, legacy: nil),
             Case(field: .itunesComposerID, key: "cmID", value: 9001, legacy: nil),
             Case(field: .itunesCountryID, key: "sfID", value: 143_441, legacy: nil),
@@ -48,6 +50,9 @@ struct MP4ExclusiveFieldTests {
             let written = try #require(atom(snapshot, test.key))
             #expect(["uint", "int", "byte", "longLong"].contains(written.type), Comment(rawValue: test.field.rawValue))
             #expect(Int(written.value) == test.value, Comment(rawValue: test.field.rawValue))
+            if test.field == .itunesAlbumID || test.field == .itunesCatalogID {
+                #expect(written.type == "longLong")
+            }
             switch test.field {
             case .itunesAlbumID: #expect(snapshot.basic.itunesAlbumID == String(test.value))
             case .itunesArtistID: #expect(snapshot.basic.itunesArtistID == String(test.value))
@@ -77,6 +82,79 @@ struct MP4ExclusiveFieldTests {
             snapshot = try TagLibMetadataManager.readSnapshot(from: url)
             #expect(atom(snapshot, test.key) == nil, Comment(rawValue: test.field.rawValue))
         }
+    }
+
+    @Test(arguments: ["flac", "aiff"])
+    func textBackedStoreIDsRoundTripAboveUInt32(_ ext: String) throws {
+        let url = try copy(ext)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let largeID = 6_829_122_413
+        let text = String(largeID)
+        try TagLibMetadataManager.applyMetadataPatch(
+            MetadataPatch(fields: [
+                .itunesAlbumID: .integer(largeID),
+                .itunesArtistID: .integer(largeID),
+                .itunesCatalogID: .integer(largeID),
+                .itunesGenreID: .integer(largeID),
+                .title: .text("Save with large Store IDs"),
+            ]),
+            to: url
+        )
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        #expect(snapshot.basic.title == "Save with large Store IDs")
+        #expect(snapshot.basic.itunesAlbumID == text)
+        #expect(snapshot.basic.itunesArtistID == text)
+        #expect(snapshot.basic.itunesCatalogID == text)
+        #expect(snapshot.basic.itunesGenreID == text)
+        for key in ["ITUNESALBUMID", "ITUNESARTISTID", "ITUNESCATALOGID", "ITUNESGENREID"] {
+            if ext == "aiff" {
+                let frame = snapshot.structured.id3v2Frames.first { $0.frameID == "TXXX" && $0.description == key }
+                #expect(frame?.values == [text])
+            } else {
+                #expect(snapshot.raw.properties.first { $0.key == key }?.values == [text])
+            }
+        }
+    }
+
+    @Test func mp4UInt32StoreIDsRejectOverflowWithoutWritingOtherFields() throws {
+        let url = try copy("m4a")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let before = try Data(contentsOf: url)
+        let maximum = Int(UInt32.max)
+        let overflow = maximum + 1
+        for field: MetadataFieldKey in [.itunesArtistID, .itunesGenreID] {
+            #expect(throws: MetadataPatchValidationError.integerOutOfRange(
+                field: field, minimum: 0, maximum: maximum, actual: overflow
+            )) {
+                try TagLibMetadataManager.applyMetadataPatch(
+                    MetadataPatch(fields: [field: .integer(overflow), .title: .text("Do not save")]),
+                    to: url
+                )
+            }
+            #expect(try Data(contentsOf: url) == before)
+        }
+    }
+
+    @Test func bridgeWritesLargeMP4StoreIDsAndRejectsArtistOverflow() throws {
+        let url = try copy("m4a")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let metadata = TagLibAudioMetadata()
+        metadata.itunesAlbumId = "6829122413"
+        metadata.itunesArtistId = String(UInt32.max)
+        metadata.itunesCatalogId = String(Int.max)
+        try TagLibMetadataExtractor.writeMetadata(metadata, to: url)
+        let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+        #expect(atom(snapshot, "plID")?.value == metadata.itunesAlbumId)
+        #expect(atom(snapshot, "atID")?.value == metadata.itunesArtistId)
+        #expect(atom(snapshot, "cnID")?.value == metadata.itunesCatalogId)
+
+        let before = try Data(contentsOf: url)
+        metadata.itunesArtistId = "4294967296"
+        metadata.title = "Do not save"
+        #expect(throws: (any Error).self) {
+            try TagLibMetadataExtractor.writeMetadata(metadata, to: url)
+        }
+        #expect(try Data(contentsOf: url) == before)
     }
 
     @Test func booleanMP4FieldsPreservePresentFalseAndDistinguishRemoval() throws {

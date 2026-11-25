@@ -246,16 +246,15 @@ public struct MetadataFieldSchema: Identifiable, Hashable, Sendable {
         return Set(kinds)
     }
 
-    /// Numeric limits shared with the Objective-C++ bridge's integer validation.
-    /// MP4 pair components have narrower native limits; the planner applies
-    /// those per destination family.
+    /// Format-independent bounds for typed patch integers.
+    /// A concrete native destination can impose a narrower range.
     public var integerConstraint: MetadataIntegerConstraint? {
         switch key {
         case .track, .trackTotal, .disc, .discTotal:
             MetadataIntegerConstraint(minimum: 1, maximum: Int(Int32.max))
-        case .itunesAlbumID, .itunesArtistID, .itunesCatalogID, .itunesGenreID,
-             .itunesComposerID, .itunesCountryID,
-             .tvEpisode, .tvSeason:
+        case .itunesAlbumID, .itunesArtistID, .itunesCatalogID, .itunesGenreID:
+            MetadataIntegerConstraint(minimum: 0, maximum: Int.max)
+        case .itunesComposerID, .itunesCountryID, .tvEpisode, .tvSeason:
             MetadataIntegerConstraint(minimum: 0, maximum: Int(UInt32.max))
         case .itunesMediaType:
             MetadataIntegerConstraint(minimum: 0, maximum: 255)

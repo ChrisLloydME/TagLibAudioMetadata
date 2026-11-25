@@ -217,7 +217,10 @@ extension TagLibMetadataManager {
         var customFields: [String: MetadataPatchValue]
     }
 
-    nonisolated private static func validate(_ patch: MetadataPatch) throws -> ValidatedMetadataPatch {
+    nonisolated private static func validate(
+        _ patch: MetadataPatch,
+        formatIdentifier: String
+    ) throws -> ValidatedMetadataPatch {
         var normalizedFields: [MetadataFieldKey: MetadataPatchValue] = [:]
         for (field, value) in patch.fields {
             guard field != .artwork, field != .custom, field != .explicitContent,
@@ -238,14 +241,17 @@ extension TagLibMetadataManager {
                     actual: kind
                 )
             }
-            if case .integer(let integer) = value, let constraint = schema.integerConstraint,
-               !(constraint.minimum...constraint.maximum).contains(integer) {
-                throw MetadataPatchValidationError.integerOutOfRange(
-                    field: field,
-                    minimum: constraint.minimum,
-                    maximum: constraint.maximum,
-                    actual: integer
-                )
+            if case .integer(let integer) = value, let constraint = schema.integerConstraint {
+                let maximum = if formatIdentifier == "mp4", field == .itunesArtistID || field == .itunesGenreID {
+                    Int(UInt32.max)
+                } else {
+                    constraint.maximum
+                }
+                guard (constraint.minimum...maximum).contains(integer) else {
+                    throw MetadataPatchValidationError.integerOutOfRange(
+                        field: field, minimum: constraint.minimum, maximum: maximum, actual: integer
+                    )
+                }
             }
             normalizedFields[field] = try value.normalized(location: field.rawValue)
         }
@@ -425,7 +431,10 @@ extension TagLibMetadataManager {
         expectedAudioContent: MetadataAudioContentIdentity?
     ) throws -> MetadataWriteResult {
         guard !patch.isEmpty else { return MetadataWriteResult(warnings: []) }
-        let validatedPatch = try validate(patch)
+        let ext = url.pathExtension.lowercased()
+        let formatCapability = capability(forExtension: ext)
+        let formatIdentifier = formatCapability?.identifier ?? ext
+        let validatedPatch = try validate(patch, formatIdentifier: formatIdentifier)
         for field in [MetadataFieldKey.movementNumber, .movementCount] {
             if case .integer(let value) = validatedPatch.fields[field] {
                 try validateNativeMovement(value, field: field, for: url)
@@ -441,12 +450,9 @@ extension TagLibMetadataManager {
            !discPairFields.isDisjoint(with: validatedPatch.fields.keys) {
             throw MetadataPatchValidationError.conflictingNumberRepresentations
         }
-        let ext = url.pathExtension.lowercased()
         guard !ext.isEmpty, TagLibMetadataExtractor.isWritableFormat(ext) else {
             throw TagLibManagerError.unsupportedFormat
         }
-        let formatCapability = capability(forExtension: ext)
-        let formatIdentifier = formatCapability?.identifier ?? ext
         let fieldFormats = formatCapability?.metadataFieldFormats ?? []
         if let capability = formatCapability {
             let requestedFields = Set(validatedPatch.fields.keys)

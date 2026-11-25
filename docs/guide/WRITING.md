@@ -49,7 +49,7 @@ for warning in result.warnings {
 
 Rules enforced before staging:
 
-- Field/value kinds come from `MetadataFieldRegistry`. Track, disc, totals, BPM, movement numbering, MP4 store IDs, and TV numbers are integers; compilation and the MP4 Booleans are Booleans; ordinary fields accept text and, when the schema is multi-value, an array.
+- Field/value kinds come from `MetadataFieldRegistry`. Track, disc, totals, BPM, movement numbering, Store IDs, and TV numbers are integers (see the [native Store ID ranges](../reference/MAPPING_SPEC.md#6-mp4-exclusive-and-gated-matroska-identities)); compilation and the MP4 Booleans are Booleans; ordinary fields accept text and, when the schema is multi-value, an array.
 - Track/disc components accept `1...Int32.max` for text-backed pairs and `1...65535` on native MP4 pairs. Movement numbering accepts `0...Int32.max` at the schema layer, with MP4 restricted to `0...32767`. `rate` accepts an integer at the schema layer but is read-only for typed writes.
 - An existing ID3v2.3 tag is read-only for date fields: a typed date patch rejects before staging, even when the requested value equals the current value. Inspect `StructuredMetadata.id3v2MajorVersion` before offering date edits for a concrete file.
 - Role-qualified fields `.performer`, `.involvedPeople`, and `.musicianCredits` are rejected because their keys carry roles. Use a raw or structured API.

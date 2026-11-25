@@ -123,6 +123,8 @@ TAGLIB_CALIBRATION_RESULT="$PWD/.build/test-calibration/<run>/calibration.json" 
 bash scripts/validate-tests.sh debug
 ```
 
+The focused `MP4ExclusiveFieldTests` suite checks exact Store ID readback in FLAC and AIFF, the native 64-bit Album and Catalog ID codecs in M4A, and byte-preserving rejection of an out-of-range M4A Artist or Genre ID. It also exercises the direct Objective-C bridge's MP4 Store ID writer.
+
 ### Minimum-platform builds
 
 The CI matrix compiles these triples:

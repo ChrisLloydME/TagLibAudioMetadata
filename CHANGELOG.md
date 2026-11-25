@@ -3,6 +3,12 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Preserve large iTunes Store IDs in text-backed tags and in MP4 Album and Catalog ID atoms. Apply the 32-bit bound to the MP4 Artist and Genre ID atoms.
+
 ## [0.8.2] - 2026-11-23
 
 Released from source `ac175ad`, which merges the MP4 diagnostic fix; see [Status](docs/operations/STATUS.md) for the latest recorded evidence and its limits. The release keeps mapping contract 2.2, the TagLib 2.3.1-r2 binary and every public signature. Update diagnostic-string expectations when upgrading from `0.8.1`; read [Migration](docs/operations/MIGRATION.md#migrating-from-0-8-1-to-0-8-2).

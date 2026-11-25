@@ -93,6 +93,7 @@ extension TagLibMetadataManager {
                 switch field {
                 case .bpm, .rate: "int"
                 case .itunesMediaType: "byte"
+                case .itunesAlbumID, .itunesCatalogID: "longLong"
                 default: "uint"
                 }
             case .boolean:
@@ -320,27 +321,11 @@ extension TagLibMetadataManager {
         guard case .mp4Atom(let key, let type) = mechanism else { return nil }
         let values = value.propertyMapValues
         switch type {
-        case "uint":
+        case "int", "uint", "byte", "longLong":
             let integer = Int(values.first ?? "") ?? 0
             return StructuredMP4Atom(
                 key: key,
-                type: "uint",
-                value: String(integer),
-                remove: values.isEmpty
-            )
-        case "byte":
-            let integer = Int(values.first ?? "") ?? 0
-            return StructuredMP4Atom(
-                key: key,
-                type: "byte",
-                value: String(integer),
-                remove: values.isEmpty
-            )
-        case "int":
-            let integer = Int(values.first ?? "") ?? 0
-            return StructuredMP4Atom(
-                key: key,
-                type: "int",
+                type: type,
                 value: String(integer),
                 remove: values.isEmpty
             )
