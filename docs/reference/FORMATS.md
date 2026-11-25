@@ -228,6 +228,7 @@ Fixture coverage is finite. It does not establish universal codec conformance, e
 ## Related references
 
 - [Field reference](FIELDS.md) — semantic keys and exact native targets.
+- [Field-level write validation](WRITE_VALIDATION.md) — accepted input and rejection rules for every key and format.
 - [Mapping contract](MAPPING_SPEC.md) — native mapping policy and generated matrix.
 - [Capabilities guide](../guide/CAPABILITIES.md) — querying support from application code.
 - [Write semantics](../explanation/PRESERVATION.md) — preservation and verification.

@@ -387,6 +387,7 @@ The Swift registry is the public semantic source. The bridge table cannot expres
 
 ## Related references
 
+- [Field-level write validation](WRITE_VALIDATION.md) — per-key, per-format accepted input and rejection rules.
 - [Formats](FORMATS.md) — capability matrix and container limits.
 - [Bridge reference](BRIDGE.md) — raw mapping dictionaries and the low-level model.
 - [Manager API](API.md) and [model reference](MODELS.md) — signatures and types.

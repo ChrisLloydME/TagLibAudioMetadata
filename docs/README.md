@@ -66,9 +66,10 @@ Version `0.8.3` is a patch release. It corrects Store ID validation and preserva
 1. [Manager API](reference/API.md) — generated signatures for `TagLibMetadataManager`.
 2. [Model reference](reference/MODELS.md) — every public value, schema, numbering, and error type.
 3. [Field reference](reference/FIELDS.md) — keys, native targets, typed-patch policy.
-4. [Write semantics](explanation/PRESERVATION.md) — omission, preservation, verification, erase.
-5. [Transactions](explanation/TRANSACTIONS.md) — staging, durability, concurrency.
-6. [Audio-content continuity](explanation/AUDIO_CONTENT_CONTINUITY.md) — guarded rebases, if needed.
+4. [Field-level write validation](reference/WRITE_VALIDATION.md) — per-key, per-format accepted input and rejection rules.
+5. [Write semantics](explanation/PRESERVATION.md) — omission, preservation, verification, erase.
+6. [Transactions](explanation/TRANSACTIONS.md) — staging, durability, concurrency.
+7. [Audio-content continuity](explanation/AUDIO_CONTENT_CONTINUITY.md) — guarded rebases, if needed.
 
 For the normative mapping policy, read the [mapping contract](reference/MAPPING_SPEC.md). The [native mapping matrix](reference/MAPPING_MATRIX.md) is generated from `MetadataMappingCatalog.swift`, the executable source of truth for semantic-to-native targets.
 
@@ -112,6 +113,7 @@ The assignment plans that authorized this work, including the 2026-11-15 write-c
 | Manager API | [reference/API.md](reference/API.md) | Generated manager signatures, overload status, source links. | Value model members; per-field mappings. |
 | Models | [reference/MODELS.md](reference/MODELS.md) | Generated public model, schema, numbering, and error declarations. | Manager operations. |
 | Field registry | [reference/FIELDS.md](reference/FIELDS.md) | Field keys, categories, native targets, typed-patch policy, ownership rules. | Capability evidence per family. |
+| Field write validation | [reference/WRITE_VALIDATION.md](reference/WRITE_VALIDATION.md) | Per-key and per-format accepted input, normalization, rejection layer, basis, and evidence. | General transaction or preservation contracts. |
 | Format capability | [reference/FORMATS.md](reference/FORMATS.md) | Generated family matrix, container surfaces, evidence levels, limitations. | General write semantics. |
 | Objective-C bridge | [reference/BRIDGE.md](reference/BRIDGE.md) | Low-level product, selectors, projections, bridge transaction boundary. | Swift facade conveniences. |
 | Mapping contract | [reference/MAPPING_SPEC.md](reference/MAPPING_SPEC.md) | Native mapping policy, date/number/advisory rules, implementation boundaries. | Generated target matrix details. |

@@ -40,6 +40,7 @@ CURRENT_DOCUMENTS = (
     "reference/API.md",
     "reference/MODELS.md",
     "reference/FIELDS.md",
+    "reference/WRITE_VALIDATION.md",
     "reference/FORMATS.md",
     "reference/BRIDGE.md",
     "reference/MAPPING_SPEC.md",
