@@ -126,7 +126,7 @@ The capability level is not enough to know which structured collections a format
 | Format family | Properties | ID3v2 frames | MP4 atoms | ASF attributes | Lyrics/comments | Artwork |
 | --- | --- | --- | --- | --- | --- | --- |
 | MPEG/ID3, raw AAC | Yes | Yes (ID3 types) | — | — | Yes | Yes |
-| MP4 | Yes | — | Yes | — | Structured collections are ignored; typed `.comment`/`.lyrics` patches use `©cmt`/`©lyr` | Yes (`covr`) |
+| MP4 | Yes | — | Yes | — | Rejected before staging; typed `.comment`/`.lyrics` patches use `©cmt`/`©lyr` | Yes (`covr`) |
 | WAV, AIFF/AIFF-C | Yes | Yes | — | — | Yes | Yes |
 | TrueAudio | Yes | Yes | — | — | Yes | Yes |
 | ASF/WMA | Yes | — | — | Yes | — | Yes |
@@ -135,7 +135,7 @@ The capability level is not enough to know which structured collections a format
 | DSF, DSDIFF | Yes | Yes (upserts) | — | — | Rejected | Yes (ID3 picture path) |
 | Shorten, MOD, S3M, IT, XM | Read-only or PropertyMap-only; no structured collections beyond the fallback delta | — | — | — | — | — |
 
-For DSD, the descriptor reports `container` structured write support: native ID3 frame upserts, PropertyMap deltas and artwork are supported. Comment/lyric collection replacement remains unsupported. On MP4, a non-empty structured `comments` or `lyrics` array is not written; verification then fails if the caller expected those entries to persist. This does not limit the typed `.comment` and `.lyrics` fields, which use the native `©cmt` and `©lyr` atoms.
+For DSD, the descriptor reports `container` structured write support: native ID3 frame upserts, PropertyMap deltas and artwork are supported. Comment/lyric collection replacement remains unsupported. On MP4, a non-empty structured `comments` or `lyrics` array is rejected before staging with `unsupportedWritePolicy`; the same applies to the matching replace-collection requests. This does not limit the typed `.comment` and `.lyrics` fields, which use the native `©cmt` and `©lyr` atoms.
 
 ## Format-specific limitations
 
@@ -149,7 +149,7 @@ For DSD, the descriptor reports `container` structured write support: native ID3
 
 ### MP4
 
-- Raw PropertyMap APIs accept prefixless TagLib keys, not native `----:` atom identifiers. Use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys.
+- Raw PropertyMap APIs accept prefixless TagLib keys, not native `----:` atom identifiers. Use `StructuredMetadata.mp4Atoms` for exact, case-sensitive freeform keys. This restriction is enforced at every raw entry point, including merge and replace.
 - Native `trkn`/`disk` are authoritative. Recognized number aliases and private provenance are cleaned up when the corresponding pair changes through typed, Basic or `numberText` facade edits; unrelated edits and low-level bridge/raw/structured writes preserve them. Movement Number/Count use independent `©mvi`/`©mvc` atoms and are bounded to `0...32767`; track/disc components accept the unsigned 16-bit maximum `65535`, with `0` reserved for a retained-total sentinel.
 - Content Group (`©grp`), Grouping (`----:com.apple.iTunes:GROUPING`) and Work (`©wrk`) are independent; a missing Content Group does not fall back to Grouping. Encoded By (`©enc`) and Encoder Settings (`©too`) are independent native owners.
 - Typed `.comment` and `.lyrics` patches use the ordinary `©cmt` and `©lyr` atoms; they are not routed through the ID3 qualified-comment path. Structured `comments`/`lyrics` collections remain a separate, unsupported surface on MP4.
@@ -157,7 +157,7 @@ For DSD, the descriptor reports `container` structured write support: native ID3
 - `.year` writes `©day` (YEAR); `.standaloneDate` and `.releaseDate` use their freeform extensions. The typed `.date` alias is removed; the old serialized `date` key is rejected rather than reinterpreted.
 - Native advisory is `rtng`; recognized freeform aliases (`ITUNESADVISORY`, `ADVISORY`, `EXPLICITCONTENT`, `EXPLICIT`) are removed when the advisory changes. `BasicMetadata` replacement also runs the canonical advisory writer, so MP4 freeform advisory aliases can be retired even when the caller did not edit the advisory projection.
 - `covr` is returned both as an artwork entry and as a `coverArtList` MP4 atom. Use the artwork collection to replace it; `coverArtList` is inspection-only for direct atom writes.
-- Structured atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other item types are ignored by the writer; they are inspection-only.
+- Structured atom writing supports `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Other item types are rejected by structured-payload validation; they are inspection-only and must be omitted.
 - The `rate` atom is readable and preserved, but `.rate` has no preferred typed write target because no verified native rating type and scale are registered.
 
 ### WAV, AIFF, and RIFF INFO

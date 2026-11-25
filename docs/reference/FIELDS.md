@@ -57,7 +57,7 @@ Column meanings:
 - **PropertyMap keys** are the prefixless keys used by `RawMetadataDump`, `RawMetadataPatch`, and the raw writers. They are also the generic Xiph, APE, and ASF PropertyMap surfaces where the format supports them.
 - **ID3v2** lists the native text frame, `TXXX:<description>` user-text frame, `EXTFRAME:<frame>` versioned extension, or `UFID:<owner>` identifier frame. `—` means the schema has no direct ID3v2 target.
 - **MP4** lists native atoms and `----:com.apple.iTunes:<description>` freeform keys. A `(read)` suffix marks a non-preferred target that is not a typed write destination.
-- **Vorbis**, **APE**, **ASF**, and **RIFF** list the exact native key or attribute.
+- **Vorbis**, **APE**, **ASF**, and **RIFF** list the exact native key or attribute. RIFF INFO is a read/preserve registration: typed and Basic WAV/AIFF writes use ID3v2, and `FormatCapability.metadataFieldFormats` never selects `.riffInfo`.
 - **Flags** identify `multi` (multi-value), `people`, `role` (role-qualified key required), `artwork`.
 - **Component** suffixes `(number)` and `(total)` identify the two components of a shared native pair. They are not independent native slots.
 

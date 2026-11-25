@@ -304,7 +304,7 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-Lyrics/comments replace-all is supported on ID3-backed formats and TrueAudio. MP4 ignores structured comments/lyrics; APE-family and FLAC/Ogg reject them. Do not use those collections for MP4 or Xiph/APE files. For MP4, use the typed `.comment`/`.lyrics` fields, which address `©cmt`/`©lyr`, or a native atom write.
+Lyrics/comments replace-all is supported on ID3-backed formats and TrueAudio. MP4 rejects structured comments/lyrics before staging; APE-family and FLAC/Ogg also reject them. Do not use those collections for MP4 or Xiph/APE files. For MP4, use the typed `.comment`/`.lyrics` fields, which address `©cmt`/`©lyr`, or a native atom write.
 
 Structured text values are exact payloads rather than display text. ID3 frame arrays and MP4 `stringList` entries retain order, duplicates, and surrounding whitespace. An empty array removes the frame identity or MP4 item where that type supports removal. The trimming performed by typed patch values does not apply to structured values.
 
@@ -339,7 +339,7 @@ try TagLibMetadataManager.writeStructuredMetadataWithVerification(
 )
 ```
 
-Supported write types are `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Inspection-only types such as `coverArtList`, `byteVectorList`, `void`, and `stem` are ignored by the writer; omit them. Use the `artwork` collection for `covr`. Set `remove: true` on an atom to remove that exact native key.
+Supported write types are `stringList`, `bool`, `int`, `uint`, `byte`, `longLong`, and `intPair`. Inspection-only types such as `coverArtList`, `byteVectorList`, `void`, and `stem` are rejected by structured-payload validation; omit them. Use the `artwork` collection for `covr`. Set `remove: true` on an atom to remove that exact native key.
 
 ### ASF attributes
 

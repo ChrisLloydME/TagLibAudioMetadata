@@ -56,7 +56,7 @@ YEAR, DATE, RELEASEDATE, and ORIGINALDATE are independent stored fields and inde
 - `.releaseDate` is RELEASEDATE.
 - `.originalReleaseDate` is ORIGINALDATE.
 
-MP4 uses `©day` for YEAR. DATE and RELEASEDATE use explicit `DATE` and `RELEASEDATE` freeform extensions. The registry records version-appropriate ID3 locations (`TYER`/`TDRC`, `TDAT`/`TXXX(DATE)`, `TDRL`, `TORY`/`TDOR`). ID3v2.4 writes use the verified codecs. Independent date writes on existing ID3v2.3 tags are currently read-only: typed patches and Basic date edits reject before mutation. `StructuredMetadata.id3v2MajorVersion` exposes the observed primary version for concrete-file capability UI; it is not a version-conversion request. Xiph/APE use the declared text keys. ASF uses its registered attributes. RIFF INFO has no independent DATE target.
+MP4 uses `©day` for YEAR. DATE and RELEASEDATE use explicit `DATE` and `RELEASEDATE` freeform extensions. The registry records version-appropriate ID3 locations (`TYER`/`TDRC`, `TDAT`/`TXXX(DATE)`, `TDRL`, `TORY`/`TDOR`). ID3v2.4 writes use the verified codecs. Independent date writes on existing ID3v2.3 tags are currently read-only: typed and structured date edits reject before mutation, Basic rejects when a date value changes, and the transaction baseline rejects any date-frame change from raw facade writes. Low-level bridge direct writes reject every v2.3 mutation. `StructuredMetadata.id3v2MajorVersion` exposes the observed primary version for concrete-file capability UI; it is not a version-conversion request. Xiph/APE use the declared text keys. ASF uses its registered attributes. RIFF INFO has no independent DATE target.
 
 YEAR may contain complete stored date text. Read it as-is; never take the first four characters. `replaceBasicMetadata` and `updateBasicMetadata` validate YEAR text with the frozen Basic-specific `isRepresentableYearText` prefix filter (unsigned year, or four digits followed by `-`, `/` or `.`); it is not a calendar grammar, and the typed patch path does not run it. `MetadataValidationError.invalidYearText` is the Basic rejection.
 
@@ -73,7 +73,7 @@ Native pairs are authoritative:
 | Xiph | Separate `TRACKNUMBER`/`TRACKTOTAL` and `DISCNUMBER`/`DISCTOTAL`. |
 | APE-family | Separate `TRACK`/`TRACKTOTAL` and `DISC`/`DISCTOTAL`. |
 | ASF | `WM/TrackNumber` and `WM/PartOfSet` text pairs. |
-| RIFF INFO | `ITRK`; no typed total target in this profile. |
+| RIFF INFO | `ITRK`; no typed total target in this profile. RIFF INFO targets are read/preserve registrations, not typed write destinations. |
 
 Track and disc components begin at one; BPM and movement numbering begin at zero. MP4 track/disc components accept unsigned 16-bit values through `65535`; MP4 movement atoms accept `0...32767` and reject larger values before staging. Removing a first component while retaining a total is supported on MP4 (`0/total` sentinel), ID3-backed formats (`/total` text), and separate-key Xiph/APE layouts. ASF rejects a number-zero-plus-total pair; remove both components instead.
 
@@ -130,7 +130,7 @@ Semantic `.comment` and `.lyrics` use their native container owner: qualified ID
 
 ## 8. Format behavior and evidence
 
-The package exposes ID3v2, MP4, Xiph, APE, ASF, RIFF INFO, and fallback PropertyMap surfaces according to the selected format family. Container dispatch and the declared support matrix are in [Formats](FORMATS.md) and [Bridge reference](BRIDGE.md).
+The package exposes ID3v2, MP4, Xiph, APE, ASF, RIFF INFO, and fallback PropertyMap surfaces according to the selected format family. Typed and Basic writes never select `.riffInfo`: `FormatCapability.metadataFieldFormats` omits it, so WAV and AIFF semantic writes use ID3v2 while RIFF INFO is preserved. A raw merge can still update an INFO key that TagLib exposes through its PropertyMap (for example `TITLE`), and a raw RIFF ID such as `INAM` is not an INFO PropertyMap key. Container dispatch and the declared support matrix are in [Formats](FORMATS.md) and [Bridge reference](BRIDGE.md).
 
 Evidence is layered:
 
