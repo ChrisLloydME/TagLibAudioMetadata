@@ -499,21 +499,32 @@ static BOOL ValidateWritableMetadataStrings(TagLibAudioMetadata *metadata, NSErr
     return YES;
 }
 
+static unsigned long long MP4UnsignedDecimalItemMaximum(NativeMP4Codec::Kind kind)
+{
+    return kind == NativeMP4Codec::Kind::LongLong
+        ? std::numeric_limits<long long>::max()
+        : std::numeric_limits<unsigned int>::max();
+}
+
 static void SetMP4UnsignedDecimalItem(TagLib::MP4::Tag *tag,
-                                      const char *key,
+                                      NSString *key,
                                       NSString * _Nullable value)
 {
     if (!tag || !key) return;
+    const auto nativeKey = NSStringToTagString(key);
     NSString *trimmed = TrimmedStringOrNil(value);
     if (!trimmed) {
-        tag->removeItem(key);
+        tag->removeItem(nativeKey);
         return;
     }
+    const auto kind = NativeMP4Codec::forKey(key);
     unsigned long long parsed = 0;
-    if (!ParseUnsignedDecimalString(trimmed, std::numeric_limits<unsigned int>::max(), parsed)) {
+    if (!ParseUnsignedDecimalString(trimmed, MP4UnsignedDecimalItemMaximum(kind), parsed)) {
         return;
     }
-    tag->setItem(key, TagLib::MP4::Item((unsigned int)parsed));
+    tag->setItem(nativeKey, kind == NativeMP4Codec::Kind::LongLong
+        ? TagLib::MP4::Item(static_cast<long long>(parsed))
+        : TagLib::MP4::Item(static_cast<unsigned int>(parsed)));
 }
 
 // Writes exact YEAR/DATE text without four-character truncation. The bridge

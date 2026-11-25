@@ -106,7 +106,9 @@ The Boolean `explicitContent` / `isExplicit` projection is lossy. `isExplicit = 
 
 ## 6. MP4-exclusive and gated Matroska identities
 
-The registry includes the MP4-exclusive identities for director, account, composer/country IDs, gapless, HD video, owner, rating, show movement, store description, TV episode/network/season/show/sort, and media kind. Store IDs, TV numbers, and Boolean atoms are exact native values; unknown media-kind codes round-trip.
+The registry includes the MP4-exclusive identities for director, account, composer/country IDs, gapless, HD video, owner, rating, show movement, store description, TV episode/network/season/show/sort, and media kind. Store IDs, TV numbers, and Boolean atoms use exact native values. Unknown media-kind codes round-trip.
+
+Album, Artist, Catalog and Genre Store IDs are nonnegative Swift `Int` values in a typed patch. ID3, Xiph and APE destinations store their decimal text and accept values through `Int.max`. MP4 uses 64-bit signed integer codecs for `plID` and `cnID`, with IDs restricted to nonnegative values, and unsigned 32-bit codecs for `atID` and `geID`. The narrower bounds apply to the concrete MP4 destinations. The direct bridge full-model write follows the same MP4 atom widths.
 
 Movement Number and Count use independent `©mvi` and `©mvc` integer atoms; they are not components of a shared track/disc pair. The native range is `0...32767`, while MP4 track/disc components retain the unsigned 16-bit range through 65535. Content Group, Grouping and Work are independent native owners, and Encoded By and Encoder Settings are independent native owners; verification checks the exact untouched sibling rather than a fallback projection.
 

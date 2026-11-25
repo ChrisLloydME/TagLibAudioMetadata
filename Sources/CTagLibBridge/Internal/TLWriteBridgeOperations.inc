@@ -24,13 +24,18 @@
         const auto format = DetectTagFileFormat(fileURL);
         if (format == TLTagFileFormatMP4) {
             if (metadata.bpm > 32767) return SetNumericValidationError(error, @"MP4 BPM exceeds its signed 16-bit representation");
-            for (NSString *value in @[ metadata.itunesAlbumId ?: @"", metadata.itunesArtistId ?: @"",
-                                      metadata.itunesCatalogId ?: @"", metadata.itunesGenreId ?: @"",
-                                      metadata.itunesMediaType ?: @"" ]) {
-                NSString *text = TrimmedStringOrNil(value);
+            for (NSArray<NSString *> *item in @[
+                @[@"plID", metadata.itunesAlbumId ?: @""], @[@"atID", metadata.itunesArtistId ?: @""],
+                @[@"cnID", metadata.itunesCatalogId ?: @""], @[@"geID", metadata.itunesGenreId ?: @""],
+            ]) {
+                NSString *text = TrimmedStringOrNil(item[1]);
+                const auto kind = NativeMP4Codec::forKey(item[0]);
+                const auto maximum = MP4UnsignedDecimalItemMaximum(kind);
                 unsigned long long parsed = 0;
-                if (text && !ParseUnsignedDecimalString(text, std::numeric_limits<unsigned int>::max(), parsed))
-                    return SetNumericValidationError(error, @"MP4 store identifiers require unsigned decimal text");
+                if (text && !ParseUnsignedDecimalString(text, maximum, parsed)) {
+                    return SetNumericValidationError(error, [NSString stringWithFormat:
+                        @"MP4 store identifier %@ must be an unsigned decimal value between 0 and %llu", item[0], maximum]);
+                }
             }
             NSString *media = TrimmedStringOrNil(metadata.itunesMediaType);
             unsigned long long code = 0;
@@ -273,11 +278,11 @@
         SetMP4TextItem(tag, "----:com.apple.iTunes:RELEASEDATE", metadata.releaseDate);
         SetMP4TextItem(tag, "----:com.apple.iTunes:ORIGINALDATE", metadata.originalReleaseDate);
         RemoveMP4OwnedAliases(tag, @[@"ITUNESALBUMID", @"ITUNESARTISTID", @"ITUNESCATALOGID", @"ITUNESGENREID", @"ITUNESMEDIATYPE", @"ITUNESPURCHASEDATE"]);
-        SetMP4UnsignedDecimalItem(tag, "plID", metadata.itunesAlbumId);
-        SetMP4UnsignedDecimalItem(tag, "atID", metadata.itunesArtistId);
-        SetMP4UnsignedDecimalItem(tag, "cnID", metadata.itunesCatalogId);
-        SetMP4UnsignedDecimalItem(tag, "geID", metadata.itunesGenreId);
-        SetMP4UnsignedDecimalItem(tag, "stik", metadata.itunesMediaType);
+        SetMP4UnsignedDecimalItem(tag, @"plID", metadata.itunesAlbumId);
+        SetMP4UnsignedDecimalItem(tag, @"atID", metadata.itunesArtistId);
+        SetMP4UnsignedDecimalItem(tag, @"cnID", metadata.itunesCatalogId);
+        SetMP4UnsignedDecimalItem(tag, @"geID", metadata.itunesGenreId);
+        SetMP4UnsignedDecimalItem(tag, @"stik", metadata.itunesMediaType);
         SetMP4TextItem(tag, "purd", metadata.itunesPurchaseDate);
 
         SetMP4IntPairItem(tag, "trkn", metadata.trackNumber, metadata.totalTracks);

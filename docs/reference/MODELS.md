@@ -671,7 +671,7 @@ init(
 
 ## `MetadataFieldRegistry`
 
-Source: [MetadataFieldSchema.swift:407](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L407)
+Source: [MetadataFieldSchema.swift:406](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L406)
 
 ```swift
 enum MetadataFieldRegistry
@@ -707,7 +707,7 @@ func schema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:550](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L550)
+Source: [MetadataFieldSchema.swift:549](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L549)
 
 #### `canonicalSchema(forSemanticKey:)`
 
@@ -717,7 +717,7 @@ func canonicalSchema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:554](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L554)
+Source: [MetadataFieldSchema.swift:553](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L553)
 
 #### `schema(forPropertyMapKey:)`
 
@@ -727,7 +727,7 @@ func schema(
 ) -> MetadataFieldSchema?
 ```
 
-Source: [MetadataFieldSchema.swift:558](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L558)
+Source: [MetadataFieldSchema.swift:557](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L557)
 
 #### `schemas(withMappingsFor:)`
 
@@ -737,7 +737,7 @@ func schemas(
 ) -> [MetadataFieldSchema]
 ```
 
-Source: [MetadataFieldSchema.swift:582](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L582)
+Source: [MetadataFieldSchema.swift:581](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L581)
 
 #### `schemas(storableIn:)`
 
@@ -752,7 +752,7 @@ func schemas(
 > typed writes, including property-map-only tracker allowlists; it is not
 > a union of every registered native target.
 
-Source: [MetadataFieldSchema.swift:592](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L592)
+Source: [MetadataFieldSchema.swift:591](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L591)
 
 #### `schema(_:hasMappingFor:)`
 
@@ -763,7 +763,7 @@ func schema(
 ) -> Bool
 ```
 
-Source: [MetadataFieldSchema.swift:600](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L600)
+Source: [MetadataFieldSchema.swift:599](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L599)
 
 #### `shouldDisplayRawPropertyAsMultiValue(_:)`
 
@@ -773,7 +773,7 @@ func shouldDisplayRawPropertyAsMultiValue(
 ) -> Bool
 ```
 
-Source: [MetadataFieldSchema.swift:605](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L605)
+Source: [MetadataFieldSchema.swift:604](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L604)
 
 #### `normalizePropertyMapKey(_:)`
 
@@ -783,7 +783,7 @@ func normalizePropertyMapKey(
 ) -> String
 ```
 
-Source: [MetadataFieldSchema.swift:614](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L614)
+Source: [MetadataFieldSchema.swift:613](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L613)
 
 ## `MetadataFieldSchema`
 
@@ -830,9 +830,8 @@ var mappings: [MetadataFormatMapping]
 /// Value representations accepted by the high-level typed patch API.
 var acceptedPatchValueKinds: Set<MetadataPatchValueKind>
 
-/// Numeric limits shared with the Objective-C++ bridge's integer validation.
-/// MP4 pair components have narrower native limits; the planner applies
-/// those per destination family.
+/// Format-independent bounds for typed patch integers.
+/// A concrete native destination can impose a narrower range.
 var integerConstraint: MetadataIntegerConstraint?
 
 /// Best-available summary across all families, not a portability promise.
@@ -868,7 +867,7 @@ func targets(
 ) -> [MetadataNativeTarget]
 ```
 
-Source: [MetadataFieldSchema.swift:299](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L299)
+Source: [MetadataFieldSchema.swift:298](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L298)
 
 #### `writeTarget(for:)`
 
@@ -882,7 +881,7 @@ func writeTarget(
 > numeric pair intentionally share a native slot; their semantic keys
 > differ and the patch planner resolves both together.
 
-Source: [MetadataFieldSchema.swift:306](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L306)
+Source: [MetadataFieldSchema.swift:305](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L305)
 
 #### `capability(for:)`
 
@@ -892,7 +891,7 @@ func capability(
 ) -> MetadataMappingCapability
 ```
 
-Source: [MetadataFieldSchema.swift:310](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L310)
+Source: [MetadataFieldSchema.swift:309](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L309)
 
 #### `capability(for:)`
 
@@ -902,7 +901,7 @@ func capability(
 ) -> MetadataMappingCapability
 ```
 
-Source: [MetadataFieldSchema.swift:319](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L319)
+Source: [MetadataFieldSchema.swift:318](../../Sources/TagLibAudioMetadata/MetadataFieldSchema.swift#L318)
 
 ## `MetadataFieldStorageKind`
 
