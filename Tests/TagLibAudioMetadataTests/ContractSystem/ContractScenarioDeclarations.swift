@@ -14,6 +14,7 @@ enum ContractScenarioDeclarations {
         "S-MP4-RAW-02",
         "S-MP4-RAW-03",
         "S-MP4-RAW-04",
+        "S-MP4-EDITOR-01",
         "S-MP4-INTENT-01",
         "S-MP4-INTENT-02",
         "S-MP4-INTENT-03",

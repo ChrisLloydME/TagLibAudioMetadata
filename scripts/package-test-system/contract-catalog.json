@@ -2358,6 +2358,67 @@
       "validation_phase": "preflight",
       "evidence_tier": "runtime",
       "additional_surface_ids": []
+    },
+    {
+      "contract_id": "C-MP4-EDITOR",
+      "surface_id": "swift.TagLibMetadataManager.func.applyMP4MetadataEditorPatch",
+      "surface_ids": [
+        "swift.TagLibMetadataManager.func.applyMP4MetadataEditorPatch"
+      ],
+      "adapters": [
+        "facade.applyMP4EditorPatch"
+      ],
+      "field_family": [
+        "itunesAlbumID",
+        "itunesArtistID",
+        "itunesCatalogID",
+        "explicitContent",
+        "custom"
+      ],
+      "format_family": [
+        "mp4"
+      ],
+      "encoding_families": [
+        "integer",
+        "text"
+      ],
+      "fixture_id": "fixture.m4a",
+      "partition": "transaction",
+      "operation": "set and remove native atoms and edit exact raw values",
+      "oracle": "ContractMP4Oracle",
+      "runtime_test": "editsProviderWrittenAtomsAndSeparateTextInOneTransaction",
+      "ownership": {
+        "edited": [
+          "plID",
+          "atID",
+          "cnID",
+          "----:com.apple.iTunes:EDITOR_NOTE"
+        ],
+        "untouched": [
+          "rtng",
+          "----:com.apple.iTunes:ITUNESALBUMID",
+          "mdat"
+        ],
+        "audio": true,
+        "flags": false
+      },
+      "modes": {
+        "ownership_mode": [
+          "delta"
+        ]
+      },
+      "scenarios": [
+        {
+          "scenario_id": "S-MP4-EDITOR-01",
+          "expected_assertions": 12
+        }
+      ],
+      "version": "any",
+      "outcome": "supported",
+      "normalization": "native integer widths and exact raw arrays",
+      "validation_phase": "pre-commit native and exact raw readback",
+      "evidence_tier": "runtime",
+      "additional_surface_ids": []
     }
   ],
   "field_decisions": [
@@ -4053,7 +4114,7 @@
     {
       "scenario_id": "S-CATALOG-RECONCILIATION-01",
       "runtime_test": "contractCatalogReconciliation",
-      "expected_assertions": 226,
+      "expected_assertions": 231,
       "purpose": "contracts, adapters, scenario declarations and assertion budgets reconcile without duplicates"
     },
     {

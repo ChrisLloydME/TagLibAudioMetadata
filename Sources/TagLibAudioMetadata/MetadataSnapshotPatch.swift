@@ -241,17 +241,8 @@ extension TagLibMetadataManager {
                     actual: kind
                 )
             }
-            if case .integer(let integer) = value, let constraint = schema.integerConstraint {
-                let maximum = if formatIdentifier == "mp4", field == .itunesArtistID || field == .itunesGenreID {
-                    Int(UInt32.max)
-                } else {
-                    constraint.maximum
-                }
-                guard (constraint.minimum...maximum).contains(integer) else {
-                    throw MetadataPatchValidationError.integerOutOfRange(
-                        field: field, minimum: constraint.minimum, maximum: maximum, actual: integer
-                    )
-                }
+            if case .integer(let integer) = value {
+                try validateInteger(integer, field: field, schema: schema, formatIdentifier: formatIdentifier)
             }
             normalizedFields[field] = try value.normalized(location: field.rawValue)
         }
@@ -288,6 +279,22 @@ extension TagLibMetadataManager {
         return ValidatedMetadataPatch(fields: normalizedFields, customFields: normalizedCustomFields)
     }
 
+    nonisolated static func validateInteger(
+        _ value: Int, field: MetadataFieldKey, schema: MetadataFieldSchema, formatIdentifier: String
+    ) throws {
+        guard let constraint = schema.integerConstraint else { return }
+        let maximum = if formatIdentifier == "mp4", field == .itunesArtistID || field == .itunesGenreID {
+            Int(UInt32.max)
+        } else {
+            constraint.maximum
+        }
+        guard (constraint.minimum...maximum).contains(value) else {
+            throw MetadataPatchValidationError.integerOutOfRange(
+                field: field, minimum: constraint.minimum, maximum: maximum, actual: value
+            )
+        }
+    }
+
     /// Streams the encoded audio when requested. Unsupported layouts return a nil
     /// identity; callers must require explicit reload instead of automatic rebase.
     public nonisolated static func readSnapshot(
@@ -316,7 +323,11 @@ extension TagLibMetadataManager {
         guard version == (try? fileVersion(at: url)) else {
             throw TagLibManagerError.fileChanged
         }
-        return MetadataSnapshot(basic: basic, raw: raw, structured: structured, fileVersion: version, audioContentIdentity: audioIdentity)
+        var snapshot = MetadataSnapshot(
+            basic: basic, raw: raw, structured: structured, fileVersion: version, audioContentIdentity: audioIdentity
+        )
+        snapshot.supportsMP4EditorFields = capability(forExtension: url.pathExtension)?.identifier == "mp4"
+        return snapshot
     }
 
     /// Applies only explicitly requested changes through the transactional coordinator.

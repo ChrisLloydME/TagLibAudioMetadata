@@ -73,6 +73,8 @@ print(snapshot.structured.id3v2MajorVersion as Any)
 
 `readSnapshot` obtains Basic, raw, and structured projections in one extraction call and rejects a file that changes during extraction. The file version is non-optional in a snapshot returned by this API. It is a semantic snapshot, not a byte-exact native archive. Unknown or opaque native records may be summarized, and leaving them out of a patch does not necessarily reconstruct their bytes.
 
+For an MP4 metadata editor, use `snapshot.editableMP4Fields` alongside `snapshot.raw.properties`. It exposes the exact native Album, Artist and Catalog ID and Explicit advisory atoms. A row with no atom represents an absent field that the editor can add. Present zero and legacy advisory codes remain visible as stored. An existing same-name freeform stays in the raw properties and has its own edit target. See [Edit native MP4 fields and raw properties together](WRITING.md#edit-native-mp4-fields-and-raw-properties-together).
+
 ## Read raw metadata
 
 ```swift

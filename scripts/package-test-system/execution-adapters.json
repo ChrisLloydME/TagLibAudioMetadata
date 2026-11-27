@@ -372,6 +372,12 @@
       "module": "TagLibAudioMetadata",
       "public_symbol": "MetadataMappingCatalog.contractVersion + decisionDate",
       "invocation": "One contract-identity read."
+    },
+    {
+      "id": "facade.applyMP4EditorPatch",
+      "module": "TagLibAudioMetadata",
+      "public_symbol": "TagLibMetadataManager.applyMP4MetadataEditorPatch(_:raw:to:expectedVersion:expectedAudioContent:)",
+      "invocation": "One mixed native and raw MP4 edit guarded by the reviewed file version."
     }
   ]
 }

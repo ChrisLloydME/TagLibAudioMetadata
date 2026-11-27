@@ -415,6 +415,11 @@
       "contract.C-MATROSKA-LIMITATION.unique",
       "contract.C-MATROSKA-LIMITATION.outcome",
       "contract.C-MATROSKA-LIMITATION.adapters",
+      "contract.C-MP4-EDITOR.id",
+      "contract.C-MP4-EDITOR.unique",
+      "contract.C-MP4-EDITOR.outcome",
+      "contract.C-MP4-EDITOR.adapters",
+      "scenario.S-MP4-EDITOR-01.budget",
       "scenario.declarations.unique",
       "scenario.catalog.unique",
       "scenario.set.equal",
@@ -1482,6 +1487,24 @@
       "followup.returned",
       "followup.text",
       "audio.unchanged"
+    ]
+  },
+  "S-MP4-EDITOR-01": {
+    "runtime_test": "editsProviderWrittenAtomsAndSeparateTextInOneTransaction",
+    "adapter_label": "facade.applyMP4EditorPatch",
+    "checks": [
+      "seed.album",
+      "seed.catalog",
+      "seed.advisory",
+      "seed.albumAlias",
+      "projection.album",
+      "write.returned",
+      "native.album",
+      "native.catalog.absent",
+      "legacy.albumAlias.preserved",
+      "native.advisory.preserved",
+      "audio.unchanged",
+      "raw.note"
     ]
   }
 }

@@ -47,6 +47,21 @@ extension TagLibMetadataManager {
         }
     }
 
+    nonisolated static func verifyRawMetadataDelta(
+        _ patch: RawMetadataPatch, before: RawMetadataDump, after: RawMetadataDump
+    ) throws {
+        var expected = exactPropertyValues(before)
+        for key in patch.removingKeys { expected.removeValue(forKey: key) }
+        for (key, entries) in patch.valuesToSet { expected[key] = entries }
+        let actual = exactPropertyValues(after)
+        let mismatches = Set(expected.keys).union(actual.keys).sorted().filter { expected[$0] != actual[$0] }
+        guard mismatches.isEmpty else {
+            throw TagLibManagerError.verificationFailed(
+                mismatches.map { "PropertyMap field \($0) differs from the requested delta." }
+            )
+        }
+    }
+
     /// Applies one raw delta and verifies the complete visible PropertyMap before
     /// committing. Formats that cannot represent a requested value exactly fail
     /// without modifying the destination. Opaque native metadata is not exposed
@@ -57,10 +72,7 @@ extension TagLibMetadataManager {
         verify: Bool,
         to url: URL
     ) throws {
-        var expected = exactPropertyValues(try rawMetadataResult(from: url))
-        for key in removals { expected.removeValue(forKey: key) }
-        for (key, entries) in replacements { expected[key] = entries }
-
+        let before = try rawMetadataResult(from: url)
         let beforeStructured = try? readStructuredMetadataResult(from: url)
         let touchesV23Dates = Set(replacements.keys).union(removals).contains {
             ID3v23DateSafety.datePropertyKeys.contains($0.uppercased())
@@ -80,13 +92,10 @@ extension TagLibMetadataManager {
         }
 
         guard verify else { return }
-        let actual = exactPropertyValues(try rawMetadataResult(from: url))
-        let mismatches = Set(expected.keys).union(actual.keys).sorted().filter { expected[$0] != actual[$0] }
-        guard mismatches.isEmpty else {
-            throw TagLibManagerError.verificationFailed(
-                mismatches.map { "PropertyMap field \($0) differs from the requested delta." }
-            )
-        }
+        try verifyRawMetadataDelta(
+            RawMetadataPatch(valuesToSet: replacements, removingKeys: removals),
+            before: before, after: rawMetadataResult(from: url)
+        )
     }
 
     @discardableResult
@@ -118,6 +127,26 @@ extension TagLibMetadataManager {
         expectedVersion: MetadataFileVersion?,
         expectedAudioContent: MetadataAudioContentIdentity?
     ) throws -> MetadataWriteResult {
+        let normalized = try validatedRawMetadataPatch(patch)
+        guard !normalized.valuesToSet.isEmpty || !normalized.removingKeys.isEmpty else {
+            return MetadataWriteResult(warnings: [])
+        }
+        guard isWritableExtension(url.pathExtension) else { throw TagLibManagerError.unsupportedFormat }
+        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { temporary in
+            if let expectedAudioContent {
+                try requireAudioContent(at: temporary, matching: expectedAudioContent)
+            }
+            try applyRawMetadataDeltaInPlace(
+                normalized.valuesToSet,
+                removingKeys: normalized.removingKeys,
+                verify: true,
+                to: temporary
+            )
+            return MetadataWriteResult(warnings: [])
+        }
+    }
+
+    nonisolated static func validatedRawMetadataPatch(_ patch: RawMetadataPatch) throws -> RawMetadataPatch {
         try validateRawPropertyMapKeyNames(Array(patch.valuesToSet.keys) + Array(patch.removingKeys))
         func validatedKey(_ key: String) throws -> String {
             let normalized = key.uppercased()
@@ -144,21 +173,6 @@ extension TagLibMetadataManager {
             guard entries.allSatisfy({ !$0.contains("\0") }) else { throw RawMetadataPatchError.embeddedNull(key) }
             values[normalized] = entries
         }
-        guard !values.isEmpty || !removed.isEmpty else { return MetadataWriteResult(warnings: []) }
-        guard isWritableExtension(url.pathExtension) else { throw TagLibManagerError.unsupportedFormat }
-        let replacements = values
-        let removals = removed
-        return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { temporary in
-            if let expectedAudioContent {
-                try requireAudioContent(at: temporary, matching: expectedAudioContent)
-            }
-            try applyRawMetadataDeltaInPlace(
-                replacements,
-                removingKeys: removals,
-                verify: true,
-                to: temporary
-            )
-            return MetadataWriteResult(warnings: [])
-        }
+        return RawMetadataPatch(valuesToSet: values, removingKeys: removed)
     }
 }

@@ -746,5 +746,21 @@
   "zeroValuedNativeComponentUsesCanonicalOrRecoveredCounterpart": {
     "suite": "PreReleaseAuditTests",
     "path": "Integration/PreReleaseAuditTests.swift"
+  },
+  "editsProviderWrittenAtomsAndSeparateTextInOneTransaction": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "preservesLegacyAdvisoryUntilAnExactNativeEdit": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "rejectsInvalidAndStaleChangesWithoutPartialWrites": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "offersNativeRowsOnlyForMP4Files": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
   }
 }

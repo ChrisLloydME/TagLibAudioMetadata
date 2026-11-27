@@ -12078,6 +12078,88 @@
         "C-BRIDGE-READS-REGISTRY"
       ],
       "rationale": "Writable registry projection."
+    },
+    {
+      "id": "swift.<top>.struct.MP4MetadataEditorField",
+      "module": "swift",
+      "kind": "struct",
+      "owner": "<top>",
+      "signature_key": "swift:<top>:struct:struct MP4MetadataEditorField: Hashable, Sendable",
+      "signature": "struct MP4MetadataEditorField: Hashable, Sendable",
+      "source": "MP4MetadataEditor.swift:6",
+      "decision": "model",
+      "adapters": [],
+      "catalog_contracts": [],
+      "rationale": "Public editor value model; native identity and presence are exercised by the editor contract."
+    },
+    {
+      "id": "swift.MP4MetadataEditorField.let.field",
+      "module": "swift",
+      "kind": "let",
+      "owner": "MP4MetadataEditorField",
+      "signature_key": "swift:MP4MetadataEditorField:let:let field: MetadataFieldKey",
+      "signature": "let field: MetadataFieldKey",
+      "source": "MP4MetadataEditor.swift:7",
+      "decision": "model",
+      "adapters": [],
+      "catalog_contracts": [],
+      "rationale": "Public editor value model; native identity and presence are exercised by the editor contract."
+    },
+    {
+      "id": "swift.MP4MetadataEditorField.let.atomKey",
+      "module": "swift",
+      "kind": "let",
+      "owner": "MP4MetadataEditorField",
+      "signature_key": "swift:MP4MetadataEditorField:let:let atomKey: String",
+      "signature": "let atomKey: String",
+      "source": "MP4MetadataEditor.swift:8",
+      "decision": "model",
+      "adapters": [],
+      "catalog_contracts": [],
+      "rationale": "Public editor value model; native identity and presence are exercised by the editor contract."
+    },
+    {
+      "id": "swift.MP4MetadataEditorField.let.atom",
+      "module": "swift",
+      "kind": "let",
+      "owner": "MP4MetadataEditorField",
+      "signature_key": "swift:MP4MetadataEditorField:let:let atom: StructuredMP4Atom?",
+      "signature": "let atom: StructuredMP4Atom?",
+      "source": "MP4MetadataEditor.swift:11",
+      "decision": "model",
+      "adapters": [],
+      "catalog_contracts": [],
+      "rationale": "Public editor value model; native identity and presence are exercised by the editor contract."
+    },
+    {
+      "id": "swift.TagLibMetadataManager.func.applyMP4MetadataEditorPatch",
+      "module": "swift",
+      "kind": "func",
+      "owner": "TagLibMetadataManager",
+      "signature_key": "swift:TagLibMetadataManager:func:func applyMP4MetadataEditorPatch( _ nativeFields: [MetadataFieldKey: MetadataPatchValue], raw: RawMetadataPatch = RawMetadataPatch(), to url: URL, expectedVersion: MetadataFileVersion, expectedAudioContent: MetadataAudioContentIdentity? = nil ) throws -> MetadataWriteResult",
+      "signature": "func applyMP4MetadataEditorPatch( _ nativeFields: [MetadataFieldKey: MetadataPatchValue], raw: RawMetadataPatch = RawMetadataPatch(), to url: URL, expectedVersion: MetadataFileVersion, expectedAudioContent: MetadataAudioContentIdentity? = nil ) throws -> MetadataWriteResult",
+      "source": "MP4MetadataEditor.swift:24",
+      "decision": "exercised",
+      "adapters": [
+        "facade.applyMP4EditorPatch"
+      ],
+      "catalog_contracts": [
+        "C-MP4-EDITOR"
+      ],
+      "rationale": "Verified mixed native and raw MP4 editor delta."
+    },
+    {
+      "id": "swift.MetadataSnapshot.var.editableMP4Fields",
+      "module": "swift",
+      "kind": "var",
+      "owner": "MetadataSnapshot",
+      "signature_key": "swift:MetadataSnapshot:var:var editableMP4Fields: [MP4MetadataEditorField]",
+      "signature": "var editableMP4Fields: [MP4MetadataEditorField]",
+      "source": "Models/MetadataSnapshot.swift:55",
+      "decision": "model",
+      "adapters": [],
+      "catalog_contracts": [],
+      "rationale": "Public editor value model; native identity and presence are exercised by the editor contract."
     }
   ],
   "modes": [

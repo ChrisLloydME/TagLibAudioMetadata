@@ -3,6 +3,10 @@
 All notable changes to this package are documented here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+- Expose the native MP4 Album, Artist and Catalog IDs and advisory in metadata editor snapshots. Apply edits to those atoms and exact PropertyMap edits in one verified transaction.
+
 ## [0.8.3] - 2026-11-25
 
 Released from source `5b0bf5f`, which merges the Store ID validation fix; see [Status](docs/operations/STATUS.md) for the latest recorded evidence and its limits. The release keeps mapping contract 2.2, the TagLib 2.3.1-r2 binary and every public signature. Store ID ranges differ between text-backed tags and MP4 atoms; read [Migration](docs/operations/MIGRATION.md#migrating-from-0-8-2-to-0-8-3).

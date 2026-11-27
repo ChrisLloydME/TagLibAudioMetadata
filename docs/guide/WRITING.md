@@ -10,6 +10,7 @@ This guide is task-oriented. Signatures are in the [manager API](../reference/AP
 | Read, modify a few Basic fields, write back | `updateBasicMetadata` | Captures a version, applies a closure, replaces the Basic projection. |
 | Replace the complete Basic projection | `replaceBasicMetadata` | Empty/default fields clear modeled values; unchanged scalar date projections preserve exact native arrays. Not a patch. |
 | Edit exact `PropertyMap` keys and arrays | `RawMetadataPatch` / `applyRawMetadataPatch` | Delta over the visible PropertyMap; explicit removals. |
+| Edit native MP4 Store IDs, advisory and raw properties together | `applyMP4MetadataEditorPatch` | Versioned transaction over the selected atom identities and exact raw keys. |
 | Replace or merge the complete visible map | `writeRawMetadataPropertyMap*WithVerification` | Whole-map ownership or explicit merge. |
 | Edit ID3 frames, MP4 atoms, ASF attributes, artwork, comments, lyrics | `writeStructuredMetadataWithVerification` | Container-aware collections. |
 | Write formatted track/disc text directly | `writeTrackNumberText` | The supplied text is the authoritative input. |
@@ -240,6 +241,23 @@ let result = try TagLibMetadataManager.applyRawMetadataPatch(
 
 Keys are normalized to uppercase. Omitted keys are unchanged. Array boundaries, duplicate values, empty strings, and whitespace are significant; an empty array is invalid and must be expressed with `removingKeys`. Conflicting keys after normalization are rejected. Native MP4 `----:` atom keys and hidden package formatting keys are rejected; use `StructuredMetadata.mp4Atoms` for native atoms. The complete visible `PropertyMap` is verified after the delta.
 
+## Edit native MP4 fields and raw properties together
+
+Use the field identity from `snapshot.editableMP4Fields` to set or remove Album ID (`plID`), Artist ID (`atID`), Catalog ID (`cnID`), or Explicit advisory (`rtng`). Pass the reviewed file version from the same snapshot. The current audio-identity reader does not support MP4 continuity, so reload and review the file again if its version changes.
+
+```swift
+let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+guard let version = snapshot.fileVersion else { throw TagLibManagerError.fileChanged }
+try TagLibMetadataManager.applyMP4MetadataEditorPatch(
+    [.itunesAlbumID: .integer(6_829_122_413), .explicitContent: .remove],
+    raw: RawMetadataPatch(valuesToSet: ["TITLE": ["New title"]]),
+    to: url,
+    expectedVersion: version
+)
+```
+
+IDs are nonnegative integers. Artist ID has the MP4 unsigned 32-bit limit and Album and Catalog IDs retain 64-bit values up to `Int.max`. Advisory accepts `.integer(0)`, `.integer(1)`, `.integer(2)` or `.remove`. A legacy code can be left untouched, removed or explicitly replaced with one of the supported codes. Removing an atom leaves any same-name freeform in place. To edit or remove that text separately, address its raw key in the same call. This operation verifies the four native fields and the complete visible PropertyMap before committing either set of changes.
+
 ## Replace or merge a whole visible map
 
 Use the whole-map writers only when the caller deliberately owns the complete visible map or an explicit merge:
@@ -432,6 +450,7 @@ The comparison scope differs by API:
 | --- | --- |
 | `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, native date/owner absence, ASF native attributes, artwork, number/advisory expectations, and format-aware storage. |
 | `applyRawMetadataPatch` | The complete visible `PropertyMap` after the delta. |
+| `applyMP4MetadataEditorPatch` | The four native editor fields and the complete visible `PropertyMap` after both deltas. |
 | `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields (including MP4-exclusive typed fields where supported), custom values, number/advisory expectations, artwork, and preserved raw values. `.rate` remains read-only. |
 | `writeStructuredMetadataWithVerification` | Requested structured collections and properties, including ordered frame values and artwork semantics. |
 | `writeTrackNumberText` | Track/disc numbers and text where the container preserves exact text. |

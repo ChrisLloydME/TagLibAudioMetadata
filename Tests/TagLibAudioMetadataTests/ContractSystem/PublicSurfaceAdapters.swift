@@ -22,6 +22,7 @@ enum PublicSurfaceAdapterID: String, CaseIterable {
     case facadeApplyPatchGuarded = "facade.applyPatchGuarded"
     case facadeApplyRawPatch = "facade.applyRawPatch"
     case facadeApplyRawPatchGuarded = "facade.applyRawPatchGuarded"
+    case facadeApplyMP4EditorPatch = "facade.applyMP4EditorPatch"
     case facadeReplaceBasic = "facade.replaceBasic"
     case facadeUpdateBasic = "facade.updateBasic"
     case facadeWriteTagMetadata = "facade.writeTagMetadata"
@@ -94,6 +95,8 @@ indirect enum ContractAdapterInput {
     case patchGuarded(MetadataPatch, expectedVersion: MetadataFileVersion, audio: MetadataAudioContentIdentity)
     case rawPatch(RawMetadataPatch)
     case rawPatchGuarded(RawMetadataPatch, expectedVersion: MetadataFileVersion, audio: MetadataAudioContentIdentity)
+    case mp4EditorPatch([MetadataFieldKey: MetadataPatchValue], RawMetadataPatch,
+                        expectedVersion: MetadataFileVersion)
     case basic(BasicMetadata)
     case updateBasic((inout BasicMetadata) throws -> Void)
     case model(TagLibAudioMetadata, TagLibMetadataManager.MetadataWriteVerificationContext)
@@ -205,6 +208,13 @@ enum PublicSurfaceAdapters {
             }
             return .write(try TagLibMetadataManager.applyRawMetadataPatch(
                 patch, to: url, expectedVersion: version, expectedAudioContent: audio
+            ))
+        case .facadeApplyMP4EditorPatch:
+            guard case .mp4EditorPatch(let fields, let raw, let version) = input else {
+                throw ContractAdapterError.missingInput(id.rawValue)
+            }
+            return .write(try TagLibMetadataManager.applyMP4MetadataEditorPatch(
+                fields, raw: raw, to: url, expectedVersion: version
             ))
         case .facadeReplaceBasic:
             guard case .basic(let metadata) = input else {

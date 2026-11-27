@@ -47,6 +47,24 @@ public struct MetadataSnapshot: Sendable {
     public let fileVersion: MetadataFileVersion?
     /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
     public let audioContentIdentity: MetadataAudioContentIdentity?
+    var supportsMP4EditorFields = false
+
+    /// Native Album, Artist and Catalog IDs and Explicit advisory for a snapshot
+    /// read from an MP4-family file, including rows with absent atoms.
+    /// Text aliases remain in `raw.properties` with their own storage identity.
+    public nonisolated var editableMP4Fields: [MP4MetadataEditorField] {
+        guard supportsMP4EditorFields else { return [] }
+        return TagLibMetadataManager.mp4EditorFieldKeys.compactMap { field in
+            guard let target = MetadataFieldRegistry.schema(for: field)?.writeTarget(for: .mp4) else {
+                return nil
+            }
+            return MP4MetadataEditorField(
+                field: field,
+                atomKey: target.nativeIdentity,
+                atom: structured.mp4Atoms.first { $0.key == target.nativeIdentity }
+            )
+        }
+    }
 
     public init(
         basic: BasicMetadata,

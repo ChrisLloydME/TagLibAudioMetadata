@@ -208,6 +208,9 @@
       "facade.applyPatch|returned",
       "facade.applyPatch|returned",
       "facade.applyPatch|returned"
+    ],
+    "editsProviderWrittenAtomsAndSeparateTextInOneTransaction": [
+      "facade.applyMP4EditorPatch|returned"
     ]
   }
 }

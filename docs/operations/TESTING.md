@@ -16,7 +16,7 @@ The canonical gate is no longer only a collection of named matrices. Five indepe
 | Builders and oracles | `ContractFixtureBuilders.swift`, `ContractNativeOracles.swift` and the retained independent probes | Bounded native readers that never decide expected values through the package reader. Builders are self-tested on literal synchsafe, atom-size, chunk-alignment, flag/grouping, integer and malformed-input vectors. Every seed is independently verified; a failed seed fails the test. |
 | Evidence gate | `scripts/test_manifest.py`, `scripts/summarize-test-run.py`, `scripts/validate-tests.sh`, `scripts/validate-contracts.sh` | Fresh commit/diff/source/toolchain manifests, exact scenario-set and assertion-budget comparison, complete framework outcomes, exact optional-skip identities, and runner exit status. Counts and suite banners are supporting evidence only. |
 
-The catalog declares 36 contracts, 77 metadata-operation scenarios and four audit scenarios; the reviewed inventory covers 907 public-surface rows and 62 execution adapters. The audit scenarios reconcile all 100 advertised fields, all advertised writable format families, and the catalog/declaration/adapter sets at runtime. The required minima are **181 XCTest declarations** (179 passed and the two reviewed opt-in skips), **306 Swift Testing declarations in 55 suites**, **81 catalog scenarios** and **97 Python policy regressions**. These are floors, not a claim that every possible file or caller is covered.
+The catalog declares 37 contracts, 78 metadata-operation scenarios and four audit scenarios. The audit scenarios reconcile all 100 advertised fields, all advertised writable format families, and the catalog/declaration/adapter sets at runtime. The required minima are **181 XCTest declarations** (179 passed and the two reviewed opt-in skips), **306 Swift Testing declarations in 55 suites** and **97 Python policy regressions**. The gate also requires evidence from all 82 catalog scenarios.
 
 ### Contract commands
 
@@ -78,7 +78,7 @@ The contract lane (`scripts/validate-contracts.sh`) runs the policy and inventor
 
 The current upgraded gate requires the legacy sparse-state matrices, the new
 contract scenarios and the calibration set. The reviewed floors are 181 XCTest,
-306 Swift Testing declarations in 55 suites, 81 catalog scenarios and 97 Python policy regressions.
+306 Swift Testing declarations in 55 suites and 97 Python policy regressions. All declared catalog scenarios must run.
 The latest observed result and environment belong to [Status](STATUS.md);
 historical counts below certify only their recorded revisions. Do not compare
 counts across revisions without checking scope and opt-ins.
@@ -124,6 +124,8 @@ bash scripts/validate-tests.sh debug
 ```
 
 The focused `MP4ExclusiveFieldTests` suite checks exact Store ID readback in FLAC and AIFF, the native 64-bit Album and Catalog ID codecs in M4A, and byte-preserving rejection of an out-of-range M4A Artist or Genre ID. It also exercises the direct Objective-C bridge's MP4 Store ID writer.
+
+`MP4MetadataEditorTests` checks native and raw changes in the same editor transaction using the independent MP4 oracle. It covers large IDs, present-zero and legacy advisory, coexisting freeforms, native deletion, and byte preservation when a stale revision, invalid value or failed readback rejects a save.
 
 ### Minimum-platform builds
 

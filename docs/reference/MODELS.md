@@ -13,6 +13,7 @@ Every public value, error, schema, numbering, and capability type is listed alph
 | [`ExplicitAdvisory`](#explicitadvisory) | enum |  |
 | [`FormatCapability`](#formatcapability) | struct |  |
 | [`FormatSupportLevel`](#formatsupportlevel) | enum | Configured implementation/fixture coverage, not a runtime or release verdict. |
+| [`MP4MetadataEditorField`](#mp4metadataeditorfield) | struct | An editor row backed by one exact MP4 atom. |
 | [`MetadataArtworkPatch`](#metadataartworkpatch) | enum |  |
 | [`MetadataAudioContentError`](#metadataaudiocontenterror) | enum |  |
 | [`MetadataAudioContentIdentity`](#metadataaudiocontentidentity) | struct | An opaque SHA-256 identity of encoded audio and its interpretation parameters. |
@@ -246,7 +247,7 @@ static let empty
 
 ## `BasicMetadataSnapshot`
 
-Source: [Models/MetadataSnapshot.swift:68](../../Sources/TagLibAudioMetadata/Models/MetadataSnapshot.swift#L68)
+Source: [Models/MetadataSnapshot.swift:86](../../Sources/TagLibAudioMetadata/Models/MetadataSnapshot.swift#L86)
 
 ```swift
 struct BasicMetadataSnapshot: Sendable
@@ -416,6 +417,27 @@ case upstreamSupported
 case readOnly
 /// No supported parser or field mapping exists.
 case unsupported
+```
+
+## `MP4MetadataEditorField`
+
+Source: [MP4MetadataEditor.swift:6](../../Sources/TagLibAudioMetadata/MP4MetadataEditor.swift#L6)
+
+```swift
+struct MP4MetadataEditorField: Hashable, Sendable
+```
+
+> An editor row backed by one exact MP4 atom.
+
+### Properties
+
+```swift
+let field: MetadataFieldKey
+let atomKey: String
+
+/// Nil represents an absent atom. Existing values, including legacy advisory
+/// codes, are reported as observed in the structured snapshot.
+let atom: StructuredMP4Atom?
 ```
 
 ## `MetadataArtworkPatch`
@@ -1587,6 +1609,11 @@ let fileVersion: MetadataFileVersion?
 
 /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
 let audioContentIdentity: MetadataAudioContentIdentity?
+
+/// Native Album, Artist and Catalog IDs and Explicit advisory for a snapshot
+/// read from an MP4-family file, including rows with absent atoms.
+/// Text aliases remain in `raw.properties` with their own storage identity.
+var editableMP4Fields: [MP4MetadataEditorField]
 ```
 
 ### Initializers
