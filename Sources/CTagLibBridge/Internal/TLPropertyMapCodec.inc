@@ -1785,5 +1785,3 @@ static void AppendRawPropertyEntries(NSMutableArray<NSDictionary<NSString *, NSO
 static NSString * _Nullable BuildTRCKString(NSInteger trackNumber, NSInteger totalTracks, NSInteger padWidth);
 static NSString * _Nullable BuildPropertyMapNumberTextPreservingFormatting(NSString * _Nullable existingText,
                                                                            NSInteger number);
-
-template <typename FileType>

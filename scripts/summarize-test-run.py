@@ -232,6 +232,7 @@ REQUIRED_TESTS = {
     'duplicateFreeformsAndUTF16AtomsSurviveMP4Saves': 1,
     'explicitDeletionOfUnparsedMP4AtomsRejectsAtomicallyAcrossAPIs': 1,
     'unrelatedEditsPreserveDuplicateMixedCommentOrderAndBytes': 1,
+    'structuredPropertiesAndReplaceHonorMP4FreeformsAliasesAndRollback': 1,
     'emptyEditorPatchEnforcesVersionAudioAndFileGuards': 1,
     'preservesLegacyAdvisoryUntilAnExactNativeEdit': 1,
     'rejectsInvalidAndStaleChangesWithoutPartialWrites': 1,
@@ -277,7 +278,7 @@ REQUIRED_SUITES = (
 )
 
 XCTEST_MINIMUM = 181
-SWIFT_TESTING_MINIMUM = 324
+SWIFT_TESTING_MINIMUM = 325
 SWIFT_SUITE_MINIMUM = 56
 
 

@@ -1329,43 +1329,27 @@ static BOOL ValidateStructuredCollectionsForFormat(TLTagFileFormat format,
         }
         std::vector<TagLib::String> targetedKeys;
         if (propertyValues) {
-            const TagLib::MP4::ItemMap originalMP4Items = file.tag()->itemMap();
-            NSMutableDictionary<NSString *, NSArray<NSString *> *> *upperPropertyValues = [NSMutableDictionary dictionary];
+            NSMutableDictionary<NSString *, NSArray<NSString *> *> *propValuesToSet = [NSMutableDictionary dictionary];
+            NSMutableArray<NSString *> *propKeysToRemove = [NSMutableArray array];
             for (NSString *key in propertyValues) {
-                NSString *upper = UppercaseTrimmedString(key);
-                if (upper.length) {
-                    upperPropertyValues[upper] = propertyValues[key];
-                    const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
-                    if (!nativeKey.isEmpty()) targetedKeys.push_back(nativeKey);
-                }
-            }
-            SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
-            // Preserve shadowed iTunes freeforms whose 4-char native atom owns
-            // the PropertyMap key, and keep freeform-only owners from
-            // synthesizing a duplicate 4-char atom.
-            for (const auto &[key, item] : originalMP4Items) {
-                NSString *description = MP4FreeformDescriptionForItemKey(key);
-                if (!description) continue;
-                NSString *upper = description.uppercaseString;
-                const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
-                if (nativeKey.isEmpty()) continue;
-                if (originalMP4Items.contains(nativeKey)) {
-                    file.tag()->setItem(key, item);
-                } else {
-                    file.tag()->removeItem(nativeKey);
-                    NSArray<NSString *> *updated = upperPropertyValues[upper];
-                    if (updated) {
-                        if (updated.count == 0) {
-                            file.tag()->removeItem(key);
-                        } else {
-                            TagLib::StringList list;
-                            for (NSString *val in updated) list.append(NSStringToTagString(val));
-                            file.tag()->setItem(key, TagLib::MP4::Item(list));
-                        }
-                    } else {
-                        file.tag()->setItem(key, item);
+                NSString *trimmedKey = TrimmedStringOrNil(key);
+                if (!trimmedKey || IsHiddenInternalMetadataFieldKey(trimmedKey)) continue;
+                if ([trimmedKey rangeOfString:@"\0"].location != NSNotFound) continue;
+                NSMutableArray<NSString *> *trimmedValues = [NSMutableArray array];
+                for (NSString *value in propertyValues[key] ?: @[]) {
+                    NSString *trimmedValue = TrimmedStringOrNil(value);
+                    if (trimmedValue && [trimmedValue rangeOfString:@"\0"].location == NSNotFound) {
+                        [trimmedValues addObject:trimmedValue];
                     }
                 }
+                if (trimmedValues.count == 0) {
+                    [propKeysToRemove addObject:trimmedKey];
+                } else {
+                    propValuesToSet[trimmedKey] = trimmedValues;
+                }
+            }
+            if (!ApplyMP4PropertyMapDelta(file, propValuesToSet, propKeysToRemove, targetedKeys, error)) {
+                return NO;
             }
         }
         for (NSDictionary<NSString *, NSObject *> *entry in mp4Atoms ?: @[]) {

@@ -337,8 +337,8 @@
       "patches": [
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
-          "find": "                const bool hadNative = originalMP4Items.contains(canonicalNative);\n                const bool hadFreeform = [originalFreeformDescriptions containsObject:@(mapping.canonicalPropertyKey)];\n                if (hadNative || !hadFreeform) continue;",
-          "replace": "                if (false) continue;"
+          "find": "            const bool hadNative = originalMP4Items.contains(canonicalNative);\n            const bool hadFreeform = [originalFreeformDescriptions containsObject:@(mapping.canonicalPropertyKey)];\n            if (hadNative || !hadFreeform) continue;",
+          "replace": "            if (false) continue;"
         }
       ],
       "test_filter": "rawGroupingAndDatePreserveSingleOwnerWithoutDuplication",
@@ -350,8 +350,8 @@
       "patches": [
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
-          "find": "            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(normalized);\n            if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {\n                mp4->setItem(key, item);\n                continue;\n            }",
-          "replace": "            if (false) {\n                mp4->setItem(key, item);\n                continue;\n            }"
+          "find": "        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(normalized);\n        if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {\n            mp4->setItem(key, item);\n            continue;\n        }",
+          "replace": "        if (false) {\n            mp4->setItem(key, item);\n            continue;\n        }"
         }
       ],
       "test_filter": "rawEditsAndDeletesPreserveShadowedFreeformsAcrossNativeMP4Atoms",
@@ -446,6 +446,32 @@
         }
       ],
       "test_filter": "unrelatedEditsPreserveDuplicateMixedCommentOrderAndBytes",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-structured-properties-skip-reconcile",
+      "description": "Bypass ApplyMP4PropertyMapDelta in structured MP4 property writes so unrelated ALBUM edits alter freeform locales/create uppercase duplicates and ITUNESGAPLESS bypasses alias rejection.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLStructuredMutation.inc",
+          "find": "            if (!ApplyMP4PropertyMapDelta(file, propValuesToSet, propKeysToRemove, targetedKeys, error)) {\n                return NO;\n            }",
+          "replace": "            SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));"
+        }
+      ],
+      "test_filter": "structuredPropertiesAndReplaceHonorMP4FreeformsAliasesAndRollback",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-raw-replace-freeform-case-duplicate",
+      "description": "Skip ReconcileMP4ReplacedFreeforms on MP4 whole-map .replace writes so mixed-case freeforms duplicate as uppercase and mapped freeforms lose their locale.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
+          "find": "static void ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,\n                                          const TagLib::MP4::ItemMap &originalMP4Items,\n                                          const TagLib::PropertyMap &requested)\n{\n    if (!mp4) return;",
+          "replace": "static void ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,\n                                          const TagLib::MP4::ItemMap &originalMP4Items,\n                                          const TagLib::PropertyMap &requested)\n{\n    (void)mp4; (void)originalMP4Items; (void)requested;\n    return;"
+        }
+      ],
+      "test_filter": "structuredPropertiesAndReplaceHonorMP4FreeformsAliasesAndRollback",
       "witness": "Expectation failed"
     }
   ]

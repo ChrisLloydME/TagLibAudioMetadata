@@ -1,3 +1,54 @@
+static void ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,
+                                          const TagLib::MP4::ItemMap &originalMP4Items,
+                                          const TagLib::PropertyMap &requested)
+{
+    if (!mp4) return;
+    auto *factory = TagLib::MP4::ItemFactory::instance();
+    for (const auto &[origKey, origItem] : originalMP4Items) {
+        NSString *description = MP4FreeformDescriptionForItemKey(origKey);
+        if (!description) continue;
+        NSString *upperDesc = description.uppercaseString;
+        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upperDesc);
+        TagLib::String propKey = factory->propertyKeyForName(origKey.data(TagLib::String::UTF8)).upper();
+        if (propKey.isEmpty()) propKey = NSStringToTagString(upperDesc);
+
+        if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {
+            // Preserve shadowed iTunes freeforms when their native 4-char owner
+            // remains present in the replacement map.
+            if (requested.contains(propKey)) {
+                mp4->setItem(origKey, origItem);
+            }
+            continue;
+        }
+        if (!nativeKey.isEmpty() && !originalMP4Items.contains(nativeKey)) {
+            // Do not let TagLib synthesize a duplicate 4-char atom when only
+            // the freeform existed originally.
+            mp4->removeItem(nativeKey);
+        }
+
+        const TagLib::String upperFreeformKey =
+            NSStringToTagString([@"----:com.apple.iTunes:" stringByAppendingString:upperDesc]);
+        if (requested.contains(propKey)) {
+            if (upperFreeformKey != origKey) {
+                mp4->removeItem(upperFreeformKey);
+            }
+            const TagLib::StringList desired = requested[propKey];
+            if (origItem.type() == TagLib::MP4::Item::Type::StringList &&
+                origItem.toStringList() == desired) {
+                mp4->setItem(origKey, origItem);
+            } else {
+                mp4->setItem(origKey, TagLib::MP4::Item(desired));
+            }
+        } else {
+            mp4->removeItem(origKey);
+            if (upperFreeformKey != origKey) {
+                mp4->removeItem(upperFreeformKey);
+            }
+        }
+    }
+}
+
+template <typename FileType>
 static BOOL WriteRawPropertyMapToFile(FileType &file,
                                       NSDictionary<NSString *, NSString *> *properties,
                                       NSError **error,
@@ -20,16 +71,21 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
 
     const auto requested = BuildRawPropertyMap(properties);
     auto *mp4File = dynamic_cast<TagLib::MP4::File *>(&file);
+    TagLib::MP4::ItemMap originalMP4Items;
     if (mp4File) {
+        originalMP4Items = mp4File->tag()->itemMap();
         if (!ValidateMP4RequestedProperties(requested, error)) return NO;
         NSMutableSet<NSString *> *requestedKeys = [NSMutableSet set];
         for (NSString *key in properties ?: @{}) {
             NSString *normalized = UppercaseTrimmedString(key);
             if (normalized) [requestedKeys addObject:normalized];
         }
-        if (!RejectNonCanonicalMP4RawAliasKeys(mp4File->tag()->itemMap(), requestedKeys, error)) return NO;
+        if (!RejectNonCanonicalMP4RawAliasKeys(originalMP4Items, requestedKeys, error)) return NO;
     }
     SetPropertiesPreservingNativeDates(&file, requested, true);
+    if (mp4File) {
+        ReconcileMP4ReplacedFreeforms(mp4File->tag(), originalMP4Items, requested);
+    }
     if (mp4File && mp4ItemFactory) {
         std::vector<TagLib::String> targetedKeys;
         for (NSString *atomKey in NativeMP4Codec::nativeAtomPropertyKeys()) {
@@ -75,16 +131,21 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
     const auto existing = VisibleMetadataProperties(&file);
     const auto requested = BuildRawPropertyMapValues(properties, &existing);
     auto *mp4File = dynamic_cast<TagLib::MP4::File *>(&file);
+    TagLib::MP4::ItemMap originalMP4Items;
     if (mp4File) {
+        originalMP4Items = mp4File->tag()->itemMap();
         if (!ValidateMP4RequestedProperties(requested, error)) return NO;
         NSMutableSet<NSString *> *requestedKeys = [NSMutableSet set];
         for (NSString *key in properties ?: @{}) {
             NSString *normalized = UppercaseTrimmedString(key);
             if (normalized) [requestedKeys addObject:normalized];
         }
-        if (!RejectNonCanonicalMP4RawAliasKeys(mp4File->tag()->itemMap(), requestedKeys, error)) return NO;
+        if (!RejectNonCanonicalMP4RawAliasKeys(originalMP4Items, requestedKeys, error)) return NO;
     }
     SetPropertiesPreservingNativeDates(&file, requested, true);
+    if (mp4File) {
+        ReconcileMP4ReplacedFreeforms(mp4File->tag(), originalMP4Items, requested);
+    }
     if (mp4File && mp4ItemFactory) {
         std::vector<TagLib::String> targetedKeys;
         for (NSString *atomKey in NativeMP4Codec::nativeAtomPropertyKeys()) {

@@ -1602,6 +1602,412 @@ struct MP4MetadataEditorTests {
         }
     }
 
+    @Test func structuredPropertiesAndReplaceHonorMP4FreeformsAliasesAndRollback() throws {
+        func be32(_ value: UInt32) -> Data {
+            Data([
+                UInt8((value >> 24) & 0xFF),
+                UInt8((value >> 16) & 0xFF),
+                UInt8((value >> 8) & 0xFF),
+                UInt8(value & 0xFF),
+            ])
+        }
+        func makeAtom(_ fourCC: String, _ payload: Data) -> Data {
+            let typeBytes = fourCC.data(using: .isoLatin1)!
+            return be32(UInt32(payload.count + 8)) + typeBytes + payload
+        }
+        func makeDataAtom(type: UInt32, locale: UInt32, payload: Data) -> Data {
+            makeAtom("data", be32(type) + be32(locale) + payload)
+        }
+        func makeFreeform(mean: String, name: String, dataAtoms: Data) -> Data {
+            let body = makeAtom("mean", be32(0) + Data(mean.utf8))
+                + makeAtom("name", be32(0) + Data(name.utf8))
+                + dataAtoms
+            return makeAtom("----", body)
+        }
+        func readDataHeaders(for key: String, from oracle: ContractMP4Oracle) throws -> [(type: UInt32, locale: UInt32, payload: Data)] {
+            guard let rawAtoms = oracle.items[key], !rawAtoms.isEmpty else { return [] }
+            var results: [(UInt32, UInt32, Data)] = []
+            for rawAtom in rawAtoms {
+                let outer = try ContractMP4Oracle.atoms(rawAtom, 0..<rawAtom.count)
+                guard outer.count == 1 else { continue }
+                let children = try ContractMP4Oracle.atoms(rawAtom, outer[0].payload)
+                for child in children where child.type == "data" {
+                    let bytes = Data(rawAtom[child.payload])
+                    guard bytes.count >= 8 else { continue }
+                    let typeFlags = (UInt32(bytes[0]) << 24) | (UInt32(bytes[1]) << 16) | (UInt32(bytes[2]) << 8) | UInt32(bytes[3])
+                    let locale = (UInt32(bytes[4]) << 24) | (UInt32(bytes[5]) << 16) | (UInt32(bytes[6]) << 8) | UInt32(bytes[7])
+                    results.append((typeFlags, locale, Data(bytes.dropFirst(8))))
+                }
+            }
+            return results
+        }
+
+        let canadianFrench: UInt32 = 0x4341_1A41
+        let mbTypeKey = "----:com.apple.iTunes:MusicBrainz Album Type"
+        let provenanceKey = "----:com.apple.iTunes:ProvenanceNote"
+        let provenanceUpperKey = "----:com.apple.iTunes:PROVENANCENOTE"
+        let customNamespaceKey = "----:com.example.custom:CustomNote"
+        let utf16Bonjour = Data([0x00, 0x42, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x6A, 0x00, 0x6F, 0x00, 0x75, 0x00, 0x72])
+
+        // 1. An ALBUM-only edit across every public MP4 write surface must preserve
+        //    MusicBrainz Album Type and ProvenanceNote (locale 0x43411A41), avoid
+        //    synthesizing uppercase PROVENANCENOTE, and keep mixed ©cmt order/bytes.
+        let seededILST =
+            makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Original Title".utf8)))
+            + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Original Album".utf8)))
+            + makeFreeform(
+                mean: "com.apple.iTunes",
+                name: "MusicBrainz Album Type",
+                dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("album".utf8))
+            )
+            + makeFreeform(
+                mean: "com.apple.iTunes",
+                name: "ProvenanceNote",
+                dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Keep Note".utf8))
+            )
+            + makeFreeform(
+                mean: "com.example.custom",
+                name: "CustomNote",
+                dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Keep Custom".utf8))
+            )
+            + makeAtom("©cmt", makeDataAtom(type: 1, locale: 0, payload: Data("English".utf8)))
+            + makeAtom("©cmt", makeDataAtom(type: 2, locale: canadianFrench, payload: utf16Bonjour))
+
+        enum AlbumWriteSurface: CaseIterable {
+            case structuredProperties
+            case structuredCombined
+            case rawDelta
+            case rawMerge
+            case editorRawAndNative
+            case typedPatch
+            case basicUpdate
+        }
+
+        for surface in AlbumWriteSurface.allCases {
+            try ContractFixture.withCopy("m4a") { url in
+                try ContractMP4Seed.seedRawILST(seededILST, to: url)
+                let before = try ContractMP4Oracle.read(url)
+                let version = try TagLibMetadataManager.fileVersion(at: url)
+                let expectedAlbum = "Updated \(surface)"
+
+                switch surface {
+                case .structuredProperties:
+                    try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                        StructuredMetadata(properties: [
+                            StructuredPropertyEntry(key: "ALBUM", values: [expectedAlbum]),
+                        ]),
+                        to: url,
+                        includeProperties: true,
+                        expectedVersion: version
+                    )
+                case .structuredCombined:
+                    try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                        StructuredMetadata(
+                            properties: [StructuredPropertyEntry(key: "ALBUM", values: [expectedAlbum])],
+                            mp4Atoms: [StructuredMP4Atom(key: "plID", type: "longLong", value: "6829122413")]
+                        ),
+                        to: url,
+                        includeProperties: true,
+                        expectedVersion: version
+                    )
+                case .rawDelta:
+                    try TagLibMetadataManager.applyRawMetadataPatch(
+                        RawMetadataPatch(valuesToSet: ["ALBUM": [expectedAlbum]]),
+                        to: url,
+                        expectedVersion: version
+                    )
+                case .rawMerge:
+                    try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                        ["ALBUM": [expectedAlbum]],
+                        to: url,
+                        mode: .merge,
+                        expectedVersion: version
+                    )
+                case .editorRawAndNative:
+                    try TagLibMetadataManager.applyMP4MetadataEditorPatch(
+                        [.itunesAlbumID: .integer(6_829_122_413)],
+                        raw: RawMetadataPatch(valuesToSet: ["ALBUM": [expectedAlbum]]),
+                        to: url,
+                        expectedVersion: version
+                    )
+                case .typedPatch:
+                    try TagLibMetadataManager.applyMetadataPatch(
+                        MetadataPatch(fields: [.album: .text(expectedAlbum)]),
+                        to: url,
+                        expectedVersion: version
+                    )
+                case .basicUpdate:
+                    try TagLibMetadataManager.updateBasicMetadata(at: url) {
+                        $0.album = expectedAlbum
+                    }
+                }
+
+                let after = try ContractMP4Oracle.read(url)
+                #expect(try after.text("©alb") == expectedAlbum)
+                #expect(after.items[mbTypeKey] == before.items[mbTypeKey])
+                let mbHeaders = try readDataHeaders(for: mbTypeKey, from: after)
+                try #require(mbHeaders.count == 1)
+                #expect(mbHeaders[0].locale == canadianFrench)
+                #expect(mbHeaders[0].payload == Data("album".utf8))
+
+                #expect(after.items[provenanceKey] == before.items[provenanceKey])
+                let provHeaders = try readDataHeaders(for: provenanceKey, from: after)
+                try #require(provHeaders.count == 1)
+                #expect(provHeaders[0].locale == canadianFrench)
+                #expect(provHeaders[0].payload == Data("Keep Note".utf8))
+
+                #expect(after.items[provenanceUpperKey] == nil)
+                #expect(after.items[customNamespaceKey] == before.items[customNamespaceKey])
+                #expect(after.items["©cmt"] == before.items["©cmt"])
+                #expect(after.audio == before.audio)
+            }
+        }
+
+        // Also check whole-map .replace (both multi-value and scalar) and low-level Basic write
+        // when replaying snapshot data with only ALBUM changed.
+        try ContractFixture.withCopy("m4a") { url in
+            let parsedOnlyILST =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Original Title".utf8)))
+                + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Original Album".utf8)))
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "MusicBrainz Album Type",
+                    dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("album".utf8))
+                )
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "ProvenanceNote",
+                    dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Keep Note".utf8))
+                )
+            try ContractMP4Seed.seedRawILST(parsedOnlyILST, to: url)
+            let before = try ContractMP4Oracle.read(url)
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            var replaced = Dictionary(uniqueKeysWithValues: snapshot.raw.properties.map { ($0.key, $0.values) })
+            replaced["ALBUM"] = ["Replaced Album"]
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                replaced,
+                to: url,
+                mode: .replace,
+                expectedVersion: snapshot.fileVersion
+            )
+            let after = try ContractMP4Oracle.read(url)
+            #expect(try after.text("©alb") == "Replaced Album")
+            #expect(after.items[mbTypeKey] == before.items[mbTypeKey])
+            #expect(after.items[provenanceKey] == before.items[provenanceKey])
+            #expect(after.items[provenanceUpperKey] == nil)
+            #expect(after.audio == before.audio)
+
+            // Scalar .replace must preserve the exact same freeform case and locale bytes.
+            let v2 = try TagLibMetadataManager.fileVersion(at: url)
+            var scalarReplaced = Dictionary(uniqueKeysWithValues: replaced.compactMap { k, v in v.first.map { (k, $0) } })
+            scalarReplaced["ALBUM"] = "Scalar Replaced Album"
+            try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+                scalarReplaced,
+                to: url,
+                mode: .replace,
+                expectedVersion: v2
+            )
+            let afterScalar = try ContractMP4Oracle.read(url)
+            #expect(try afterScalar.text("©alb") == "Scalar Replaced Album")
+            #expect(afterScalar.items[mbTypeKey] == before.items[mbTypeKey])
+            #expect(afterScalar.items[provenanceKey] == before.items[provenanceKey])
+            #expect(afterScalar.items[provenanceUpperKey] == nil)
+            #expect(afterScalar.audio == before.audio)
+
+            // Low-level Basic read/modify/write must also preserve untouched freeform locale and case.
+            let v3 = try TagLibMetadataManager.fileVersion(at: url)
+            let model = try TagLibMetadataExtractor.extractMetadata(from: url)
+            model.album = "LowLevel Album"
+            _ = try TagLibMetadataManager.writeTagMetadata(model, to: url, expectedVersion: v3)
+            let afterLowLevel = try ContractMP4Oracle.read(url)
+            #expect(try afterLowLevel.text("©alb") == "LowLevel Album")
+            #expect(afterLowLevel.items[mbTypeKey] == before.items[mbTypeKey])
+            #expect(afterLowLevel.items[provenanceKey] == before.items[provenanceKey])
+            #expect(afterLowLevel.items[provenanceUpperKey] == nil)
+            #expect(afterLowLevel.audio == before.audio)
+        }
+
+        // Whole-map .replace on a freeform-only TITLE (no ©nam) must not synthesize ©nam.
+        try ContractFixture.withCopy("m4a") { url in
+            let titleFreeformKey = "----:com.apple.iTunes:TITLE"
+            let freeformOnlyILST =
+                makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "TITLE",
+                    dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Freeform Only".utf8))
+                )
+                + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Old Album".utf8)))
+            try ContractMP4Seed.seedRawILST(freeformOnlyILST, to: url)
+            let before = try ContractMP4Oracle.read(url)
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            var replaced = Dictionary(uniqueKeysWithValues: snapshot.raw.properties.map { ($0.key, $0.values) })
+            replaced["ALBUM"] = ["New Album"]
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                replaced,
+                to: url,
+                mode: .replace,
+                expectedVersion: snapshot.fileVersion
+            )
+            let after = try ContractMP4Oracle.read(url)
+            #expect(after.items["©nam"] == nil)
+            #expect(after.items[titleFreeformKey] == before.items[titleFreeformKey])
+            #expect(try after.text("©alb") == "New Album")
+            #expect(after.audio == before.audio)
+        }
+
+        // 2. Structured includeProperties: true must enforce MP4 non-canonical alias rejection
+        //    (matching Raw APIs) and roll back combined transactions cleanly without partial writes.
+        try ContractFixture.withCopy("m4a") { url in
+            try ContractMP4Seed.seed([
+                .init(key: "©nam", value: .text("Title")),
+                .init(key: "pgap", value: .integer(0, byteCount: 1)),
+                .init(key: "shwm", value: .integer(0, byteCount: 1)),
+                .init(key: "ownr", value: .text("Original Owner")),
+                .init(key: "©grp", value: .text("Original Group")),
+            ], to: url)
+            let beforeBytes = try ContractFixture.bytes(url)
+            let version = try TagLibMetadataManager.fileVersion(at: url)
+
+            for alias in ["ITUNESGAPLESS", "SHOWMOVEMENT", "ITUNESOWNER", "CONTENTGROUP", "----:com.apple.iTunes:FOO"] {
+                do {
+                    try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                        StructuredMetadata(
+                            properties: [
+                                StructuredPropertyEntry(key: alias, values: ["1"]),
+                                StructuredPropertyEntry(key: "ALBUM", values: ["Must Not Commit"]),
+                            ],
+                            mp4Atoms: [
+                                StructuredMP4Atom(key: "plID", type: "longLong", value: "6829122413"),
+                            ]
+                        ),
+                        to: url,
+                        includeProperties: true,
+                        expectedVersion: version
+                    )
+                    Issue.record("Structured write with non-canonical MP4 alias \(alias) must reject.")
+                } catch TagLibManagerError.unsupportedWritePolicy {}
+                #expect(try ContractFixture.bytes(url) == beforeBytes)
+            }
+
+            // Direct bridge writeStructuredMetadata must reject the same alias with code 9285.
+            do {
+                try TagLibMetadataExtractor.writeStructuredMetadata(
+                    ["properties": [["key": "ITUNESGAPLESS", "values": ["1"]] as NSDictionary] as NSArray],
+                    to: url
+                )
+                Issue.record("Direct bridge writeStructuredMetadata with ITUNESGAPLESS must reject.")
+            } catch let error as NSError {
+                #expect(error.domain == "TagLibMetadataExtractor")
+                #expect(error.code == 9285)
+            }
+            #expect(try ContractFixture.bytes(url) == beforeBytes)
+
+            // Canonical PropertyMap keys update pgap and shwm directly without creating freeforms.
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(properties: [
+                    StructuredPropertyEntry(key: "GAPLESSPLAYBACK", values: ["1"]),
+                    StructuredPropertyEntry(key: "SHOWWORKMOVEMENT", values: ["1"]),
+                ]),
+                to: url,
+                includeProperties: true,
+                expectedVersion: version
+            )
+            let updated = try ContractMP4Oracle.read(url)
+            #expect(try updated.integer("pgap") == 1)
+            #expect(try updated.integer("shwm") == 1)
+            #expect(updated.items["----:com.apple.iTunes:ITUNESGAPLESS"] == nil)
+            #expect(updated.items["----:com.apple.iTunes:SHOWMOVEMENT"] == nil)
+            #expect(updated.items["----:com.apple.iTunes:GAPLESSPLAYBACK"] == nil)
+            #expect(updated.items["----:com.apple.iTunes:SHOWWORKMOVEMENT"] == nil)
+        }
+
+        // 3. Structured property edits/deletes of mixed-case freeforms, canonical mapped freeforms,
+        //    and shadowed native atoms must preserve single owners and roll back on shadowed delete.
+        try ContractFixture.withCopy("m4a") { url in
+            let titleFreeformKey = "----:com.apple.iTunes:TITLE"
+            let ilst =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Native Title".utf8)))
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "TITLE",
+                    dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Titre Libre".utf8))
+                )
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "MusicBrainz Album Type",
+                    dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("album".utf8))
+                )
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "ProvenanceNote",
+                    dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Keep Note".utf8))
+                )
+            try ContractMP4Seed.seedRawILST(ilst, to: url)
+            let beforeBytes = try ContractFixture.bytes(url)
+            let version = try TagLibMetadataManager.fileVersion(at: url)
+
+            // Deleting TITLE while shadowed freeform exists must fail closed and roll back companion plID.
+            do {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(
+                        properties: [StructuredPropertyEntry(key: "TITLE", values: [])],
+                        mp4Atoms: [StructuredMP4Atom(key: "plID", type: "longLong", value: "6829122413")]
+                    ),
+                    to: url,
+                    includeProperties: true,
+                    expectedVersion: version
+                )
+                Issue.record("Structured property deletion of shadowed TITLE must fail closed without committing plID.")
+            } catch TagLibManagerError.verificationFailed {}
+            #expect(try ContractFixture.bytes(url) == beforeBytes)
+
+            // Editing ProvenanceNote via uppercase PROVENANCENOTE and RELEASETYPE via canonical key
+            // updates existing freeforms in place without creating duplicates.
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(properties: [
+                    StructuredPropertyEntry(key: "PROVENANCENOTE", values: ["Edited Note"]),
+                    StructuredPropertyEntry(key: "RELEASETYPE", values: ["single"]),
+                ]),
+                to: url,
+                includeProperties: true,
+                expectedVersion: version
+            )
+            let edited = try ContractMP4Oracle.read(url)
+            #expect(try edited.text(provenanceKey) == "Edited Note")
+            #expect(edited.items[provenanceUpperKey] == nil)
+            #expect(try edited.text(mbTypeKey) == "single")
+            #expect(edited.items["----:com.apple.iTunes:RELEASETYPE"] == nil)
+            let titleHeaders = try readDataHeaders(for: titleFreeformKey, from: edited)
+            try #require(titleHeaders.count == 1)
+            #expect(titleHeaders[0].locale == canadianFrench)
+
+            // Combined properties + mp4Atoms: edit native TITLE and shadowed freeform independently,
+            // and remove ProvenanceNote + RELEASETYPE cleanly.
+            let v2 = try TagLibMetadataManager.fileVersion(at: url)
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(
+                    properties: [
+                        StructuredPropertyEntry(key: "TITLE", values: ["Updated Native"]),
+                        StructuredPropertyEntry(key: "PROVENANCENOTE", values: []),
+                        StructuredPropertyEntry(key: "RELEASETYPE", values: []),
+                    ],
+                    mp4Atoms: [
+                        StructuredMP4Atom(key: titleFreeformKey, type: "stringList", values: ["Updated Freeform"]),
+                    ]
+                ),
+                to: url,
+                includeProperties: true,
+                expectedVersion: v2
+            )
+            let combined = try ContractMP4Oracle.read(url)
+            #expect(try combined.text("©nam") == "Updated Native")
+            #expect(try combined.text(titleFreeformKey) == "Updated Freeform")
+            #expect(combined.items[provenanceKey] == nil)
+            #expect(combined.items[provenanceUpperKey] == nil)
+            #expect(combined.items[mbTypeKey] == nil)
+        }
+    }
+
     @Test func emptyEditorPatchEnforcesVersionAudioAndFileGuards() throws {
         try ContractFixture.withCopy("m4a") { url in
             let originalVersion = try TagLibMetadataManager.fileVersion(at: url)

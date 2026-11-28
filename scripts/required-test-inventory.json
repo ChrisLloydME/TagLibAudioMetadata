@@ -783,6 +783,10 @@
     "suite": "MP4MetadataEditorTests",
     "path": "Integration/MP4MetadataEditorTests.swift"
   },
+  "structuredPropertiesAndReplaceHonorMP4FreeformsAliasesAndRollback": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
   "emptyEditorPatchEnforcesVersionAudioAndFileGuards": {
     "suite": "MP4MetadataEditorTests",
     "path": "Integration/MP4MetadataEditorTests.swift"
