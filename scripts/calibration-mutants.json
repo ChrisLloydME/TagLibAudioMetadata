@@ -494,7 +494,7 @@
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
           "find": "        const bool unchanged =\n            (inRequested && beforeProperties.contains(propKey) && requested[propKey] == beforeProperties[propKey]) ||\n            replayedEmptyBinary;",
-          "replace": "        const bool unchanged = false;\n        (void)replayedEmptyBinary;"
+          "replace": "        const bool unchanged =\n            !hasBinary && inRequested && beforeProperties.contains(propKey) && requested[propKey] == beforeProperties[propKey];\n        (void)replayedEmptyBinary;"
         },
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
