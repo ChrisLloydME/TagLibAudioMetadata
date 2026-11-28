@@ -1,7 +1,9 @@
 #pragma once
 
 #include <utility>
+#include <map>
 #include <memory>
+#include <set>
 #include <vector>
 
 // Package.swift pins the namespaced TagLib 2.3.1-r2 binary. Do not silently
@@ -30,6 +32,7 @@
 #include TL_TAGLIB_HEADER(podcastframe.h)
 
 #include TL_TAGLIB_HEADER(mp4file.h)
+#include TL_TAGLIB_HEADER(mp4atom.h)
 #include TL_TAGLIB_HEADER(mp4properties.h)
 #include TL_TAGLIB_HEADER(mp4tag.h)
 #include TL_TAGLIB_HEADER(mp4item.h)

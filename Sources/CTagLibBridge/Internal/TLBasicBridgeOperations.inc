@@ -201,7 +201,8 @@ static BOOL StripAllTagsAndSave(FileType &file,
         }
     }
     if (format == TLTagFileFormatMP4) {
-        TagLib::MP4::File mp4File(filePath);
+        PreservingMP4ItemFactory mp4ItemFactory;
+        TagLib::MP4::File mp4File(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
 
         if (!mp4File.isValid()) {
             if (error) {
@@ -234,6 +235,8 @@ static BOOL StripAllTagsAndSave(FileType &file,
 
         SetMP4IntPairItem(mp4Tag, "trkn", trackNumber, totalTracks);
 
+        const std::vector<TagLib::String> targetedKeys = { "trkn" };
+        if (!mp4ItemFactory.prepareForSave(mp4Tag, targetedKeys, error)) return NO;
         if (!mp4File.save()) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

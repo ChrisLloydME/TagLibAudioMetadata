@@ -243,7 +243,7 @@ Keys are normalized to uppercase. Omitted keys are unchanged. Array boundaries, 
 
 ## Edit native MP4 fields and raw properties together
 
-Use the field identity from `snapshot.editableMP4Fields` to set or remove Album ID (`plID`), Artist ID (`atID`), Catalog ID (`cnID`), or Explicit advisory (`rtng`). Pass the reviewed file version from the same snapshot. The current audio-identity reader does not support MP4 continuity, so reload and review the file again if its version changes.
+Use the field identities from `snapshot.editableMP4Fields` to set or remove any of the 15 writable non-PropertyMap native MP4 atoms (`plID`, `atID`, `cnID`, `geID`, `stik`, `purd`, `apID`, `cmID`, `sfID`, `hdvd`, `sdes`, `rtng`, `©dir`, `©pub`, `©con`). Pass the reviewed file version from the same snapshot; even an empty editor patch enforces `expectedVersion`, optional `expectedAudioContent`, and file readability. The current audio-identity reader does not support MP4 continuity, so reload and review the file again if its version changes.
 
 ```swift
 let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
@@ -256,7 +256,7 @@ try TagLibMetadataManager.applyMP4MetadataEditorPatch(
 )
 ```
 
-IDs are nonnegative integers. Artist ID has the MP4 unsigned 32-bit limit and Album and Catalog IDs retain 64-bit values up to `Int.max`. Advisory accepts `.integer(0)`, `.integer(1)`, `.integer(2)` or `.remove`. A legacy code can be left untouched, removed or explicitly replaced with one of the supported codes. Removing an atom leaves any same-name freeform in place. To edit or remove that text separately, address its raw key in the same call. This operation verifies the four native fields and the complete visible PropertyMap before committing either set of changes.
+Each field accepts its schema value kind or `.remove`: nonnegative integers for Store IDs and Media Type (Album and Catalog IDs up to `Int.max`, Artist/Genre/Composer/Storefront IDs up to `UInt32.max`, Media Type `0...255`), `.integer(0)`, `.integer(1)` or `.integer(2)` for advisory, `.boolean` for HD Video, `.text` for single-value text atoms (`purd`, `apID`, `sdes`, `©pub`), and `.text` or `.values` for multi-value text atoms (`©dir`, `©con`). A legacy advisory code can be left untouched, removed or explicitly replaced with one of the supported codes. Removing an atom leaves any same-name freeform in place. To edit or remove that text separately, address its raw key in the same call. Raw MP4 deltas preserve single-owner storage across all TagLib-mapped native 4-character atoms (including `©nam`/`TITLE`, `ownr`/`OWNER`, `©grp`/`GROUPING`, `©day`/`DATE`, `pgap`/`GAPLESSPLAYBACK`, and `shwm`/`SHOWWORKMOVEMENT`): edits update only the owner projected by `PropertyMap` without modifying shadowed freeforms or synthesizing duplicate atoms, and deleting a native atom while a shadowed freeform exists fails closed without modifying the file. Non-canonical MP4 native-atom alias keys (`ITUNESGAPLESS`, `SHOWMOVEMENT`, `ITUNESOWNER`, `TVSHOWSORT`, `MOVEMENT`, `ENCODERSETTINGS`, `ALBUM ARTIST`, `CONTENTGROUP`, `YEAR`, `TRACK`/`TRACKTOTAL`/`TOTALTRACKS`, `DISC`/`DISCTOTAL`/`TOTALDISCS`) are rejected on raw writes unless a freeform with that exact description already exists, preventing duplicate freeform synthesis. Untouched MP4 `ilst` atoms retain their exact on-disk bytes and original relative order (including per-`data` locale indicators, type flags, duplicate same-key occurrences, mixed parsed/unparsed duplicate sequences, and non-UTF-8/UTF-16BE `data` type 2 text atoms) across saves; if preservation or an explicit edit/deletion is impossible (such as an unparseable freeform, an empty post-edit `itemMap` with unparsed atoms, or any typed, structured, raw, Basic, or editor write/deletion targeting an unparsed atom), the entire transaction rejects without modifying the original file. This operation verifies all 15 native editor fields (including readback wire types), artwork, untouched non-PropertyMap atoms, single-owner native/freeform invariants, and the complete visible PropertyMap before committing.
 
 ## Replace or merge a whole visible map
 
@@ -450,7 +450,7 @@ The comparison scope differs by API:
 | --- | --- |
 | `applyMetadataPatch` | Requested typed/custom values, unedited visible `PropertyMap` fields, native date/owner absence, ASF native attributes, artwork, number/advisory expectations, and format-aware storage. |
 | `applyRawMetadataPatch` | The complete visible `PropertyMap` after the delta. |
-| `applyMP4MetadataEditorPatch` | The four native editor fields and the complete visible `PropertyMap` after both deltas. |
+| `applyMP4MetadataEditorPatch` | All 15 native editor fields (exact readback types and values), artwork, untouched non-PropertyMap atoms, and the complete visible `PropertyMap` after both deltas. |
 | `replaceBasicMetadata` / `updateBasicMetadata` | Basic fields (including MP4-exclusive typed fields where supported), custom values, number/advisory expectations, artwork, and preserved raw values. `.rate` remains read-only. |
 | `writeStructuredMetadataWithVerification` | Requested structured collections and properties, including ordered frame values and artwork semantics. |
 | `writeTrackNumberText` | Track/disc numbers and text where the container preserves exact text. |

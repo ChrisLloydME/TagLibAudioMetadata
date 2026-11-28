@@ -21,6 +21,8 @@ struct APIContractTests {
         let _: (URL, Bool) throws -> BasicMetadataSnapshot = TagLibMetadataManager.readBasicSnapshot
         let _: (BasicMetadata, RawMetadataDump, StructuredMetadata, MetadataFileVersion?, MetadataAudioContentIdentity?) -> MetadataSnapshot = MetadataSnapshot.init
         let _: (BasicMetadata, MetadataFileVersion, MetadataAudioContentIdentity?) -> BasicMetadataSnapshot = BasicMetadataSnapshot.init
+        let _: (MetadataFieldKey, String, StructuredMP4Atom?) -> MP4MetadataEditorField = MP4MetadataEditorField.init
+        let _: ([MetadataFieldKey: MetadataPatchValue], RawMetadataPatch, URL, MetadataFileVersion, MetadataAudioContentIdentity?) throws -> Result = TagLibMetadataManager.applyMP4MetadataEditorPatch
         let _: (MetadataPatch, URL, MetadataFileVersion?) throws -> Result = TagLibMetadataManager.applyMetadataPatch
         let _: (RawMetadataPatch, URL, MetadataFileVersion?) throws -> Result = TagLibMetadataManager.applyRawMetadataPatch
         let _: (MetadataPatch, URL, MetadataFileVersion, MetadataAudioContentIdentity) throws -> Result = TagLibMetadataManager.applyMetadataPatch

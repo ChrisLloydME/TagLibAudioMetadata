@@ -5,7 +5,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Expose the native MP4 Album, Artist and Catalog IDs and advisory in metadata editor snapshots. Apply edits to those atoms and exact PropertyMap edits in one verified transaction.
+- Expose all 15 writable non-PropertyMap native MP4 atoms (`plID`, `atID`, `cnID`, `geID`, `stik`, `purd`, `apID`, `cmID`, `sfID`, `hdvd`, `sdes`, `rtng`, `©dir`, `©pub`, `©con`) in `MetadataSnapshot.editableMP4Fields` and apply edits to those atoms alongside exact PropertyMap edits in one verified transaction (`applyMP4MetadataEditorPatch`). Enforce `expectedVersion`, optional `expectedAudioContent`, and file readability on empty editor patches, verify native readback types, artwork, and untouched atoms before committing, and add a public initializer on `MP4MetadataEditorField`.
+- Preserve untouched MP4 `ilst` atoms byte-for-byte in their exact original relative order on save (including duplicate same-key occurrences, mixed UTF-8 and UTF-16BE duplicate sequences, non-zero `data` atom locales such as Canadian French `0x43411A41`, UTF-16BE `data` type `2` text atoms such as `©cmt` and `©pub`, non-UTF-8 `data` type flags, and multi-locale `data` sub-atoms) across all MP4 write paths, and fail closed atomically without modifying the file whenever preservation is impossible or any explicit write, deletion, or full-surface replacement targets an unparsed atom.
+- Preserve single-owner MP4 storage for raw deltas across all TagLib-mapped 4-character native atoms (such as `©nam`/`TITLE`, `ownr`/`OWNER`, `©grp`/`GROUPING`, `©day`/`DATE`, `pgap`/`GAPLESSPLAYBACK`, `shwm`/`SHOWWORKMOVEMENT`) so edits never overwrite shadowed freeforms or synthesize duplicate native atoms, and shadowed deletions fail closed without mutating the file. Reject raw MP4 writes of non-canonical native-atom alias keys (`ITUNESGAPLESS`, `SHOWMOVEMENT`, `ITUNESOWNER`, `TVSHOWSORT`, `MOVEMENT`, `ENCODERSETTINGS`, `ALBUM ARTIST`, `CONTENTGROUP`, `YEAR`, `TRACK`/`TRACKTOTAL`/`TOTALTRACKS`, `DISC`/`DISCTOTAL`/`TOTALDISCS`) when no matching legacy freeform already exists.
 
 ## [0.8.3] - 2026-11-25
 

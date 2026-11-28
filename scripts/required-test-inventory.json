@@ -751,11 +751,51 @@
     "suite": "MP4MetadataEditorTests",
     "path": "Integration/MP4MetadataEditorTests.swift"
   },
+  "discoversAndEditsAllWritableNonPropertyMapMP4Fields": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "rawGroupingAndDatePreserveSingleOwnerWithoutDuplication": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "rawEditsAndDeletesPreserveShadowedFreeformsAcrossNativeMP4Atoms": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "rawNonCanonicalMP4AliasesRejectWithoutCreatingDuplicateFreeforms": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "untouchedMP4FreeformsPreserveExactLocaleAndDataBytes": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "duplicateFreeformsAndUTF16AtomsSurviveMP4Saves": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "explicitDeletionOfUnparsedMP4AtomsRejectsAtomicallyAcrossAPIs": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "unrelatedEditsPreserveDuplicateMixedCommentOrderAndBytes": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "emptyEditorPatchEnforcesVersionAudioAndFileGuards": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
   "preservesLegacyAdvisoryUntilAnExactNativeEdit": {
     "suite": "MP4MetadataEditorTests",
     "path": "Integration/MP4MetadataEditorTests.swift"
   },
   "rejectsInvalidAndStaleChangesWithoutPartialWrites": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
+  "manualMP4SnapshotAndEditorFieldInitializer": {
     "suite": "MP4MetadataEditorTests",
     "path": "Integration/MP4MetadataEditorTests.swift"
   },

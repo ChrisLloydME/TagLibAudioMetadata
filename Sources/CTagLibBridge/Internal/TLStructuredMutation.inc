@@ -1321,20 +1321,67 @@ static BOOL ValidateStructuredCollectionsForFormat(TLTagFileFormat format,
     }
 
     if (format == TLTagFileFormatMP4) {
-        TagLib::MP4::File file(filePath);
+        PreservingMP4ItemFactory mp4ItemFactory;
+        TagLib::MP4::File file(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:238 userInfo:@{ NSLocalizedDescriptionKey : @"Unable to open MP4 file for structured metadata editing" }];
             return NO;
         }
+        std::vector<TagLib::String> targetedKeys;
         if (propertyValues) {
+            const TagLib::MP4::ItemMap originalMP4Items = file.tag()->itemMap();
+            NSMutableDictionary<NSString *, NSArray<NSString *> *> *upperPropertyValues = [NSMutableDictionary dictionary];
+            for (NSString *key in propertyValues) {
+                NSString *upper = UppercaseTrimmedString(key);
+                if (upper.length) {
+                    upperPropertyValues[upper] = propertyValues[key];
+                    const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
+                    if (!nativeKey.isEmpty()) targetedKeys.push_back(nativeKey);
+                }
+            }
             SetPropertiesPreservingNativeDates(&file, MergedRawPropertyMapValues(file.properties(), propertyValues));
+            // Preserve shadowed iTunes freeforms whose 4-char native atom owns
+            // the PropertyMap key, and keep freeform-only owners from
+            // synthesizing a duplicate 4-char atom.
+            for (const auto &[key, item] : originalMP4Items) {
+                NSString *description = MP4FreeformDescriptionForItemKey(key);
+                if (!description) continue;
+                NSString *upper = description.uppercaseString;
+                const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
+                if (nativeKey.isEmpty()) continue;
+                if (originalMP4Items.contains(nativeKey)) {
+                    file.tag()->setItem(key, item);
+                } else {
+                    file.tag()->removeItem(nativeKey);
+                    NSArray<NSString *> *updated = upperPropertyValues[upper];
+                    if (updated) {
+                        if (updated.count == 0) {
+                            file.tag()->removeItem(key);
+                        } else {
+                            TagLib::StringList list;
+                            for (NSString *val in updated) list.append(NSStringToTagString(val));
+                            file.tag()->setItem(key, TagLib::MP4::Item(list));
+                        }
+                    } else {
+                        file.tag()->setItem(key, item);
+                    }
+                }
+            }
+        }
+        for (NSDictionary<NSString *, NSObject *> *entry in mp4Atoms ?: @[]) {
+            NSString *key = TrimmedStringOrNil((NSString *)entry[@"key"]);
+            if (key.length) targetedKeys.push_back(NSStringToTagString(key));
         }
         ApplyStructuredMP4Atoms(file.tag(), mp4Atoms);
         if (!ReplaceStructuredComplexArtwork(file.tag(), artwork)) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:243 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to apply structured MP4 artwork" }];
             return NO;
         }
-        if (artwork && artwork.count == 0) file.tag()->removeItem("covr");
+        if (artwork) {
+            targetedKeys.push_back("covr");
+            if (artwork.count == 0) file.tag()->removeItem("covr");
+        }
+        if (!mp4ItemFactory.prepareForSave(file.tag(), targetedKeys, error)) return NO;
         if (!file.save()) {
             if (error) *error = [NSError errorWithDomain:@"TagLibMetadataExtractor" code:239 userInfo:@{ NSLocalizedDescriptionKey : @"TagLib failed to save structured MP4 metadata" }];
             return NO;

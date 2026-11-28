@@ -304,6 +304,149 @@
       ],
       "test_filter": "contractNumberTextSurfaces",
       "witness": "contractNumberTextSurfaces"
+    },
+    {
+      "id": "mp4-editor-omitted-native-field",
+      "description": "Omit a writable non-PropertyMap native MP4 field (itunesGenreID) from the MP4 editor allowlist.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MP4MetadataEditor.swift",
+          "find": "        .itunesGenreID,\n",
+          "replace": ""
+        }
+      ],
+      "test_filter": "discoversAndEditsAllWritableNonPropertyMapMP4Fields",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-editor-empty-patch-version-bypass",
+      "description": "Return early on an empty MP4 editor patch before checking expectedVersion and audio continuity.",
+      "patches": [
+        {
+          "file": "Sources/TagLibAudioMetadata/MP4MetadataEditor.swift",
+          "find": "        if nativeFields.isEmpty && !hasRawChanges {\n            let version = try fileVersion(at: url)\n            guard version == expectedVersion else { throw TagLibManagerError.fileChanged }\n            if let expectedAudioContent {\n                try requireAudioContent(at: url, matching: expectedAudioContent)\n            }\n            try MetadataProjectionReader.validateReadableAudioFile(at: url)\n            guard version == (try? fileVersion(at: url)) else { throw TagLibManagerError.fileChanged }\n            return MetadataWriteResult(warnings: [])\n        }",
+          "replace": "        if nativeFields.isEmpty && !hasRawChanges { return MetadataWriteResult(warnings: []) }"
+        }
+      ],
+      "test_filter": "emptyEditorPatchEnforcesVersionAudioAndFileGuards",
+      "witness": "An empty editor patch with a stale expectedVersion must be rejected."
+    },
+    {
+      "id": "mp4-raw-grouping-duplicate-freeform",
+      "description": "Allow raw GROUPING deltas to synthesize a duplicate iTunes GROUPING freeform alongside native ©grp.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
+          "find": "                const bool hadNative = originalMP4Items.contains(canonicalNative);\n                const bool hadFreeform = [originalFreeformDescriptions containsObject:@(mapping.canonicalPropertyKey)];\n                if (hadNative || !hadFreeform) continue;",
+          "replace": "                if (false) continue;"
+        }
+      ],
+      "test_filter": "rawGroupingAndDatePreserveSingleOwnerWithoutDuplication",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-raw-shadowed-freeform-overwrite",
+      "description": "Allow raw edits and deletes of native 4-char MP4 atoms (such as ©nam/TITLE and ownr/OWNER) to also overwrite or delete a coexisting shadowed iTunes freeform.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
+          "find": "            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(normalized);\n            if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {\n                mp4->setItem(key, item);\n                continue;\n            }",
+          "replace": "            if (false) {\n                mp4->setItem(key, item);\n                continue;\n            }"
+        }
+      ],
+      "test_filter": "rawEditsAndDeletesPreserveShadowedFreeformsAcrossNativeMP4Atoms",
+      "witness": "rawEditsAndDeletesPreserveShadowedFreeformsAcrossNativeMP4Atoms"
+    },
+    {
+      "id": "mp4-raw-native-alias-freeform-synthesis",
+      "description": "Allow raw MP4 writes of non-canonical native-atom aliases (such as ITUNESGAPLESS and SHOWMOVEMENT) to synthesize duplicate freeforms while leaving pgap and shwm untouched.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapCodec.inc",
+          "find": "        NSString *canonical = MP4CanonicalPropertyKeyForNativeAtomAlias(upperKey, &nativeAtom);\n        if (canonical.length) {",
+          "replace": "        NSString *canonical = MP4CanonicalPropertyKeyForNativeAtomAlias(upperKey, &nativeAtom);\n        if (false && canonical.length) {"
+        }
+      ],
+      "test_filter": "rawNonCanonicalMP4AliasesRejectWithoutCreatingDuplicateFreeforms",
+      "witness": "must reject"
+    },
+    {
+      "id": "mp4-untouched-freeform-locale-reset",
+      "description": "Disable raw MP4 ilst atom replay so TagLib resets untouched freeform data-atom locales (such as 0x43411A41) to 0x00000000 on save.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "                if (recIt != records_.end() && recIt->second.hasParsed &&\n                    itemsMatchForRawPreservation(recIt->second.item, currentItem)) {",
+          "replace": "                if (false && recIt != records_.end() && recIt->second.hasParsed &&\n                    itemsMatchForRawPreservation(recIt->second.item, currentItem)) {"
+        }
+      ],
+      "test_filter": "untouchedMP4FreeformsPreserveExactLocaleAndDataBytes",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-unpreservable-freeform-drop",
+      "description": "Allow MP4 saves to proceed and silently drop an unparseable freeform atom instead of rejecting before mutation.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "        if (unpreservable_) {\n            if (error) {",
+          "replace": "        if (false && unpreservable_) {\n            if (error) {"
+        }
+      ],
+      "test_filter": "untouchedMP4FreeformsPreserveExactLocaleAndDataBytes",
+      "witness": "unpreservable MP4 freeform"
+    },
+    {
+      "id": "mp4-duplicate-freeform-overwrite",
+      "description": "Overwrite the first recorded parsed item with subsequent duplicate occurrences so TagLib drops the second freeform and resets the first freeform's locale.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "            if (!record.hasParsed) {\n                // TagLib::MP4::Tag keeps the first valid occurrence in itemMap().\n                record.item = parsed.second;\n                record.hasParsed = true;\n            }",
+          "replace": "            record.item = parsed.second;\n            record.hasParsed = true;"
+        }
+      ],
+      "test_filter": "duplicateFreeformsAndUTF16AtomsSurviveMP4Saves",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-unparsed-utf16-atom-drop",
+      "description": "Skip re-emitting well-formed unparsed ilst atoms (such as UTF-16BE ©cmt with data type 2) on save.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "                if (!entry.isParsed) {\n                    plannedILSTPayload_.append(entry.renderedAtom);\n                    continue;\n                }",
+          "replace": "                if (!entry.isParsed) {\n                    continue;\n                }"
+        }
+      ],
+      "test_filter": "duplicateFreeformsAndUTF16AtomsSurviveMP4Saves",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-unparsed-explicit-delete-bypass",
+      "description": "Skip checking explicit write/delete targets against unparsed ilst atoms so typed, structured, and MP4 editor deletions of UTF-16BE ©cmt/©pub report false success and commit partial edits.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "        for (const auto &targetKey : targetedKeys) {\n            if (!targetKey.isEmpty() && unparsedKeys_.count(targetKey) > 0) {",
+          "replace": "        for (const auto &targetKey : targetedKeys) {\n            if (false && !targetKey.isEmpty() && unparsedKeys_.count(targetKey) > 0) {"
+        }
+      ],
+      "test_filter": "explicitDeletionOfUnparsedMP4AtomsRejectsAtomicallyAcrossAPIs",
+      "witness": "must reject"
+    },
+    {
+      "id": "mp4-mixed-comment-order-reversal",
+      "description": "Emit unparsed ilst atoms ahead of parsed atoms instead of preserving exact original relative order, reversing duplicate UTF-8 and UTF-16BE ©cmt atoms on unrelated edits.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "            std::set<TagLib::String> handledKeys;\n            for (const auto &entry : originalEntries_) {\n                if (!entry.isParsed) {\n                    plannedILSTPayload_.append(entry.renderedAtom);\n                    continue;\n                }",
+          "replace": "            std::set<TagLib::String> handledKeys;\n            for (const auto &entry : originalEntries_) {\n                if (!entry.isParsed) plannedILSTPayload_.append(entry.renderedAtom);\n            }\n            for (const auto &entry : originalEntries_) {\n                if (!entry.isParsed) {\n                    continue;\n                }"
+        }
+      ],
+      "test_filter": "unrelatedEditsPreserveDuplicateMixedCommentOrderAndBytes",
+      "witness": "Expectation failed"
     }
   ]
 }

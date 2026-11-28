@@ -12132,13 +12132,26 @@
       "rationale": "Public editor value model; native identity and presence are exercised by the editor contract."
     },
     {
+      "id": "swift.MP4MetadataEditorField.init",
+      "module": "swift",
+      "kind": "init",
+      "owner": "MP4MetadataEditorField",
+      "signature_key": "swift:MP4MetadataEditorField:init:init(field: MetadataFieldKey, atomKey: String, atom: StructuredMP4Atom?)",
+      "signature": "init(field: MetadataFieldKey, atomKey: String, atom: StructuredMP4Atom?)",
+      "source": "MP4MetadataEditor.swift:13",
+      "decision": "model",
+      "adapters": [],
+      "catalog_contracts": [],
+      "rationale": "Public editor value model initializer; exercised by editor snapshot tests."
+    },
+    {
       "id": "swift.TagLibMetadataManager.func.applyMP4MetadataEditorPatch",
       "module": "swift",
       "kind": "func",
       "owner": "TagLibMetadataManager",
       "signature_key": "swift:TagLibMetadataManager:func:func applyMP4MetadataEditorPatch( _ nativeFields: [MetadataFieldKey: MetadataPatchValue], raw: RawMetadataPatch = RawMetadataPatch(), to url: URL, expectedVersion: MetadataFileVersion, expectedAudioContent: MetadataAudioContentIdentity? = nil ) throws -> MetadataWriteResult",
       "signature": "func applyMP4MetadataEditorPatch( _ nativeFields: [MetadataFieldKey: MetadataPatchValue], raw: RawMetadataPatch = RawMetadataPatch(), to url: URL, expectedVersion: MetadataFileVersion, expectedAudioContent: MetadataAudioContentIdentity? = nil ) throws -> MetadataWriteResult",
-      "source": "MP4MetadataEditor.swift:24",
+      "source": "MP4MetadataEditor.swift:48",
       "decision": "exercised",
       "adapters": [
         "facade.applyMP4EditorPatch"
@@ -12155,7 +12168,7 @@
       "owner": "MetadataSnapshot",
       "signature_key": "swift:MetadataSnapshot:var:var editableMP4Fields: [MP4MetadataEditorField]",
       "signature": "var editableMP4Fields: [MP4MetadataEditorField]",
-      "source": "Models/MetadataSnapshot.swift:55",
+      "source": "Models/MetadataSnapshot.swift:56",
       "decision": "model",
       "adapters": [],
       "catalog_contracts": [],

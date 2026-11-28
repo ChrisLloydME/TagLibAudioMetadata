@@ -224,8 +224,18 @@ REQUIRED_TESTS = {
     'contractRawValueModes': 1,
     'contractRawDeltaAndBridgeReplace': 1,
     'editsProviderWrittenAtomsAndSeparateTextInOneTransaction': 1,
+    'discoversAndEditsAllWritableNonPropertyMapMP4Fields': 1,
+    'rawGroupingAndDatePreserveSingleOwnerWithoutDuplication': 1,
+    'rawEditsAndDeletesPreserveShadowedFreeformsAcrossNativeMP4Atoms': 1,
+    'rawNonCanonicalMP4AliasesRejectWithoutCreatingDuplicateFreeforms': 1,
+    'untouchedMP4FreeformsPreserveExactLocaleAndDataBytes': 1,
+    'duplicateFreeformsAndUTF16AtomsSurviveMP4Saves': 1,
+    'explicitDeletionOfUnparsedMP4AtomsRejectsAtomicallyAcrossAPIs': 1,
+    'unrelatedEditsPreserveDuplicateMixedCommentOrderAndBytes': 1,
+    'emptyEditorPatchEnforcesVersionAudioAndFileGuards': 1,
     'preservesLegacyAdvisoryUntilAnExactNativeEdit': 1,
     'rejectsInvalidAndStaleChangesWithoutPartialWrites': 1,
+    'manualMP4SnapshotAndEditorFieldInitializer': 1,
     'offersNativeRowsOnlyForMP4Files': 1,
     'contractNumberTextSurfaces': 1,
     'contractMP4NumericBounds': 1,
@@ -263,11 +273,12 @@ REQUIRED_SUITES = (
     'ID3ContainerLifecycleTests', 'PublicWriteContractRepairTests', 'ReleaseAcceptanceTests',
     'AutomaticNumberingTests', 'PreReleaseAuditTests', 'NumberingContractRepairTests', 'ContractNumberIntentTests', 'ContractBuilderOracleSelfTests', 'ContractClaimsTests', 'ContractMP4ScenarioTests',
     'ContractBridgeAndEncodingTests', 'ContractNativeContainerTests', 'ContractFieldCoverageTests',
+    'MP4MetadataEditorTests',
 )
 
 XCTEST_MINIMUM = 181
-SWIFT_TESTING_MINIMUM = 306
-SWIFT_SUITE_MINIMUM = 55
+SWIFT_TESTING_MINIMUM = 324
+SWIFT_SUITE_MINIMUM = 56
 
 
 def xctest_identity(name: str):

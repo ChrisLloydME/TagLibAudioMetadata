@@ -218,7 +218,8 @@
             }
         }
     } else if (isMP4Like) {
-        TagLib::MP4::File mp4File(filePath);
+        PreservingMP4ItemFactory mp4ItemFactory;
+        TagLib::MP4::File mp4File(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
 
         if (!mp4File.isValid()) {
             if (error) {
@@ -324,6 +325,26 @@
             return NO;
         }
 
+        std::vector<TagLib::String> targetedKeys = {
+            TagLib::String("\xA9" "nam", TagLib::String::Latin1),
+            TagLib::String("\xA9" "ART", TagLib::String::Latin1),
+            TagLib::String("\xA9" "alb", TagLib::String::Latin1),
+            TagLib::String("\xA9" "gen", TagLib::String::Latin1),
+            TagLib::String("\xA9" "cmt", TagLib::String::Latin1),
+            TagLib::String("\xA9" "day", TagLib::String::Latin1),
+            TagLib::String("\xA9" "lyr", TagLib::String::Latin1),
+            "plID", "atID", "cnID", "geID", "stik", "purd",
+            "trkn", "disk", "tmpo", "cpil", "rtng",
+        };
+        for (const auto &mapping : kWritableTextMappings) {
+            if (mapping.mp4Atom) {
+                targetedKeys.push_back(TagLib::String(mapping.mp4Atom, TagLib::String::Latin1));
+            }
+        }
+        if (metadata.removeArtwork || metadata.artworkData.length > 0) {
+            targetedKeys.push_back("covr");
+        }
+        if (!mp4ItemFactory.prepareForSave(tag, targetedKeys, error)) return NO;
         if (!mp4File.save()) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

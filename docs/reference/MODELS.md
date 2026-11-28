@@ -247,7 +247,7 @@ static let empty
 
 ## `BasicMetadataSnapshot`
 
-Source: [Models/MetadataSnapshot.swift:86](../../Sources/TagLibAudioMetadata/Models/MetadataSnapshot.swift#L86)
+Source: [Models/MetadataSnapshot.swift:87](../../Sources/TagLibAudioMetadata/Models/MetadataSnapshot.swift#L87)
 
 ```swift
 struct BasicMetadataSnapshot: Sendable
@@ -438,6 +438,16 @@ let atomKey: String
 /// Nil represents an absent atom. Existing values, including legacy advisory
 /// codes, are reported as observed in the structured snapshot.
 let atom: StructuredMP4Atom?
+```
+
+### Initializers
+
+```swift
+init(
+    field: MetadataFieldKey,
+    atomKey: String,
+    atom: StructuredMP4Atom?
+)
 ```
 
 ## `MetadataArtworkPatch`
@@ -1610,9 +1620,10 @@ let fileVersion: MetadataFileVersion?
 /// Nil unless explicitly requested and supported. Two nil values do not prove continuity.
 let audioContentIdentity: MetadataAudioContentIdentity?
 
-/// Native Album, Artist and Catalog IDs and Explicit advisory for a snapshot
-/// read from an MP4-family file, including rows with absent atoms.
-/// Text aliases remain in `raw.properties` with their own storage identity.
+/// Writable native non-PropertyMap MP4 fields (iTunes Store/account atoms,
+/// Explicit advisory, and native text atoms) for a snapshot read from an
+/// MP4-family file or constructed with MP4 atoms, including rows with absent
+/// atoms. Text aliases remain in `raw.properties` with their own storage identity.
 var editableMP4Fields: [MP4MetadataEditorField]
 ```
 

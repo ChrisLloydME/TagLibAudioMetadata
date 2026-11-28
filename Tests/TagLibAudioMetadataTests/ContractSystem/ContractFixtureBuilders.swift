@@ -178,12 +178,16 @@ struct ContractMP4Item {
 
 enum ContractMP4Seed {
     static func seed(_ items: [ContractMP4Item], to url: URL) throws {
+        try seedRawILST(try makeILST(items), to: url)
+    }
+
+    static func seedRawILST(_ ilstPayload: Data, to url: URL) throws {
         let data = try ContractFixture.bytes(url)
         let top = try ContractMP4Oracle.atoms(data, 0..<data.count)
         guard let moov = top.first(where: { $0.type == "moov" }) else {
             throw ContractOracleError.malformed("fixture has no moov")
         }
-        let newILST = atom("ilst", try makeILST(items))
+        let newILST = atom("ilst", ilstPayload)
         let moovChildren = try ContractMP4Oracle.atoms(data, moov.payload)
         let newMeta: Data
         let newUdta: Data

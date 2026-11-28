@@ -5,7 +5,8 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
                                       NSString *openErrorMessage,
                                       NSInteger saveErrorCode,
                                       NSString *saveErrorMessage,
-                                      NSString *logContext)
+                                      NSString *logContext,
+                                      const PreservingMP4ItemFactory *mp4ItemFactory = nullptr)
 {
     if (!file.isValid()) {
         if (error) {
@@ -18,8 +19,24 @@ static BOOL WriteRawPropertyMapToFile(FileType &file,
     }
 
     const auto requested = BuildRawPropertyMap(properties);
-    if (dynamic_cast<TagLib::MP4::File *>(&file) && !ValidateMP4RequestedProperties(requested, error)) return NO;
+    auto *mp4File = dynamic_cast<TagLib::MP4::File *>(&file);
+    if (mp4File) {
+        if (!ValidateMP4RequestedProperties(requested, error)) return NO;
+        NSMutableSet<NSString *> *requestedKeys = [NSMutableSet set];
+        for (NSString *key in properties ?: @{}) {
+            NSString *normalized = UppercaseTrimmedString(key);
+            if (normalized) [requestedKeys addObject:normalized];
+        }
+        if (!RejectNonCanonicalMP4RawAliasKeys(mp4File->tag()->itemMap(), requestedKeys, error)) return NO;
+    }
     SetPropertiesPreservingNativeDates(&file, requested, true);
+    if (mp4File && mp4ItemFactory) {
+        std::vector<TagLib::String> targetedKeys;
+        for (NSString *atomKey in NativeMP4Codec::nativeAtomPropertyKeys()) {
+            targetedKeys.push_back(NSStringToTagString(atomKey));
+        }
+        if (!mp4ItemFactory->prepareForSave(mp4File->tag(), targetedKeys, error)) return NO;
+    }
 
     if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {
@@ -42,7 +59,8 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
                                             NSString *openErrorMessage,
                                             NSInteger saveErrorCode,
                                             NSString *saveErrorMessage,
-                                            NSString *logContext)
+                                            NSString *logContext,
+                                            const PreservingMP4ItemFactory *mp4ItemFactory = nullptr)
 {
     if (!file.isValid()) {
         if (error) {
@@ -56,8 +74,24 @@ static BOOL WriteRawPropertyMapValuesToFile(FileType &file,
 
     const auto existing = VisibleMetadataProperties(&file);
     const auto requested = BuildRawPropertyMapValues(properties, &existing);
-    if (dynamic_cast<TagLib::MP4::File *>(&file) && !ValidateMP4RequestedProperties(requested, error)) return NO;
+    auto *mp4File = dynamic_cast<TagLib::MP4::File *>(&file);
+    if (mp4File) {
+        if (!ValidateMP4RequestedProperties(requested, error)) return NO;
+        NSMutableSet<NSString *> *requestedKeys = [NSMutableSet set];
+        for (NSString *key in properties ?: @{}) {
+            NSString *normalized = UppercaseTrimmedString(key);
+            if (normalized) [requestedKeys addObject:normalized];
+        }
+        if (!RejectNonCanonicalMP4RawAliasKeys(mp4File->tag()->itemMap(), requestedKeys, error)) return NO;
+    }
     SetPropertiesPreservingNativeDates(&file, requested, true);
+    if (mp4File && mp4ItemFactory) {
+        std::vector<TagLib::String> targetedKeys;
+        for (NSString *atomKey in NativeMP4Codec::nativeAtomPropertyKeys()) {
+            targetedKeys.push_back(NSStringToTagString(atomKey));
+        }
+        if (!mp4ItemFactory->prepareForSave(mp4File->tag(), targetedKeys, error)) return NO;
+    }
 
     if (!SaveMetadataPreservingOtherTagSurfaces(&file)) {
         if (error) {

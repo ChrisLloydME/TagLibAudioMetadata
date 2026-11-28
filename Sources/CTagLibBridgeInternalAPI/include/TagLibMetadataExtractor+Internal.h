@@ -81,6 +81,8 @@ NS_SWIFT_NAME(wipeMetadataInPlace(from:));
                        mutation:(TagLibFileMutationCoordinationBlock)mutation
 NS_SWIFT_NAME(coordinateMutation(at:_:));
 
++ (NSDictionary<NSString *, NSString *> *)mp4NativeAtomPropertyKeys;
+
 @end
 
 NS_ASSUME_NONNULL_END

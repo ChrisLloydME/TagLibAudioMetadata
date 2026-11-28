@@ -128,6 +128,73 @@ static bool MP4ItemMatchesField(const TagLib::String &key, const TLMetadataField
     return false;
 }
 
+static TagLib::String MP4NativeFourCCAtomForPropertyKey(NSString * _Nullable upperPropertyKey)
+{
+    if (!upperPropertyKey.length) return TagLib::String();
+    const TagLib::ByteVector name =
+        TagLib::MP4::ItemFactory::instance()->nameForPropertyKey(NSStringToTagString(upperPropertyKey));
+    if (name.isEmpty() || name.startsWith("----:")) return TagLib::String();
+    return TagLib::String(name, TagLib::String::Latin1);
+}
+
+static NSString * _Nullable MP4CanonicalPropertyKeyForNativeAtomAlias(
+    NSString * _Nullable upperKey,
+    NSString * _Nullable * _Nullable nativeAtomOut)
+{
+    if (!upperKey.length) return nil;
+    if (!MP4NativeFourCCAtomForPropertyKey(upperKey).isEmpty()) return nil;
+    auto *factory = TagLib::MP4::ItemFactory::instance();
+    for (const auto &mapping : kMetadataFieldMappings) {
+        if (!mapping.mp4Atom) continue;
+        const TagLib::String canonicalProp =
+            factory->propertyKeyForName(TagLib::ByteVector(mapping.mp4Atom));
+        if (canonicalProp.isEmpty()) continue;
+        NSString *canonical = UppercaseTrimmedString(TagStringToNSString(canonicalProp));
+        if (!canonical.length || [canonical isEqualToString:upperKey]) continue;
+        bool matches = [@(mapping.canonicalPropertyKey) isEqualToString:upperKey];
+        for (const char *alias : mapping.propertyAliases) {
+            if (!matches && alias && [@(alias) isEqualToString:upperKey]) matches = true;
+        }
+        if (matches) {
+            if (nativeAtomOut) {
+                *nativeAtomOut = TagStringToNSString(TagLib::String(mapping.mp4Atom, TagLib::String::Latin1));
+            }
+            return canonical;
+        }
+    }
+    return nil;
+}
+
+static BOOL RejectNonCanonicalMP4RawAliasKeys(
+    const TagLib::MP4::ItemMap &originalMP4Items,
+    NSSet<NSString *> *requestedUpperKeys,
+    NSError **error)
+{
+    NSMutableSet<NSString *> *existingFreeforms = [NSMutableSet set];
+    for (const auto &[key, item] : originalMP4Items) {
+        NSString *description = MP4FreeformDescriptionForItemKey(key);
+        if (description.length) [existingFreeforms addObject:description.uppercaseString];
+    }
+    for (NSString *upperKey in requestedUpperKeys) {
+        if ([existingFreeforms containsObject:upperKey]) continue;
+        NSString *nativeAtom = nil;
+        NSString *canonical = MP4CanonicalPropertyKeyForNativeAtomAlias(upperKey, &nativeAtom);
+        if (canonical.length) {
+            if (error) {
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:9285
+                                         userInfo:@{
+                                             NSLocalizedDescriptionKey : [NSString stringWithFormat:
+                                                 @"Raw MP4 PropertyMap key '%@' aliases native atom '%@'; use canonical PropertyMap key '%@' or typed MetadataPatch instead of creating a duplicate freeform.",
+                                                 upperKey, nativeAtom ?: @"", canonical]
+                                         }];
+            }
+            return NO;
+        }
+    }
+    return YES;
+}
+
 static bool IsMP4TrackNumberPairAlias(NSString * _Nullable description)
 {
     NSString *normalized = UppercaseTrimmedString(description);

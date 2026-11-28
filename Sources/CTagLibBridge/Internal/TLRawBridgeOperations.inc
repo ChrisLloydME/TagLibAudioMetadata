@@ -63,7 +63,8 @@
     }
 
     if (format == TLTagFileFormatMP4) {
-        TagLib::MP4::File file(filePath);
+        PreservingMP4ItemFactory mp4ItemFactory;
+        TagLib::MP4::File file(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
         return WriteRawPropertyMapToFile(file,
                                          normalizedProperties,
                                          error,
@@ -71,7 +72,8 @@
                                          @"Unable to open MP4/M4A file for metadata editing",
                                          169,
                                          @"TagLib failed to save MP4/M4A metadata property changes",
-                                         [NSString stringWithFormat:@"MP4 '%@'", fileURL.lastPathComponent]);
+                                         [NSString stringWithFormat:@"MP4 '%@'", fileURL.lastPathComponent],
+                                         &mp4ItemFactory);
     }
 
     if (format == TLTagFileFormatFLAC) {
@@ -362,8 +364,15 @@
         case TLTagFileFormatMPEGID3:
         case TLTagFileFormatMPEGAAC:
             WRITE_VALUES_FOR_FILE(TagLib::MPEG::File, @"MPEG");
-        case TLTagFileFormatMP4:
-            WRITE_VALUES_FOR_FILE(TagLib::MP4::File, @"MP4");
+        case TLTagFileFormatMP4: {
+            PreservingMP4ItemFactory mp4ItemFactory;
+            TagLib::MP4::File file(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
+            return WriteRawPropertyMapValuesToFile(file, properties ?: @{}, error, 225,
+                @"Unable to open MP4 file for metadata editing", 226,
+                @"TagLib failed to save MP4 metadata property changes",
+                [NSString stringWithFormat:@"MP4 '%@'", fileURL.lastPathComponent],
+                &mp4ItemFactory);
+        }
         case TLTagFileFormatFLAC:
             WRITE_VALUES_FOR_FILE(TagLib::FLAC::File, @"FLAC");
         case TLTagFileFormatOggVorbis:
@@ -590,7 +599,8 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
         }
     }
     if (format == TLTagFileFormatMP4) {
-        TagLib::MP4::File mp4File(filePath);
+        PreservingMP4ItemFactory mp4ItemFactory;
+        TagLib::MP4::File mp4File(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
 
         if (!mp4File.isValid()) {
             if (error) {
@@ -661,6 +671,10 @@ static BOOL ValidateNumberPairTextForWrite(NSString *text,
             }
         }
 
+        std::vector<TagLib::String> targetedKeys;
+        if (trackNumberText != nil) targetedKeys.push_back("trkn");
+        if (discNumberText != nil) targetedKeys.push_back("disk");
+        if (!mp4ItemFactory.prepareForSave(mp4Tag, targetedKeys, error)) return NO;
         if (!mp4File.save()) {
             if (error) {
                 *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"

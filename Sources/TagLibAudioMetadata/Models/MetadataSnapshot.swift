@@ -49,11 +49,12 @@ public struct MetadataSnapshot: Sendable {
     public let audioContentIdentity: MetadataAudioContentIdentity?
     var supportsMP4EditorFields = false
 
-    /// Native Album, Artist and Catalog IDs and Explicit advisory for a snapshot
-    /// read from an MP4-family file, including rows with absent atoms.
-    /// Text aliases remain in `raw.properties` with their own storage identity.
+    /// Writable native non-PropertyMap MP4 fields (iTunes Store/account atoms,
+    /// Explicit advisory, and native text atoms) for a snapshot read from an
+    /// MP4-family file or constructed with MP4 atoms, including rows with absent
+    /// atoms. Text aliases remain in `raw.properties` with their own storage identity.
     public nonisolated var editableMP4Fields: [MP4MetadataEditorField] {
-        guard supportsMP4EditorFields else { return [] }
+        guard supportsMP4EditorFields || !structured.mp4Atoms.isEmpty else { return [] }
         return TagLibMetadataManager.mp4EditorFieldKeys.compactMap { field in
             guard let target = MetadataFieldRegistry.schema(for: field)?.writeTarget(for: .mp4) else {
                 return nil

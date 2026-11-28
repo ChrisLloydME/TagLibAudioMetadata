@@ -345,7 +345,11 @@ extension TagLibMetadataManager {
         return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
-                try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
+                do {
+                    try TagLibMetadataExtractor.writeRawPropertyMapInPlace(properties, to: mutationURL)
+                } catch let error as NSError where error.domain == "TagLibMetadataExtractor" && error.code == 9285 {
+                    throw TagLibManagerError.unsupportedWritePolicy(error.localizedDescription)
+                }
                 let warnings = verifyAfterWrite
                     ? rawPropertyMapReplacementWarnings(
                         expectedProperties: properties.mapValues { [$0] },
@@ -407,7 +411,11 @@ extension TagLibMetadataManager {
         return try MetadataFileTransaction.withAtomicMetadataWriteMutation(at: url, expectedVersion: expectedVersion) { mutationURL in
             switch mode {
             case .replace:
-                try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
+                do {
+                    try TagLibMetadataExtractor.writeRawPropertyMapValuesInPlace(properties, to: mutationURL)
+                } catch let error as NSError where error.domain == "TagLibMetadataExtractor" && error.code == 9285 {
+                    throw TagLibManagerError.unsupportedWritePolicy(error.localizedDescription)
+                }
                 let warnings = verifyAfterWrite
                     ? rawPropertyMapReplacementWarnings(
                         expectedProperties: properties,
@@ -575,15 +583,20 @@ extension TagLibMetadataManager {
         meta.customFields = nil
 
         var warnings: [String] = []
-        if try readSnapshot(from: url).structured.id3v2MajorVersion != 3 {
-            try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
-        }
-
-
-        try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
-
-        if shouldWipeNativeMetadataContainer(for: url) {
+        if capability(forExtension: url.pathExtension)?.identifier == "mp4" {
+            // MP4 wipe strips the entire ilst box, removing both parsed and
+            // unparsed atoms (such as UTF-16BE ©cmt) cleanly in one step.
             try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
+        } else {
+            if try readSnapshot(from: url).structured.id3v2MajorVersion != 3 {
+                try TagLibMetadataExtractor.writeMetadataInPlace(meta, to: url)
+            }
+
+            try TagLibMetadataExtractor.writeRawPropertyMapInPlace([:], to: url)
+
+            if shouldWipeNativeMetadataContainer(for: url) {
+                try TagLibMetadataExtractor.wipeMetadataInPlace(from: url)
+            }
         }
 
         warnings.append(

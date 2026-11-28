@@ -189,6 +189,254 @@ public:
         static const NativeMP4Codec factory;
         return factory.handlerTypeForName(TagLib::String(key.UTF8String ?: "", TagLib::String::UTF8).data(TagLib::String::Latin1));
     }
+    static NSDictionary<NSString *, NSString *> *nativeAtomPropertyKeys() {
+        static NSDictionary<NSString *, NSString *> *cached = nil;
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            static const NativeMP4Codec factory;
+            NSMutableDictionary<NSString *, NSString *> *map = [NSMutableDictionary dictionary];
+            for (const auto &[name, prop] : factory.namePropertyMap()) {
+                if (name.isEmpty() || name.startsWith("----:")) continue;
+                std::string atomUtf8 = TagLib::String(name, TagLib::String::Latin1).to8Bit(true);
+                std::string propUtf8 = prop.upper().to8Bit(true);
+                NSString *atomKey = [NSString stringWithUTF8String:atomUtf8.c_str()];
+                NSString *propKey = [NSString stringWithUTF8String:propUtf8.c_str()];
+                if (atomKey.length && propKey.length) map[atomKey] = propKey;
+            }
+            cached = [map copy];
+        });
+        return cached;
+    }
+};
+
+// TagLib's MP4::Item does not model per-`data` atom locale bytes (such as
+// 0x43411A41 for Canadian French), duplicate same-key `ilst` occurrences, or
+// non-UTF-8 text encodings (such as UTF-16BE `data` type 2 on `©cmt`/`©pub`).
+// Capture every `ilst` atom's exact on-disk bytes in original relative order
+// (keyed by the first valid parsed occurrence that TagLib::MP4::Tag retains in
+// itemMap()) so untouched atoms—including mixed parsed/unparsed duplicates—
+// survive byte-for-byte in their exact on-disk order.
+// Refuse to save if preservation or an explicit edit/deletion is impossible
+// (malformed freeform, oversized atom, empty final itemMap with unparsed atoms,
+// or any explicit write/deletion targeting an unparsed atom key).
+class PreservingMP4ItemFactory final : public TagLib::MP4::ItemFactory {
+public:
+    struct PreservedRecord {
+        TagLib::MP4::Item item;
+        bool hasParsed = false;
+    };
+
+    struct OriginalEntry {
+        TagLib::String key;
+        bool isParsed = false;
+        TagLib::ByteVector renderedAtom;
+    };
+
+    static bool hasValidILSTDataSubAtom(const TagLib::ByteVector &payload)
+    {
+        unsigned int offset = 0;
+        bool sawData = false;
+        while (offset + 8 <= payload.size()) {
+            const uint32_t size = payload.toUInt(offset, true);
+            if (size < 8 || size > payload.size() - offset) return false;
+            if (payload.mid(offset + 4, 4) == "data") {
+                if (size < 16) return false;
+                sawData = true;
+            }
+            offset += size;
+        }
+        return offset == payload.size() && sawData;
+    }
+
+    static bool itemsMatchForRawPreservation(const TagLib::MP4::Item &lhs,
+                                             const TagLib::MP4::Item &rhs)
+    {
+        if (lhs.type() != rhs.type()) return false;
+        const auto lhsADT = lhs.atomDataType();
+        const auto rhsADT = rhs.atomDataType();
+        const bool adtCompatible = (lhsADT == rhsADT) ||
+            (lhs.type() == TagLib::MP4::Item::Type::StringList &&
+             ((lhsADT == TagLib::MP4::TypeUTF8 && rhsADT == TagLib::MP4::TypeUndefined) ||
+              (lhsADT == TagLib::MP4::TypeUndefined && rhsADT == TagLib::MP4::TypeUTF8)));
+        if (!adtCompatible) return false;
+        if (lhs.type() == TagLib::MP4::Item::Type::CoverArtList) {
+            const auto a = lhs.toCoverArtList();
+            const auto b = rhs.toCoverArtList();
+            if (a.size() != b.size()) return false;
+            for (unsigned int i = 0; i < a.size(); ++i) {
+                if (a[i].format() != b[i].format() || a[i].data() != b[i].data()) return false;
+            }
+            return true;
+        }
+        return lhs == rhs;
+    }
+
+    std::pair<TagLib::String, TagLib::MP4::Item> parseItem(
+        const TagLib::MP4::Atom *atom,
+        const TagLib::ByteVector &data) const override
+    {
+        auto parsed = TagLib::MP4::ItemFactory::parseItem(atom, data);
+        if (!atom || atom->name() == "free" || atom->name() == "skip" ||
+            (atom->name() == "covr" && data.isEmpty())) {
+            return parsed;
+        }
+        if (data.size() > std::numeric_limits<uint32_t>::max() - 8) {
+            unpreservable_ = true;
+            return parsed;
+        }
+        const TagLib::ByteVector rendered = renderAtom(atom->name(), data);
+        if (parsed.second.isValid() && !parsed.first.isEmpty()) {
+            auto &record = records_[parsed.first];
+            if (!record.hasParsed) {
+                // TagLib::MP4::Tag keeps the first valid occurrence in itemMap().
+                record.item = parsed.second;
+                record.hasParsed = true;
+            }
+            originalEntries_.push_back(OriginalEntry{parsed.first, true, rendered});
+        } else if (atom->name() != "----" && atom->name().size() == 4 && hasValidILSTDataSubAtom(data)) {
+            const TagLib::String key(atom->name(), TagLib::String::Latin1);
+            unparsedKeys_.insert(key);
+            originalEntries_.push_back(OriginalEntry{key, false, rendered});
+        } else {
+            unpreservable_ = true;
+            unpreservableName_ = atom->name();
+        }
+        return parsed;
+    }
+
+    TagLib::ByteVector renderItem(
+        const TagLib::String &itemName,
+        const TagLib::MP4::Item &item) const override
+    {
+        if (hasPlan_) {
+            if (!emittedPlan_) {
+                emittedPlan_ = true;
+                return plannedILSTPayload_;
+            }
+            return TagLib::ByteVector();
+        }
+        return TagLib::MP4::ItemFactory::renderItem(itemName, item);
+    }
+
+    bool hasUnparsedKey(const TagLib::String &key) const {
+        return unparsedKeys_.count(key) > 0;
+    }
+
+    BOOL prepareForSave(const TagLib::MP4::Tag *tag,
+                        const std::vector<TagLib::String> &targetedKeys,
+                        NSError **error) const {
+        hasPlan_ = false;
+        emittedPlan_ = false;
+        plannedILSTPayload_.clear();
+
+        if (unpreservable_) {
+            if (error) {
+                std::string hex = unpreservableName_.toHex().data();
+                NSString *atomHex = [NSString stringWithUTF8String:hex.c_str()] ?: @"";
+                *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                             code:9286
+                                         userInfo:@{
+                                             NSLocalizedDescriptionKey : [NSString stringWithFormat:
+                                                 @"MP4 file contains an unpreservable atom (%@) whose on-disk data cannot be preserved; refusing to save.",
+                                                 atomHex]
+                                         }];
+            }
+            return NO;
+        }
+        for (const auto &targetKey : targetedKeys) {
+            if (!targetKey.isEmpty() && unparsedKeys_.count(targetKey) > 0) {
+                if (error) {
+                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                 code:9286
+                                             userInfo:@{
+                                                 NSLocalizedDescriptionKey :
+                                                     @"MP4 write targets an atom key that has an unparsed on-disk representation; refusing to save."
+                                             }];
+                }
+                return NO;
+            }
+        }
+        if (!unparsedKeys_.empty()) {
+            if (!tag || tag->itemMap().isEmpty()) {
+                if (error) {
+                    *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                 code:9286
+                                             userInfo:@{
+                                                 NSLocalizedDescriptionKey :
+                                                     @"MP4 save would strip unparsed ilst atoms because no parsed items remain; refusing to save."
+                                             }];
+                }
+                return NO;
+            }
+            for (const auto &unparsedKey : unparsedKeys_) {
+                auto recIt = records_.find(unparsedKey);
+                if (recIt == records_.end() || !recIt->second.hasParsed) {
+                    if (tag->contains(unparsedKey)) {
+                        if (error) {
+                            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                         code:9286
+                                                     userInfo:@{
+                                                         NSLocalizedDescriptionKey :
+                                                             @"MP4 write targets an atom key that already has an unparsed on-disk representation; refusing to save."
+                                                     }];
+                        }
+                        return NO;
+                    }
+                } else {
+                    if (!tag->contains(unparsedKey) ||
+                        !itemsMatchForRawPreservation(recIt->second.item, tag->item(unparsedKey))) {
+                        if (error) {
+                            *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                         code:9286
+                                                     userInfo:@{
+                                                         NSLocalizedDescriptionKey :
+                                                             @"MP4 write modifies an atom key that also has an unparsed on-disk representation; refusing to save."
+                                                     }];
+                        }
+                        return NO;
+                    }
+                }
+            }
+        }
+        if (tag && !tag->itemMap().isEmpty()) {
+            std::set<TagLib::String> handledKeys;
+            for (const auto &entry : originalEntries_) {
+                if (!entry.isParsed) {
+                    plannedILSTPayload_.append(entry.renderedAtom);
+                    continue;
+                }
+                if (!tag->contains(entry.key)) {
+                    continue;
+                }
+                auto recIt = records_.find(entry.key);
+                const TagLib::MP4::Item currentItem = tag->item(entry.key);
+                if (recIt != records_.end() && recIt->second.hasParsed &&
+                    itemsMatchForRawPreservation(recIt->second.item, currentItem)) {
+                    plannedILSTPayload_.append(entry.renderedAtom);
+                    handledKeys.insert(entry.key);
+                } else if (handledKeys.insert(entry.key).second) {
+                    plannedILSTPayload_.append(TagLib::MP4::ItemFactory::renderItem(entry.key, currentItem));
+                }
+            }
+            for (const auto &[name, item] : tag->itemMap()) {
+                if (handledKeys.count(name) == 0) {
+                    plannedILSTPayload_.append(TagLib::MP4::ItemFactory::renderItem(name, item));
+                }
+            }
+            hasPlan_ = true;
+        }
+        return YES;
+    }
+
+private:
+    mutable std::map<TagLib::String, PreservedRecord> records_;
+    mutable std::vector<OriginalEntry> originalEntries_;
+    mutable std::set<TagLib::String> unparsedKeys_;
+    mutable bool unpreservable_ = false;
+    mutable TagLib::ByteVector unpreservableName_;
+    mutable bool hasPlan_ = false;
+    mutable bool emittedPlan_ = false;
+    mutable TagLib::ByteVector plannedILSTPayload_;
 };
 } // namespace
 

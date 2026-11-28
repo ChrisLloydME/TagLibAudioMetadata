@@ -253,7 +253,12 @@ internal enum MetadataFileTransaction {
             )
         }
 
-        let result = try operation(temporaryURL)
+        let result: Result
+        do {
+            result = try operation(temporaryURL)
+        } catch let error as NSError where error.domain == "TagLibMetadataExtractor" && (error.code == 9285 || error.code == 9286) {
+            throw TagLibManagerError.unsupportedWritePolicy(error.localizedDescription)
+        }
         try MetadataProjectionReader.validateReadableAudioFile(at: temporaryURL)
         let temporaryDescriptor = temporaryURL.path.withCString { temporaryPath in
             Darwin.open(temporaryPath, O_RDONLY)

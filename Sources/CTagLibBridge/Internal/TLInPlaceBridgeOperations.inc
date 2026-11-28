@@ -48,3 +48,8 @@
     TagLibAtomicMutationScope scope;
     return [self wipeMetadataFromURL:fileURL error:error];
 }
+
++ (NSDictionary<NSString *, NSString *> *)mp4NativeAtomPropertyKeys
+{
+    return NativeMP4Codec::nativeAtomPropertyKeys();
+}

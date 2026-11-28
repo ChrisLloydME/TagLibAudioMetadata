@@ -78,9 +78,13 @@ extension TagLibMetadataManager {
             ID3v23DateSafety.datePropertyKeys.contains($0.uppercased())
         }
 
-        try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
-            replacements, removingKeys: Array(removals), to: url
-        )
+        do {
+            try TagLibMetadataExtractor.applyPropertyMapValuesInPlace(
+                replacements, removingKeys: Array(removals), to: url
+            )
+        } catch let error as NSError where error.domain == "TagLibMetadataExtractor" && error.code == 9285 {
+            throw TagLibManagerError.unsupportedWritePolicy(error.localizedDescription)
+        }
 
         if let beforeStructured, beforeStructured.id3v2MajorVersion == 3, !touchesV23Dates {
             let afterStructured = try readStructuredMetadataResult(from: url)

@@ -216,9 +216,19 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     TAGLIB_BRIDGE_SERIAL_GUARD();
-    TagLib::FileRef fileRef(filePath, true, TagLib::AudioProperties::Fast);
-    TagLib::File *file = fileRef.file();
-    if (fileRef.isNull() || !file || !file->isValid()) {
+    PreservingMP4ItemFactory mp4ItemFactory;
+    std::unique_ptr<TagLib::MP4::File> mp4OwnedFile;
+    TagLib::FileRef fileRef;
+    TagLib::File *file = nullptr;
+    if (DetectTagFileFormat(fileURL) == TLTagFileFormatMP4) {
+        mp4OwnedFile = std::make_unique<TagLib::MP4::File>(
+            filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
+        file = mp4OwnedFile.get();
+    } else {
+        fileRef = TagLib::FileRef(filePath, true, TagLib::AudioProperties::Fast);
+        file = fileRef.file();
+    }
+    if (!file || !file->isValid()) {
         if (error) {
             *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
                                          code:9252
@@ -293,6 +303,18 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     if (auto *mp4File = dynamic_cast<TagLib::MP4::File *>(file)) {
         mp4 = mp4File->tag();
         originalMP4Items = mp4->itemMap();
+        NSMutableSet<NSString *> *requestedKeys = [NSMutableSet set];
+        for (NSString *key in valuesToSet ?: @{}) {
+            NSString *normalized = UppercaseTrimmedString(key);
+            if (normalized) [requestedKeys addObject:normalized];
+        }
+        for (NSString *key in keysToRemove ?: @[]) {
+            NSString *normalized = UppercaseTrimmedString(key);
+            if (normalized) [requestedKeys addObject:normalized];
+        }
+        if (!RejectNonCanonicalMP4RawAliasKeys(originalMP4Items, requestedKeys, error)) {
+            return NO;
+        }
     }
     TagLib::PropertyMap properties = file->properties();
     for (NSString *key in keysToRemove ?: @[]) {
@@ -368,6 +390,30 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (normalized) [upperRemovals addObject:normalized];
         }
 
+        // TagLib maps every 4-char atom in ItemFactory::namePropertyMap()
+        // (such as ©nam/TITLE, ownr/OWNER, ©grp/GROUPING, ©day/DATE,
+        // pgap/GAPLESSPLAYBACK, shwm/SHOWWORKMOVEMENT, etc.) into PropertyMap.
+        // Keep each raw delta targeting only the single owner that PropertyMap
+        // actually projected:
+        // - When only the freeform existed (4-char native atom absent),
+        //   TagLib's setProperties() synthesized the 4-char atom from the
+        //   projected PropertyMap entry; remove that synthesized duplicate so
+        //   the freeform remains the sole owner.
+        // - When the 4-char native atom existed, PropertyMap projected it and
+        //   shadowed any same-named iTunes freeform; preserve the shadowed
+        //   freeform verbatim below instead of overwriting or deleting it.
+        NSMutableSet<NSString *> *originalFreeformDescriptions = [NSMutableSet set];
+        for (const auto &[key, item] : originalMP4Items) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (!description) continue;
+            NSString *upper = description.uppercaseString;
+            [originalFreeformDescriptions addObject:upper];
+            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
+            if (!nativeKey.isEmpty() && !originalMP4Items.contains(nativeKey)) {
+                mp4->removeItem(nativeKey);
+            }
+        }
+
         struct EditedMP4Freeform {
             const TLMetadataFieldMapping *mapping;
             TagLib::StringList values;
@@ -377,6 +423,13 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
         std::vector<EditedMP4Freeform> edits;
         for (const auto &mapping : kMetadataFieldMappings) {
             if (!mapping.mp4FreeformDescription) continue;
+            const TagLib::String canonicalNative =
+                MP4NativeFourCCAtomForPropertyKey(@(mapping.canonicalPropertyKey));
+            if (!canonicalNative.isEmpty()) {
+                const bool hadNative = originalMP4Items.contains(canonicalNative);
+                const bool hadFreeform = [originalFreeformDescriptions containsObject:@(mapping.canonicalPropertyKey)];
+                if (hadNative || !hadFreeform) continue;
+            }
             NSArray<NSString *> *replacement = upperValues[@(mapping.canonicalPropertyKey)];
             for (const char *alias : mapping.propertyAliases) {
                 if (!replacement && alias) replacement = upperValues[@(alias)];
@@ -456,6 +509,11 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
                 }
                 continue;
             }
+            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(normalized);
+            if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {
+                mp4->setItem(key, item);
+                continue;
+            }
             NSArray<NSString *> *replacement = upperValues[normalized];
             if (replacement) {
                 if ([written containsObject:normalized]) continue;
@@ -476,6 +534,16 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             mp4->setItem(key, TagLib::MP4::Item(edit.values));
             edit.applied = true;
         }
+        std::vector<TagLib::String> targetedKeys;
+        for (NSString *setKey in upperValues) {
+            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(setKey);
+            if (!nativeKey.isEmpty()) targetedKeys.push_back(nativeKey);
+        }
+        for (NSString *removedKey in upperRemovals) {
+            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(removedKey);
+            if (!nativeKey.isEmpty()) targetedKeys.push_back(nativeKey);
+        }
+        if (!mp4ItemFactory.prepareForSave(mp4, targetedKeys, error)) return NO;
     }
     if (!SaveMetadataPreservingOtherTagSurfaces(file)) {
         if (error) {
@@ -626,7 +694,8 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             if (error) *error = PropertyMapDeltaError(9260, @"MP4 movement integers must be between 0 and 32767");
             return NO;
         }
-        TagLib::MP4::File file(filePath);
+        PreservingMP4ItemFactory mp4ItemFactory;
+        TagLib::MP4::File file(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = PropertyMapDeltaError(9262, @"Unable to open MP4/M4A file for native number-pair mutation");
             return NO;
@@ -648,6 +717,14 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
             SetMP4MovementItem(tag, "\xA9" "mvi", @"MOVEMENTNUMBER", movementNumber);
             SetMP4MovementItem(tag, "\xA9" "mvc", @"MOVEMENTCOUNT", movementCount);
         }
+        std::vector<TagLib::String> targetedKeys;
+        if (updateTrackPair) targetedKeys.push_back("trkn");
+        if (updateDiscPair) targetedKeys.push_back("disk");
+        if (updateMovementPair) {
+            targetedKeys.push_back(TagLib::String("\xA9" "mvi", TagLib::String::Latin1));
+            targetedKeys.push_back(TagLib::String("\xA9" "mvc", TagLib::String::Latin1));
+        }
+        if (!mp4ItemFactory.prepareForSave(tag, targetedKeys, error)) return NO;
         if (!file.save()) {
             if (error) *error = PropertyMapDeltaError(9263, @"TagLib could not save native MP4/M4A number pairs");
             return NO;
@@ -752,13 +829,16 @@ static void ApplyCanonicalMP4Advisory(TagLib::MP4::Tag *tag,
     }
 
     if (format == TLTagFileFormatMP4) {
-        TagLib::MP4::File file(filePath);
+        PreservingMP4ItemFactory mp4ItemFactory;
+        TagLib::MP4::File file(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
         if (!file.isValid() || !file.tag()) {
             if (error) *error = PropertyMapDeltaError(9272, @"Unable to open MP4/M4A file for native advisory mutation");
             return NO;
         }
         TagLib::MP4::Tag *tag = file.tag();
         ApplyCanonicalMP4Advisory(tag, advisory);
+        const std::vector<TagLib::String> targetedKeys = { "rtng" };
+        if (!mp4ItemFactory.prepareForSave(tag, targetedKeys, error)) return NO;
         if (!file.save()) {
             if (error) *error = PropertyMapDeltaError(9273, @"TagLib could not save native MP4/M4A advisory metadata");
             return NO;

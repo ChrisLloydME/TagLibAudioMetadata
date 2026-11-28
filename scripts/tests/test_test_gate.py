@@ -47,9 +47,9 @@ def build_pass_log() -> str:
             extra.append(f"Suite {suite} passed.")
     log = log.replace(
         'Test run with 231 tests in 42 suites passed after 8 seconds.',
-        'Test run with 306 tests in 55 suites passed after 8 seconds.',
+        'Test run with 324 tests in 56 suites passed after 8 seconds.',
     )
-    final = 'Test run with 306 tests in 55 suites passed after 8 seconds.'
+    final = 'Test run with 324 tests in 56 suites passed after 8 seconds.'
     if final in log:
         log = log.replace(final, '\n'.join(extra) + '\n' + final if extra else final)
     else:
@@ -193,8 +193,8 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 306 tests', 'run with 305 tests')))
-        self.assertFalse(self.accepted(PASS.replace('in 55 suites', 'in 54 suites')))
+        self.assertFalse(self.accepted(PASS.replace('run with 324 tests', 'run with 323 tests')))
+        self.assertFalse(self.accepted(PASS.replace('in 56 suites', 'in 55 suites')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
         self.assertTrue(self.accepted(PASS))
@@ -388,7 +388,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(lines[:-1]) + '\n'))
 
     def test_missing_framework_completion_is_rejected(self):
-        self.assertFalse(self.accepted(PASS.replace('Test run with 306 tests in 55 suites passed after 8 seconds.\n', '')))
+        self.assertFalse(self.accepted(PASS.replace('Test run with 324 tests in 56 suites passed after 8 seconds.\n', '')))
 
     def test_contract_suite_cannot_be_filtered(self):
         for suite in ('ContractBuilderOracleSelfTests', 'ContractMP4ScenarioTests',
@@ -523,7 +523,23 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted(PASS, calibration_mutator=stale))
 
     def test_hidden_new_numbering_named_failure_is_rejected(self):
-        final = "Test run with 306 tests in 55 suites passed after 8 seconds."
+        final = "Test run with 324 tests in 56 suites passed after 8 seconds."
         self.assertFalse(self.accepted(PASS.replace(
             final, "Test explicitIntentMatrix(_:) failed after 1 second.\n" + final)))
+
+    def test_mp4_editor_regression_suite_and_tests_are_required(self):
+        for token in [
+            "Suite MP4MetadataEditorTests passed.\n",
+            "Test discoversAndEditsAllWritableNonPropertyMapMP4Fields() passed after 1 second.\n",
+            "Test rawGroupingAndDatePreserveSingleOwnerWithoutDuplication() passed after 1 second.\n",
+            "Test rawEditsAndDeletesPreserveShadowedFreeformsAcrossNativeMP4Atoms() passed after 1 second.\n",
+            "Test rawNonCanonicalMP4AliasesRejectWithoutCreatingDuplicateFreeforms() passed after 1 second.\n",
+            "Test untouchedMP4FreeformsPreserveExactLocaleAndDataBytes() passed after 1 second.\n",
+            "Test duplicateFreeformsAndUTF16AtomsSurviveMP4Saves() passed after 1 second.\n",
+            "Test explicitDeletionOfUnparsedMP4AtomsRejectsAtomicallyAcrossAPIs() passed after 1 second.\n",
+            "Test unrelatedEditsPreserveDuplicateMixedCommentOrderAndBytes() passed after 1 second.\n",
+            "Test emptyEditorPatchEnforcesVersionAudioAndFileGuards() passed after 1 second.\n",
+        ]:
+            with self.subTest(token=token.strip()):
+                self.assertFalse(self.accepted(PASS.replace(token, "")))
 
