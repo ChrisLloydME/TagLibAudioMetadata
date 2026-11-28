@@ -787,6 +787,10 @@
     "suite": "MP4MetadataEditorTests",
     "path": "Integration/MP4MetadataEditorTests.swift"
   },
+  "rawReplaceAndMP4WritesPreserveCaseCollisionsAndBinaryFreeforms": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
   "emptyEditorPatchEnforcesVersionAudioAndFileGuards": {
     "suite": "MP4MetadataEditorTests",
     "path": "Integration/MP4MetadataEditorTests.swift"

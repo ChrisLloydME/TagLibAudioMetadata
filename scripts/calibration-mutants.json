@@ -467,11 +467,47 @@
       "patches": [
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
-          "find": "static void ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,\n                                          const TagLib::MP4::ItemMap &originalMP4Items,\n                                          const TagLib::PropertyMap &requested)\n{\n    if (!mp4) return;",
-          "replace": "static void ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,\n                                          const TagLib::MP4::ItemMap &originalMP4Items,\n                                          const TagLib::PropertyMap &requested)\n{\n    (void)mp4; (void)originalMP4Items; (void)requested;\n    return;"
+          "find": "static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,\n                                          const TagLib::MP4::ItemMap &originalMP4Items,\n                                          const TagLib::PropertyMap &beforeProperties,\n                                          const TagLib::PropertyMap &requested,\n                                          NSSet<NSString *> * _Nullable explicitEmptyInputKeys,\n                                          NSError **error)\n{\n    if (!mp4) return YES;",
+          "replace": "static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,\n                                          const TagLib::MP4::ItemMap &originalMP4Items,\n                                          const TagLib::PropertyMap &beforeProperties,\n                                          const TagLib::PropertyMap &requested,\n                                          NSSet<NSString *> * _Nullable explicitEmptyInputKeys,\n                                          NSError **error)\n{\n    (void)mp4; (void)originalMP4Items; (void)beforeProperties; (void)requested; (void)explicitEmptyInputKeys; (void)error;\n    return YES;"
         }
       ],
       "test_filter": "structuredPropertiesAndReplaceHonorMP4FreeformsAliasesAndRollback",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-raw-replace-case-collision-delete",
+      "description": "Allow whole-map .replace reconciliation to delete an existing uppercase freeform when a case-colliding mixed-case freeform exists.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
+          "find": "                if (upperFreeformKey != entry.key && !originalMP4Items.contains(upperFreeformKey)) {\n                    mp4->removeItem(upperFreeformKey);\n                }\n            }\n            for (const auto &entry : group) {\n                mp4->setItem(entry.key, entry.item);\n            }",
+          "replace": "                if (upperFreeformKey != entry.key) {\n                    mp4->removeItem(upperFreeformKey);\n                }\n            }"
+        }
+      ],
+      "test_filter": "rawReplaceAndMP4WritesPreserveCaseCollisionsAndBinaryFreeforms",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-raw-replace-binary-empty-shell",
+      "description": "Overwrite binary non-stringList iTunes freeforms with an empty StringList during whole-map .replace replay, dropping their data atom.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
+          "find": "        const bool unchanged =\n            (inRequested && beforeProperties.contains(propKey) && requested[propKey] == beforeProperties[propKey]) ||\n            replayedEmptyBinary;",
+          "replace": "        const bool unchanged = false;\n        (void)replayedEmptyBinary;"
+        },
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
+          "find": "            if (desired.isEmpty()) {\n                if (entry.item.type() != TagLib::MP4::Item::Type::StringList) {\n                    mp4->setItem(entry.key, entry.item);\n                } else {\n                    mp4->removeItem(entry.key);\n                }",
+          "replace": "            if (false && desired.isEmpty()) {\n                mp4->setItem(entry.key, entry.item);"
+        },
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLMetadataCore.inc",
+          "find": "                if (item.type() == TagLib::MP4::Item::Type::StringList && item.toStringList().isEmpty()) {",
+          "replace": "                if (false && item.type() == TagLib::MP4::Item::Type::StringList && item.toStringList().isEmpty()) {"
+        }
+      ],
+      "test_filter": "rawReplaceAndMP4WritesPreserveCaseCollisionsAndBinaryFreeforms",
       "witness": "Expectation failed"
     }
   ]

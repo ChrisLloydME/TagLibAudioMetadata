@@ -63,6 +63,13 @@
     }
 
     if (format == TLTagFileFormatMP4) {
+        NSMutableSet<NSString *> *explicitEmptyInputKeys = [NSMutableSet set];
+        for (NSString *rawKey in properties ?: @{}) {
+            NSString *normalized = UppercaseTrimmedString(rawKey);
+            if (normalized && properties[rawKey].length == 0) {
+                [explicitEmptyInputKeys addObject:normalized];
+            }
+        }
         PreservingMP4ItemFactory mp4ItemFactory;
         TagLib::MP4::File file(filePath, true, TagLib::AudioProperties::Fast, &mp4ItemFactory);
         return WriteRawPropertyMapToFile(file,
@@ -73,7 +80,8 @@
                                          169,
                                          @"TagLib failed to save MP4/M4A metadata property changes",
                                          [NSString stringWithFormat:@"MP4 '%@'", fileURL.lastPathComponent],
-                                         &mp4ItemFactory);
+                                         &mp4ItemFactory,
+                                         explicitEmptyInputKeys);
     }
 
     if (format == TLTagFileFormatFLAC) {

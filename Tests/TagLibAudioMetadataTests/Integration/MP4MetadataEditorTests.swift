@@ -2008,6 +2008,352 @@ struct MP4MetadataEditorTests {
         }
     }
 
+    @Test func rawReplaceAndMP4WritesPreserveCaseCollisionsAndBinaryFreeforms() throws {
+        func be32(_ value: UInt32) -> Data {
+            Data([
+                UInt8((value >> 24) & 0xFF),
+                UInt8((value >> 16) & 0xFF),
+                UInt8((value >> 8) & 0xFF),
+                UInt8(value & 0xFF),
+            ])
+        }
+        func makeAtom(_ fourCC: String, _ payload: Data) -> Data {
+            let typeBytes = fourCC.data(using: .isoLatin1)!
+            return be32(UInt32(payload.count + 8)) + typeBytes + payload
+        }
+        func makeDataAtom(type: UInt32, locale: UInt32, payload: Data) -> Data {
+            makeAtom("data", be32(type) + be32(locale) + payload)
+        }
+        func makeFreeform(mean: String, name: String, dataAtoms: Data) -> Data {
+            let body = makeAtom("mean", be32(0) + Data(mean.utf8))
+                + makeAtom("name", be32(0) + Data(name.utf8))
+                + dataAtoms
+            return makeAtom("----", body)
+        }
+        func readILSTOrder(at url: URL) throws -> [String] {
+            let data = try ContractFixture.bytes(url)
+            let top = try ContractMP4Oracle.atoms(data, 0..<data.count)
+            let moov = try #require(top.first { $0.type == "moov" })
+            let udta = try #require(try ContractMP4Oracle.atoms(data, moov.payload).first { $0.type == "udta" })
+            let meta = try #require(try ContractMP4Oracle.atoms(data, udta.payload).first { $0.type == "meta" })
+            let ilst = try #require(try ContractMP4Oracle.atoms(data, (meta.payload.lowerBound + 4)..<meta.payload.upperBound).first { $0.type == "ilst" })
+            var keys: [String] = []
+            for item in try ContractMP4Oracle.atoms(data, ilst.payload) {
+                var key = item.type
+                if key == "----" {
+                    let fields = try ContractMP4Oracle.atoms(data, item.payload)
+                    let meanField = try #require(fields.first { $0.type == "mean" })
+                    let nameField = try #require(fields.first { $0.type == "name" })
+                    let mean = String(data: data[(meanField.payload.lowerBound + 4)..<meanField.payload.upperBound], encoding: .utf8) ?? ""
+                    let name = String(data: data[(nameField.payload.lowerBound + 4)..<nameField.payload.upperBound], encoding: .utf8) ?? ""
+                    key += ":\(mean):\(name)"
+                }
+                keys.append(key)
+            }
+            return keys
+        }
+        func readDataHeaders(for key: String, from oracle: ContractMP4Oracle) throws -> [(type: UInt32, locale: UInt32, payload: Data)] {
+            guard let rawAtoms = oracle.items[key], !rawAtoms.isEmpty else { return [] }
+            var results: [(UInt32, UInt32, Data)] = []
+            for rawAtom in rawAtoms {
+                let outer = try ContractMP4Oracle.atoms(rawAtom, 0..<rawAtom.count)
+                guard outer.count == 1 else { continue }
+                let children = try ContractMP4Oracle.atoms(rawAtom, outer[0].payload)
+                for child in children where child.type == "data" {
+                    let bytes = Data(rawAtom[child.payload])
+                    guard bytes.count >= 8 else { continue }
+                    let typeFlags = (UInt32(bytes[0]) << 24) | (UInt32(bytes[1]) << 16) | (UInt32(bytes[2]) << 8) | UInt32(bytes[3])
+                    let locale = (UInt32(bytes[4]) << 24) | (UInt32(bytes[5]) << 16) | (UInt32(bytes[6]) << 8) | UInt32(bytes[7])
+                    results.append((typeFlags, locale, Data(bytes.dropFirst(8))))
+                }
+            }
+            return results
+        }
+
+        let canadianFrench: UInt32 = 0x4341_1A41
+        let usEnglish: UInt32 = 0x5553_0000
+        let upperKey = "----:com.apple.iTunes:PROVENANCENOTE"
+        let mixedKey = "----:com.apple.iTunes:ProvenanceNote"
+        let binKey = "----:com.apple.iTunes:BINTAG"
+        let binPayload = Data([0xDE, 0xAD, 0xBE, 0xEF])
+
+        // 1. Case-colliding PROVENANCENOTE + ProvenanceNote with distinct text:
+        //    unchanged replay and ALBUM-only edits through both multi-value and scalar .replace
+        //    must preserve both atoms byte-for-byte and in original relative order.
+        try ContractFixture.withCopy("m4a") { url in
+            let ilst =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Track".utf8)))
+                + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Original Album".utf8)))
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "PROVENANCENOTE",
+                    dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Upper Note".utf8))
+                )
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "ProvenanceNote",
+                    dataAtoms: makeDataAtom(type: 1, locale: usEnglish, payload: Data("Mixed Note".utf8))
+                )
+            try ContractMP4Seed.seedRawILST(ilst, to: url)
+            let before = try ContractMP4Oracle.read(url)
+            let beforeOrder = try readILSTOrder(at: url)
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            let replayed = Dictionary(uniqueKeysWithValues: snapshot.raw.properties.map { ($0.key, $0.values) })
+
+            // Unchanged multi-value .replace replay.
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                replayed,
+                to: url,
+                mode: .replace,
+                expectedVersion: snapshot.fileVersion
+            )
+            let afterReplay = try ContractMP4Oracle.read(url)
+            #expect(afterReplay.items[upperKey] == before.items[upperKey])
+            #expect(afterReplay.items[mixedKey] == before.items[mixedKey])
+            #expect(try readILSTOrder(at: url) == beforeOrder)
+            #expect(afterReplay.audio == before.audio)
+
+            // ALBUM-only multi-value .replace.
+            var albumMulti = replayed
+            albumMulti["ALBUM"] = ["Multi Replace Album"]
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                albumMulti,
+                to: url,
+                mode: .replace
+            )
+            let afterMulti = try ContractMP4Oracle.read(url)
+            #expect(try afterMulti.text("©alb") == "Multi Replace Album")
+            #expect(afterMulti.items[upperKey] == before.items[upperKey])
+            #expect(afterMulti.items[mixedKey] == before.items[mixedKey])
+            #expect(try readILSTOrder(at: url) == beforeOrder)
+            #expect(afterMulti.audio == before.audio)
+
+            // ALBUM-only scalar .replace.
+            var albumScalar = Dictionary(uniqueKeysWithValues: snapshot.raw.properties.map { ($0.key, $0.value) })
+            albumScalar["ALBUM"] = "Scalar Replace Album"
+            try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+                albumScalar,
+                to: url,
+                mode: .replace
+            )
+            let afterScalar = try ContractMP4Oracle.read(url)
+            #expect(try afterScalar.text("©alb") == "Scalar Replace Album")
+            #expect(afterScalar.items[upperKey] == before.items[upperKey])
+            #expect(afterScalar.items[mixedKey] == before.items[mixedKey])
+            #expect(try readILSTOrder(at: url) == beforeOrder)
+            #expect(afterScalar.audio == before.audio)
+
+            // Unrelated ALBUM edits across delta, structured, editor, typed, Basic, and low-level APIs.
+            try TagLibMetadataManager.applyRawMetadataPatch(
+                RawMetadataPatch(valuesToSet: ["ALBUM": ["Raw Delta Album"]]),
+                to: url
+            )
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(properties: [StructuredPropertyEntry(key: "ALBUM", values: ["Structured Album"])]),
+                to: url,
+                includeProperties: true
+            )
+            let vEditor = try TagLibMetadataManager.fileVersion(at: url)
+            try TagLibMetadataManager.applyMP4MetadataEditorPatch(
+                [.itunesAlbumID: .integer(6_829_122_413)],
+                raw: RawMetadataPatch(valuesToSet: ["ALBUM": ["Editor Album"]]),
+                to: url,
+                expectedVersion: vEditor
+            )
+            try TagLibMetadataManager.updateBasicMetadata(at: url) { $0.album = "Basic Album" }
+            let model = try TagLibMetadataExtractor.extractMetadata(from: url)
+            model.album = "LowLevel Album"
+            _ = try TagLibMetadataManager.writeTagMetadata(model, to: url)
+            let afterUnrelated = try ContractMP4Oracle.read(url)
+            #expect(try afterUnrelated.text("©alb") == "LowLevel Album")
+            #expect(afterUnrelated.items[upperKey] == before.items[upperKey])
+            #expect(afterUnrelated.items[mixedKey] == before.items[mixedKey])
+            #expect(afterUnrelated.audio == before.audio)
+
+            // Ambiguous PropertyMap replacements or removals targeting the case-colliding key
+            // must reject atomically without mutating the file.
+            let guardedBytes = try ContractFixture.bytes(url)
+            let guardedVersion = try TagLibMetadataManager.fileVersion(at: url)
+            do {
+                try TagLibMetadataManager.applyRawMetadataPatch(
+                    RawMetadataPatch(valuesToSet: ["PROVENANCENOTE": ["Ambiguous"], "ALBUM": ["No"]]),
+                    to: url,
+                    expectedVersion: guardedVersion
+                )
+                Issue.record("Ambiguous raw set on case-colliding PROVENANCENOTE must reject.")
+            } catch TagLibManagerError.unsupportedWritePolicy {}
+            #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+            do {
+                try TagLibMetadataManager.applyRawMetadataPatch(
+                    RawMetadataPatch(removingKeys: ["PROVENANCENOTE"]),
+                    to: url,
+                    expectedVersion: guardedVersion
+                )
+                Issue.record("Ambiguous raw removal on case-colliding PROVENANCENOTE must reject.")
+            } catch TagLibManagerError.unsupportedWritePolicy {}
+            #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+            do {
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(properties: [StructuredPropertyEntry(key: "PROVENANCENOTE", values: ["Ambiguous"])]),
+                    to: url,
+                    includeProperties: true,
+                    expectedVersion: guardedVersion
+                )
+                Issue.record("Ambiguous structured property set on case-colliding PROVENANCENOTE must reject.")
+            } catch TagLibManagerError.unsupportedWritePolicy {}
+            #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+            var changedReplace = replayed
+            changedReplace["PROVENANCENOTE"] = ["Ambiguous"]
+            do {
+                try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                    changedReplace,
+                    to: url,
+                    mode: .replace,
+                    expectedVersion: guardedVersion
+                )
+                Issue.record("Ambiguous .replace change on case-colliding PROVENANCENOTE must reject.")
+            } catch TagLibManagerError.unsupportedWritePolicy {}
+            #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+            var omittedReplace = replayed
+            omittedReplace.removeValue(forKey: "PROVENANCENOTE")
+            do {
+                try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                    omittedReplace,
+                    to: url,
+                    mode: .replace,
+                    expectedVersion: guardedVersion
+                )
+                Issue.record("Ambiguous .replace omission on case-colliding PROVENANCENOTE must reject.")
+            } catch TagLibManagerError.unsupportedWritePolicy {}
+            #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+            // Explicit structured mp4Atoms removal addresses one exact case-sensitive atom
+            // while preserving its case-sibling byte-for-byte.
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(mp4Atoms: [
+                    StructuredMP4Atom(key: upperKey, type: "stringList", remove: true),
+                ]),
+                to: url,
+                expectedVersion: guardedVersion
+            )
+            let afterTargetedDelete = try ContractMP4Oracle.read(url)
+            #expect(afterTargetedDelete.items[upperKey] == nil)
+            #expect(afterTargetedDelete.items[mixedKey] == before.items[mixedKey])
+        }
+
+        // 2. Binary type-0 BINTAG freeform (locale 0x43411A41, payload DE AD BE EF):
+        //    unchanged replay and ALBUM-only edits must preserve the data atom byte-for-byte
+        //    and leave the file writable for subsequent ordinary edits; deliberate replacement
+        //    and explicit removal must succeed cleanly without leaving empty freeform shells.
+        try ContractFixture.withCopy("m4a") { url in
+            let ilst =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Track".utf8)))
+                + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Original Album".utf8)))
+                + makeFreeform(
+                    mean: "com.apple.iTunes",
+                    name: "BINTAG",
+                    dataAtoms: makeDataAtom(type: 0, locale: canadianFrench, payload: binPayload)
+                )
+            try ContractMP4Seed.seedRawILST(ilst, to: url)
+            let before = try ContractMP4Oracle.read(url)
+            let beforeOrder = try readILSTOrder(at: url)
+            let snapshot = try TagLibMetadataManager.readSnapshot(from: url)
+            let binEntry = try #require(snapshot.raw.properties.first { $0.key.uppercased() == "BINTAG" })
+            #expect(binEntry.values.isEmpty)
+            let replayed = Dictionary(uniqueKeysWithValues: snapshot.raw.properties.map { ($0.key, $0.values) })
+
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                replayed,
+                to: url,
+                mode: .replace,
+                expectedVersion: snapshot.fileVersion
+            )
+            let afterReplay = try ContractMP4Oracle.read(url)
+            #expect(afterReplay.items[binKey] == before.items[binKey])
+            let headers = try readDataHeaders(for: binKey, from: afterReplay)
+            try #require(headers.count == 1)
+            #expect(headers[0].type == 0)
+            #expect(headers[0].locale == canadianFrench)
+            #expect(headers[0].payload == binPayload)
+            #expect(try readILSTOrder(at: url) == beforeOrder)
+            #expect(afterReplay.audio == before.audio)
+
+            // ALBUM-only multi-value .replace, scalar .replace (replaying BINTAG: ""),
+            // RawMetadataPatch, structured properties, Basic, and typed follow-up edits
+            // must all succeed and preserve BINTAG byte-for-byte.
+            var multiAlbum = replayed
+            multiAlbum["ALBUM"] = ["Multi Binary Album"]
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                multiAlbum,
+                to: url,
+                mode: .replace
+            )
+            var scalarAlbum = Dictionary(uniqueKeysWithValues: snapshot.raw.properties.map { ($0.key, $0.value) })
+            scalarAlbum["ALBUM"] = "Scalar Binary Album"
+            try TagLibMetadataManager.writeRawMetadataPropertyMapWithVerification(
+                scalarAlbum,
+                to: url,
+                mode: .replace
+            )
+            try TagLibMetadataManager.applyRawMetadataPatch(
+                RawMetadataPatch(valuesToSet: ["ALBUM": ["Raw Binary Album"]]),
+                to: url
+            )
+            try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                StructuredMetadata(properties: [StructuredPropertyEntry(key: "ALBUM", values: ["Structured Binary Album"])]),
+                to: url,
+                includeProperties: true
+            )
+            try TagLibMetadataManager.applyMetadataPatch(
+                MetadataPatch(fields: [.album: .text("Follow-Up Album")]),
+                to: url
+            )
+            let afterFollowUp = try ContractMP4Oracle.read(url)
+            #expect(try afterFollowUp.text("©alb") == "Follow-Up Album")
+            #expect(afterFollowUp.items[binKey] == before.items[binKey])
+            #expect(try readILSTOrder(at: url) == beforeOrder)
+            #expect(afterFollowUp.audio == before.audio)
+
+            // Deliberate explicit removal via RawMetadataPatch removes BINTAG completely (no empty shell).
+            try TagLibMetadataManager.applyRawMetadataPatch(
+                RawMetadataPatch(removingKeys: ["BINTAG"]),
+                to: url
+            )
+            let afterRawRemove = try ContractMP4Oracle.read(url)
+            #expect(afterRawRemove.items[binKey] == nil)
+            #expect(afterRawRemove.audio == before.audio)
+
+            // Re-seed BINTAG and verify deliberate .replace omission and deliberate text replacement.
+            try ContractMP4Seed.seedRawILST(ilst, to: url)
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                ["TITLE": ["Track"], "ALBUM": ["Replaced Without Bin"]],
+                to: url,
+                mode: .replace
+            )
+            let afterReplaceOmit = try ContractMP4Oracle.read(url)
+            #expect(afterReplaceOmit.items[binKey] == nil)
+            #expect(try afterReplaceOmit.text("©alb") == "Replaced Without Bin")
+
+            try ContractMP4Seed.seedRawILST(ilst, to: url)
+            var replaceWithText = replayed
+            replaceWithText["BINTAG"] = ["Now UTF-8 Text"]
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                replaceWithText,
+                to: url,
+                mode: .replace
+            )
+            let afterReplaceText = try ContractMP4Oracle.read(url)
+            let textHeaders = try readDataHeaders(for: binKey, from: afterReplaceText)
+            try #require(textHeaders.count == 1)
+            #expect(textHeaders[0].type == 1)
+            #expect(textHeaders[0].payload == Data("Now UTF-8 Text".utf8))
+        }
+    }
+
     @Test func emptyEditorPatchEnforcesVersionAudioAndFileGuards() throws {
         try ContractFixture.withCopy("m4a") { url in
             let originalVersion = try TagLibMetadataManager.fileVersion(at: url)

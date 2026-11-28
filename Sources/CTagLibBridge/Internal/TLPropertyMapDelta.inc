@@ -238,6 +238,33 @@ static BOOL ApplyMP4PropertyMapDelta(TagLib::MP4::File &mp4File,
         return NO;
     }
 
+    // Reject ambiguous PropertyMap edits or removals targeting a key that
+    // collides across multiple case-distinct non-shadowed iTunes freeforms.
+    {
+        NSMutableDictionary<NSString *, NSNumber *> *freeformCountsByUpper = [NSMutableDictionary dictionary];
+        for (const auto &[key, item] : originalMP4Items) {
+            NSString *description = MP4FreeformDescriptionForItemKey(key);
+            if (!description) continue;
+            NSString *upper = description.uppercaseString;
+            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
+            if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) continue;
+            freeformCountsByUpper[upper] = @(freeformCountsByUpper[upper].integerValue + 1);
+        }
+        for (NSString *reqKey in requestedKeys) {
+            if (freeformCountsByUpper[reqKey].integerValue > 1) {
+                if (error) {
+                    *error = PropertyMapDeltaError(
+                        9285,
+                        [NSString stringWithFormat:
+                            @"MP4 PropertyMap key '%@' matches multiple case-distinct iTunes freeforms; use structured mp4Atoms to edit or remove each atom explicitly.",
+                            reqKey]
+                    );
+                }
+                return NO;
+            }
+        }
+    }
+
     TagLib::PropertyMap properties = mp4File.properties();
     for (NSString *key in keysToRemove ?: @[]) {
         NSString *trimmedKey = TrimmedStringOrNil(key);

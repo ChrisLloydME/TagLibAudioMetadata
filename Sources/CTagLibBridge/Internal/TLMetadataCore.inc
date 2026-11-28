@@ -398,6 +398,21 @@ public:
                 }
             }
         }
+        if (tag) {
+            for (const auto &[name, item] : tag->itemMap()) {
+                if (item.type() == TagLib::MP4::Item::Type::StringList && item.toStringList().isEmpty()) {
+                    if (error) {
+                        *error = [NSError errorWithDomain:@"TagLibMetadataExtractor"
+                                                     code:9286
+                                                 userInfo:@{
+                                                     NSLocalizedDescriptionKey :
+                                                         @"MP4 save would emit an empty stringList atom with no data sub-atoms; refusing to save."
+                                                 }];
+                    }
+                    return NO;
+                }
+            }
+        }
         if (tag && !tag->itemMap().isEmpty()) {
             std::set<TagLib::String> handledKeys;
             for (const auto &entry : originalEntries_) {
