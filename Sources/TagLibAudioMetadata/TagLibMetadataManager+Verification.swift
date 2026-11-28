@@ -406,6 +406,7 @@ extension TagLibMetadataManager {
             return ["Could not verify raw metadata replacement after save."]
         }
 
+        let isMP4 = capability(forExtension: url.pathExtension)?.identifier == "mp4"
         func canonicalKey(_ rawKey: String) -> String {
             let trimmed = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
             let prefix = "----:COM.APPLE.ITUNES:"
@@ -413,6 +414,12 @@ extension TagLibMetadataManager {
             let propertyKey = uppercased.hasPrefix(prefix)
                 ? String(uppercased.dropFirst(prefix.count))
                 : uppercased
+            if isMP4 {
+                // MP4 PropertyMap keys are exact (e.g. RELEASETYPE and
+                // "MUSICBRAINZ ALBUM TYPE" are separate visible keys); never
+                // fold distinct MP4 keys into one semantic alias bucket.
+                return propertyKey
+            }
             let qualifiedPrefixes = [
                 "COMMENT:", "LYRICS:", "PERFORMER:", "INVOLVEDPEOPLE:", "MUSICIANCREDITS:"
             ]

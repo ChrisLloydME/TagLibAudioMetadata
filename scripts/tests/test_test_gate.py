@@ -47,9 +47,9 @@ def build_pass_log() -> str:
             extra.append(f"Suite {suite} passed.")
     log = log.replace(
         'Test run with 231 tests in 42 suites passed after 8 seconds.',
-        'Test run with 326 tests in 56 suites passed after 8 seconds.',
+        'Test run with 327 tests in 56 suites passed after 8 seconds.',
     )
-    final = 'Test run with 326 tests in 56 suites passed after 8 seconds.'
+    final = 'Test run with 327 tests in 56 suites passed after 8 seconds.'
     if final in log:
         log = log.replace(final, '\n'.join(extra) + '\n' + final if extra else final)
     else:
@@ -193,7 +193,7 @@ class TestGatePolicy(unittest.TestCase):
 
     def test_declaration_totals_cannot_shrink_below_reviewed_inventory(self):
         self.assertFalse(self.accepted(PASS.replace('Executed 181 tests', 'Executed 180 tests')))
-        self.assertFalse(self.accepted(PASS.replace('run with 326 tests', 'run with 325 tests')))
+        self.assertFalse(self.accepted(PASS.replace('run with 327 tests', 'run with 326 tests')))
         self.assertFalse(self.accepted(PASS.replace('in 56 suites', 'in 55 suites')))
 
     def test_both_frameworks_and_only_known_optional_skips_pass(self):
@@ -388,7 +388,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted('\n'.join(lines[:-1]) + '\n'))
 
     def test_missing_framework_completion_is_rejected(self):
-        self.assertFalse(self.accepted(PASS.replace('Test run with 326 tests in 56 suites passed after 8 seconds.\n', '')))
+        self.assertFalse(self.accepted(PASS.replace('Test run with 327 tests in 56 suites passed after 8 seconds.\n', '')))
 
     def test_contract_suite_cannot_be_filtered(self):
         for suite in ('ContractBuilderOracleSelfTests', 'ContractMP4ScenarioTests',
@@ -523,7 +523,7 @@ class TestGatePolicy(unittest.TestCase):
         self.assertFalse(self.accepted(PASS, calibration_mutator=stale))
 
     def test_hidden_new_numbering_named_failure_is_rejected(self):
-        final = "Test run with 326 tests in 56 suites passed after 8 seconds."
+        final = "Test run with 327 tests in 56 suites passed after 8 seconds."
         self.assertFalse(self.accepted(PASS.replace(
             final, "Test explicitIntentMatrix(_:) failed after 1 second.\n" + final)))
 

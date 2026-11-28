@@ -238,30 +238,45 @@ static BOOL ApplyMP4PropertyMapDelta(TagLib::MP4::File &mp4File,
         return NO;
     }
 
-    // Reject ambiguous PropertyMap edits or removals targeting a key that
-    // collides across multiple case-distinct non-shadowed iTunes freeforms.
-    {
-        NSMutableDictionary<NSString *, NSNumber *> *freeformCountsByUpper = [NSMutableDictionary dictionary];
-        for (const auto &[key, item] : originalMP4Items) {
-            NSString *description = MP4FreeformDescriptionForItemKey(key);
-            if (!description) continue;
-            NSString *upper = description.uppercaseString;
-            const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
-            if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) continue;
-            freeformCountsByUpper[upper] = @(freeformCountsByUpper[upper].integerValue + 1);
+    auto *factory = TagLib::MP4::ItemFactory::instance();
+    struct OrigFreeform {
+        TagLib::String key;
+        TagLib::MP4::Item item;
+        TagLib::String nativeKey;
+    };
+    std::vector<OrigFreeform> shadowedFreeforms;
+    std::map<TagLib::String, std::vector<OrigFreeform>> nonShadowedGroups;
+    for (const auto &[origKey, origItem] : originalMP4Items) {
+        NSString *description = MP4FreeformDescriptionForItemKey(origKey);
+        if (!description) continue;
+        NSString *upperDesc = description.uppercaseString;
+        TagLib::String propKey = factory->propertyKeyForName(origKey.data(TagLib::String::UTF8)).upper();
+        if (propKey.isEmpty()) propKey = NSStringToTagString(upperDesc);
+        NSString *upperProp = TagStringToNSString(propKey).uppercaseString ?: @"";
+        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upperProp);
+        if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {
+            shadowedFreeforms.push_back(OrigFreeform{origKey, origItem, nativeKey});
+            continue;
         }
-        for (NSString *reqKey in requestedKeys) {
-            if (freeformCountsByUpper[reqKey].integerValue > 1) {
-                if (error) {
-                    *error = PropertyMapDeltaError(
-                        9285,
-                        [NSString stringWithFormat:
-                            @"MP4 PropertyMap key '%@' matches multiple case-distinct iTunes freeforms; use structured mp4Atoms to edit or remove each atom explicitly.",
-                            reqKey]
-                    );
-                }
-                return NO;
+        nonShadowedGroups[propKey].push_back(OrigFreeform{origKey, origItem, nativeKey});
+    }
+
+    // Reject ambiguous PropertyMap edits or removals targeting a projected key
+    // backed by multiple physical non-shadowed iTunes freeforms (whether
+    // case-distinct spellings or mapped/raw aliases such as
+    // "MusicBrainz Album Type" + "RELEASETYPE").
+    for (NSString *reqKey in requestedKeys) {
+        auto it = nonShadowedGroups.find(NSStringToTagString(reqKey));
+        if (it != nonShadowedGroups.end() && it->second.size() > 1) {
+            if (error) {
+                *error = PropertyMapDeltaError(
+                    9285,
+                    [NSString stringWithFormat:
+                        @"MP4 PropertyMap key '%@' matches multiple iTunes freeforms; use structured mp4Atoms to edit or remove each atom explicitly.",
+                        reqKey]
+                );
             }
+            return NO;
         }
     }
 
@@ -285,149 +300,61 @@ static BOOL ApplyMP4PropertyMapDelta(TagLib::MP4::File &mp4File,
     }
     SetPropertiesPreservingNativeDates(&mp4File, properties);
 
-    // TagLib maps every 4-char atom in ItemFactory::namePropertyMap()
-    // (such as ©nam/TITLE, ownr/OWNER, ©grp/GROUPING, ©day/DATE,
-    // pgap/GAPLESSPLAYBACK, shwm/SHOWWORKMOVEMENT, etc.) into PropertyMap.
-    // Keep each raw delta targeting only the single owner that PropertyMap
-    // actually projected:
-    // - When only the freeform existed (4-char native atom absent),
-    //   TagLib's setProperties() synthesized the 4-char atom from the
-    //   projected PropertyMap entry; remove that synthesized duplicate so
-    //   the freeform remains the sole owner.
-    // - When the 4-char native atom existed, PropertyMap projected it and
-    //   shadowed any same-named iTunes freeform; preserve the shadowed
-    //   freeform verbatim below instead of overwriting or deleting it.
-    NSMutableSet<NSString *> *originalFreeformDescriptions = [NSMutableSet set];
-    for (const auto &[key, item] : originalMP4Items) {
-        NSString *description = MP4FreeformDescriptionForItemKey(key);
-        if (!description) continue;
-        NSString *upper = description.uppercaseString;
-        [originalFreeformDescriptions addObject:upper];
-        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upper);
-        if (!nativeKey.isEmpty() && !originalMP4Items.contains(nativeKey)) {
-            mp4->removeItem(nativeKey);
-        }
+    // Preserve shadowed iTunes freeforms verbatim; PropertyMap projects only
+    // their coexisting 4-char native atom.
+    for (const auto &entry : shadowedFreeforms) {
+        mp4->setItem(entry.key, entry.item);
     }
 
-    struct EditedMP4Freeform {
-        const TLMetadataFieldMapping *mapping;
-        TagLib::StringList values;
-        bool remove;
-        bool applied;
-    };
-    std::vector<EditedMP4Freeform> edits;
-    for (const auto &mapping : kMetadataFieldMappings) {
-        if (!mapping.mp4FreeformDescription) continue;
-        const TagLib::String canonicalNative =
-            MP4NativeFourCCAtomForPropertyKey(@(mapping.canonicalPropertyKey));
-        if (!canonicalNative.isEmpty()) {
-            const bool hadNative = originalMP4Items.contains(canonicalNative);
-            const bool hadFreeform = [originalFreeformDescriptions containsObject:@(mapping.canonicalPropertyKey)];
-            if (hadNative || !hadFreeform) continue;
-        }
-        NSArray<NSString *> *replacement = upperValues[@(mapping.canonicalPropertyKey)];
-        for (const char *alias : mapping.propertyAliases) {
-            if (!replacement && alias) replacement = upperValues[@(alias)];
-        }
-        bool remove = replacement == nil;
-        if (remove) {
-            remove = [upperRemovals containsObject:@(mapping.canonicalPropertyKey)];
-            for (const char *alias : mapping.propertyAliases) {
-                if (!remove && alias) remove = [upperRemovals containsObject:@(alias)];
+    // Reconcile every non-shadowed iTunes freeform strictly by its TagLib-
+    // projected PropertyMap key:
+    // - Untouched groups (including multi-atom collisions and binary freeforms)
+    //   are restored verbatim without synthesized duplicates.
+    // - Edited/removed groups (size == 1) update or remove only their exact
+    //   freeform key, leaving separate visible keys byte-for-byte intact.
+    for (const auto &[propKey, group] : nonShadowedGroups) {
+        NSString *upperProp = TagStringToNSString(propKey).uppercaseString ?: @"";
+        const TagLib::ByteVector canonicalName = factory->nameForPropertyKey(propKey);
+        const TagLib::String synthesizedKey =
+            (!canonicalName.isEmpty() && canonicalName.startsWith("----:"))
+            ? TagLib::String(canonicalName, TagLib::String::UTF8)
+            : (canonicalName.isEmpty()
+               ? NSStringToTagString([@"----:com.apple.iTunes:" stringByAppendingString:upperProp])
+               : TagLib::String());
+
+        for (const auto &entry : group) {
+            if (!entry.nativeKey.isEmpty() && !originalMP4Items.contains(entry.nativeKey)) {
+                mp4->removeItem(entry.nativeKey);
+            }
+            if (!synthesizedKey.isEmpty() &&
+                synthesizedKey != entry.key &&
+                !originalMP4Items.contains(synthesizedKey)) {
+                mp4->removeItem(synthesizedKey);
             }
         }
-        if (!replacement && !remove) continue;
-        TagLib::StringList values;
-        for (NSString *value in replacement ?: @[]) {
-            values.append(NSStringToTagString(value));
-        }
-        edits.push_back(EditedMP4Freeform{&mapping, values, remove, false});
-    }
 
-    auto editedForItem = [&](const TagLib::String &key) -> EditedMP4Freeform * {
-        for (auto &edit : edits) {
-            if (MP4ItemMatchesField(key, *edit.mapping)) return &edit;
-        }
-        return nullptr;
-    };
-
-    NSMutableSet<NSString *> *descriptions = [NSMutableSet set];
-    for (const auto &[key, item] : originalMP4Items) {
-        NSString *description = MP4FreeformDescriptionForItemKey(key);
-        if (description) [descriptions addObject:description.uppercaseString];
-    }
-    const auto generated = mp4->itemMap();
-    for (const auto &[key, item] : generated) {
-        if (!MP4FreeformDescriptionForItemKey(key)) continue;
-        if ([descriptions containsObject:MP4FreeformDescriptionForItemKey(key).uppercaseString]) {
-            mp4->removeItem(key);
-            continue;
-        }
-        // An edited field absent from the original file is re-created from
-        // the descriptor below, not through a differently-cased engine
-        // spelling.
-        if (!originalMP4Items.contains(key) && editedForItem(key)) mp4->removeItem(key);
-    }
-    for (const auto &mapping : kMetadataFieldMappings) {
-        if (!mapping.mp4FreeformDescription) continue;
-        bool originallyFreeform = false;
-        for (const auto &[key, item] : originalMP4Items) {
-            if (MP4FreeformDescriptionForItemKey(key) && MP4ItemMatchesField(key, mapping)) originallyFreeform = true;
-        }
-        if (!originallyFreeform) continue;
-        bool edited = upperValues[@(mapping.canonicalPropertyKey)] || [upperRemovals containsObject:@(mapping.canonicalPropertyKey)];
-        for (const char *alias : mapping.propertyAliases) {
-            if (alias) edited |= upperValues[@(alias)] || [upperRemovals containsObject:@(alias)];
-        }
-        if (edited) continue;
-        for (const auto &[key, item] : generated) {
-            if (!originalMP4Items.contains(key) && MP4ItemMatchesField(key, mapping)) mp4->removeItem(key);
-        }
-    }
-    NSMutableSet<NSString *> *written = [NSMutableSet set];
-    for (const auto &[key, item] : originalMP4Items) {
-        NSString *description = MP4FreeformDescriptionForItemKey(key);
-        if (!description) continue;
-        NSString *normalized = description.uppercaseString;
-        if (EditedMP4Freeform *edit = editedForItem(key)) {
-            // Reconcile every native alias of the edited semantic field to
-            // one item. The first surviving name is kept; later aliases
-            // are case/spelling duplicates, not independent owners.
-            if (edit->applied) {
-                mp4->removeItem(key);
-            } else if (edit->remove) {
-                mp4->removeItem(key);
-                edit->applied = true;
-            } else {
-                mp4->setItem(key, TagLib::MP4::Item(edit->values));
-                edit->applied = true;
+        NSArray<NSString *> *replacement = upperValues[upperProp];
+        const bool removed = [upperRemovals containsObject:upperProp];
+        if (!replacement && !removed) {
+            for (const auto &entry : group) {
+                mp4->setItem(entry.key, entry.item);
             }
             continue;
         }
-        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(normalized);
-        if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {
-            mp4->setItem(key, item);
-            continue;
-        }
-        NSArray<NSString *> *replacement = upperValues[normalized];
+
+        const auto &entry = group[0];
         if (replacement) {
-            if ([written containsObject:normalized]) continue;
             TagLib::StringList values;
             for (NSString *value in replacement) values.append(NSStringToTagString(value));
-            mp4->setItem(key, TagLib::MP4::Item(values));
-            [written addObject:normalized];
-        } else if (![upperRemovals containsObject:normalized]) {
-            mp4->setItem(key, item);
+            if (entry.item.type() == TagLib::MP4::Item::Type::StringList &&
+                entry.item.toStringList() == values) {
+                mp4->setItem(entry.key, entry.item);
+            } else {
+                mp4->setItem(entry.key, TagLib::MP4::Item(values));
+            }
+        } else {
+            mp4->removeItem(entry.key);
         }
-    }
-    for (auto &edit : edits) {
-        if (edit.applied || edit.remove) continue;
-        NSString *description = @(edit.mapping->mp4FreeformDescription);
-        if (!description) continue;
-        TagLib::String key = NSStringToTagString(
-            [@"----:com.apple.iTunes:" stringByAppendingString:description]);
-        mp4->setItem(key, TagLib::MP4::Item(edit.values));
-        edit.applied = true;
     }
     for (NSString *setKey in upperValues) {
         const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(setKey);

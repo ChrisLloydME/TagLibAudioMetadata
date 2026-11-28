@@ -269,6 +269,8 @@ extension TagLibMetadataManager {
 
     nonisolated static func structuredWriteVerification(
         expected: StructuredMetadata,
+        before: StructuredMetadata? = nil,
+        formatFamily: String? = nil,
         includeProperties: Bool,
         replacingCollections: Set<StructuredMetadataReplaceableCollection>,
         for url: URL
@@ -290,6 +292,37 @@ extension TagLibMetadataManager {
                     }
                 } else if actual?.values != property.values {
                     warnings.append("Structured property \(property.key) differs after save.")
+                }
+            }
+        }
+
+        if formatFamily == "mp4", let before {
+            var touchedPropertyKeys: Set<String> = []
+            if includeProperties {
+                for property in expected.properties {
+                    let key = property.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                    if !key.isEmpty { touchedPropertyKeys.insert(key) }
+                }
+            }
+            for atom in expected.mp4Atoms {
+                if let projected = TagLibMetadataExtractor.mp4PropertyKey(forAtomKey: atom.key) {
+                    touchedPropertyKeys.insert(projected.uppercased())
+                }
+            }
+            let beforeProperties = before.properties.reduce(into: [String: [String]]()) { result, entry in
+                let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                guard !key.isEmpty, !isHiddenInternalRawFieldKey(key) else { return }
+                result[key, default: []].append(contentsOf: entry.values)
+            }
+            let afterProperties = after.properties.reduce(into: [String: [String]]()) { result, entry in
+                let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                guard !key.isEmpty, !isHiddenInternalRawFieldKey(key) else { return }
+                result[key, default: []].append(contentsOf: entry.values)
+            }
+            for key in Set(beforeProperties.keys).union(afterProperties.keys).sorted()
+                where !touchedPropertyKeys.contains(key) {
+                if beforeProperties[key] != afterProperties[key] {
+                    warnings.append("Untouched structured property \(key) changed after save.")
                 }
             }
         }
@@ -683,6 +716,8 @@ extension TagLibMetadataManager {
             if verifyAfterWrite {
                 let verification = structuredWriteVerification(
                     expected: effectiveMetadata,
+                    before: beforeStructured,
+                    formatFamily: family,
                     includeProperties: includeProperties,
                     replacingCollections: replacingCollections,
                     for: mutationURL

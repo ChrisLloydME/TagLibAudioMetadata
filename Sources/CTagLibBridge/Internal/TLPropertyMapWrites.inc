@@ -10,7 +10,6 @@ static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,
     struct OrigFreeform {
         TagLib::String key;
         TagLib::MP4::Item item;
-        NSString *upperDesc;
         TagLib::String nativeKey;
     };
     std::map<TagLib::String, std::vector<OrigFreeform>> nonShadowedGroups;
@@ -18,19 +17,18 @@ static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,
         NSString *description = MP4FreeformDescriptionForItemKey(origKey);
         if (!description) continue;
         NSString *upperDesc = description.uppercaseString;
-        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upperDesc);
         TagLib::String propKey = factory->propertyKeyForName(origKey.data(TagLib::String::UTF8)).upper();
         if (propKey.isEmpty()) propKey = NSStringToTagString(upperDesc);
+        NSString *upperProp = TagStringToNSString(propKey).uppercaseString ?: @"";
+        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(upperProp);
 
         if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {
-            // Preserve shadowed iTunes freeforms when their native 4-char owner
-            // remains present in the replacement map.
-            if (requested.contains(propKey)) {
-                mp4->setItem(origKey, origItem);
-            }
+            // Preserve shadowed iTunes freeforms unconditionally; PropertyMap
+            // projects only their coexisting 4-char native owner.
+            mp4->setItem(origKey, origItem);
             continue;
         }
-        nonShadowedGroups[propKey].push_back(OrigFreeform{origKey, origItem, upperDesc, nativeKey});
+        nonShadowedGroups[propKey].push_back(OrigFreeform{origKey, origItem, nativeKey});
     }
 
     for (const auto &[propKey, group] : nonShadowedGroups) {
@@ -46,6 +44,13 @@ static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,
             }
         }
         NSString *upperProp = TagStringToNSString(propKey).uppercaseString ?: @"";
+        const TagLib::ByteVector canonicalName = factory->nameForPropertyKey(propKey);
+        const TagLib::String synthesizedKey =
+            (!canonicalName.isEmpty() && canonicalName.startsWith("----:"))
+            ? TagLib::String(canonicalName, TagLib::String::UTF8)
+            : (canonicalName.isEmpty()
+               ? NSStringToTagString([@"----:com.apple.iTunes:" stringByAppendingString:upperProp])
+               : TagLib::String());
         const bool inRequested = requested.contains(propKey);
         const bool replayedEmptyBinary = hasBinary && !inRequested &&
             explicitEmptyInputKeys && [explicitEmptyInputKeys containsObject:upperProp];
@@ -55,10 +60,10 @@ static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,
 
         if (unchanged) {
             for (const auto &entry : group) {
-                const TagLib::String upperFreeformKey =
-                    NSStringToTagString([@"----:com.apple.iTunes:" stringByAppendingString:entry.upperDesc]);
-                if (upperFreeformKey != entry.key && !originalMP4Items.contains(upperFreeformKey)) {
-                    mp4->removeItem(upperFreeformKey);
+                if (!synthesizedKey.isEmpty() &&
+                    synthesizedKey != entry.key &&
+                    !originalMP4Items.contains(synthesizedKey)) {
+                    mp4->removeItem(synthesizedKey);
                 }
             }
             for (const auto &entry : group) {
@@ -73,7 +78,7 @@ static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,
                                              code:9285
                                          userInfo:@{
                                              NSLocalizedDescriptionKey : [NSString stringWithFormat:
-                                                 @"MP4 PropertyMap key '%@' matches multiple case-distinct iTunes freeforms; use structured mp4Atoms to edit or remove each atom explicitly.",
+                                                 @"MP4 PropertyMap key '%@' matches multiple iTunes freeforms; use structured mp4Atoms to edit or remove each atom explicitly.",
                                                  upperProp]
                                          }];
             }
@@ -81,10 +86,10 @@ static BOOL ReconcileMP4ReplacedFreeforms(TagLib::MP4::Tag *mp4,
         }
 
         const auto &entry = group[0];
-        const TagLib::String upperFreeformKey =
-            NSStringToTagString([@"----:com.apple.iTunes:" stringByAppendingString:entry.upperDesc]);
-        if (upperFreeformKey != entry.key && !originalMP4Items.contains(upperFreeformKey)) {
-            mp4->removeItem(upperFreeformKey);
+        if (!synthesizedKey.isEmpty() &&
+            synthesizedKey != entry.key &&
+            !originalMP4Items.contains(synthesizedKey)) {
+            mp4->removeItem(synthesizedKey);
         }
         if (inRequested) {
             const TagLib::StringList desired = requested[propKey];

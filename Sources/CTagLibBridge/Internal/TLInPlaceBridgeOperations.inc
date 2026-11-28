@@ -53,3 +53,8 @@
 {
     return NativeMP4Codec::nativeAtomPropertyKeys();
 }
+
++ (nullable NSString *)mp4PropertyKeyForAtomKey:(NSString *)atomKey
+{
+    return NativeMP4Codec::propertyKeyForAtomKey(atomKey);
+}

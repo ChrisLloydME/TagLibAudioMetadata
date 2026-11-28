@@ -2033,17 +2033,21 @@ struct MP4MetadataEditorTests {
         func readILSTOrder(at url: URL) throws -> [String] {
             let data = try ContractFixture.bytes(url)
             let top = try ContractMP4Oracle.atoms(data, 0..<data.count)
-            let moov = try #require(top.first { $0.type == "moov" })
-            let udta = try #require(try ContractMP4Oracle.atoms(data, moov.payload).first { $0.type == "udta" })
-            let meta = try #require(try ContractMP4Oracle.atoms(data, udta.payload).first { $0.type == "meta" })
-            let ilst = try #require(try ContractMP4Oracle.atoms(data, (meta.payload.lowerBound + 4)..<meta.payload.upperBound).first { $0.type == "ilst" })
+            guard let moov = top.first(where: { $0.type == "moov" }),
+                  let udta = try ContractMP4Oracle.atoms(data, moov.payload).first(where: { $0.type == "udta" }),
+                  let meta = try ContractMP4Oracle.atoms(data, udta.payload).first(where: { $0.type == "meta" }),
+                  let ilst = try ContractMP4Oracle.atoms(data, (meta.payload.lowerBound + 4)..<meta.payload.upperBound).first(where: { $0.type == "ilst" }) else {
+                return []
+            }
             var keys: [String] = []
             for item in try ContractMP4Oracle.atoms(data, ilst.payload) {
                 var key = item.type
                 if key == "----" {
                     let fields = try ContractMP4Oracle.atoms(data, item.payload)
-                    let meanField = try #require(fields.first { $0.type == "mean" })
-                    let nameField = try #require(fields.first { $0.type == "name" })
+                    guard let meanField = fields.first(where: { $0.type == "mean" }),
+                          let nameField = fields.first(where: { $0.type == "name" }) else {
+                        continue
+                    }
                     let mean = String(data: data[(meanField.payload.lowerBound + 4)..<meanField.payload.upperBound], encoding: .utf8) ?? ""
                     let name = String(data: data[(nameField.payload.lowerBound + 4)..<nameField.payload.upperBound], encoding: .utf8) ?? ""
                     key += ":\(mean):\(name)"
@@ -2574,6 +2578,454 @@ struct MP4MetadataEditorTests {
                 structured: StructuredMetadata()
             )
             #expect(emptySnapshot.editableMP4Fields.isEmpty)
+        }
+    }
+
+    @Test func mp4FreeformMappingFamiliesPreserveSeparateKeysAndRejectCollisions() throws {
+        func be32(_ value: UInt32) -> Data {
+            Data([
+                UInt8((value >> 24) & 0xFF),
+                UInt8((value >> 16) & 0xFF),
+                UInt8((value >> 8) & 0xFF),
+                UInt8(value & 0xFF),
+            ])
+        }
+        func makeAtom(_ fourCC: String, _ payload: Data) -> Data {
+            let typeBytes = fourCC.data(using: .isoLatin1)!
+            return be32(UInt32(payload.count + 8)) + typeBytes + payload
+        }
+        func makeDataAtom(type: UInt32, locale: UInt32, payload: Data) -> Data {
+            makeAtom("data", be32(type) + be32(locale) + payload)
+        }
+        func makeFreeform(mean: String, name: String, dataAtoms: Data) -> Data {
+            let body = makeAtom("mean", be32(0) + Data(mean.utf8))
+                + makeAtom("name", be32(0) + Data(name.utf8))
+                + dataAtoms
+            return makeAtom("----", body)
+        }
+        func readILSTOrder(at url: URL) throws -> [String] {
+            let data = try ContractFixture.bytes(url)
+            let top = try ContractMP4Oracle.atoms(data, 0..<data.count)
+            guard let moov = top.first(where: { $0.type == "moov" }),
+                  let udta = try ContractMP4Oracle.atoms(data, moov.payload).first(where: { $0.type == "udta" }),
+                  let meta = try ContractMP4Oracle.atoms(data, udta.payload).first(where: { $0.type == "meta" }),
+                  let ilst = try ContractMP4Oracle.atoms(data, (meta.payload.lowerBound + 4)..<meta.payload.upperBound).first(where: { $0.type == "ilst" }) else {
+                return []
+            }
+            var keys: [String] = []
+            for item in try ContractMP4Oracle.atoms(data, ilst.payload) {
+                var key = item.type
+                if key == "----" {
+                    let fields = try ContractMP4Oracle.atoms(data, item.payload)
+                    guard let meanField = fields.first(where: { $0.type == "mean" }),
+                          let nameField = fields.first(where: { $0.type == "name" }) else {
+                        continue
+                    }
+                    let mean = String(data: data[(meanField.payload.lowerBound + 4)..<meanField.payload.upperBound], encoding: .utf8) ?? ""
+                    let name = String(data: data[(nameField.payload.lowerBound + 4)..<nameField.payload.upperBound], encoding: .utf8) ?? ""
+                    key += ":\(mean):\(name)"
+                }
+                keys.append(key)
+            }
+            return keys
+        }
+        func propMap(_ snapshot: MetadataSnapshot) -> [String: [String]] {
+            Dictionary(uniqueKeysWithValues: snapshot.raw.properties.map { ($0.key.uppercased(), $0.values) })
+        }
+
+        let canadianFrench: UInt32 = 0x4341_1A41
+        let usEnglish: UInt32 = 0x5553_0000
+
+        // 1. Separate visible PropertyMap keys across TagLib MusicBrainz and
+        //    semantic-alias freeform families: removing or editing one visible
+        //    key (alone or alongside plID) must affect ONLY that exact freeform
+        //    and preserve the untouched sibling byte-for-byte in original order.
+        struct SeparatePair {
+            let nameA: String
+            let propA: String
+            let valueA: String
+            let updatedA: String
+            let nameB: String
+            let propB: String
+            let valueB: String
+            let exerciseAllSurfaces: Bool
+        }
+        let separatePairs: [SeparatePair] = [
+            .init(nameA: "MusicBrainz Album Type", propA: "RELEASETYPE", valueA: "album", updatedA: "single",
+                  nameB: "MUSICBRAINZ ALBUM TYPE", propB: "MUSICBRAINZ ALBUM TYPE", valueB: "custom-type", exerciseAllSurfaces: true),
+            .init(nameA: "MusicBrainz Artist Id", propA: "MUSICBRAINZ_ARTISTID", valueA: "artist-1", updatedA: "artist-2",
+                  nameB: "MUSICBRAINZ ARTIST ID", propB: "MUSICBRAINZ ARTIST ID", valueB: "custom-artist", exerciseAllSurfaces: true),
+            .init(nameA: "MusicBrainz Album Id", propA: "MUSICBRAINZ_ALBUMID", valueA: "album-1", updatedA: "album-2",
+                  nameB: "MUSICBRAINZ ALBUM ID", propB: "MUSICBRAINZ ALBUM ID", valueB: "custom-album", exerciseAllSurfaces: true),
+            .init(nameA: "MusicBrainz Track Id", propA: "MUSICBRAINZ_TRACKID", valueA: "track-1", updatedA: "track-2",
+                  nameB: "MUSICBRAINZ TRACK ID", propB: "MUSICBRAINZ TRACK ID", valueB: "custom-track", exerciseAllSurfaces: false),
+            .init(nameA: "MusicBrainz Album Artist Id", propA: "MUSICBRAINZ_ALBUMARTISTID", valueA: "aa-1", updatedA: "aa-2",
+                  nameB: "MUSICBRAINZ ALBUM ARTIST ID", propB: "MUSICBRAINZ ALBUM ARTIST ID", valueB: "custom-aa", exerciseAllSurfaces: false),
+            .init(nameA: "MusicBrainz Album Status", propA: "RELEASESTATUS", valueA: "official", updatedA: "promotion",
+                  nameB: "MUSICBRAINZ ALBUM STATUS", propB: "MUSICBRAINZ ALBUM STATUS", valueB: "custom-status", exerciseAllSurfaces: false),
+            .init(nameA: "MusicBrainz Album Release Country", propA: "RELEASECOUNTRY", valueA: "US", updatedA: "CA",
+                  nameB: "MUSICBRAINZ ALBUM RELEASE COUNTRY", propB: "MUSICBRAINZ ALBUM RELEASE COUNTRY", valueB: "custom-country", exerciseAllSurfaces: false),
+            .init(nameA: "MusicBrainz Release Group Id", propA: "MUSICBRAINZ_RELEASEGROUPID", valueA: "rg-1", updatedA: "rg-2",
+                  nameB: "MUSICBRAINZ RELEASE GROUP ID", propB: "MUSICBRAINZ RELEASE GROUP ID", valueB: "custom-rg", exerciseAllSurfaces: false),
+            .init(nameA: "MusicBrainz Release Track Id", propA: "MUSICBRAINZ_RELEASETRACKID", valueA: "rt-1", updatedA: "rt-2",
+                  nameB: "MUSICBRAINZ RELEASE TRACK ID", propB: "MUSICBRAINZ RELEASE TRACK ID", valueB: "custom-rt", exerciseAllSurfaces: false),
+            .init(nameA: "MusicBrainz Work Id", propA: "MUSICBRAINZ_WORKID", valueA: "work-1", updatedA: "work-2",
+                  nameB: "MUSICBRAINZ WORK ID", propB: "MUSICBRAINZ WORK ID", valueB: "custom-work", exerciseAllSurfaces: false),
+            .init(nameA: "BARCODE", propA: "BARCODE", valueA: "012345678905", updatedA: "999999999999",
+                  nameB: "UPC", propB: "UPC", valueB: "legacy-upc", exerciseAllSurfaces: true),
+            .init(nameA: "CATALOGNUMBER", propA: "CATALOGNUMBER", valueA: "CAT-01", updatedA: "CAT-02",
+                  nameB: "CATALOG", propB: "CATALOG", valueB: "legacy-cat", exerciseAllSurfaces: false),
+            .init(nameA: "MEDIA", propA: "MEDIA", valueA: "CD", updatedA: "Digital",
+                  nameB: "MEDIATYPE", propB: "MEDIATYPE", valueB: "legacy-media", exerciseAllSurfaces: false),
+            .init(nameA: "INITIALKEY", propA: "INITIALKEY", valueA: "Am", updatedA: "Cm",
+                  nameB: "KEY", propB: "KEY", valueB: "legacy-key", exerciseAllSurfaces: false),
+            .init(nameA: "ORIGINALDATE", propA: "ORIGINALDATE", valueA: "1999", updatedA: "2000",
+                  nameB: "ORIGINAL YEAR", propB: "ORIGINAL YEAR", valueB: "1998", exerciseAllSurfaces: false),
+            .init(nameA: "Acoustid Id", propA: "ACOUSTID ID", valueA: "ac-1", updatedA: "ac-2",
+                  nameB: "ACOUSTID_ID", propB: "ACOUSTID_ID", valueB: "legacy-ac", exerciseAllSurfaces: false),
+        ]
+
+        for pair in separatePairs {
+            let keyA = "----:com.apple.iTunes:\(pair.nameA)"
+            let keyB = "----:com.apple.iTunes:\(pair.nameB)"
+            let seededILST =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Separate Keys".utf8)))
+                + makeFreeform(mean: "com.apple.iTunes", name: pair.nameA, dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data(pair.valueA.utf8)))
+                + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Original Album".utf8)))
+                + makeFreeform(mean: "com.apple.iTunes", name: pair.nameB, dataAtoms: makeDataAtom(type: 1, locale: usEnglish, payload: Data(pair.valueB.utf8)))
+
+            // 1a. Structured includeProperties: true removing ONLY propA + setting plID.
+            try ContractFixture.withCopy("m4a") { url in
+                try ContractMP4Seed.seedRawILST(seededILST, to: url)
+                let beforeOracle = try ContractMP4Oracle.read(url)
+                let beforeSnap = try TagLibMetadataManager.readSnapshot(from: url)
+                let beforeProps = propMap(beforeSnap)
+                #expect(beforeProps[pair.propA] == [pair.valueA])
+                #expect(beforeProps[pair.propB] == [pair.valueB])
+
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(
+                        properties: [StructuredPropertyEntry(key: pair.propA, values: [])],
+                        mp4Atoms: [StructuredMP4Atom(key: "plID", type: "longLong", value: "6829122413")]
+                    ),
+                    to: url,
+                    includeProperties: true,
+                    expectedVersion: beforeSnap.fileVersion
+                )
+                let afterOracle = try ContractMP4Oracle.read(url)
+                let afterProps = propMap(try TagLibMetadataManager.readSnapshot(from: url))
+                #expect(afterOracle.items[keyA] == nil)
+                #expect(afterOracle.items[keyB] == beforeOracle.items[keyB])
+                #expect(try afterOracle.integer("plID") == 6_829_122_413)
+                #expect(afterOracle.audio == beforeOracle.audio)
+                #expect(afterProps[pair.propA] == nil)
+                #expect(afterProps[pair.propB] == [pair.valueB])
+                #expect(try readILSTOrder(at: url) == ["©nam", "©alb", keyB, "plID"])
+            }
+
+            guard pair.exerciseAllSurfaces else { continue }
+
+            // 1b. Structured includeProperties: true setting ONLY propA + plID,
+            //     and removing ONLY propB.
+            try ContractFixture.withCopy("m4a") { url in
+                try ContractMP4Seed.seedRawILST(seededILST, to: url)
+                let beforeOracle = try ContractMP4Oracle.read(url)
+                let v1 = try TagLibMetadataManager.fileVersion(at: url)
+
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(
+                        properties: [StructuredPropertyEntry(key: pair.propA, values: [pair.updatedA])],
+                        mp4Atoms: [StructuredMP4Atom(key: "plID", type: "longLong", value: "6829122413")]
+                    ),
+                    to: url,
+                    includeProperties: true,
+                    expectedVersion: v1
+                )
+                let afterSet = try ContractMP4Oracle.read(url)
+                #expect(try afterSet.text(keyA) == pair.updatedA)
+                #expect(afterSet.items[keyB] == beforeOracle.items[keyB])
+                #expect(try afterSet.integer("plID") == 6_829_122_413)
+                #expect(try readILSTOrder(at: url) == ["©nam", keyA, "©alb", keyB, "plID"])
+
+                let v2 = try TagLibMetadataManager.fileVersion(at: url)
+                let oracleBeforeRemoveB = try ContractMP4Oracle.read(url)
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(properties: [StructuredPropertyEntry(key: pair.propB, values: [])]),
+                    to: url,
+                    includeProperties: true,
+                    expectedVersion: v2
+                )
+                let afterRemoveB = try ContractMP4Oracle.read(url)
+                #expect(afterRemoveB.items[keyA] == oracleBeforeRemoveB.items[keyA])
+                #expect(afterRemoveB.items[keyB] == nil)
+                #expect(afterRemoveB.audio == beforeOracle.audio)
+            }
+
+            // 1c. RawMetadataPatch, raw .merge, MP4 editor raw, and whole-map .replace.
+            for surface in ["rawDelta", "rawMerge", "editor", "rawReplace"] {
+                try ContractFixture.withCopy("m4a") { url in
+                    try ContractMP4Seed.seedRawILST(seededILST, to: url)
+                    let beforeOracle = try ContractMP4Oracle.read(url)
+                    let snap = try TagLibMetadataManager.readSnapshot(from: url)
+                    let version = try #require(snap.fileVersion)
+
+                    switch surface {
+                    case "rawDelta":
+                        try TagLibMetadataManager.applyRawMetadataPatch(
+                            RawMetadataPatch(removingKeys: [pair.propA]),
+                            to: url,
+                            expectedVersion: version
+                        )
+                    case "rawMerge":
+                        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                            [pair.propA: []],
+                            to: url,
+                            mode: .merge,
+                            expectedVersion: version
+                        )
+                    case "editor":
+                        try TagLibMetadataManager.applyMP4MetadataEditorPatch(
+                            [.itunesAlbumID: .integer(6_829_122_413)],
+                            raw: RawMetadataPatch(removingKeys: [pair.propA]),
+                            to: url,
+                            expectedVersion: version
+                        )
+                    default:
+                        var full = Dictionary(uniqueKeysWithValues: snap.raw.properties.map { ($0.key, $0.values) })
+                        // Unchanged replay first (must succeed deterministically without alias folding).
+                        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                            full,
+                            to: url,
+                            mode: .replace,
+                            expectedVersion: version
+                        )
+                        let replayedOracle = try ContractMP4Oracle.read(url)
+                        #expect(replayedOracle.items[keyA] == beforeOracle.items[keyA])
+                        #expect(replayedOracle.items[keyB] == beforeOracle.items[keyB])
+                        #expect(try readILSTOrder(at: url) == ["©nam", keyA, "©alb", keyB])
+
+                        full.removeValue(forKey: pair.propA)
+                        try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                            full,
+                            to: url,
+                            mode: .replace,
+                            expectedVersion: try TagLibMetadataManager.fileVersion(at: url)
+                        )
+                    }
+                    let afterOracle = try ContractMP4Oracle.read(url)
+                    let afterProps = propMap(try TagLibMetadataManager.readSnapshot(from: url))
+                    #expect(afterOracle.items[keyA] == nil)
+                    #expect(afterOracle.items[keyB] == beforeOracle.items[keyB])
+                    #expect(afterOracle.audio == beforeOracle.audio)
+                    #expect(afterProps[pair.propA] == nil)
+                    #expect(afterProps[pair.propB] == [pair.valueB])
+                }
+            }
+        }
+
+        // 2. Physical aliases projecting to ONE visible PropertyMap key
+        //    (e.g. MusicBrainz Album Type + RELEASETYPE -> RELEASETYPE):
+        //    - Unrelated edits & unchanged replay preserve both byte-for-byte in order.
+        //    - Any PropertyMap set/remove (alone or with plID) rejects atomically.
+        //    - Explicit StructuredMetadata.mp4Atoms removes only the named atom.
+        let sharedProjectionPairs: [(canonicalName: String, aliasName: String, propKey: String)] = [
+            ("MusicBrainz Album Type", "RELEASETYPE", "RELEASETYPE"),
+            ("MusicBrainz Artist Id", "MUSICBRAINZ_ARTISTID", "MUSICBRAINZ_ARTISTID"),
+            ("MusicBrainz Album Id", "MUSICBRAINZ_ALBUMID", "MUSICBRAINZ_ALBUMID"),
+        ]
+        for pair in sharedProjectionPairs {
+            let canonKey = "----:com.apple.iTunes:\(pair.canonicalName)"
+            let aliasKey = "----:com.apple.iTunes:\(pair.aliasName)"
+            let collisionILST =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Shared Projection".utf8)))
+                + makeFreeform(mean: "com.apple.iTunes", name: pair.canonicalName, dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Primary".utf8)))
+                + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Album Before".utf8)))
+                + makeFreeform(mean: "com.apple.iTunes", name: pair.aliasName, dataAtoms: makeDataAtom(type: 1, locale: usEnglish, payload: Data("Secondary".utf8)))
+
+            try ContractFixture.withCopy("m4a") { url in
+                try ContractMP4Seed.seedRawILST(collisionILST, to: url)
+                let beforeOracle = try ContractMP4Oracle.read(url)
+                let snap = try TagLibMetadataManager.readSnapshot(from: url)
+
+                // Unrelated edit via structured (ALBUM + plID) preserves both byte-for-byte in order.
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(
+                        properties: [StructuredPropertyEntry(key: "ALBUM", values: ["Album After"])],
+                        mp4Atoms: [StructuredMP4Atom(key: "plID", type: "longLong", value: "6829122413")]
+                    ),
+                    to: url,
+                    includeProperties: true,
+                    expectedVersion: snap.fileVersion
+                )
+                let afterUnrelated = try ContractMP4Oracle.read(url)
+                #expect(afterUnrelated.items[canonKey] == beforeOracle.items[canonKey])
+                #expect(afterUnrelated.items[aliasKey] == beforeOracle.items[aliasKey])
+                #expect(try readILSTOrder(at: url) == ["©nam", canonKey, "©alb", aliasKey, "plID"])
+
+                // Unrelated edit via whole-map .replace preserves both byte-for-byte in order.
+                let snap2 = try TagLibMetadataManager.readSnapshot(from: url)
+                var replaceProps = Dictionary(uniqueKeysWithValues: snap2.raw.properties.map { ($0.key, $0.values) })
+                replaceProps["ALBUM"] = ["Album Replace"]
+                try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                    replaceProps,
+                    to: url,
+                    mode: .replace,
+                    expectedVersion: snap2.fileVersion
+                )
+                let afterReplaceUnrelated = try ContractMP4Oracle.read(url)
+                #expect(afterReplaceUnrelated.items[canonKey] == beforeOracle.items[canonKey])
+                #expect(afterReplaceUnrelated.items[aliasKey] == beforeOracle.items[aliasKey])
+                #expect(try readILSTOrder(at: url) == ["©nam", canonKey, "©alb", aliasKey, "plID"])
+
+                // Ambiguous PropertyMap set AND remove MUST reject across all surfaces without committing plID.
+                let guardedBytes = try ContractFixture.bytes(url)
+                let guardedVersion = try TagLibMetadataManager.fileVersion(at: url)
+
+                do {
+                    try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                        StructuredMetadata(
+                            properties: [StructuredPropertyEntry(key: pair.propKey, values: [])],
+                            mp4Atoms: [StructuredMP4Atom(key: "plID", type: "longLong", value: "999")]
+                        ),
+                        to: url,
+                        includeProperties: true,
+                        expectedVersion: guardedVersion
+                    )
+                    Issue.record("Ambiguous structured removal on \(pair.propKey) must reject.")
+                } catch TagLibManagerError.unsupportedWritePolicy {}
+                #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+                do {
+                    try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                        StructuredMetadata(
+                            properties: [StructuredPropertyEntry(key: pair.propKey, values: ["Ambiguous"])],
+                            mp4Atoms: [StructuredMP4Atom(key: "plID", type: "longLong", value: "999")]
+                        ),
+                        to: url,
+                        includeProperties: true,
+                        expectedVersion: guardedVersion
+                    )
+                    Issue.record("Ambiguous structured set on \(pair.propKey) must reject.")
+                } catch TagLibManagerError.unsupportedWritePolicy {}
+                #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+                do {
+                    try TagLibMetadataManager.applyRawMetadataPatch(
+                        RawMetadataPatch(removingKeys: [pair.propKey]),
+                        to: url,
+                        expectedVersion: guardedVersion
+                    )
+                    Issue.record("Ambiguous raw removal on \(pair.propKey) must reject.")
+                } catch TagLibManagerError.unsupportedWritePolicy {}
+                #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+                do {
+                    try TagLibMetadataManager.applyRawMetadataPatch(
+                        RawMetadataPatch(valuesToSet: [pair.propKey: ["Ambiguous"]]),
+                        to: url,
+                        expectedVersion: guardedVersion
+                    )
+                    Issue.record("Ambiguous raw set on \(pair.propKey) must reject.")
+                } catch TagLibManagerError.unsupportedWritePolicy {}
+                #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+                do {
+                    try TagLibMetadataManager.applyMP4MetadataEditorPatch(
+                        [.itunesAlbumID: .integer(999)],
+                        raw: RawMetadataPatch(removingKeys: [pair.propKey]),
+                        to: url,
+                        expectedVersion: guardedVersion
+                    )
+                    Issue.record("Ambiguous editor raw removal on \(pair.propKey) must reject.")
+                } catch TagLibManagerError.unsupportedWritePolicy {}
+                #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+                var removedReplace = replaceProps
+                removedReplace.removeValue(forKey: pair.propKey)
+                do {
+                    try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                        removedReplace,
+                        to: url,
+                        mode: .replace,
+                        expectedVersion: guardedVersion
+                    )
+                    Issue.record("Ambiguous replace removal on \(pair.propKey) must reject.")
+                } catch TagLibManagerError.unsupportedWritePolicy {}
+                #expect(try ContractFixture.bytes(url) == guardedBytes)
+
+                // Explicit structured mp4Atoms removal deletes ONLY aliasKey and preserves canonKey verbatim.
+                try TagLibMetadataManager.writeStructuredMetadataWithVerification(
+                    StructuredMetadata(mp4Atoms: [StructuredMP4Atom(key: aliasKey, type: "stringList", remove: true)]),
+                    to: url,
+                    expectedVersion: guardedVersion
+                )
+                let afterExplicit = try ContractMP4Oracle.read(url)
+                #expect(afterExplicit.items[canonKey] == beforeOracle.items[canonKey])
+                #expect(afterExplicit.items[aliasKey] == nil)
+                #expect(afterExplicit.audio == beforeOracle.audio)
+            }
+        }
+
+        // 3. Standalone legacy alias freeform (----:com.apple.iTunes:RELEASETYPE alone,
+        //    without MusicBrainz Album Type): whole-map .replace and delta must preserve
+        //    or update it in place without synthesizing a duplicate MusicBrainz Album Type.
+        try ContractFixture.withCopy("m4a") { url in
+            let legacyKey = "----:com.apple.iTunes:RELEASETYPE"
+            let canonicalKey = "----:com.apple.iTunes:MusicBrainz Album Type"
+            let legacyILST =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Legacy Only".utf8)))
+                + makeFreeform(mean: "com.apple.iTunes", name: "RELEASETYPE", dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("legacy-ep".utf8)))
+            try ContractMP4Seed.seedRawILST(legacyILST, to: url)
+            let beforeOracle = try ContractMP4Oracle.read(url)
+            let snap = try TagLibMetadataManager.readSnapshot(from: url)
+            var props = Dictionary(uniqueKeysWithValues: snap.raw.properties.map { ($0.key, $0.values) })
+            props["TITLE"] = ["Updated Title"]
+
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                props,
+                to: url,
+                mode: .replace,
+                expectedVersion: snap.fileVersion
+            )
+            let afterUnrelatedReplace = try ContractMP4Oracle.read(url)
+            #expect(afterUnrelatedReplace.items[legacyKey] == beforeOracle.items[legacyKey])
+            #expect(afterUnrelatedReplace.items[canonicalKey] == nil)
+
+            props["RELEASETYPE"] = ["updated-ep"]
+            try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                props,
+                to: url,
+                mode: .replace,
+                expectedVersion: try TagLibMetadataManager.fileVersion(at: url)
+            )
+            let afterEditedReplace = try ContractMP4Oracle.read(url)
+            #expect(try afterEditedReplace.text(legacyKey) == "updated-ep")
+            #expect(afterEditedReplace.items[canonicalKey] == nil)
+        }
+
+        // 4. Whole-map .replace omitting TITLE when ©nam and shadowed ----:com.apple.iTunes:TITLE
+        //    coexist must fail closed and leave both atoms byte-for-byte intact.
+        try ContractFixture.withCopy("m4a") { url in
+            let shadowedILST =
+                makeAtom("©nam", makeDataAtom(type: 1, locale: 0, payload: Data("Native Title".utf8)))
+                + makeAtom("©alb", makeDataAtom(type: 1, locale: 0, payload: Data("Album".utf8)))
+                + makeFreeform(mean: "com.apple.iTunes", name: "TITLE", dataAtoms: makeDataAtom(type: 1, locale: canadianFrench, payload: Data("Shadowed Title".utf8)))
+            try ContractMP4Seed.seedRawILST(shadowedILST, to: url)
+            let beforeBytes = try ContractFixture.bytes(url)
+            let snap = try TagLibMetadataManager.readSnapshot(from: url)
+            var withoutTitle = Dictionary(uniqueKeysWithValues: snap.raw.properties.map { ($0.key, $0.values) })
+            withoutTitle.removeValue(forKey: "TITLE")
+
+            do {
+                try TagLibMetadataManager.writeRawMetadataPropertyMapValuesWithVerification(
+                    withoutTitle,
+                    to: url,
+                    mode: .replace,
+                    expectedVersion: snap.fileVersion
+                )
+                Issue.record("Whole-map .replace removing TITLE when a shadowed TITLE freeform exists must fail closed.")
+            } catch TagLibManagerError.verificationFailed {}
+            #expect(try ContractFixture.bytes(url) == beforeBytes)
         }
     }
 

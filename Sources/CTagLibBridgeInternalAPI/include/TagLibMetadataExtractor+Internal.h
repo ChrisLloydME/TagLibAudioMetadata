@@ -82,6 +82,7 @@ NS_SWIFT_NAME(wipeMetadataInPlace(from:));
 NS_SWIFT_NAME(coordinateMutation(at:_:));
 
 + (NSDictionary<NSString *, NSString *> *)mp4NativeAtomPropertyKeys;
++ (nullable NSString *)mp4PropertyKeyForAtomKey:(NSString *)atomKey;
 
 @end
 

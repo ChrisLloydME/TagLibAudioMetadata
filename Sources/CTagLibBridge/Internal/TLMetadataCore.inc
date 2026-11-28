@@ -207,6 +207,34 @@ public:
         });
         return cached;
     }
+    static NSString * _Nullable propertyKeyForAtomKey(NSString * _Nullable atomKey) {
+        if (!atomKey.length) return nil;
+        NSString *trimmed = [atomKey stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (!trimmed.length) return nil;
+        auto *factory = TagLib::MP4::ItemFactory::instance();
+        if ([trimmed hasPrefix:@"----:"]) {
+            const TagLib::String utf8(trimmed.UTF8String ?: "", TagLib::String::UTF8);
+            const TagLib::String mapped = factory->propertyKeyForName(utf8.data(TagLib::String::UTF8)).upper();
+            if (!mapped.isEmpty()) {
+                std::string mappedUtf8 = mapped.to8Bit(true);
+                return [NSString stringWithUTF8String:mappedUtf8.c_str()];
+            }
+            NSString *prefix = @"----:com.apple.iTunes:";
+            if (trimmed.length > prefix.length &&
+                [[trimmed substringToIndex:prefix.length] caseInsensitiveCompare:prefix] == NSOrderedSame) {
+                NSString *desc = [[trimmed substringFromIndex:prefix.length]
+                    stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                return desc.length ? desc.uppercaseString : nil;
+            }
+            return nil;
+        }
+        const TagLib::ByteVector latin1 =
+            TagLib::String(trimmed.UTF8String ?: "", TagLib::String::UTF8).data(TagLib::String::Latin1);
+        const TagLib::String mapped = factory->propertyKeyForName(latin1).upper();
+        if (mapped.isEmpty()) return nil;
+        std::string mappedUtf8 = mapped.to8Bit(true);
+        return [NSString stringWithUTF8String:mappedUtf8.c_str()];
+    }
 };
 
 // TagLib's MP4::Item does not model per-`data` atom locale bytes (such as

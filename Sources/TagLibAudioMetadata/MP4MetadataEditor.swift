@@ -207,16 +207,15 @@ extension TagLibMetadataManager {
             let afterFreeforms = after.filter {
                 mp4ITunesFreeformDescription(for: $0.key)?.uppercased() == rawKey
             }
-            let explicitFreeformEdited = rawKey == "DATE" && rawKeys.contains("STANDALONEDATE")
             if hadNative {
-                if !explicitFreeformEdited && beforeFreeforms != afterFreeforms {
+                if beforeFreeforms != afterFreeforms {
                     failures.append("MP4 freeform \(rawKey) changed while \(nativeAtom) owns \(rawKey).")
                 }
             } else if !beforeFreeforms.isEmpty {
                 if afterByKey[nativeAtom] != nil {
                     failures.append("MP4 atom \(nativeAtom) was created while freeform \(rawKey) owns \(rawKey).")
                 }
-            } else if rawKeys.contains(rawKey) && !explicitFreeformEdited && !afterFreeforms.isEmpty {
+            } else if rawKeys.contains(rawKey) && !afterFreeforms.isEmpty {
                 failures.append("Duplicate MP4 freeform \(rawKey) was created alongside \(nativeAtom).")
             }
         }

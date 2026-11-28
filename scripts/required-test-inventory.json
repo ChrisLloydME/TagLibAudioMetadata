@@ -535,6 +535,10 @@
     "suite": "NativeProbeContractTests",
     "path": "Integration/NativeProbeContractTests.swift"
   },
+  "mp4FreeformMappingFamiliesPreserveSeparateKeysAndRejectCollisions": {
+    "suite": "MP4MetadataEditorTests",
+    "path": "Integration/MP4MetadataEditorTests.swift"
+  },
   "mp4IntPairOverflowRejectsWithoutMutation": {
     "suite": "PublicWriteContractRepairTests",
     "path": "Integration/PublicWriteContractRepairTests.swift"

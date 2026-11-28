@@ -333,12 +333,12 @@
     },
     {
       "id": "mp4-raw-grouping-duplicate-freeform",
-      "description": "Allow raw GROUPING deltas to synthesize a duplicate iTunes GROUPING freeform alongside native ©grp.",
+      "description": "Allow raw GROUPING and DATE deltas on freeform-only files to synthesize a duplicate native 4-char atom alongside the existing freeform.",
       "patches": [
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
-          "find": "            const bool hadNative = originalMP4Items.contains(canonicalNative);\n            const bool hadFreeform = [originalFreeformDescriptions containsObject:@(mapping.canonicalPropertyKey)];\n            if (hadNative || !hadFreeform) continue;",
-          "replace": "            if (false) continue;"
+          "find": "            if (!entry.nativeKey.isEmpty() && !originalMP4Items.contains(entry.nativeKey)) {\n                mp4->removeItem(entry.nativeKey);\n            }",
+          "replace": "            if (false && !entry.nativeKey.isEmpty() && !originalMP4Items.contains(entry.nativeKey)) {\n                mp4->removeItem(entry.nativeKey);\n            }"
         }
       ],
       "test_filter": "rawGroupingAndDatePreserveSingleOwnerWithoutDuplication",
@@ -350,8 +350,8 @@
       "patches": [
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
-          "find": "        const TagLib::String nativeKey = MP4NativeFourCCAtomForPropertyKey(normalized);\n        if (!nativeKey.isEmpty() && originalMP4Items.contains(nativeKey)) {\n            mp4->setItem(key, item);\n            continue;\n        }",
-          "replace": "        if (false) {\n            mp4->setItem(key, item);\n            continue;\n        }"
+          "find": "    for (const auto &entry : shadowedFreeforms) {\n        mp4->setItem(entry.key, entry.item);\n    }",
+          "replace": "    if (false) for (const auto &entry : shadowedFreeforms) {\n        mp4->setItem(entry.key, entry.item);\n    }"
         }
       ],
       "test_filter": "rawEditsAndDeletesPreserveShadowedFreeformsAcrossNativeMP4Atoms",
@@ -480,8 +480,8 @@
       "patches": [
         {
           "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
-          "find": "                if (upperFreeformKey != entry.key && !originalMP4Items.contains(upperFreeformKey)) {\n                    mp4->removeItem(upperFreeformKey);\n                }\n            }\n            for (const auto &entry : group) {\n                mp4->setItem(entry.key, entry.item);\n            }",
-          "replace": "                if (upperFreeformKey != entry.key) {\n                    mp4->removeItem(upperFreeformKey);\n                }\n            }"
+          "find": "            for (const auto &entry : group) {\n                if (!synthesizedKey.isEmpty() &&\n                    synthesizedKey != entry.key &&\n                    !originalMP4Items.contains(synthesizedKey)) {\n                    mp4->removeItem(synthesizedKey);\n                }\n            }\n            for (const auto &entry : group) {\n                mp4->setItem(entry.key, entry.item);\n            }",
+          "replace": "            for (const auto &entry : group) {\n                if (!synthesizedKey.isEmpty() && synthesizedKey != entry.key) {\n                    mp4->removeItem(synthesizedKey);\n                }\n            }"
         }
       ],
       "test_filter": "rawReplaceAndMP4WritesPreserveCaseCollisionsAndBinaryFreeforms",
@@ -508,6 +508,45 @@
         }
       ],
       "test_filter": "rawReplaceAndMP4WritesPreserveCaseCollisionsAndBinaryFreeforms",
+      "witness": "Expectation failed"
+    },
+    {
+      "id": "mp4-delta-separate-freeform-cross-delete",
+      "description": "Allow MP4 PropertyMap delta removal of RELEASETYPE to also remove an untouched separate MUSICBRAINZ ALBUM TYPE freeform.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
+          "find": "        } else {\n            mp4->removeItem(entry.key);\n        }",
+          "replace": "        } else {\n            mp4->removeItem(entry.key);\n            if ([upperProp isEqualToString:@\"RELEASETYPE\"]) mp4->removeItem(\"----:com.apple.iTunes:MUSICBRAINZ ALBUM TYPE\");\n        }"
+        }
+      ],
+      "test_filter": "mp4FreeformMappingFamiliesPreserveSeparateKeysAndRejectCollisions",
+      "witness": "mp4FreeformMappingFamiliesPreserveSeparateKeysAndRejectCollisions"
+    },
+    {
+      "id": "mp4-delta-shared-projection-collision-bypass",
+      "description": "Skip rejecting ambiguous MP4 PropertyMap edits/removals when multiple physical freeforms (such as MusicBrainz Album Type + RELEASETYPE) project to one visible key.",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapDelta.inc",
+          "find": "        auto it = nonShadowedGroups.find(NSStringToTagString(reqKey));\n        if (it != nonShadowedGroups.end() && it->second.size() > 1) {",
+          "replace": "        auto it = nonShadowedGroups.find(NSStringToTagString(reqKey));\n        if (false && it != nonShadowedGroups.end() && it->second.size() > 1) {"
+        }
+      ],
+      "test_filter": "mp4FreeformMappingFamiliesPreserveSeparateKeysAndRejectCollisions",
+      "witness": "must reject"
+    },
+    {
+      "id": "mp4-replace-standalone-alias-duplicate",
+      "description": "Skip cleaning up TagLib-synthesized canonical freeforms (such as MusicBrainz Album Type) during whole-map .replace over a standalone alias freeform (such as RELEASETYPE).",
+      "patches": [
+        {
+          "file": "Sources/CTagLibBridge/Internal/TLPropertyMapWrites.inc",
+          "find": "        const TagLib::String synthesizedKey =\n            (!canonicalName.isEmpty() && canonicalName.startsWith(\"----:\"))\n            ? TagLib::String(canonicalName, TagLib::String::UTF8)\n            : (canonicalName.isEmpty()\n               ? NSStringToTagString([@\"----:com.apple.iTunes:\" stringByAppendingString:upperProp])\n               : TagLib::String());",
+          "replace": "        const TagLib::String synthesizedKey = canonicalName.isEmpty()\n            ? NSStringToTagString([@\"----:com.apple.iTunes:\" stringByAppendingString:upperProp])\n            : TagLib::String();"
+        }
+      ],
+      "test_filter": "mp4FreeformMappingFamiliesPreserveSeparateKeysAndRejectCollisions",
       "witness": "Expectation failed"
     }
   ]
